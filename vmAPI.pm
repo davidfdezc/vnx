@@ -394,7 +394,7 @@ sub defineVM {
 		my $source3_tag = $init_xml->createElement('source');
 		$serial_tag->addChild($source3_tag);
 		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName). '/' . $vmName . '_socket' ) );
+		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_run_dir($vmName). '/' . $vmName . '_socket' ) );
 		my $target_tag = $init_xml->createElement('target');
 		$serial_tag->addChild($target_tag);
 		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
@@ -842,7 +842,7 @@ sub createVM {
 		my $source3_tag = $init_xml->createElement('source');
 		$serial_tag->addChild($source3_tag);
 		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
+		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_run_dir($vmName) . '/' . $vmName . '_socket' ) );
 		my $target_tag = $init_xml->createElement('target');
 		$serial_tag->addChild($target_tag);
 		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
@@ -1584,8 +1584,8 @@ sub shutdownVM {
 				$listDom->shutdown();
 				&change_vm_status( $dh, $vmName, "REMOVE" );
 
-				#remove run directory
-				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) );
+				#remove pid file
+				$execution->execute( "rm " . $dh->get_run_dir($vmName) . "/pid" );
 
 				# PROBANDO a hacerlo con PIDs
 				#               # Wait for the domain to shutdown
@@ -2303,7 +2303,7 @@ sub halt_uml {
 			next;
 		}
 
-		&change_vm_status( $dh, $name, "REMOVE" );
+		&change_vm_status( $dh, $name, "REMOVE" ); #[JSF] dejar como shutoff?
 
 		# Currently booting uml has already been killed
 		if ( defined($curr_uml) && $name eq $curr_uml ) {
@@ -3808,8 +3808,8 @@ sub conf_files {
 		$execution->execute(
 			"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.iso hdb --mode readonly --driver file --type cdrom'"
 		);
-		print "Intentando copiar fichero en el cliente, el socket es este: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
-		waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
+		print "Intentando copiar fichero en el cliente, el socket es este: \n" . $dh->get_run_dir($name). '/'.$name.'_socket';
+		waitfiletree($dh->get_run_dir($name) .'/'.$name.'_socket');
 #		$execution->execute(
 #			"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
 		$execution->execute("rm /tmp/disco.iso");
@@ -4421,7 +4421,7 @@ sub exec_command_files {
 			"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.iso hdb --mode readonly --driver file --type cdrom'"
 		);
 		print "Intentando copiar fichero en el cliente \n";
-		waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
+		waitexecute($dh->get_run_dir($name).'/'.$name.'_socket');
 #		$execution->execute(
 #			"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
 		$execution->execute("rm /tmp/disco.iso");
