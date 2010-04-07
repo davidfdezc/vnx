@@ -3,9 +3,9 @@
 # Version JA120120101157
 #
 # This file is a sample for VNUML generalization API.
-
+###############
 package vmAPI;
-
+# [JSF] modificacion
 @ISA    = qw(Exporter);
 @EXPORT = qw(defineVM
   undefineVM
@@ -27,18 +27,18 @@ use Sys::Virt;
 use Sys::Virt::Domain;
 
 #de vnumlparser
-use VNUML::DataHandler;
-
+use VNX::DataHandler;
 #use DataHandler;
-use VNUML::Execution;
-use VNUML::BinariesData;
-use VNUML::Arguments;
-use VNUML::CheckSemantics;
-use VNUML::TextManipulation;
-use VNUML::NetChecks;
-use VNUML::FileChecks;
-use VNUML::DocumentChecks;
-use VNUML::IPChecks;
+
+use VNX::Execution;
+use VNX::BinariesData;
+use VNX::Arguments;
+use VNX::CheckSemantics;
+use VNX::TextManipulation;
+use VNX::NetChecks;
+use VNX::FileChecks;
+use VNX::DocumentChecks;
+use VNX::IPChecks;
 
 #necesario para mover UML_bootfile aqui
 use File::Basename;
@@ -54,9 +54,9 @@ use IO::Socket::UNIX qw( SOCK_STREAM );
 
 # Global objects
 
-my $execution;    # the VNUML::Execution object
-my $dh;           # the VNUML::DataHandler object
-my $bd;           # the VNUML::BinariesData object
+my $execution;    # the VNX::Execution object
+my $dh;           # the VNX::DataHandler object
+my $bd;           # the VNX::BinariesData object
 
 my $numcomandos;  # Dice el numero de comandos que hay para ejecutar
 
@@ -394,7 +394,7 @@ sub defineVM {
 		my $source3_tag = $init_xml->createElement('source');
 		$serial_tag->addChild($source3_tag);
 		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_run_dir($vmName). '/' . $vmName . '_socket' ) );
+		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName). '/' . $vmName . '_socket' ) );
 		my $target_tag = $init_xml->createElement('target');
 		$serial_tag->addChild($target_tag);
 		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
@@ -842,7 +842,7 @@ sub createVM {
 		my $source3_tag = $init_xml->createElement('source');
 		$serial_tag->addChild($source3_tag);
 		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_run_dir($vmName) . '/' . $vmName . '_socket' ) );
+		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
 		my $target_tag = $init_xml->createElement('target');
 		$serial_tag->addChild($target_tag);
 		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
@@ -1584,8 +1584,8 @@ sub shutdownVM {
 				$listDom->shutdown();
 				&change_vm_status( $dh, $vmName, "REMOVE" );
 
-				#remove pid file
-				$execution->execute( "rm " . $dh->get_run_dir($vmName) . "/pid" );
+				#remove run directory
+				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) );
 
 				# PROBANDO a hacerlo con PIDs
 				#               # Wait for the domain to shutdown
@@ -2303,7 +2303,7 @@ sub halt_uml {
 			next;
 		}
 
-		&change_vm_status( $dh, $name, "REMOVE" ); #[JSF] dejar como shutoff?
+		&change_vm_status( $dh, $name, "REMOVE" );
 
 		# Currently booting uml has already been killed
 		if ( defined($curr_uml) && $name eq $curr_uml ) {
@@ -2810,7 +2810,7 @@ sub UML_bootfile {
 	  unless ( $execution->get_exe_mode() == EXE_DEBUG );
 	my $verb_prompt_bk = $execution->get_verb_prompt();
 
-# FIXME: consider to use a different new VNUML::Execution object to perform this
+# FIXME: consider to use a different new VNX::Execution object to perform this
 # actions (avoiding this nasty verb_prompt backup)
 	$execution->set_verb_prompt("$vm_name> ");
 
@@ -3192,7 +3192,7 @@ sub UML_plugins_conf {
 	  unless ( $execution->get_exe_mode() == EXE_DEBUG );
 	my $verb_prompt_bk = $execution->get_verb_prompt();
 
-# FIXME: consider to use a different new VNUML::Execution object to perform this
+# FIXME: consider to use a different new VNX::Execution object to perform this
 # actions (avoiding this nasty verb_prompt backup)
 	$execution->set_verb_prompt("$name> ");
 
@@ -3534,7 +3534,7 @@ sub conf_files {
 
 							my $verb_prompt_bk = $execution->get_verb_prompt();
 
-# FIXME: consider to use a different new VNUML::Execution object to perform this
+# FIXME: consider to use a different new VNX::Execution object to perform this
 # actions (avoiding this nasty verb_prompt backup)
 							$execution->set_verb_prompt("$name> ");
 
@@ -3648,7 +3648,7 @@ sub conf_files {
 
 		my $verb_prompt_bk = $execution->get_verb_prompt();
 
-# FIXME: consider to use a different new VNUML::Execution object to perform this
+# FIXME: consider to use a different new VNX::Execution object to perform this
 # actions (avoiding this nasty verb_prompt backup)
 		$execution->set_verb_prompt("$name> ");
 
@@ -3808,8 +3808,8 @@ sub conf_files {
 		$execution->execute(
 			"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.iso hdb --mode readonly --driver file --type cdrom'"
 		);
-		print "Intentando copiar fichero en el cliente, el socket es este: \n" . $dh->get_run_dir($name). '/'.$name.'_socket';
-		waitfiletree($dh->get_run_dir($name) .'/'.$name.'_socket');
+		print "Intentando copiar fichero en el cliente, el socket es este: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
+		waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
 #		$execution->execute(
 #			"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
 		$execution->execute("rm /tmp/disco.iso");
@@ -3945,7 +3945,7 @@ sub conf_files {
 
 					my $verb_prompt_bk = $execution->get_verb_prompt();
 
-# FIXME: consider to use a different new VNUML::Execution object to perform this
+# FIXME: consider to use a different new VNX::Execution object to perform this
 # actions (avoiding this nasty verb_prompt backup)
 					$execution->set_verb_prompt("$name> ");
 
@@ -4074,7 +4074,7 @@ sub command_files {
 
 			my $verb_prompt_bk = $execution->get_verb_prompt();
 
-# FIXME: consider to use a different new VNUML::Execution object to perform this
+# FIXME: consider to use a different new VNX::Execution object to perform this
 # actions (avoiding this nasty verb_prompt backup)
 			$execution->set_verb_prompt("$name> ");
 
@@ -4170,7 +4170,7 @@ sub command_files {
 
 			my $verb_prompt_bk = $execution->get_verb_prompt();
 
-# FIXME: consider to use a different new VNUML::Execution object to perform this
+# FIXME: consider to use a different new VNX::Execution object to perform this
 # actions (avoiding this nasty verb_prompt backup)
 			$execution->set_verb_prompt("$name> ");
 
@@ -4421,7 +4421,7 @@ sub exec_command_files {
 			"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.iso hdb --mode readonly --driver file --type cdrom'"
 		);
 		print "Intentando copiar fichero en el cliente \n";
-		waitexecute($dh->get_run_dir($name).'/'.$name.'_socket');
+		waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
 #		$execution->execute(
 #			"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
 		$execution->execute("rm /tmp/disco.iso");
@@ -4781,4 +4781,8 @@ sub set_file_user {
 
 }
 
+
+# hola, esto es el final
+
 1;
+

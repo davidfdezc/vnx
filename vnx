@@ -146,19 +146,19 @@ use Data::Dumper;
 
 use XML::LibXML;
 
-#use VNUML::DataHandler;
-use DataHandler;
-use VNUML::Execution;
-use VNUML::BinariesData;
-use VNUML::Arguments;
-use VNUML::CheckSemantics;
-use VNUML::TextManipulation;
-use VNUML::NetChecks;
-use VNUML::FileChecks;
-use VNUML::DocumentChecks;
-use VNUML::IPChecks;
-#use VNUML::vmAPI;
-use vmAPI;
+use VNX::DataHandler;
+#use DataHandler; 
+use VNX::Execution;
+use VNX::BinariesData;
+use VNX::Arguments;
+use VNX::CheckSemantics;
+use VNX::TextManipulation;
+use VNX::NetChecks;
+use VNX::FileChecks;
+use VNX::DocumentChecks;
+use VNX::IPChecks;
+use VNX::vmAPI;
+#use vmAPI;
 
 use Error qw(:try);
 use Exception::Class ( "Vnuml::Exception" =>
@@ -192,10 +192,10 @@ $SIG{TERM} = \&handle_sig;
 ###########################################################
 # Global objects
 
-my $execution;   # the VNUML::Execution object
-my $dh;          # the VNUML::DataHandler object
-my $bd;          # the VNUML::BinariesData object
-my $args;        # the VNUML::Arguments object
+my $execution;   # the VNX::Execution object
+my $dh;          # the VNX::DataHandler object
+my $bd;          # the VNX::BinariesData object
+my $args;        # the VNX::Arguments object
 my @plugins;     # plugins array
 
 ###########################################################
@@ -271,7 +271,7 @@ sub main {
               'save' => \$opt_save, 'restore' => \$opt_restore,
               'suspend' => \$opt_suspend, 'resume' => \$opt_resume,
               'reboot' => \$opt_reboot, 'reset' => \$opt_reset,
-              'execute' => \$opt_execute, 'f=s' => \$opt_f);
+              'execute=s' => \$opt_execute, 'f=s' => \$opt_f);
       
 
       
@@ -512,7 +512,7 @@ sub main {
    if ($opt_x) {
       $cmdseq = $opt_x;
    }elsif ($opt_execute){
-   		$cmdseq = $opt_execute;
+   	  $cmdseq = $opt_execute;
    }
    
    $input_file = $input;
@@ -556,7 +556,7 @@ sub main {
    &vnuml_die ("tmp_dir $tmp_dir is not writeable\n") unless (-w _);
    &vnuml_die ("tmp_dir $tmp_dir is not a valid directory\n") unless (-d _);
 
-   # 5. To build the VNUML::BinariesData object
+   # 5. To build the VNX::BinariesData object
    $bd = new BinariesData($exemode);
 
    # 6a. To check mandatory binaries # [JSF] to be updated with new ones
@@ -653,13 +653,13 @@ exit;
         $doc = $parser2->parsefile($input_file);
    }
 
-   # Build the VNUML::Execution object
+   # Build the VNX::Execution object
    $execution = new Execution($vnuml_dir,$exemode,"host> ",$exeinteractive,$uid);
 
    # Calculate the directory where the input_file lives
    my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
-   # Build the VNUML::DataHandler object
+   # Build the VNX::DataHandler object
    $dh = new DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
    $dh->set_boot_timeout($boot_timeout);
    $dh->set_vnuml_dir($vnuml_dir);
@@ -2716,7 +2716,7 @@ sub mode_x {
 #	              unless ($execution->get_exe_mode() == EXE_DEBUG);
 #	              
 #                  my $verb_prompt_bk = $execution->get_verb_prompt();
-#                  # FIXME: consider to use a different new VNUML::Execution object to perform this
+#                  # FIXME: consider to use a different new VNX::Execution object to perform this
 #                  # actions (avoiding this nasty verb_prompt backup)
 #                  $execution->set_verb_prompt("$name> ");	  
 #	  
@@ -2835,7 +2835,7 @@ sub mode_x {
 #	           unless ($execution->get_exe_mode() == EXE_DEBUG);
 #	           
 #               my $verb_prompt_bk = $execution->get_verb_prompt();
-#               # FIXME: consider to use a different new VNUML::Execution object to perform this
+#               # FIXME: consider to use a different new VNX::Execution object to perform this
 #               # actions (avoiding this nasty verb_prompt backup)
 #               $execution->set_verb_prompt("$name> ");	  
 #	  
@@ -2921,7 +2921,7 @@ sub mode_x {
 #	  unless ($execution->get_exe_mode() == EXE_DEBUG);
 #	  
 #      my $verb_prompt_bk = $execution->get_verb_prompt();
-#      # FIXME: consider to use a different new VNUML::Execution object to perform this
+#      # FIXME: consider to use a different new VNX::Execution object to perform this
 #      # actions (avoiding this nasty verb_prompt backup)
 #      $execution->set_verb_prompt("$name> ");	  
 #	  
@@ -5020,9 +5020,9 @@ sub validation_fail {
 # vnuml_die
 #
 # Wrapper of die Perl function. It is based on the old smartdie, now moved to the
-# VNUML::Execution class in Execution.pm. Note that, this funcion does not release
+# VNX::Execution class in Execution.pm. Note that, this funcion does not release
 # the LOCK file (as smartdie does): it is intented to be used in the early stages
-# of vnumlparser.pl execution, when the VNUML::Execution object has not been construsted.
+# of vnumlparser.pl execution, when the VNX::Execution object has not been construsted.
 #
 sub vnuml_die {
    my $mess = shift;

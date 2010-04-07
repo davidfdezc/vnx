@@ -31,9 +31,9 @@
 package DataHandler;
 
 use strict;
-use VNUML::TextManipulation;
-use VNUML::DocumentChecks;
-use VNUML::FileChecks;
+use VNX::TextManipulation;
+use VNX::DocumentChecks;
+use VNX::FileChecks;
 
 ###########################################################################
 # CLASS CONSTRUCTOR
@@ -705,7 +705,7 @@ sub get_vm_to_use {
 	      ($self->{'mode'} eq "suspend") ||
 	      ($self->{'mode'} eq "resume") ||
 	      ($self->{'mode'} eq "undefine") ||
-          (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || ($plugins_vms{$name} eq "1") ) && ($self->{'mode'} eq "x") )  
+          (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || ($plugins_vms{$name} eq "1") ) && ($self->{'mode'} eq "x") || ($plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") )  
 	  ) {
 	  	
          # Only if list is not empty
