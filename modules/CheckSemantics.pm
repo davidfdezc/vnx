@@ -27,7 +27,7 @@
 # CheckSemantincs implements the needed methods to check the VNUML XML specification before
 # starting processing
 
-package VNUML::CheckSemantics;
+package VNX::CheckSemantics;
 require(Exporter);
 
 @ISA = qw(Exporter);
@@ -36,10 +36,10 @@ require(Exporter);
 use strict;
 use NetAddr::IP;
 use Net::Pcap;
-use VNUML::FileChecks;
-use VNUML::IPChecks;
-use VNUML::NetChecks;
-use VNUML::TextManipulation;
+use VNX::FileChecks;
+use VNX::IPChecks;
+use VNX::NetChecks;
+use VNX::TextManipulation;
 
 # check_doc
 #

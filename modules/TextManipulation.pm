@@ -26,7 +26,7 @@
 
 # This module includes several miscelanous functions to process text.
 
-package VNUML::TextManipulation;
+package VNX::TextManipulation;
 require(Exporter);
 
 @ISA = qw(Exporter);

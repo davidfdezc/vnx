@@ -26,14 +26,14 @@
 
 # NetChecks implementes several functions related with network checks
 
-package VNUML::NetChecks;
+package VNX::NetChecks;
 require(Exporter);
 
 @ISA = qw(Exporter);
 @EXPORT = qw( tundevice_needed check_net_host_conn );
 
 use strict;
-use VNUML::DocumentChecks;
+use VNX::DocumentChecks;
 
 # tundevice_needed
 #

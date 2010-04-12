@@ -26,7 +26,7 @@
 
 # IPChecks implementes several functions related with file checks
 
-package VNUML::IPChecks;
+package VNX::IPChecks;
 require(Exporter);
 
 @ISA = qw(Exporter);
@@ -37,7 +37,7 @@ require(Exporter);
 use strict;
 use Net::IPv6Addr;
 use NetAddr::IP;
-use VNUML::TextManipulation;
+use VNX::TextManipulation;
 
 # valid_ipv4
 #

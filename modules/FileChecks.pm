@@ -28,7 +28,7 @@
 
 # FileChecks implementes several funcitons related with file checks
 
-package VNUML::FileChecks;
+package VNX::FileChecks;
 #package FileChecks;
 require(Exporter);
 

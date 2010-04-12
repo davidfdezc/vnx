@@ -30,7 +30,7 @@
 package BinariesData;
 
 use strict;
-use VNUML::TextManipulation;
+use VNX::TextManipulation;
 
 # TODO: constant should be included in a .pm that would be loaded from each module
 # that needs them

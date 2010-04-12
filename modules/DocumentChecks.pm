@@ -27,7 +27,7 @@
 # DocumentChecks implementes several functions related with checks in the XML VNUML
 # document
 
-package VNUML::DocumentChecks;
+package VNX::DocumentChecks;
 require(Exporter);
 
 @ISA = qw(Exporter);
@@ -37,7 +37,7 @@ require(Exporter);
               mng_if_value);
 
 use strict;
-use VNUML::TextManipulation;
+use VNX::TextManipulation;
 
 # vm_has_tag
 #
