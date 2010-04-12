@@ -417,9 +417,9 @@ sub defineVM {
 		my $format    = 1;
 		my $xmlstring = $init_xml->toString($format);
 
-		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . "/xml_libvirt"
+		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
 		  or $execution->smartdie(
-			"can not open " . $dh->get_vm_dir . "/xml_libvirt" )
+			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml' )
 		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
 		print XML_FILE "$xmlstring\n";
 		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
@@ -865,9 +865,9 @@ sub createVM {
 		my $format    = 1;
 		my $xmlstring = $init_xml->toString($format);
 
-		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . "/xml_libvirt"
+		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
 		  or $execution->smartdie(
-			"can not open " . $dh->get_vm_dir . "/xml_libvirt" )
+			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml')
 		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
 		print XML_FILE "$xmlstring\n";
 		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
@@ -2026,8 +2026,8 @@ sub executeCMD {
 		unless ( $vm_hash{$name} ) {
 			next;
 		}
-		my $type = $vm->getAttribute("type");
-		if ( $type eq "uml" ) {
+		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+		if ( $merged_type eq "uml" ) {
 			if ( &get_vm_exec_mode($vm) eq "mconsole" ) {
 				unless ( &check_mconsole_exec_capabilities($vm) ) {
 					$execution->smartdie(
@@ -2036,7 +2036,7 @@ sub executeCMD {
 				}
 			}
 		}
-		elsif ( $type eq "libvirt-kvm-windows" ) {
+		elsif ( $merged_type eq "libvirt-kvm-windows" ) {
 
 			#Nothing to do.
 		}
@@ -2053,8 +2053,8 @@ sub executeCMD {
 		unless ( $vm_hash{$name} ) {
 			next;
 		}
-		my $type = $vm->getAttribute("type");
-		if ( $type eq "uml" ) {
+		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+		if ( $merged_type eq "uml" ) {
 
 		   # Check if the virtual machine execute commans using "net" mode. This
 		   # involves additional checkings
@@ -2078,7 +2078,7 @@ sub executeCMD {
 				}
 			}
 		}
-		elsif ( $type eq "libvirt-kvm-windows" ) {
+		elsif ( $merged_type eq "libvirt-kvm-windows" ) {
 
 			#Nothing to do.
 		}
@@ -3467,7 +3467,10 @@ sub conf_files {
 				# To get executing user and execution mode
 				my $user   = &get_user_in_seq( $vm, $seq );
 				my $mode   = &get_vm_exec_mode($vm);
-				my $typeos = $vm->getAttribute("type");
+				my $type = $vm->getAttribute("type");
+				my $subtype = $vm->getAttribute("subtype");
+                my $os = $vm->getAttribute("os");
+                my $typeos = $type . "-" . $subtype . "-" . $os;
 
 				if ( $mode eq "net" ) {
 					$execution->execute( $bd->get_binaries_path_ref->{"scp"}
@@ -3729,7 +3732,10 @@ sub conf_files {
 				# To get executing user and execution mode
 				my $user   = &get_user_in_seq( $vm, $seq );
 				my $mode   = &get_vm_exec_mode($vm);
-				my $typeos = $vm->getAttribute("type");
+				my $type = $vm->getAttribute("type");
+				my $subtype = $vm->getAttribute("subtype");
+                my $os = $vm->getAttribute("os");
+                my $typeos = $type . "-" . $subtype . "-" . $os;
 
 				if ( $mode eq "mconsole" ) {
 					if ( $typeos eq "uml" ) {
@@ -4062,7 +4068,10 @@ sub command_files {
 		unless ( $vm_hash{$name} ) {
 			next;
 		}
-		my $typeos = $vm->getAttribute("type");
+		my $type = $vm->getAttribute("type");
+		my $subtype = $vm->getAttribute("subtype");
+        my $os = $vm->getAttribute("os");
+        my $typeos = $type . "-" . $subtype . "-" . $os;
 		if ( $typeos eq "uml" ) {
 
 			# We open file
@@ -4198,7 +4207,10 @@ sub command_files {
 				# To get attributes
 				my $cmd_seq = $command->getAttribute("seq");
 				my $type    = $command->getAttribute("type");
-				my $typeos  = $vm->getAttribute("type");
+				my $type  = $vm->getAttribute("type");
+				my $subtype = $vm->getAttribute("subtype");
+                my $os = $vm->getAttribute("os");
+                my $typeos = $type . "-" . $subtype . "-" . $os;
 
 				if ( $cmd_seq eq $seq ) {
 
@@ -4350,7 +4362,10 @@ sub exec_command_files {
 		# Get execution user and mode
 		my $user = &get_user_in_seq( $vm, $seq );
 		my $mode = &get_vm_exec_mode($vm);
-		my $type = $vm->getAttribute("type");
+		my $vmtype = $vm->getAttribute("type");
+		my $subtype = $vm->getAttribute("subtype");
+        my $os = $vm->getAttribute("os");
+        my $type = $vmtype . "-" . $subtype . "-" . $os;
 
 		# Process it?
 		unless ( $vm_hash{$name} ) {
@@ -4779,6 +4794,22 @@ sub set_file_user {
 	$execution->execute(
 		$bd->get_binaries_path_ref->{"rm"} . " -f $cmd_file_host" );
 
+}
+
+sub merge_vm_type {
+	my $type = shift;
+	my $subtype = shift;
+	my $os = shift;
+	my $merged_type = $type;
+	
+	if (!($subtype eq "")){
+		$merged_type = $merged_type . "-" . $subtype;
+		if (!($os eq "")){
+			$merged_type = $merged_type . "-" . $os;
+		}
+	}
+	return $merged_type;
+	
 }
 
 

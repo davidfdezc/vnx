@@ -146,8 +146,8 @@ use Data::Dumper;
 
 use XML::LibXML;
 
-use VNX::DataHandler;
-#use DataHandler; 
+#use VNX::DataHandler;
+use modules::DataHandler; 
 use VNX::Execution;
 use VNX::BinariesData;
 use VNX::Arguments;
@@ -157,8 +157,8 @@ use VNX::NetChecks;
 use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
-use VNX::vmAPI;
-#use vmAPI;
+#use VNX::vmAPI;
+use modules::vmAPI;
 
 use Error qw(:try);
 use Exception::Class ( "Vnuml::Exception" =>
@@ -917,137 +917,142 @@ exit;
 # mode_t
 #
 # Build topology mode
-sub mode_t {
-
-    my $basename = basename $0;
-    my $opt_M = shift;
-    my $opt_define = shift;
-    my $opt_start = shift;
-
-    try {
-
-        # If -M mode in use, avoid creation of scenario
-        unless ($opt_M){
-
-            # To load tun module if needed
-            if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
-                !$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
-            }
-
-            # To make directory to store files related with the topology
-            if (! -d $dh->get_sim_dir && $execution->get_exe_mode != EXE_DEBUG) {
-                mkdir $dh->get_sim_dir or $execution->smartdie ("error making directory " . $dh->get_sim_dir . ": $!");
-            }
-            # To copy the scenario file
-            my $command = $bd->get_binaries_path_ref->{"date"};
-            chomp (my $now = `$command`);
-            my $input_file_basename = basename $dh->get_input_file;
-            $execution->execute($bd->get_binaries_path_ref->{"cp"} . " " . $dh->get_input_file . " " . $dh->get_sim_dir);
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " '<'!-- copied by $basename at $now --'>' >> ".$dh->get_sim_dir."/$input_file_basename");       
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " '<'!-- original path: ".abs_path($dh->get_input_file)." --'>' >> ".$dh->get_sim_dir."/$input_file_basename");
-
-            # To make lock file (it exists while topology is running)
-            $execution->execute ($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_sim_dir . "/lock");
-
-            # Create the mgmn_net socket when <vmmgnt type="net">, if needed
-            if (($dh->get_vmmgmt_type eq "net") && ($dh->get_vmmgmt_autoconfigure ne "")) {
-                if ($> == 0) {
-                    my $sock = &do_path_expansion($dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock"));
-                        if (-S $sock) {
-                            print "VNUML warning: <mgmt_net> socket already exists. Ignoring socket autoconfiguration\n";
-                        }
-                        else {
-                        # Create the socket
-                        &mgmt_sock_create($sock,$dh->get_vmmgmt_autoconfigure,$dh->get_vmmgmt_hostip,$dh->get_vmmgmt_mask);
-                        }
-                }
-                else {
-                    print "VNUML warning: <mgmt_net> autoconfigure attribute only is used when VNUML parser is invoked by root. Ignoring socket autoconfiguration\n";
-                }
-            }
-
-            # 1. To perform configuration for bridged virtual networks (<net mode="virtual_bridge">) and TUN/TAP for management
-            &configure_virtual_bridged_networks;
-
-            # 2. Host configuration
-            &host_config;
-
-            # 3. Set appropriate permissions and perform configuration for switched virtual networks and uml_switches creation (<net mode="uml_switch">)
-            &chown_working_dir;
-            &configure_switched_networks;
-	   
-            # 4. To link TUN/TAP to the bridges (for bridged virtual networks only, <net mode="virtual_bridge">)
-            &tun_connect;
-
-            # 5. To create fs, hostsfs and run directories
-            &create_dirs;
-        
-        }
-        # 6. Initialize the notify socket
-        my ($sock,$notify_ctl) = &UML_notify_init if ($execution->get_exe_mode() != EXE_DEBUG);
-
-        # 7. Set appropriate permissions and boot/define each UML
-        &chown_working_dir;
-        &xauth_add;
-        &boot_VMs($sock,$notify_ctl,$opt_define,$opt_start);
-
-        # 8. Clean up the notify socket
-        &UML_notify_cleanup($sock,$notify_ctl) if ($execution->get_exe_mode() != EXE_DEBUG);
-
-        # If <host_mapping> is in use and not in debug mode, process /etc/hosts
-        my $lines = join "\n", @host_lines;
-        &host_mapping_patch ($lines, $dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
-   
-        # If -B, block until ready
-        if ($args->get('B')) {
-            my $time_0 = time();
-            my %vm_ips = &get_UML_command_ip("");
-            while (!&UMLs_cmd_ready(%vm_ips)) {
-                #system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
-                sleep($dh->get_delay);
-                my $time_w = time();
-                my $interval = $time_w - $time_0;
-                print "$interval seconds elapsed...\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
-                %vm_ips = &get_UML_command_ip("");
-            }
-        }
-        
-        # Print vnc ports, if used
-        my @vm_ordered = $dh->get_vm_ordered;
-        my $first = 1;
-        for ( my $i = 0; $i < @vm_ordered; $i++) {
-			my $vm = $vm_ordered[$i];
-			
-			my $name = $vm->getAttribute("name");
-			my $type = $vm->getAttribute("type");
-			
-			if ($type eq "libvirt-kvm-windows"){
-				if ($first eq 1){
-					print "\nList of vnc ports used:\n";
-					$first = 0;
-				}
-				my $vnc_port = 6900 + $i;
-				print $name . ": " . $vnc_port . "\n";
-			}
-			my $last = @vm_ordered - $i;
-			if ($last eq 1){
-				print "\n";	
-			}
-		}
-        
-    } 
-    catch Vnuml::Exception with {
-	   my $E = shift;
-	   print $E->as_string;
-	   print $E->message;
-    
-    } 
-    catch Error with {
-	   my $E = shift;
-	   print "ERROR: " . $E->text . " at " . $E->file . ", line " .$E->line;
-	   print $E->stringify;
-    }
-}
+#sub mode_t {
+#
+#    my $basename = basename $0;
+#    my $opt_M = shift;
+#    my $opt_define = shift;
+#    my $opt_start = shift;
+#
+#    try {
+#
+#        # If -M mode in use, avoid creation of scenario
+#        unless ($opt_M){
+#
+#            # To load tun module if needed
+#            if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
+#                if (! -e "/dev/net/tun") {
+#                    !$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
+#                }
+#            }
+#
+#            # To make directory to store files related with the topology
+#            if (! -d $dh->get_sim_dir && $execution->get_exe_mode != EXE_DEBUG) {
+#                mkdir $dh->get_sim_dir or $execution->smartdie ("error making directory " . $dh->get_sim_dir . ": $!");
+#            }
+#            # To copy the scenario file
+#            my $command = $bd->get_binaries_path_ref->{"date"};
+#            chomp (my $now = `$command`);
+#            my $input_file_basename = basename $dh->get_input_file;
+#            $execution->execute($bd->get_binaries_path_ref->{"cp"} . " " . $dh->get_input_file . " " . $dh->get_sim_dir);
+#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " '<'!-- copied by $basename at $now --'>' >> ".$dh->get_sim_dir."/$input_file_basename");       
+#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " '<'!-- original path: ".abs_path($dh->get_input_file)." --'>' >> ".$dh->get_sim_dir."/$input_file_basename");
+#
+#            # To make lock file (it exists while topology is running)
+#            $execution->execute ($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_sim_dir . "/lock");
+#
+#            # Create the mgmn_net socket when <vmmgnt type="net">, if needed
+#            if (($dh->get_vmmgmt_type eq "net") && ($dh->get_vmmgmt_autoconfigure ne "")) {
+#                if ($> == 0) {
+#                    my $sock = &do_path_expansion($dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock"));
+#                        if (-S $sock) {
+#                            print "VNUML warning: <mgmt_net> socket already exists. Ignoring socket autoconfiguration\n";
+#                        }
+#                        else {
+#                        # Create the socket
+#                        &mgmt_sock_create($sock,$dh->get_vmmgmt_autoconfigure,$dh->get_vmmgmt_hostip,$dh->get_vmmgmt_mask);
+#                        }
+#                }
+#                else {
+#                    print "VNUML warning: <mgmt_net> autoconfigure attribute only is used when VNUML parser is invoked by root. Ignoring socket autoconfiguration\n";
+#                }
+#            }
+#
+#            # 1. To perform configuration for bridged virtual networks (<net mode="virtual_bridge">) and TUN/TAP for management
+#            &configure_virtual_bridged_networks;
+#
+#            # 2. Host configuration
+#            &host_config;
+#
+#            # 3. Set appropriate permissions and perform configuration for switched virtual networks and uml_switches creation (<net mode="uml_switch">)
+#            &chown_working_dir;
+#            &configure_switched_networks;
+#	   
+#            # 4. To link TUN/TAP to the bridges (for bridged virtual networks only, <net mode="virtual_bridge">)
+#            &tun_connect;
+#
+#            # 5. To create fs, hostsfs and run directories
+#            &create_dirs;
+#        
+#        }
+#        # 6. Initialize the notify socket
+#        my ($sock,$notify_ctl) = &UML_notify_init if ($execution->get_exe_mode() != EXE_DEBUG);
+#
+#        # 7. Set appropriate permissions and boot/define each UML
+#        &chown_working_dir;
+#        &xauth_add;
+#        &boot_VMs($sock,$notify_ctl,$opt_define,$opt_start);
+#
+#        # 8. Clean up the notify socket
+#        &UML_notify_cleanup($sock,$notify_ctl) if ($execution->get_exe_mode() != EXE_DEBUG);
+#
+#        # If <host_mapping> is in use and not in debug mode, process /etc/hosts
+#        my $lines = join "\n", @host_lines;
+#        &host_mapping_patch ($lines, $dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
+#   
+#        # If -B, block until ready
+#        if ($args->get('B')) {
+#            my $time_0 = time();
+#            my %vm_ips = &get_UML_command_ip("");
+#            while (!&UMLs_cmd_ready(%vm_ips)) {
+#                #system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
+#                sleep($dh->get_delay);
+#                my $time_w = time();
+#                my $interval = $time_w - $time_0;
+#                print "$interval seconds elapsed...\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+#                %vm_ips = &get_UML_command_ip("");
+#            }
+#        }
+#        
+#        # Print vnc ports, if used
+#        my @vm_ordered = $dh->get_vm_ordered;
+#        my $first = 1;
+#        for ( my $i = 0; $i < @vm_ordered; $i++) {
+#			my $vm = $vm_ordered[$i];
+#			
+#			my $name = $vm->getAttribute("name");
+#			my $type = $vm->getAttribute("type");#[JSF]type
+#			my $subtype = $vm->getAttribute("subtype");
+#			my $os = $vm->getAttribute("os");
+#			my $merged_type = $type . "-" . $subtype . "-" . $os;			
+#			 
+#			if ($merged_type eq "libvirt-kvm-windows"){
+#				if ($first eq 1){
+#					print "\nList of vnc ports used:\n";
+#					$first = 0;
+#				}
+#				my $vnc_port = 6900 + $i;
+#				print $name . ": " . $vnc_port . "\n";
+#			}
+#			my $last = @vm_ordered - $i;
+#			if ($last eq 1){
+#				print "\n";	
+#			}
+#		}
+#        
+#    } 
+#    catch Vnuml::Exception with {
+#	   my $E = shift;
+#	   print $E->as_string;
+#	   print $E->message;
+#    
+#    } 
+#    catch Error with {
+#	   my $E = shift;
+#	   print "ERROR: " . $E->text . " at " . $E->file . ", line " .$E->line;
+#	   print $E->stringify;
+#    }
+#}
 
 
 sub mode_t2 {
@@ -1093,13 +1098,17 @@ sub mode_t2 {
         # Print vnc ports, if used
         my @vm_ordered = $dh->get_vm_ordered;
         my $first = 1;
+
         for ( my $i = 0; $i < @vm_ordered; $i++) {
 			my $vm = $vm_ordered[$i];
 			
 			my $name = $vm->getAttribute("name");
 			my $type = $vm->getAttribute("type");
-			
-			if ($type eq "libvirt-kvm-windows"){
+			my $subtype = $vm->getAttribute("subtype");
+			my $os = $vm->getAttribute("os");
+			my $merged_type = $type . "-" . $subtype . "-" . $os;
+
+			if ($merged_type eq "libvirt-kvm-windows"){
 				if ($first eq 1){
 					print "\nList of vnc ports used:\n";
 					$first = 0;
@@ -1223,6 +1232,9 @@ sub mode_undefine{
       # To get name attribute
       my $name = $vm->getAttribute("name");
       my $type = $vm->getAttribute("type");
+      my $subtype = $vm->getAttribute("subtype");
+      my $os = $vm->getAttribute("os");
+      my $merged_type = $type . "-" . $subtype . "-" . $os;
 
       unless ($vm_hash{$name}){
           next;
@@ -1237,7 +1249,7 @@ sub mode_undefine{
       	next;
       }
   
-      my $error = vmAPI->undefineVM($name, $type, $dh,$bd,$execution);
+      my $error = vmAPI->undefineVM($name, $merged_type, $dh,$bd,$execution);
    }
 }
 
@@ -1293,8 +1305,11 @@ sub mode_start {
 			
 			my $name = $vm->getAttribute("name");
 			my $type = $vm->getAttribute("type");
+			my $subtype = $vm->getAttribute("subtype");
+			my $os = $vm->getAttribute("os");
+			my $merged_type = $type . "-" . $subtype . "-" . $os;
 			
-			if ($type eq "libvirt-kvm-windows"){
+			if ($merged_type eq "libvirt-kvm-windows"){
 				if ($first eq 1){
 					print "\nList of vnc ports used:\n";
 					$first = 0;
@@ -1334,11 +1349,14 @@ sub mode_reset {
       # To get name attribute
       my $name = $vm->getAttribute("name");
       my $type = $vm->getAttribute("type");
+      my $subtype = $vm->getAttribute("subtype");
+      my $os = $vm->getAttribute("os");
+      my $merged_type = $type . "-" . $subtype . "-" . $os;
       
       unless ($vm_hash{$name}){
           next;
       }
-      my $error = vmAPI->resetVM($name, $type, $execution, $bd,$dh);
+      my $error = vmAPI->resetVM($name, $merged_type, $execution, $bd,$dh);
    }
 }
 
@@ -1354,6 +1372,9 @@ sub mode_save {
       # To get name attribute
       my $name = $vm->getAttribute("name");
       my $type = $vm->getAttribute("type");
+      my $subtype = $vm->getAttribute("subtype");
+      my $os = $vm->getAttribute("os");
+      my $merged_type = $type . "-" . $subtype . "-" . $os;
 
       unless ($vm_hash{$name}){
 
@@ -1361,7 +1382,7 @@ sub mode_save {
       }
 
       $filename = $dh->get_vm_dir($name) . "/" . $name . "_savefile";
-      my $error = vmAPI->saveVM($name, $type, $filename,$dh,$bd,$execution);
+      my $error = vmAPI->saveVM($name, $merged_type, $filename,$dh,$bd,$execution);
 
    }
 }
@@ -1378,13 +1399,16 @@ sub mode_restore {
       # To get name attribute
       my $name = $vm->getAttribute("name");
       my $type = $vm->getAttribute("type");
+      my $subtype = $vm->getAttribute("subtype");
+      my $os = $vm->getAttribute("os");
+      my $merged_type = $type . "-" . $subtype . "-" . $os;
 
       unless ($vm_hash{$name}){
           next;
       }
       
       $filename = $dh->get_vm_dir($name) . "/" . $name . "_savefile";
-      my $error = vmAPI->restoreVM($name, $type, $filename, $dh,$bd,$execution);
+      my $error = vmAPI->restoreVM($name, $merged_type, $filename, $dh,$bd,$execution);
    }
 }
 
@@ -1399,12 +1423,15 @@ sub mode_suspend {
       # To get name attribute
       my $name = $vm->getAttribute("name");
       my $type = $vm->getAttribute("type");
+      my $subtype = $vm->getAttribute("subtype");
+      my $os = $vm->getAttribute("os");
+      my $merged_type = $type . "-" . $subtype . "-" . $os;
 
       unless ($vm_hash{$name}){
           next;
       }
       
-      my $error = vmAPI->suspendVM($name, $type,$dh,$bd,$execution);
+      my $error = vmAPI->suspendVM($name, $merged_type,$dh,$bd,$execution);
    }
 }
 
@@ -1419,11 +1446,14 @@ sub mode_resume {
       # To get name attribute
       my $name = $vm->getAttribute("name");
       my $type = $vm->getAttribute("type");
+      my $subtype = $vm->getAttribute("subtype");
+      my $os = $vm->getAttribute("os");
+      my $merged_type = $type . "-" . $subtype . "-" . $os;
 
       unless ($vm_hash{$name}){
           next;
       }
-      my $error = vmAPI->resumeVM($name, $type,$dh,$bd,$execution);
+      my $error = vmAPI->resumeVM($name, $merged_type,$dh,$bd,$execution);
    }
 }
 
@@ -2338,7 +2368,10 @@ sub boot_VMs {
       unless ($vm_hash{$name}){
          next;       
       }
-      my $vmType = $vm->getAttribute("type");
+      my $type = $vm->getAttribute("type");
+      my $subtype = $vm->getAttribute("subtype");
+      my $os = $vm->getAttribute("os");
+      my $merged_type = $type . "-" . $subtype . "-" . $os;
       $curr_uml = $name;
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);
 	  
@@ -2348,7 +2381,7 @@ sub boot_VMs {
 #      }elsif($opt_start){
 #        my $error = vmAPI->startVM($name, $vmType, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
 #      }else{	
-      my $error = vmAPI->createVM($name, $vmType, $docstring, $execution, $bd, $dh,$sock, $manipcounter);	
+      my $error = vmAPI->createVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);	
 #      }
 
       $manipcounter++;
@@ -2406,10 +2439,11 @@ sub define_VMs {
            next;       
          }
       }
-      my $vmType = $vm->getAttribute("type");
+
+      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);	  
-      my $error = vmAPI->defineVM($name, $vmType, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
+      my $error = vmAPI->defineVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
       $manipcounter++;
       undef($curr_uml);
       &change_vm_status($dh,$name,"defined");
@@ -2422,7 +2456,21 @@ sub define_VMs {
    }
 
 }
-
+sub merge_vm_type {
+	my $type = shift;
+	my $subtype = shift;
+	my $os = shift;
+	my $merged_type = $type;
+	
+	if (!($subtype eq "")){
+		$merged_type = $merged_type . "-" . $subtype;
+		if (!($os eq "")){
+			$merged_type = $merged_type . "-" . $os;
+		}
+	}
+	return $merged_type;
+	
+}
 
 sub start_VMs {
 
@@ -2456,12 +2504,12 @@ sub start_VMs {
          next;       
       }
 
-      my $vmType = $vm->getAttribute("type");
+      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
       
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i); # only needed for uml vms
       # $docstring, $bd, $sock and $manipcounter are only needed for uml vms  
-      my $error = vmAPI->startVM($name, $vmType, $docstring, $execution, $bd, $dh,$sock, $manipcounter); 
+      my $error = vmAPI->startVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter); 
       $manipcounter++;
       undef($curr_uml);
       &change_vm_status($dh,$name,"running");
@@ -3163,7 +3211,7 @@ sub mode_d {
       my $vm = $vm_ordered[$i];
       # To get name attribute
       my $name = $vm->getAttribute("name");
-      my $type = $vm->getAttribute("type");
+      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       
       # remove?
       unless ($vm_hash{$name}){
@@ -3188,12 +3236,12 @@ sub mode_d {
       # DFC 21/01/2010
       if ($args->get('F')){
 
-           my $error = vmAPI->destroyVM($name, $type, $execution, $bd,$dh);
+           my $error = vmAPI->destroyVM($name, $merged_type, $execution, $bd,$dh);
            #$error = vmAPI->undefineVM($name, $type);  no vale para nada?
       }
       else{
 
-           my $error = vmAPI->shutdownVM($name, $type, $execution, $bd,$dh,$args->get('F'));
+           my $error = vmAPI->shutdownVM($name, $merged_type, $execution, $bd,$dh,$args->get('F'));
            
       }
 
@@ -3595,12 +3643,12 @@ sub mode_P {
 
         # To get name attribute
         my $name = $vm->getAttribute("name");
-        my $type = $vm->getAttribute("type");
+        my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
         unless ($vm_hash{$name}){
             $vm_left = 1;
             next;
         }
-        my $error = vmAPI->undefineVM($name, $type, $dh,$bd,$execution);
+        my $error = vmAPI->undefineVM($name, $merged_type, $dh,$bd,$execution);
         # DFC: No hay que llamar a destroyVM aquí, ya que cuando se
         #      hace un -P se llama primero a mode_d con el F_flag activado, 
         #      desde donde se llama a destroyVM
@@ -5158,7 +5206,7 @@ sub make_vm_API_doc {
    # We get name attribute
    my $name = $vm->getAttribute("name");
    $vm_tag->addChild( $dom->createAttribute( name => $name));
-   my $vmType = $vm->getAttribute("type");
+
       
 
 #      &change_vm_status($dh,$name,"booting");
@@ -5419,39 +5467,93 @@ sub make_vm_API_doc {
 #
 # Prints program usage message
 sub usage {
-   my $basename = basename $0;
-   print "Usage: $basename -t VNUML_file [-o prefix] [-c vnuml_dir] [-u user]\n";
-   print "                 [-T tmp_dir] [-i] [-w timeout] [-B] [-Z]\n";
-   print "                 [-e screen_file] [-4] [-6] [-v] [-g]\n";
-   print "       $basename -x cmd_seq\@VNUML_file [-T tmp_dir] [-M vm_list] [-i] [-B] [-4] [-6] [-v] [-g]\n";
-   print "       $basename -d VNUML_file [-c vnuml_dir] [-F] [-T tmp_dir] [-i] [-B] [-4] [-6] [-v] [-g]\n";
-   print "       $basename -P VNUML_file [-T tmp_file] [-i] [-v] [-g]\n";
-   print "       $basename -h\n";
-   print "       $basename -V\n";
-   print "Mode:\n";
-   print "       -t VNUML_file, build topology (using VNUML_file) as source\n";
-   print "       -x cmd_seq\@VNUML_file, execute the cmd_seq command sequence (using VNUML_file as source)\n";
-   print "       -d VNUML_file, destroy current simulation (using VNUML_file as source)\n";
-   print "       -P VNUML_file, purge simulation (warning: it will remove UML cowed filesystems!)\n";
-   print "Pseudomode:\n";
-   print "       -V, show program version and exits.\n";
-   print "       -H, show this help message and exits.\n";
-   print "Options:\n";
-#  print "       -k, skips XML validation in VNUML_file (warning: it is not recommended)\n";
-   print "       -o prefix, dump UML boot messages output to files (using given prefix in pathname)\n";
-   print "       -c vnuml_dir, $basename working directory (default is ~/.vnuml)\n";
-   print "       -u user, if run as root, UML and uml_switch processes will be owned by this user instead (default [arroba]VNUML_USER[arroba])\n"; #[JSF] poner @
-   print "       -F, force stopping of UMLs (warning: UML filesystems may be corrupted)\n";
-#  print "       -S scan_mode, the way UML readiness is scanned (default is 0, socket style)\n";
-   print "       -w timeout, waits timeout seconds for a UML to boot before prompting the user for further action; a timeout of 0 indicates no timeout (default is 30)\n";
-   print "       -B, blocking mode\n";
-#  print "       -Z, avoids filesystem VNUMLization\n";
-   print "       -e screen_file, make screen configuration file for pts devices\n";
-   print "       -i, interactive execution (in combination with -v mode)\n";
-   print "       -4, process only IPv4 related tags (and not process IPv6 related tags)\n";
-   print "       -6, process only IPv6 related tags (and not process IPv4 related tags)\n";
-   print "       -v, verbose mode on\n";
-   print "       -g, debug mode on (overrides verbose)\n";
-   print "       -T tmp_dir, temporal files directory (default is /tmp)\n";
-   print "       -M vm_list, start/stop/restart simulation in vm_list UMLs (a list of names separated by ,)\n";
+	my $basename = basename $0;
+	print "Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnuml_dir] [-u user]\n";
+	print "                 [-T tmp_dir] [-i] [-w timeout] [-B] [-Z]\n";
+	print "                 [-e screen_file] [-4] [-6] [-v] [-g] [-M vm_list]\n";
+	print "       vnx -f VNX_file [-x|--execute cmd_seq] [-T tmp_dir] [-M vm_list] [-i] [-B] [-4] [-6] [-v] [-g]\n";
+	print "       vnx -f VNX_file [-d|--shutdown] [-c vnuml_dir] [-F] [-T tmp_dir] [-i] [-B] [-4] [-6] [-v] [-g]\n";
+	print "       vnx -f VNX_file [-P|--destroy] [-T tmp_file] [-i] [-v] [-u user] [-g]\n";
+	print "       vnx -f VNX_file [--define] [-M vm_list] [-v] [-u user] [-i]\n";
+	print "       vnx -f VNX_file [--start] [-M vm_list] [-v] [-u user] [-i]\n";
+	print "       vnx -f VNX_file [--undefine] [-M vm_list] [-v] [-u user] [-i]\n";
+	print "       vnx -f VNX_file [--save] [-M vm_list] [-v] [-u user] [-i]\n";
+	print "       vnx -f VNX_file [--restore] [-M vm_list] [-v] [-u user] [-i]\n";
+	print "       vnx -f VNX_file [--suspend] [-M vm_list] [-v] [-u user] [-i]\n";
+	print "       vnx -f VNX_file [--resume] [-M vm_list] [-v] [-u user] [-i]\n";
+	print "       vnx -f VNX_file [--reboot] [-M vm_list] [-v] [-u user] [-i]\n";
+	print "       vnx -f VNX_file [--reset] [-M vm_list] [-v] [-u user] [-i]\n";
+	print "       vnx -h\n";
+	print "       vnx -V\n";
+	print "\n";
+	print "Mode:\n";
+	print "       -t|--create, build topology, or create virtual machine (if -M), using VNX_file as source.\n";
+	print "       -x cmd_seq, execute the cmd_seq command sequence, using VNX_file as source.\n";
+	print "       -d|--shutdown, destroy current simulation, or virtual machine (if -M), using VNX_file as source.\n";
+	print "       -P|--destroy, purge simulation, or virtual machine (if -M), (warning: it will remove cowed filesystems!)\n";
+	print "       --define, define all machines, or the ones speficied (if -M), using VNX_file as source.\n";
+	print "       --undefine, undefine all machines, or the ones speficied (if -M), using VNX_file as source.\n";
+	print "       --start, start all machines, or the ones speficied (if -M), using VNX_file as source.\n";
+	print "       --save, save all machines, or the ones speficied (if -M), using VNX_file as source.\n";
+	print "       --restore, restore all machines, or the ones speficied (if -M), using VNX_file as source.\n";
+	print "       --suspend, suspend all machines, or the ones speficied (if -M), using VNX_file as source.\n";
+	print "       --resume, resume all machines, or the ones speficied (if -M), using VNX_file as source.\n";
+	print "       --reboot, reboot all machines, or the ones speficied (if -M), using VNX_file as source.\n";
+	print "\n";
+	print "Pseudomode:\n";
+	print "       -V, show program version and exit.\n";
+	print "       -H, show this help message and exit.\n";
+	print "\n";
+	print "Options:\n";
+	print "       -o prefix, dump UML boot messages output to files (using given prefix in pathname)\n";
+	print "       -c vnuml_dir, vnx working directory (default is ~/.vnuml)\n";
+	print "       -u user, if run as root, UML and uml_switch processes will be owned by this user instead (default [arroba]VNUML_USER[arroba])\n";
+	print "       -F, force stopping of UMLs (warning: UML filesystems may be corrupted)\n";
+	print "       -w timeout, waits timeout seconds for a UML to boot before prompting the user for further action; a timeout of 0 indicates no timeout (default is 30)\n";
+	print "       -B, blocking mode\n";
+	print "       -Z, avoids filesystem VNUMLization\n";
+	print "       -e screen_file, make screen configuration file for pts devices\n";
+	print "       -i, interactive execution (in combination with -v mode)\n";
+	print "       -4, process only IPv4 related tags (and not process IPv6 related tags)\n";
+	print "       -6, process only IPv6 related tags (and not process IPv4 related tags)\n";
+	print "       -v, verbose mode on\n";
+	print "       -g, debug mode on (overrides verbose)\n";
+	print "       -T tmp_dir, temporal files directory (default is /tmp)\n";
+	print "       -M vm_list, start/stop/restart simulation in vm_list UMLs (a list of names separated by ,)\n";
+   
+   
+#   print "Usage: $basename -t VNUML_file [-o prefix] [-c vnuml_dir] [-u user]\n";
+#   print "                 [-T tmp_dir] [-i] [-w timeout] [-B] [-Z]\n";
+#   print "                 [-e screen_file] [-4] [-6] [-v] [-g]\n";
+#   print "       $basename -x cmd_seq\@VNUML_file [-T tmp_dir] [-M vm_list] [-i] [-B] [-4] [-6] [-v] [-g]\n";
+#   print "       $basename -d VNUML_file [-c vnuml_dir] [-F] [-T tmp_dir] [-i] [-B] [-4] [-6] [-v] [-g]\n";
+#   print "       $basename -P VNUML_file [-T tmp_file] [-i] [-v] [-g]\n";
+#   print "       $basename -h\n";
+#   print "       $basename -V\n";
+#   print "Mode:\n";
+#   print "       -t VNUML_file, build topology (using VNUML_file) as source\n";
+#   print "       -x cmd_seq\@VNUML_file, execute the cmd_seq command sequence (using VNUML_file as source)\n";
+#   print "       -d VNUML_file, destroy current simulation (using VNUML_file as source)\n";
+#   print "       -P VNUML_file, purge simulation (warning: it will remove UML cowed filesystems!)\n";
+#   print "Pseudomode:\n";
+#   print "       -V, show program version and exits.\n";
+#   print "       -H, show this help message and exits.\n";
+#   print "Options:\n";
+##  print "       -k, skips XML validation in VNUML_file (warning: it is not recommended)\n";
+#   print "       -o prefix, dump UML boot messages output to files (using given prefix in pathname)\n";
+#   print "       -c vnuml_dir, $basename working directory (default is ~/.vnuml)\n";
+#   print "       -u user, if run as root, UML and uml_switch processes will be owned by this user instead (default [arroba]VNUML_USER[arroba])\n"; #[JSF] poner @
+#   print "       -F, force stopping of UMLs (warning: UML filesystems may be corrupted)\n";
+##  print "       -S scan_mode, the way UML readiness is scanned (default is 0, socket style)\n";
+#   print "       -w timeout, waits timeout seconds for a UML to boot before prompting the user for further action; a timeout of 0 indicates no timeout (default is 30)\n";
+#   print "       -B, blocking mode\n";
+##  print "       -Z, avoids filesystem VNUMLization\n";
+#   print "       -e screen_file, make screen configuration file for pts devices\n";
+#   print "       -i, interactive execution (in combination with -v mode)\n";
+#   print "       -4, process only IPv4 related tags (and not process IPv6 related tags)\n";
+#   print "       -6, process only IPv6 related tags (and not process IPv4 related tags)\n";
+#   print "       -v, verbose mode on\n";
+#   print "       -g, debug mode on (overrides verbose)\n";
+#   print "       -T tmp_dir, temporal files directory (default is /tmp)\n";
+#   print "       -M vm_list, start/stop/restart simulation in vm_list UMLs (a list of names separated by ,)\n";
 }
