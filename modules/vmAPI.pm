@@ -4,7 +4,7 @@
 #
 # This file is a sample for VNUML generalization API.
 ###############
-package vmAPI;
+package VNX::vmAPI;
 # [JSF] modificacion
 @ISA    = qw(Exporter);
 @EXPORT = qw(defineVM

@@ -146,8 +146,8 @@ use Data::Dumper;
 
 use XML::LibXML;
 
-#use VNX::DataHandler;
-use modules::DataHandler; 
+use VNX::DataHandler;
+#use modules::DataHandler; 
 use VNX::Execution;
 use VNX::BinariesData;
 use VNX::Arguments;
@@ -157,8 +157,8 @@ use VNX::NetChecks;
 use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
-#use VNX::vmAPI;
-use modules::vmAPI;
+use VNX::vmAPI;
+#use modules::vmAPI;
 
 use Error qw(:try);
 use Exception::Class ( "Vnuml::Exception" =>
