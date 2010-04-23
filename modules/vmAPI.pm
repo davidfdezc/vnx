@@ -4,7 +4,7 @@
 #
 # This file is a sample for VNUML generalization API.
 ###############
-package VNX::vmAPI;
+package vmAPI;
 # [JSF] modificacion
 @ISA    = qw(Exporter);
 @EXPORT = qw(defineVM
@@ -655,7 +655,7 @@ sub createVM {
 	}
 	elsif ( $type eq "libvirt-kvm-windows" ) {
 
-		#cogido de UML_bootfile y bootfiles
+		#Salvamos el xml recibido como winboot, para la autoconfiguración
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "winboot"
 		  or $execution->smartdie("can not open ${path}winboot: $!")
@@ -703,7 +703,7 @@ sub createVM {
 		my $memTag     = $memTagList->item($0);
 		my $mem        = $memTag->getFirstChild->getData;
 
-		# creamos XML genérico para el API
+		# creamos XML para el libvirt
 		my $init_xml;
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 		my $domain_tag = $init_xml->createElement('domain');
