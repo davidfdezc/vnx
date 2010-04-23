@@ -14,8 +14,8 @@ VNX_LIBS="$PERL_LIBS/VNX/"
 
 mkdir -v ${VNX_LIBS}
 cp -v modules/* ${VNX_LIBS}
-cp *.dtd /usr/share/xml/vnuml
-cp *.xsd /usr/share/xml/vnuml
+cp -v *.dtd /usr/share/xml/vnuml
+cp -v *.xsd /usr/share/xml/vnuml
 chmod 644 ${VNUML_LIBS}*
 chmod +x vnx
 echo "** "

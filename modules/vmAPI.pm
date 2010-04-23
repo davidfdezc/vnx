@@ -3467,10 +3467,7 @@ sub conf_files {
 				# To get executing user and execution mode
 				my $user   = &get_user_in_seq( $vm, $seq );
 				my $mode   = &get_vm_exec_mode($vm);
-				my $type = $vm->getAttribute("type");
-				my $subtype = $vm->getAttribute("subtype");
-                my $os = $vm->getAttribute("os");
-                my $typeos = $type . "-" . $subtype . "-" . $os;
+                my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
 				if ( $mode eq "net" ) {
 					$execution->execute( $bd->get_binaries_path_ref->{"scp"}
@@ -3732,10 +3729,7 @@ sub conf_files {
 				# To get executing user and execution mode
 				my $user   = &get_user_in_seq( $vm, $seq );
 				my $mode   = &get_vm_exec_mode($vm);
-				my $type = $vm->getAttribute("type");
-				my $subtype = $vm->getAttribute("subtype");
-                my $os = $vm->getAttribute("os");
-                my $typeos = $type . "-" . $subtype . "-" . $os;
+				my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
 				if ( $mode eq "mconsole" ) {
 					if ( $typeos eq "uml" ) {
@@ -4068,10 +4062,7 @@ sub command_files {
 		unless ( $vm_hash{$name} ) {
 			next;
 		}
-		my $type = $vm->getAttribute("type");
-		my $subtype = $vm->getAttribute("subtype");
-        my $os = $vm->getAttribute("os");
-        my $typeos = $type . "-" . $subtype . "-" . $os;
+		my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 		if ( $typeos eq "uml" ) {
 
 			# We open file
