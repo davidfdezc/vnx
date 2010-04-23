@@ -1021,10 +1021,7 @@ exit;
 #			my $vm = $vm_ordered[$i];
 #			
 #			my $name = $vm->getAttribute("name");
-#			my $type = $vm->getAttribute("type");#[JSF]type
-#			my $subtype = $vm->getAttribute("subtype");
-#			my $os = $vm->getAttribute("os");
-#			my $merged_type = $type . "-" . $subtype . "-" . $os;			
+#           my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 #			 
 #			if ($merged_type eq "libvirt-kvm-windows"){
 #				if ($first eq 1){
@@ -1103,10 +1100,7 @@ sub mode_t2 {
 			my $vm = $vm_ordered[$i];
 			
 			my $name = $vm->getAttribute("name");
-			my $type = $vm->getAttribute("type");
-			my $subtype = $vm->getAttribute("subtype");
-			my $os = $vm->getAttribute("os");
-			my $merged_type = $type . "-" . $subtype . "-" . $os;
+			my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
 			if ($merged_type eq "libvirt-kvm-windows"){
 				if ($first eq 1){
@@ -1231,10 +1225,7 @@ sub mode_undefine{
       my $vm = $vm_ordered[$i];
       # To get name attribute
       my $name = $vm->getAttribute("name");
-      my $type = $vm->getAttribute("type");
-      my $subtype = $vm->getAttribute("subtype");
-      my $os = $vm->getAttribute("os");
-      my $merged_type = $type . "-" . $subtype . "-" . $os;
+      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
       unless ($vm_hash{$name}){
           next;
@@ -1304,10 +1295,7 @@ sub mode_start {
 			my $vm = $vm_ordered[$i];
 			
 			my $name = $vm->getAttribute("name");
-			my $type = $vm->getAttribute("type");
-			my $subtype = $vm->getAttribute("subtype");
-			my $os = $vm->getAttribute("os");
-			my $merged_type = $type . "-" . $subtype . "-" . $os;
+			my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 			
 			if ($merged_type eq "libvirt-kvm-windows"){
 				if ($first eq 1){
@@ -1348,10 +1336,7 @@ sub mode_reset {
       my $vm = $vm_ordered[$i];
       # To get name attribute
       my $name = $vm->getAttribute("name");
-      my $type = $vm->getAttribute("type");
-      my $subtype = $vm->getAttribute("subtype");
-      my $os = $vm->getAttribute("os");
-      my $merged_type = $type . "-" . $subtype . "-" . $os;
+      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       
       unless ($vm_hash{$name}){
           next;
@@ -1371,10 +1356,7 @@ sub mode_save {
       my $vm = $vm_ordered[$i];
       # To get name attribute
       my $name = $vm->getAttribute("name");
-      my $type = $vm->getAttribute("type");
-      my $subtype = $vm->getAttribute("subtype");
-      my $os = $vm->getAttribute("os");
-      my $merged_type = $type . "-" . $subtype . "-" . $os;
+      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
       unless ($vm_hash{$name}){
 
@@ -1398,10 +1380,7 @@ sub mode_restore {
       my $vm = $vm_ordered[$i];
       # To get name attribute
       my $name = $vm->getAttribute("name");
-      my $type = $vm->getAttribute("type");
-      my $subtype = $vm->getAttribute("subtype");
-      my $os = $vm->getAttribute("os");
-      my $merged_type = $type . "-" . $subtype . "-" . $os;
+      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
       unless ($vm_hash{$name}){
           next;
@@ -1422,10 +1401,7 @@ sub mode_suspend {
       my $vm = $vm_ordered[$i];
       # To get name attribute
       my $name = $vm->getAttribute("name");
-      my $type = $vm->getAttribute("type");
-      my $subtype = $vm->getAttribute("subtype");
-      my $os = $vm->getAttribute("os");
-      my $merged_type = $type . "-" . $subtype . "-" . $os;
+      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
       unless ($vm_hash{$name}){
           next;
@@ -1445,10 +1421,7 @@ sub mode_resume {
       my $vm = $vm_ordered[$i];
       # To get name attribute
       my $name = $vm->getAttribute("name");
-      my $type = $vm->getAttribute("type");
-      my $subtype = $vm->getAttribute("subtype");
-      my $os = $vm->getAttribute("os");
-      my $merged_type = $type . "-" . $subtype . "-" . $os;
+      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
       unless ($vm_hash{$name}){
           next;
@@ -2368,10 +2341,7 @@ sub boot_VMs {
       unless ($vm_hash{$name}){
          next;       
       }
-      my $type = $vm->getAttribute("type");
-      my $subtype = $vm->getAttribute("subtype");
-      my $os = $vm->getAttribute("os");
-      my $merged_type = $type . "-" . $subtype . "-" . $os;
+      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);
 	  
