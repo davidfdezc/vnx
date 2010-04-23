@@ -5101,7 +5101,9 @@ sub build_topology{
     try {
             # To load tun module if needed
             if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
-                !$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
+                if (! -e "/dev/net/tun") {
+                    !$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
+                }
             }
 
             # To make directory to store files related with the topology
