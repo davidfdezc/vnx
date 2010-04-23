@@ -72,11 +72,13 @@ See the tutorial/index.html document for details
     </if>
     <route type="ipv4" gw="10.0.1.1">default</route>
     <forwarding type="ip" />
-    <filetree seq="vlc" root="c:\temp">conf/smplayer-portable-0.6.9</filetree>
-    <filetree seq="vlc" root="c:\temp">conf/video</filetree>
-    <exec seq="vlc" type="verbatim" mode="processy">c:\temp\smplayer.exe -close-at-end -fullscreen  c:\temp\video.mp4</exec>
+    <!--filetree seq="vlc" root="c:\temp">conf/smplayer-portable-0.6.9</filetree-->
+    <!--filetree seq="vlc" root="c:\temp">conf/video</filetree-->
+    <!--exec seq="vlc" type="verbatim" mode="processy">c:\temp\smplayer.exe -close-at-end -fullscreen  c:\temp\video.mp4</exec-->
     <exec seq="enable-routing" type="verbatim">sc config RemoteAccess start= auto</exec>
     <exec seq="enable-routing" type="verbatim">sc start RemoteAccess</exec>
+    <exec seq="calc" type="verbatim" mode="processy">calc.exe</exec>
+    
   </vm>
 
   <vm name="uml5" type="libvirt" subtype="kvm" os="windows">
