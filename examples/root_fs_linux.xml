@@ -1,0 +1,28 @@
+<domain type='kvm'>
+  <name>Linux</name>
+  <memory>524288</memory>
+  <vcpu>1</vcpu>
+  <os>
+    <type arch="i686">hvm</type>
+    <boot dev='hd'/>
+  </os>
+  <features>
+     <pae/>
+     <acpi/>
+     <apic/>
+  </features>
+  <clock sync="localtime"/>
+  <devices>
+    <emulator>/usr/bin/kvm</emulator>
+    <disk type='file' device='disk'>
+      <source file='/usr/share/vnuml/filesystems/linux-0.2.img'/>
+      <target dev='hda'/>
+    </disk>
+    <interface type='network'>
+      <source network='default'/>
+    </interface>
+    <!--graphics type='sdl'/-->
+    <graphics type='vnc'/>
+  </devices>
+</domain>
+
