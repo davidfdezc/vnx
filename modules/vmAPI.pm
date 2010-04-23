@@ -46,7 +46,7 @@ use File::Basename;
 use XML::DOM;
 
 #use XML::LibXML;
-#use XML::DOM::ValParser;ç
+#use XML::DOM::ValParser;
 
 
 # Jorge
@@ -4199,10 +4199,7 @@ sub command_files {
 				# To get attributes
 				my $cmd_seq = $command->getAttribute("seq");
 				my $type    = $command->getAttribute("type");
-				my $type  = $vm->getAttribute("type");
-				my $subtype = $vm->getAttribute("subtype");
-                my $os = $vm->getAttribute("os");
-                my $typeos = $type . "-" . $subtype . "-" . $os;
+                my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
 				if ( $cmd_seq eq $seq ) {
 
@@ -4354,10 +4351,7 @@ sub exec_command_files {
 		# Get execution user and mode
 		my $user = &get_user_in_seq( $vm, $seq );
 		my $mode = &get_vm_exec_mode($vm);
-		my $vmtype = $vm->getAttribute("type");
-		my $subtype = $vm->getAttribute("subtype");
-        my $os = $vm->getAttribute("os");
-        my $type = $vmtype . "-" . $subtype . "-" . $os;
+        my $type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
 		# Process it?
 		unless ( $vm_hash{$name} ) {
