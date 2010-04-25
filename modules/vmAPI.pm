@@ -4199,10 +4199,11 @@ sub command_files {
 				# To get attributes
 				my $cmd_seq = $command->getAttribute("seq");
 				my $type    = $command->getAttribute("type");
-				my $type  = $vm->getAttribute("type");
-				my $subtype = $vm->getAttribute("subtype");
-                my $os = $vm->getAttribute("os");
-                my $typeos = $type . "-" . $subtype . "-" . $os;
+#				my $type  = $vm->getAttribute("type");
+#				my $subtype = $vm->getAttribute("subtype");
+#                my $os = $vm->getAttribute("os");
+#                my $typeos = $type . "-" . $subtype . "-" . $os;
+ 				my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
 				if ( $cmd_seq eq $seq ) {
 
@@ -4354,10 +4355,11 @@ sub exec_command_files {
 		# Get execution user and mode
 		my $user = &get_user_in_seq( $vm, $seq );
 		my $mode = &get_vm_exec_mode($vm);
-		my $vmtype = $vm->getAttribute("type");
-		my $subtype = $vm->getAttribute("subtype");
-        my $os = $vm->getAttribute("os");
-        my $type = $vmtype . "-" . $subtype . "-" . $os;
+#		my $vmtype = $vm->getAttribute("type");
+#		my $subtype = $vm->getAttribute("subtype");
+#        my $os = $vm->getAttribute("os");
+#        my $type = $vmtype . "-" . $subtype . "-" . $os;
+		my $type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
 		# Process it?
 		unless ( $vm_hash{$name} ) {
@@ -4408,12 +4410,6 @@ sub exec_command_files {
 		}
 		elsif ( $type eq "libvirt-kvm-windows" ) {
 			if ( $numcomandos != 0 ) {
-				
-				#		$execution->execute( "qemu-img create -f raw /tmp/disco.img "
-#			  . "$dimensiondisk"
-#			  . "$unit" );
-#		$execution->execute("losetup /dev/loop0 /tmp/disco.img ");
-#		$execution->execute("mkfs.ntfs -f /dev/loop0");
 		$execution->execute("mkdir /tmp/disco");
 #		$execution->execute("mount /dev/loop0 /tmp/disco");
 		$execution->execute( "cp "
@@ -4421,52 +4417,17 @@ sub exec_command_files {
 					  . "/vnuml.$name.$seq.$random_id" . " "
 					  . "/tmp/disco/"
 					  . "comandos.xml" );
-#		$execution->execute("umount /tmp/disco");
-#		$execution->execute("losetup -d /dev/loop0");
 		$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disco.iso /tmp/disco/");
 		$execution->execute(
 			"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.iso hdb --mode readonly --driver file --type cdrom'"
 		);
 		print "Intentando copiar fichero en el cliente \n";
 		waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
-#		$execution->execute(
-#			"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
 		$execution->execute("rm /tmp/disco.iso");
 		$execution->execute("rm -r /tmp/disco");
 		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
 			  . $dh->get_tmp_dir
 			  . "/vnuml.$name.$seq.$random_id" );
-#				$execution->execute(
-#					"qemu-img create -f raw /tmp/disco.img 32M");
-#				$execution->execute("losetup /dev/loop0 /tmp/disco.img ");
-#				$execution->execute("mkfs.ntfs -f /dev/loop0");
-#				$execution->execute("mkdir /tmp/disco");
-#				$execution->execute("mount /dev/loop0 /tmp/disco");
-#				$execution->execute( "cp "
-#					  . $dh->get_tmp_dir
-#					  . "/vnuml.$name.$seq.$random_id" . " "
-#					  . "/tmp/disco/"
-#					  . "comandos.xml" );
-#
-##$execution->execute( "cp " . $dh->get_tmp_dir . "/vnuml.$name.$seq.$random_id" . " " ."/tmp/disco/" . "comando");
-#				$execution->execute("umount /tmp/disco");
-#				$execution->execute("losetup -d /dev/loop0");
-#				$execution->execute(
-#"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.img sdz'"
-#				);
-#				print "Intentando ejecutar comando en cliente \n";
-#
-#				#<STDIN>;
-#				#sleep(60);
-#				#waitfiletree();
-#				waitexecute($dh->get_run_dir($name). '/'.$name.'_socket',$numcomandos); 
-#				$execution->execute(
-#					"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
-#				$execution->execute("rm /tmp/disco.img");
-#				$execution->execute("rm -r /tmp/disco");
-#				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
-#					  . $dh->get_tmp_dir
-#					  . "/vnuml.$name.$seq.$random_id" );
 			    sleep(2);
 			}
 		}
