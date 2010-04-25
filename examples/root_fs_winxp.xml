@@ -35,6 +35,11 @@
     <interface type='network'>
       <source network='default'/>
     </interface>
+     <devices>
+
+
+  </devices>
+    
     <!--graphics type='sdl' display=':0.0'/!-->
     <graphics type='vnc'/>
   </devices>
