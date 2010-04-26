@@ -2438,6 +2438,8 @@ sub merge_vm_type {
 			$merged_type = $merged_type . "-" . $os;
 		}
 	}
+	print "\nmerged type: $merged_type";
+	<STDIN>;
 	return $merged_type;
 	
 }
