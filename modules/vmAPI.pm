@@ -255,7 +255,7 @@ sub defineVM {
 		my $memTag     = $memTagList->item($0);
 		my $mem        = $memTag->getFirstChild->getData;
 
-		# creamos XML genérico para el API
+		# creamos XML para libvirt
 		my $init_xml;
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 		my $domain_tag = $init_xml->createElement('domain');
