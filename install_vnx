@@ -1,0 +1,23 @@
+#!/bin/sh
+
+VNX_VERSION="0.14b"
+ROOTFS_VERSION="es-v023b"
+
+# Get perl modules directory (/usr/local/share/perl/5.10.0/ in Ubuntu)
+PERL_LIBS=$(perl -e 'use Config; print $Config{installvendorlib}')
+if [ ! $PERL_LIBS ]
+then
+   echo "ERROR: cannot find perl modules directory"
+   exit 1
+fi
+VNX_LIBS="$PERL_LIBS/VNX/"
+
+mkdir -v ${VNX_LIBS}
+cp -v modules/* ${VNX_LIBS}
+cp -v *.dtd /usr/share/xml/vnuml
+cp -v *.xsd /usr/share/xml/vnuml
+chmod 644 ${VNUML_LIBS}*
+chmod +x vnx
+echo "** "
+echo "** ...done"
+echo "** "
