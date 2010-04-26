@@ -195,7 +195,7 @@ sub defineVM {
 		return $error;
 
 	}
-	elsif ( $type eq "libvirt-kvm-windows" ) {
+	elsif ( $type eq "libvirt-kvm-windows" || $type eq "libvirt-kvm-windows7") {
 
 #      my $addr = "qemu:///system";
 #      print "Connecting to $addr...";
@@ -477,7 +477,7 @@ sub undefineVM {
 		return $error;
 
 	}
-	elsif ( $type eq "libvirt-kvm-windows" ) {
+	elsif ( $type eq "libvirt-kvm-windows" || $type eq "libvirt-kvm-windows7") {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -653,7 +653,7 @@ sub createVM {
 		#                  createVM for libvirt-kvm-windows               #
 		###################################################################
 	}
-	elsif ( $type eq "libvirt-kvm-windows" ) {
+	elsif ( $type eq "libvirt-kvm-windows" || $type eq "libvirt-kvm-windows7") {
 
 		#Salvamos el xml recibido como winboot, para la autoconfiguración
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
@@ -1362,7 +1362,7 @@ sub destroyVM {
 	# Sample code
 	print "Destroying vm $vmName of type $type\n";
 
-	if ( ( $type eq "libvirt-kvm" ) || ( $type eq "libvirt-kvm-windows" ) ) {
+	if ( ( $type eq "libvirt-kvm" ) || ( $type eq "libvirt-kvm-windows" ) || ($type eq "libvirt-kvm-windows7") ) {
 
 		my $addr = "qemu:///system";
 
@@ -1475,7 +1475,7 @@ sub startVM {
 		return $error;
 
 	}
-	elsif ( $type eq "libvirt-kvm-windows" ) {
+	elsif ( $type eq "libvirt-kvm-windows"|| $type eq "libvirt-kvm-windows7" ) {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1562,7 +1562,7 @@ sub shutdownVM {
 		return $error;
 
 	}
-	elsif ( $type eq "libvirt-kvm-windows" ) {
+	elsif ( $type eq "libvirt-kvm-windows"|| $type eq "libvirt-kvm-windows7" ) {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1667,7 +1667,7 @@ sub saveVM {
 		return $error;
 
 	}
-	elsif ( $type eq "libvirt-kvm-windows" ) {
+	elsif ( $type eq "libvirt-kvm-windows" || $type eq "libvirt-kvm-windows7") {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1776,7 +1776,7 @@ sub suspendVM {
 		return $error;
 
 	}
-	elsif ( $type eq "libvirt-kvm-windows" ) {
+	elsif ( $type eq "libvirt-kvm-windows" || $type eq "libvirt-kvm-windows7") {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1902,7 +1902,7 @@ sub rebootVM {
 		return $error;
 
 	}
-	elsif ( $type eq "libvirt-kvm-windows" ) {
+	elsif ( $type eq "libvirt-kvm-windows" || $type eq "libvirt-kvm-windows7") {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -2036,7 +2036,7 @@ sub executeCMD {
 				}
 			}
 		}
-		elsif ( $merged_type eq "libvirt-kvm-windows" ) {
+		elsif ( $merged_type eq "libvirt-kvm-windows"||$merged_type eq "libvirt-kvm-windows7" ) {
 
 			#Nothing to do.
 		}
@@ -2078,7 +2078,7 @@ sub executeCMD {
 				}
 			}
 		}
-		elsif ( $merged_type eq "libvirt-kvm-windows" ) {
+		elsif ( $merged_type eq "libvirt-kvm-windows"|| $merged_type eq "libvirt-kvm-windows7" ) {
 
 			#Nothing to do.
 		}
@@ -3623,7 +3623,7 @@ sub conf_files {
 "VNUML warning: $mconsole socket does not exist. Copy of $src files can not be performed\n";
 						}
 					}
-					elsif ( $typeos eq "libvirt-kvm-windows" ) {
+					elsif ( $typeos eq "libvirt-kvm-windows" || $typeos eq "libvirt-kvm-windows7") {
 					}
 				}
 				elsif ( $mode eq "pts" ) {
@@ -3735,7 +3735,7 @@ sub conf_files {
 					if ( $typeos eq "uml" ) {
 
 					}
-					elsif ( $typeos eq "libvirt-kvm-windows" ) {
+					elsif ( $typeos eq "libvirt-kvm-windows"|| $typeos eq "libvirt-kvm-windows7" ) {
 
 # Copy to the hostfs mount point and issue a mv command in the virtual machine to the right place.
 #
@@ -4160,7 +4160,7 @@ sub command_files {
 				  . $dh->get_tmp_dir
 				  . "/vnuml.$name.$seq.$random_id" );
 		}
-		elsif ( $typeos eq "libvirt-kvm-windows" ) {
+		elsif ( $typeos eq "libvirt-kvm-windows" || $typeos eq "libvirt-kvm-windows7" ) {
 
 			# We open file
 			open COMMAND_FILE,
@@ -4400,7 +4400,69 @@ sub exec_command_files {
 				  . $dh->get_tmp_dir
 				  . "/vnuml.$name.$seq.$random_id" );
 		}
-		elsif ( $type eq "libvirt-kvm-windows" ) {
+		elsif ( $type eq "libvirt-kvm-windows7" ) {
+			if ( $numcomandos != 0 ) {
+				
+#				$execution->execute( "qemu-img create -f raw /tmp/disco.img "
+#			  . "$dimensiondisk"
+#			  . "$unit" );
+#		$execution->execute("losetup /dev/loop0 /tmp/disco.img ");
+#		$execution->execute("mkfs.ntfs -f /dev/loop0");
+#		$execution->execute("mkdir /tmp/disco");
+#		$execution->execute("mount /dev/loop0 /tmp/disco");
+#		$execution->execute( "cp "
+#					  . $dh->get_tmp_dir
+#					  . "/vnuml.$name.$seq.$random_id" . " "
+#					  . "/tmp/disco/"
+#					  . "comandos.xml" );
+#		$execution->execute("umount /tmp/disco");
+#		$execution->execute("losetup -d /dev/loop0");
+#		$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disco.iso /tmp/disco/");
+#		$execution->execute(
+#			"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.iso hdb --mode readonly --driver file --type cdrom'"
+#		);
+#		print "Intentando copiar fichero en el cliente \n";
+#		waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
+#		$execution->execute(
+#			"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
+#		$execution->execute("rm /tmp/disco.iso");
+#		$execution->execute("rm -r /tmp/disco");
+#		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
+#			  . $dh->get_tmp_dir
+#			  . "/vnuml.$name.$seq.$random_id" );
+				$execution->execute(
+					"qemu-img create -f raw /tmp/disco.img 32M");
+				$execution->execute("losetup /dev/loop0 /tmp/disco.img ");
+				$execution->execute("mkfs.ntfs -f /dev/loop0");
+				$execution->execute("mkdir /tmp/disco");
+				$execution->execute("mount /dev/loop0 /tmp/disco");
+				$execution->execute( "cp "
+					  . $dh->get_tmp_dir
+					  . "/vnuml.$name.$seq.$random_id" . " "
+					  . "/tmp/disco/"
+					  . "comandos.xml" );
+
+#$execution->execute( "cp " . $dh->get_tmp_dir . "/vnuml.$name.$seq.$random_id" . " " ."/tmp/disco/" . "comando");
+				$execution->execute("umount /tmp/disco");
+				$execution->execute("losetup -d /dev/loop0");
+				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.img sda'");
+				print "Intentando ejecutar comando en cliente \n";
+
+				#<STDIN>;
+				#sleep(60);
+				#waitfiletree();
+				waitexecute($dh->get_run_dir($name). '/'.$name.'_socket',$numcomandos); 
+				sleep(2);
+				$execution->execute("virsh -c qemu:///system 'detach-disk \"$name\" sda'");
+				$execution->execute("rm /tmp/disco.img");
+				$execution->execute("rm -r /tmp/disco");
+				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
+					  . $dh->get_tmp_dir
+					  . "/vnuml.$name.$seq.$random_id" );
+			    sleep(2);
+			}
+		}
+			elsif ( $type eq "libvirt-kvm-windows" ) {
 			if ( $numcomandos != 0 ) {
 				
 				#		$execution->execute( "qemu-img create -f raw /tmp/disco.img "
@@ -4461,7 +4523,7 @@ sub exec_command_files {
 #				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
 #					  . $dh->get_tmp_dir
 #					  . "/vnuml.$name.$seq.$random_id" );
-			    sleep(2);
+			sleep(2);
 			}
 		}
 	}
@@ -4802,4 +4864,3 @@ sub merge_vm_type {
 # hola, esto es el final
 
 1;
-
