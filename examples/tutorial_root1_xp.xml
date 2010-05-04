@@ -6,16 +6,16 @@ See the tutorial/index.html document for details
 -->
 
 <vnuml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnuml/vnuml-1.92.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.92.xsd">
   <global>
     <version>1.91</version>
-    <simulation_name>tutorial-r1_xp</simulation_name>
+    <simulation_name>tutorial-r1_xp_vnx</simulation_name>
     <automac/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
-       <filesystem type="cow">/usr/share/vnuml/filesystems/root_fs_tutorial</filesystem>
+       <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
        <mem>64M</mem>
-       <kernel>/usr/share/vnuml/kernels/linux</kernel>
+       <kernel>/usr/share/vnx/kernels/linux</kernel>
        <console id="0">xterm</console>
        <!--xterm>gnome-terminal,-t,-x</xterm-->
     </vm_defaults>
@@ -34,7 +34,7 @@ See the tutorial/index.html document for details
   </vm>
 
   <vm name="uml2" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnuml/filesystems/root_fs_winxp</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.2</ipv4>
@@ -62,7 +62,7 @@ See the tutorial/index.html document for details
   </vm>
 
   <vm name="uml4" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnuml/filesystems/root_fs_winxp</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net1">
       <ipv4>10.0.1.2</ipv4>
@@ -72,17 +72,15 @@ See the tutorial/index.html document for details
     </if>
     <route type="ipv4" gw="10.0.1.1">default</route>
     <forwarding type="ip" />
-    <!--filetree seq="vlc" root="c:\temp">conf/smplayer-portable-0.6.9</filetree-->
-    <!--filetree seq="vlc" root="c:\temp">conf/video</filetree-->
-    <!--exec seq="vlc" type="verbatim" mode="processy">c:\temp\smplayer.exe -close-at-end -fullscreen  c:\temp\video.mp4</exec-->
+    <filetree seq="vlc" root="c:\temp">conf/smplayer-portable-0.6.9</filetree>
+    <filetree seq="vlc" root="c:\temp">conf/video</filetree>
+    <exec seq="vlc" type="verbatim" mode="processy">c:\temp\smplayer.exe -close-at-end -fullscreen  c:\temp\video.mp4</exec>
     <exec seq="enable-routing" type="verbatim">sc config RemoteAccess start= auto</exec>
     <exec seq="enable-routing" type="verbatim">sc start RemoteAccess</exec>
-    <exec seq="calc" type="verbatim" mode="processy">calc.exe</exec>
-    
   </vm>
 
   <vm name="uml5" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnuml/filesystems/root_fs_winxp</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net2">
       <ipv4>10.0.2.2</ipv4>
