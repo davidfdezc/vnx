@@ -13,11 +13,11 @@ fi
 VNX_LIBS="$PERL_LIBS/VNX/"
 
 mkdir -v ${VNX_LIBS}
-cp -v modules/* ${VNX_LIBS}
-cp -v *.dtd /usr/share/xml/vnuml
-cp -v *.xsd /usr/share/xml/vnuml
-chmod 644 ${VNUML_LIBS}*
-chmod +x vnx
+cp -v ../vnx-folder/perl-modules/VNX/* ${VNX_LIBS}
+cp -v ../vnx-folder/data/*.dtd /usr/share/xml/vnx/
+cp -v ../vnx-folder/data/*.xsd /usr/share/xml/vnx/
+chmod 644 ${VNX_LIBS}*
+chmod +x ../vnx-folder/bin/vnx
 echo "** "
 echo "** ...done"
 echo "** "

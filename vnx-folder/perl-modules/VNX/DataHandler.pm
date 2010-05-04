@@ -140,14 +140,14 @@ sub new {
    }
    
    if ($no_filesystem) {
-   	  $global_data{'default_filesystem'} = &do_path_expansion("/usr/share/vnuml/filesystems/root_fs_tutorial");
+   	  $global_data{'default_filesystem'} = &do_path_expansion("/usr/share/vnx/filesystems/root_fs_tutorial");
       $global_data{'default_filesystem_type'} = "cow";
    }
    if ($no_mem) {
       $global_data{'default_mem'} = "32M";
    }
    if ($no_kernel) {
-      $global_data{'default_kernel'} = &do_path_expansion("/usr/share/vnuml/kernels/linux");
+      $global_data{'default_kernel'} = &do_path_expansion("/usr/share/vnx/kernels/linux");
       $global_data{'default_initrd'} = '';
       $global_data{'default_devfs'} = '';
       $global_data{'default_root'} = '';
@@ -155,7 +155,7 @@ sub new {
       $global_data{'default_trace'} = '';
    }
    if ($no_shell) {
-      $global_data{'default_shell'} = &do_path_expansion("/bin/bash");      # shell used by the script that vnumlparser generates      
+      $global_data{'default_shell'} = &do_path_expansion("/bin/bash");      # shell used by the script that vnx generates      
    }  
    if ($no_basedir) {
   	  $global_data{'default_basedir'} = '';
@@ -306,9 +306,9 @@ sub get_simname {
 #
 # Returns the vnuml_dir
 #
-sub get_vnuml_dir {
+sub get_vnx_dir {
    my $self = shift;
-   return $self->{'global_data'}->{'vnuml_dir'};
+   return $self->{'global_data'}->{'vnx_dir'};
 } 
 
 # get_tmp_dir
@@ -741,10 +741,10 @@ sub set_boot_timeout {
 #
 # Set the vnuml_dir
 #
-sub set_vnuml_dir {
+sub set_vnx_dir {
    my $self = shift;
-   my $vnuml_dir = shift;
-   $self->{'global_data'}->{'vnuml_dir'} = $vnuml_dir;
+   my $vnx_dir = shift;
+   $self->{'global_data'}->{'vnx_dir'} = $vnx_dir;
 } 
 
 # set_tmp_dir
@@ -765,7 +765,7 @@ sub set_tmp_dir {
 #
 sub get_sim_dir {
    my $self = shift;
-   return $self->get_vnuml_dir . "/simulations/" . $self->get_simname;
+   return $self->get_vnx_dir . "/simulations/" . $self->get_simname;
 }
 
 # get_global_run_dir
@@ -783,7 +783,7 @@ sub get_global_run_dir {
 #
 sub get_networks_dir {
    my $self = shift;
-   return $self->get_vnuml_dir . "/networks";
+   return $self->get_vnx_dir . "/networks";
 }
 
 # get_vm_dir
