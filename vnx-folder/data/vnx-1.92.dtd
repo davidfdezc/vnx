@@ -1,5 +1,5 @@
-<!-- VNUML DTD version 1.91 -->
-<!ELEMENT vnuml (global,net*,vm*,host?)>
+<!-- VNX DTD version 1.92 -->
+<!ELEMENT vnx (global,net*,vm*,host?)>
 <!ELEMENT global (version,simulation_name,ssh_version?,ssh_key*,automac?,netconfig?,vm_mgmt?,
           tun_device?,vm_defaults?,extension*)>
 <!ELEMENT vm_defaults (filesystem?,mem?,kernel?,shell?,basedir?,
