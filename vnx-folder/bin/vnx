@@ -161,11 +161,11 @@ use VNX::vmAPI;
 #use modules::vmAPI;
 
 use Error qw(:try);
-use Exception::Class ( "Vnuml::Exception" =>
+use Exception::Class ( "Vnx::Exception" =>
 		       { description => 'common exception',
                          fields => [ 'context' ]
                          },
-		       );
+		       ); 
 
 #no strict "subs";	# Needed in deamonize subrutine
 #use POSIX 'setsid';	# Needed in deamonize subrutine
@@ -228,14 +228,16 @@ exit(0);
 sub main {
 	
    $ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
-   my $vnuml_dir = &do_path_expansion("~/.vnuml");
+   my $vnx_dir = &do_path_expansion("~/.vnx");
 #   my $tmp_dir = "@VNUML_TMP@";[JSF]
 #   my $uid = $> == 0 ? getpwnam("@VNUML_USER@") : $>;[JSF]
    my $tmp_dir = "/tmp";
-   my $uid = $> == 0 ? getpwnam("vnuml") : $>;
+#   my $uid = $> == 0 ? getpwnam("vnuml") : $>;
+   my $uid = $> == 0 ? getpwnam("vnx") : $>;
    
 
-   my $boot_timeout = 30;		  # by default, 30 seconds for boot timeout
+#   my $boot_timeout = 30;		  # by default, 30 seconds for boot timeout
+   my $boot_timeout = 45; #[JSF]: las uml daban timeout con windows en el escenario
    
    my $start_time;                   # the moment when the parsers start operation
 
@@ -301,7 +303,7 @@ sub main {
    # 0. Check if -f is present
    if (!($opt_f)) { #[JSF]
    	  &usage;
-      &vnuml_die ("Option -f missing\n");
+      &vnx_die ("Option -f missing\n");
    }
 
    # 1. To use -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start,
@@ -315,15 +317,15 @@ sub main {
    }
    if ($opt_s) {
       # Deprecated, not supported since 1.7.0
-      &vnuml_die ("-s mode is no longer supported since version 1.7.0, use -x instead\n");
+      &vnx_die ("-s mode is no longer supported since version 1.7.0, use -x instead\n");
    }
    if ($opt_p) {
       # Deprecated, not supported since 1.7.0
-      &vnuml_die ("-p mode is no longer supported since version 1.7.0, use -x instead\n");
+      &vnx_die ("-p mode is no longer supported since version 1.7.0, use -x instead\n");
    }
    if ($opt_S) {
       # Deprecated, not supported since 1.8.0
-      &vnuml_die ("-S is no longer supported since version 1.8.0\n");
+      &vnx_die ("-S is no longer supported since version 1.8.0\n");
    }   
    if ($opt_x||$opt_execute) {
       $how_many_args++;
@@ -331,7 +333,7 @@ sub main {
    }
    if ($opt_r) {
       # Deprecated, not supported since 1.7.0
-      &vnuml_die ("-r mode is no longer supported since version 1.7.0, use -x instead\n");
+      &vnx_die ("-r mode is no longer supported since version 1.7.0, use -x instead\n");
    }
    #if ($opt_d) { [JSF]
    if ($opt_d||$opt_shutdown) {
@@ -393,39 +395,39 @@ sub main {
    
 
    if ($opt_m) {
-      &vnuml_die ("-m switch is no longer supported since version 1.6.0\n");
+      &vnx_die ("-m switch is no longer supported since version 1.6.0\n");
    }
 
    if ($how_many_args gt 1) {
       &usage;
-      &vnuml_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset or -H\n");
+      &vnx_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset or -H\n");
    }
    if ($how_many_args lt 1) {
       &usage;
-      &vnuml_die ("missing -t|--create, -x|--execute, -d|--shutdown, -P|--destroy, -V or -H\n"); #&vnuml_die ("missing -t, -x, -d, -P, -V or -H\n"); [JSF]
+      &vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -P|--destroy, -V or -H\n"); #&vnuml_die ("missing -t, -x, -d, -P, -V or -H\n"); [JSF]
    }
    if (($opt_F) && (!($opt_d||$opt_shutdown))) { #if (($opt_F) && (!$opt_d)) { [JSF]
       &usage; 
-      &vnuml_die ("Option -F only makes sense with -d|--shutdown mode\n"); #&vnuml_die ("Option -F only makes sense with -d mode\n"); [JSF]
+      &vnx_die ("Option -F only makes sense with -d|--shutdown mode\n"); #&vnuml_die ("Option -F only makes sense with -d mode\n"); [JSF]
    }
    if (($opt_B) && ($opt_F) && ($opt_d||$opt_shutdown)) {   #if (($opt_B) && ($opt_F) && ($opt_d)) { [JSF]
-      &vnuml_die ("Option -F and -B are incompabible\n");
+      &vnx_die ("Option -F and -B are incompabible\n");
    }
     if (($opt_o) && (!($opt_t||$opt_create))) {  # if (($opt_o) && (!$opt_t)) { [JSF]
       &usage;
-      &vnuml_die ("Option -o only makes sense with -t|--create mode\n"); #&vnuml_die ("Option -o only makes sense with -t mode\n"); [JSF]
+      &vnx_die ("Option -o only makes sense with -t|--create mode\n"); #&vnuml_die ("Option -o only makes sense with -t mode\n"); [JSF]
    }
    if (($opt_w) && (!($opt_t||$opt_create))) { #if (($opt_w) && (!$opt_t)) { [JSF]
       &usage;
-      &vnuml_die ("Option -w only makes sense with -t|--create mode\n"); # &vnuml_die ("Option -w only makes sense with -t mode\n"); [JSF]
+      &vnx_die ("Option -w only makes sense with -t|--create mode\n"); # &vnuml_die ("Option -w only makes sense with -t mode\n"); [JSF]
    }
       if (($opt_e) && (!($opt_t||$opt_create))) {  #if (($opt_e) && (!$opt_t)) { [JSF]
       &usage;
-      &vnuml_die ("Option -e only makes sense with -t|--create mode\n"); # &vnuml_die ("Option -e only makes sense with -t mode\n"); [JSF]
+      &vnx_die ("Option -e only makes sense with -t|--create mode\n"); # &vnuml_die ("Option -e only makes sense with -t mode\n"); [JSF]
    }
    if (($opt_Z) && (!($opt_t||$opt_create))) {   #if (($opt_Z) && (!$opt_t)) { [JSF]
       &usage;
-      &vnuml_die ("Option -Z only makes sense with -t|--create mode\n"); #&vnuml_die ("Option -Z only makes sense with -t mode\n");[JSF]
+      &vnx_die ("Option -Z only makes sense with -t|--create mode\n"); #&vnuml_die ("Option -Z only makes sense with -t mode\n");[JSF]
    }
 #   Option -M is now allowed for -t, -d and -P modes
 #   if (($opt_M) && !($opt_x)) {
@@ -434,7 +436,7 @@ sub main {
 #   }
    if (($opt_4) && ($opt_6)) {
       &usage;
-      &vnuml_die ("-4 and -6 can not be used at the same time\n");
+      &vnx_die ("-4 and -6 can not be used at the same time\n");
    }
 
    # Version pseudomode
@@ -456,9 +458,9 @@ sub main {
    $exemode = EXE_VERBOSE if ($opt_v);
    $exemode = EXE_DEBUG if ($opt_g);
    chomp(my $pwd = `pwd`);
-   $vnuml_dir = &chompslash($opt_c) if ($opt_c);
-   $vnuml_dir = "$pwd/$vnuml_dir"
-	   unless (&valid_absolute_directoryname($vnuml_dir));
+   $vnx_dir = &chompslash($opt_c) if ($opt_c);
+   $vnx_dir = "$pwd/$vnx_dir"
+	   unless (&valid_absolute_directoryname($vnx_dir));
    $tmp_dir = &chompslash($opt_T) if ($opt_T);
    $tmp_dir = "$pwd/$tmp_dir"
 	   unless (&valid_absolute_directoryname($tmp_dir));
@@ -466,7 +468,7 @@ sub main {
    $uid = getpwnam($opt_u) if ($> == 0 && $opt_u);
    $boot_timeout = $opt_w if (defined($opt_w));
    unless ($boot_timeout =~ /^\d+$/) {
-      &vnuml_die ("-w value ($opt_w) is not a valid timeout (positive integer)\n");  
+      &vnx_die ("-w value ($opt_w) is not a valid timeout (positive integer)\n");  
    }
 
    # FIXME: $enabld_4 and $enable_6 are not necessary, use $args object
@@ -526,42 +528,43 @@ sub main {
 
    # Check input file
    if (! -f $input_file) {
-      &vnuml_die ("file $input_file is not valid (perhaps does not exists)\n");
+      &vnx_die ("file $input_file is not valid (perhaps does not exists)\n");
    }
 
    # 4. To check vnuml_dir and tmp_dir
    # Create the working directory, if it doesn't already exist
    if ($exemode != EXE_DEBUG) {
-	   if (! -d $vnuml_dir ) {
-		   mkdir $vnuml_dir or &vnuml_die("Unable to create working directory $vnuml_dir: $!\n");
+	   if (! -d $vnx_dir ) {
+		   mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
 	   }
 		 if ($> == 0) {
 			 my $uid_name = getpwuid($uid);
-			 system("chown $uid $vnuml_dir");
+			 system("chown $uid $vnx_dir");
 			 $> = $uid;
-			 &vnuml_die ("vnuml_dir $vnuml_dir does not exist or is not readable/executable (user $uid_name)\n") unless (-r $vnuml_dir && -x _);
-			 &vnuml_die ("vnuml_dir $vnuml_dir is not writeable (user $uid_name)\n") unless ( -w _);
-			 &vnuml_die ("vnuml_dir $vnuml_dir is not a valid directory\n") unless (-d _);
+			 &vnx_die ("vnx_dir $vnx_dir does not exist or is not readable/executable (user $uid_name)\n") unless (-r $vnx_dir && -x _);
+			 &vnx_die ("vnx_dir $vnx_dir is not writeable (user $uid_name)\n") unless ( -w _);
+			 &vnx_die ("vnx_dir $vnx_dir is not a valid directory\n") unless (-d _);
 			 $> = 0;
 		 }
 
-	   if (! -d "$vnuml_dir/simulations") {
-		   mkdir "$vnuml_dir/simulations" or &vnuml_die("Unable to create simulations directory $vnuml_dir/simulations: $!\n");
+
+	   if (! -d "$vnx_dir/simulations") {
+		   mkdir "$vnx_dir/simulations" or &vnx_die("Unable to create simulations directory $vnx_dir/simulations: $!\n");
 	   }
-	   if (! -d "$vnuml_dir/networks") {
-		   mkdir "$vnuml_dir/networks" or &vnuml_die("Unable to create networks directory $vnuml_dir/networks: $!\n");
+	   if (! -d "$vnx_dir/networks") {
+		   mkdir "$vnx_dir/networks" or &vnx_die("Unable to create networks directory $vnx_dir/networks: $!\n");
 	   }
    }
-   &vnuml_die ("tmp_dir $tmp_dir does not exist or is not readable/executable\n") unless (-r $tmp_dir && -x _);
-   &vnuml_die ("tmp_dir $tmp_dir is not writeable\n") unless (-w _);
-   &vnuml_die ("tmp_dir $tmp_dir is not a valid directory\n") unless (-d _);
+   &vnx_die ("tmp_dir $tmp_dir does not exist or is not readable/executable\n") unless (-r $tmp_dir && -x _);
+   &vnx_die ("tmp_dir $tmp_dir is not writeable\n") unless (-w _);
+   &vnx_die ("tmp_dir $tmp_dir is not a valid directory\n") unless (-d _);
 
    # 5. To build the VNX::BinariesData object
    $bd = new BinariesData($exemode);
 
    # 6a. To check mandatory binaries # [JSF] to be updated with new ones
    if ($bd->check_binaries_mandatory != 0) {
-      &vnuml_die ("some required binary files are missing\n");
+      &vnx_die ("some required binary files are missing\n");
    }
    
    # We need the file to perform some manipulations
@@ -573,9 +576,9 @@ sub main {
    # 7. To check if the DTD file is present
    my $modeparser;
       
-   if ($input_file_string =~ /<!DOCTYPE vnuml SYSTEM "(.*)">/) { 
+   if ($input_file_string =~ /<!DOCTYPE vnx SYSTEM "(.*)">/) { 
       unless (-f $1) {
-         &vnuml_die ("DTD file $1 is not valid (perhaps does not exists)\n");	  
+         &vnx_die ("DTD file $1 is not valid (perhaps does not exists)\n");	  
       }
       $modeparser = "dtd"
    }else{
@@ -588,12 +591,12 @@ sub main {
       $version =~ /^(\d\.\d+)/;
       my $version_in_parser = $1;
       unless ($version_in_file eq $version_in_parser) {
-	     &vnuml_die("mayor version numbers of source file ($version_in_file) and parser ($version_in_parser) do not match");
+	     &vnx_die("mayor version numbers of source file ($version_in_file) and parser ($version_in_parser) do not match");
 exit;
       }
    }
    else {
-      &vnuml_die("can not find VNUML version in $input_file");
+      &vnx_die("can not find VNX version in $input_file");
    }
 
    # Interactive execution (press a key after each command)
@@ -611,7 +614,7 @@ exit;
 	   if ($opt_k) {
 	      # No longer implemented 
 	      #$parser = new XML::DOM::Parser;
-	      &vnuml_die ("-k switch is no longer supported since version 1.3.2\n");
+	      &vnx_die ("-k switch is no longer supported since version 1.3.2\n");
 	   }
 	   else {
 	      # Validator parser
@@ -620,12 +623,12 @@ exit;
 	   eval {
 	      local $XML::Checker::FAIL = \&validation_fail;
 	      $doc = $parser->parsefile($input_file);
-	   } || throw Vnuml::Exception( error=>"XML parsing of $input_file error: "
+	   } || throw Vnx::Exception( error=>"XML parsing of $input_file error: "
 	      . $@, show_trace=>1 );
 	
 	   if ($valid_fail) {
 	      # Validation errors
-	      &vnuml_die("$input_file is not a well-formed VNUML file\n");
+	      &vnx_die("$input_file is not a well-formed VNX file\n");
 	   }
    }
    if($modeparser eq "xsd"){
@@ -633,7 +636,7 @@ exit;
 		if ($input_file_string =~ /="(.*).xsd"/) {
         	$schemalocation = $1 .".xsd";
 		}else{
-			&vnuml_die("XSD not found");
+			&vnx_die("XSD not found");
 		}
 		
 		my $schema = XML::LibXML::Schema->new(location => $schemalocation);
@@ -646,7 +649,7 @@ exit;
 	
 		if ($@) {
 		  # Validation errors
-		  &vnuml_die("$input_file is not a well-formed VNUML file\n");
+		  &vnx_die("$input_file is not a well-formed VNX file\n");
 		}
 		
 		my $parser2 = new XML::DOM::Parser;
@@ -654,7 +657,7 @@ exit;
    }
 
    # Build the VNX::Execution object
-   $execution = new Execution($vnuml_dir,$exemode,"host> ",$exeinteractive,$uid);
+   $execution = new Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
 
    # Calculate the directory where the input_file lives
    my $xml_dir = (fileparse(abs_path($input_file)))[1];
@@ -662,14 +665,14 @@ exit;
    # Build the VNX::DataHandler object
    $dh = new DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
    $dh->set_boot_timeout($boot_timeout);
-   $dh->set_vnuml_dir($vnuml_dir);
+   $dh->set_vnx_dir($vnx_dir);
    $dh->set_tmp_dir($tmp_dir);
    $dh->enable_ipv6($enable_6);
    $dh->enable_ipv4($enable_4);   
 
    # User check
    if (my $err_msg = &check_user) {
-      &vnuml_die("$err_msg\n");
+      &vnx_die("$err_msg\n");
    }
 
    # Deprecation warnings
@@ -677,42 +680,42 @@ exit;
 
    # Semantic check (in addition to validation)
    if (my $err_msg = &check_doc($dh,$bd->get_binaries_path_ref,$execution->get_uid)) {
-      &vnuml_die ("$err_msg\n");
+      &vnx_die ("$err_msg\n");
    }
 
    # 6b (delayed because it required the $dh object constructed)
    # To check optional screen binaries
    $bd->add_additional_screen_binaries($dh);
    if (($opt_e) && ($bd->check_binaries_screen != 0)) {
-      &vnuml_die ("screen related binary is missing\n");
+      &vnx_die ("screen related binary is missing\n");
    }
 
    # 6c (delayed because it required the $dh object constructed)
    # To check optional uml_switch binaries 
    $bd->add_additional_uml_switch_binaries($dh);
    if (($bd->check_binaries_switch != 0)) {
-      &vnuml_die ("uml_switch related binary is missing\n");
+      &vnx_die ("uml_switch related binary is missing\n");
    }
 
    # 6d (delayed because it required the $dh object constructed)
    # To check optional binaries for virtual bridge
    $bd->add_additional_bridge_binaries($dh);   
    if ($bd->check_binaries_bridge != 0) {
-      &vnuml_die ("virtual bridge related binary is missing\n");  
+      &vnx_die ("virtual bridge related binary is missing\n");  
    }
 
    # 6e (delayed because it required the $dh object constructed)
    # To check xterm binaries
    $bd->add_additional_xterm_binaries($dh);
    if (($bd->check_binaries_xterm != 0)) {
-      &vnuml_die ("xterm related binary is missing\n");
+      &vnx_die ("xterm related binary is missing\n");
    }
 
    # 6f (delayed because it required the $dh object constructed)
    # To check optional binaries for VLAN support
    $bd->add_additional_vlan_binaries($dh);   
    if ($bd->check_binaries_vlan != 0) {
-      &vnuml_die ("VLAN related binary is missing\n");  
+      &vnx_die ("VLAN related binary is missing\n");  
    }   
 
    # Complete fields in Execution object that need the DataHandler and
@@ -723,7 +726,7 @@ exit;
    # Initialize plugins
    
    # push (@INC, "@DATADIR@/vnuml/plugins");[JSF]
-   push (@INC, "/usr/share/vnuml/plugins");
+   push (@INC, "/usr/share/vnx/plugins");
    
    my $extension_list = $dh->get_doc->getElementsByTagName("extension");
    for ( my $i = 0; $i < $extension_list->getLength; $i++ ) {
@@ -737,13 +740,13 @@ exit;
          $effective_conf = $conf;
       }
       else {
-         # Pathname relative to the place where the VNUML spec is ($xml_dir)
+         # Pathname relative to the place where the VNX spec is ($xml_dir)
          $effective_conf = "$xml_dir/$conf";
       }
       
       # Check input file
       if (! -f $effective_conf) {
-         &vnuml_die ("plugin $plugin configuration file $effective_conf is not valid (perhaps does not exists)\n");
+         &vnx_die ("plugin $plugin configuration file $effective_conf is not valid (perhaps does not exists)\n");
       }
             
       print "Loading pluging $plugin...\n";      
@@ -753,7 +756,7 @@ exit;
       eval "require $plugin";
       eval "import $plugin";      
       if (my $err_msg = $plugin->createPlugin($mode,$effective_conf)) {
-         &vnuml_die ("plugin $plugin reports error: $err_msg\n");
+         &vnx_die ("plugin $plugin reports error: $err_msg\n");
       }
       push (@plugins,$plugin);
    }
@@ -766,12 +769,12 @@ exit;
    }
 
    # Lock management
-   if (-f $dh->get_vnuml_dir . "/LOCK") {
+   if (-f $dh->get_vnx_dir . "/LOCK") {
       my $basename = basename $0;
-      &vnuml_die($dh->get_vnuml_dir . "/LOCK exists: another instance of $basename seems to be in execution\nIf you are sure that this cann't be happening in your system, do 'rm " . $dh->get_vnuml_dir . "/LOCK' and try again\n");
+      &vnx_die($dh->get_vnx_dir . "/LOCK exists: another instance of $basename seems to be in execution\nIf you are sure that this cann't be happening in your system, do 'rm " . $dh->get_vnx_dir . "/LOCK' and try again\n");
    }
    else {
-      $execution->execute($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_vnuml_dir . "/LOCK");
+      $execution->execute($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_vnx_dir . "/LOCK");
       $start_time = time();
    }
 
@@ -906,7 +909,7 @@ exit;
    }
    
    # Remove lock
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vnuml_dir . "/LOCK");
+   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vnx_dir . "/LOCK");
    my $total_time = time() - $start_time;
    print "Total time elapsed: $total_time seconds\n";
 
@@ -1117,7 +1120,7 @@ sub mode_t2 {
 		}
         
     } 
-    catch Vnuml::Exception with {
+    catch Vnx::Exception with {
 	   my $E = shift;
 	   print $E->as_string;
 	   print $E->message;
@@ -1203,7 +1206,7 @@ sub mode_define {
 #		}
         
     } 
-    catch Vnuml::Exception with {
+    catch Vnx::Exception with {
 	   my $E = shift;
 	   print $E->as_string;
 	   print $E->message;
@@ -1312,7 +1315,7 @@ sub mode_start {
 		}
         
     } 
-    catch Vnuml::Exception with {
+    catch Vnx::Exception with {
 	   my $E = shift;
 	   print $E->as_string;
 	   print $E->message;
@@ -1468,7 +1471,7 @@ sub configure_switched_networks {
        # (that is what the &mode_d is for)
        if (-f $capture_file) {
        	  &mode_d;
-          $execution->smartdie("$capture_file file already exist. Please remove it manually or specify another capture file in the VNUML specification.") 
+          $execution->smartdie("$capture_file file already exist. Please remove it manually or specify another capture file in the VNX specification.") 
        }
 
        my $hub     = $net_list->item($i)->getAttribute("hub");
@@ -1478,10 +1481,10 @@ sub configure_switched_networks {
        	
        	  # Some case are not supported in the current version
        	  if ((&vnet_exists_sw($name)) && (&check_net_host_conn($name,$dh->get_doc))) {
-       	  	print "VNUML warning: switched network $name with connection to host already exits. Ignoring.\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+       	  	print "VNX warning: switched network $name with connection to host already exits. Ignoring.\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
        	  }
        	  if ((!($external_if =~ /^$/))) {
-       	  	print "VNUML warning: switched network $name with external connection to $external_if: not implemented in current version. Ignoring.\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+       	  	print "VNX warning: switched network $name with external connection to $external_if: not implemented in current version. Ignoring.\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
        	  }
        	
        	  # If uml_switch does not exists, we create and set up it
@@ -1492,7 +1495,7 @@ sub configure_switched_networks {
 				 my $hub_str = ($hub eq "yes") ? "-hub" : "";
 				 my $sock = $dh->get_networks_dir . "/$name.ctl";
 				 unless (&check_net_host_conn($name,$dh->get_doc)) {
-					# print "VNUML warning: no connection to host from virtualy switched net \"$name\". \n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+					# print "VNX warning: no connection to host from virtualy switched net \"$name\". \n" if ($execution->get_exe_mode() == EXE_VERBOSE);
 					# To start virtual switch
 					my $extra;
 					if ($capture_file) {
@@ -1904,10 +1907,10 @@ sub uml_switch_wait {
 }
 
 ######################################################
-# Chown all vnuml working files to a non-privileged user (if user is root)
+# Chown all vnx working files to a non-privileged user (if user is root)
 sub chown_working_dir {
 	if ($> == 0) {
-		$execution->execute($bd->get_binaries_path_ref->{"chown"} . " -R " . $execution->get_uid . " " . $dh->get_vnuml_dir);
+		$execution->execute($bd->get_binaries_path_ref->{"chown"} . " -R " . $execution->get_uid . " " . $dh->get_vnx_dir);
 	}
 }
 
@@ -1954,7 +1957,7 @@ sub UML_notify_init {
 	my $flags;
 	my $notify_ctl;
 
-	my $command = $bd->get_binaries_path_ref->{"mktemp"} . " -p " . $dh->get_tmp_dir . " vnuml_notify.ctl.XXXXXX";
+	my $command = $bd->get_binaries_path_ref->{"mktemp"} . " -p " . $dh->get_tmp_dir . " vnx_notify.ctl.XXXXXX";
 	chomp($notify_ctl = `$command`);
 
 	# create socket
@@ -3316,7 +3319,7 @@ sub mode_d {
                }
             }
             else {
-               print "VNUML warning: <mgmt_net> autoconfigure attribute only is used when VNUML parser is invoked by root. Ignoring socket autodestruction\n";
+               print "VNX warning: <mgmt_net> autoconfigure attribute only is used when VNX parser is invoked by root. Ignoring socket autodestruction\n";
             }
          }
 
@@ -3937,13 +3940,13 @@ sub host_mapping_patch {
       #print "--status: $status\n";
       if ($status == 0) {
          print FIRST $_;
-	     $status = 1 if (/^\# VNUML BEGIN/);
+	     $status = 1 if (/^\# VNX BEGIN/);
       }
       elsif ($status == 1) {
          if (/^\# BEGIN: $sim_name$/) {
 	    $status = 2;
 	 }
-	 elsif (/^\# VNUML END/) {
+	 elsif (/^\# VNX END/) {
 	    $status = 4;
 	    print THIRD $_;
 	 }
@@ -3958,7 +3961,7 @@ sub host_mapping_patch {
       }
       elsif ($status == 3) {
          print THIRD $_;
-	     $status = 4 if (/^\# VNUML END/);
+	     $status = 4 if (/^\# VNX END/);
       }
       elsif ($status == 4) {
          print THIRD $_;
@@ -3969,25 +3972,25 @@ sub host_mapping_patch {
    # Check the final status when the hosts file has ended
    if ($status == 0) {
       # No VNUML section found
-      print FIRST "\# VNUML BEGIN -- DO NOT EDIT!!!\n";
+      print FIRST "\# VNX BEGIN -- DO NOT EDIT!!!\n";
       print FIRST "\n";
       print THIRD "\n";
-      print THIRD "\# VNUML END\n";
+      print THIRD "\# VNX END\n";
    }
    elsif ($status == 1) {
      # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
      print THIRD "\n";
-     print THIRD "\# VNUML END\n";
+     print THIRD "\# VNX END\n";
    }
    elsif ($status == 2) {
      # Found simultaion subsection BEGIN, but not found the end. Buggy situation? Trying to do the best
      print THIRD "\n";
-     print THIRD "\# VNUML END\n";
+     print THIRD "\# VNX END\n";
    }
    elsif ($status == 3) {
      # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
      print THIRD "\n";
-     print THIRD "\# VNUML END\n";
+     print THIRD "\# VNX END\n";
    }
    elsif ($status == 4) {
      # Doing nothing
@@ -4009,7 +4012,7 @@ sub host_mapping_patch {
    # Replace the old file
    my $dir_name = dirname $file_name;
    my $basename = basename $file_name;
-   my $file_bk = "$dir_name/$basename.vnuml.old";
+   my $file_bk = "$dir_name/$basename.vnx.old";
    $execution->execute($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
    $execution->execute($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
    $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
@@ -4037,11 +4040,11 @@ sub host_mapping_unpatch {
    open HOST_FILE, "$file_name"
       or $execution->smartdie ("can not open $file_name: $!");
    open FIRST, ">" . $dh->get_tmp_dir . "/hostfile.1"
-      or $execution->smartdie ("can not open " . $dh->get_vnuml_dir . "/hostfile.1 for writting: $!");
+      or $execution->smartdie ("can not open " . $dh->get_vnx_dir . "/hostfile.1 for writting: $!");
    open SECOND, ">" . $dh->get_tmp_dir . "/hostfile.2"
-      or $execution->smartdie ("can not open " . $dh->get_vnuml_dir . "/hostfile.2 for writting: $!");
+      or $execution->smartdie ("can not open " . $dh->get_vnx_dir . "/hostfile.2 for writting: $!");
    open THIRD, ">" . $dh->get_tmp_dir . "/hostfile.3"
-      or $execution->smartdie ("can not open " . $dh->get_vnuml_dir . "/hostfile.3 for writting: $!");
+      or $execution->smartdie ("can not open " . $dh->get_vnx_dir . "/hostfile.3 for writting: $!");
 
    # Status list:
    # 
@@ -4058,13 +4061,13 @@ sub host_mapping_unpatch {
       #print "--status: $status\n";
       if ($status == 0) {
          print FIRST $_;
-	 $status = 1 if (/^\# VNUML BEGIN/);
+	 $status = 1 if (/^\# VNX BEGIN/);
       }
       elsif ($status == 1) {
          if (/^\# BEGIN: $sim_name$/) {
 	    $status = 2;
 	 }
-	 elsif (/^\# VNUML END/) {
+	 elsif (/^\# VNX END/) {
 	    $status = 4;
 	    print THIRD $_;
 	 }
@@ -4079,7 +4082,7 @@ sub host_mapping_unpatch {
       }
       elsif ($status == 3) {
          print THIRD $_;
-	 $status = 4 if (/^\# VNUML END/);
+	 $status = 4 if (/^\# VNX END/);
       }
       elsif ($status == 4) {
          print THIRD $_;
@@ -4090,25 +4093,25 @@ sub host_mapping_unpatch {
    # Check the final status when the hosts file has ended
    if ($status == 0) {
       # No VNUML section found
-      print FIRST "\# VNUML BEGIN -- DO NOT EDIT!!!\n";
+      print FIRST "\# VNX BEGIN -- DO NOT EDIT!!!\n";
       print FIRST "\n";
       print THIRD "\n";
-      print THIRD "\# VNUML END\n";
+      print THIRD "\# VNX END\n";
    }
    elsif ($status == 1) {
      # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
      print THIRD "\n";
-     print THIRD "\# VNUML END\n";
+     print THIRD "\# VNX END\n";
    }
    elsif ($status == 2) {
      # Found simultaion subsection BEGIN, but not found the end. Buggy situation? Trying to do the best
      print THIRD "\n";
-     print THIRD "\# VNUML END\n";
+     print THIRD "\# VNX END\n";
    }
    elsif ($status == 3) {
      # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
      print THIRD "\n";
-     print THIRD "\# VNUML END\n";
+     print THIRD "\# VNX END\n";
    }
    elsif ($status == 4) {
      # Doing nothing
@@ -4129,7 +4132,7 @@ sub host_mapping_unpatch {
    # Replace the old file
    my $dir_name = dirname $file_name;
    my $basename = basename $file_name;
-   my $file_bk = "$dir_name/$basename.vnuml.old";
+   my $file_bk = "$dir_name/$basename.vnx.old";
    $execution->execute($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
    $execution->execute($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
    $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
@@ -4977,7 +4980,7 @@ sub mgmt_sock_create {
    my $hostip = shift;
    my $mask = shift;  
    
-   my $user = "vnuml";
+   my $user = "vnx";
    $user = $args->get('u') if ($args->get('u'));
 
    # Slashed or dotted mask?
@@ -5042,7 +5045,7 @@ sub validation_fail {
 # the LOCK file (as smartdie does): it is intented to be used in the early stages
 # of vnumlparser.pl execution, when the VNX::Execution object has not been construsted.
 #
-sub vnuml_die {
+sub vnx_die {
    my $mess = shift;
    printf "%s (%s): %s \n", (caller(1))[3], (caller(0))[2], $mess;
    exit 1;
@@ -5059,7 +5062,7 @@ sub handle_sig {
 		$execution->smartdie("Signal received. Exiting");
 	}
 	else {
-		&vnuml_die("Signal received. Exiting.");
+		&vnx_die("Signal received. Exiting.");
 	}
 }
 
@@ -5126,7 +5129,7 @@ sub build_topology{
                 if ($> == 0) {
                     my $sock = &do_path_expansion($dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock"));
                         if (-S $sock) {
-                            print "VNUML warning: <mgmt_net> socket already exists. Ignoring socket autoconfiguration\n";
+                            print "VNX warning: <mgmt_net> socket already exists. Ignoring socket autoconfiguration\n";
                         }
                         else {
                         # Create the socket
@@ -5134,7 +5137,7 @@ sub build_topology{
                         }
                 }
                 else {
-                    print "VNUML warning: <mgmt_net> autoconfigure attribute only is used when VNUML parser is invoked by root. Ignoring socket autoconfiguration\n";
+                    print "VNX warning: <mgmt_net> autoconfigure attribute only is used when VNX parser is invoked by root. Ignoring socket autoconfiguration\n";
                 }
             }
 
@@ -5440,11 +5443,11 @@ sub make_vm_API_doc {
 # Prints program usage message
 sub usage {
 	my $basename = basename $0;
-	print "Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnuml_dir] [-u user]\n";
+	print "Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnx_dir] [-u user]\n";
 	print "                 [-T tmp_dir] [-i] [-w timeout] [-B] [-Z]\n";
 	print "                 [-e screen_file] [-4] [-6] [-v] [-g] [-M vm_list]\n";
 	print "       vnx -f VNX_file [-x|--execute cmd_seq] [-T tmp_dir] [-M vm_list] [-i] [-B] [-4] [-6] [-v] [-g]\n";
-	print "       vnx -f VNX_file [-d|--shutdown] [-c vnuml_dir] [-F] [-T tmp_dir] [-i] [-B] [-4] [-6] [-v] [-g]\n";
+	print "       vnx -f VNX_file [-d|--shutdown] [-c vnx_dir] [-F] [-T tmp_dir] [-i] [-B] [-4] [-6] [-v] [-g]\n";
 	print "       vnx -f VNX_file [-P|--destroy] [-T tmp_file] [-i] [-v] [-u user] [-g]\n";
 	print "       vnx -f VNX_file [--define] [-M vm_list] [-v] [-u user] [-i]\n";
 	print "       vnx -f VNX_file [--start] [-M vm_list] [-v] [-u user] [-i]\n";
@@ -5478,12 +5481,12 @@ sub usage {
 	print "\n";
 	print "Options:\n";
 	print "       -o prefix, dump UML boot messages output to files (using given prefix in pathname)\n";
-	print "       -c vnuml_dir, vnx working directory (default is ~/.vnuml)\n";
-	print "       -u user, if run as root, UML and uml_switch processes will be owned by this user instead (default [arroba]VNUML_USER[arroba])\n";
+	print "       -c vnx_dir, vnx working directory (default is ~/.vnx)\n";
+	print "       -u user, if run as root, UML and uml_switch processes will be owned by this user instead (default [arroba]VNX_USER[arroba])\n";
 	print "       -F, force stopping of UMLs (warning: UML filesystems may be corrupted)\n";
 	print "       -w timeout, waits timeout seconds for a UML to boot before prompting the user for further action; a timeout of 0 indicates no timeout (default is 30)\n";
 	print "       -B, blocking mode\n";
-	print "       -Z, avoids filesystem VNUMLization\n";
+	print "       -Z, avoids filesystem VNXzation\n";
 	print "       -e screen_file, make screen configuration file for pts devices\n";
 	print "       -i, interactive execution (in combination with -v mode)\n";
 	print "       -4, process only IPv4 related tags (and not process IPv6 related tags)\n";

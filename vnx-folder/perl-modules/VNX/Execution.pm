@@ -57,7 +57,7 @@ sub new {
    my $self = {};
    bless $self;
 
-   $self->{'vnuml_dir'} = shift;
+   $self->{'vnx_dir'} = shift;
    $self->{'exe_mode'} = shift;
    $self->{'verb_prompt'} = shift;
    $self->{'exe_interactive'} = shift;
@@ -253,14 +253,14 @@ sub execute_mconsole {
 sub smartdie {
    my $self = shift;
    
-   my $vnuml_dir = $self->{'vnuml_dir'};
+   my $vnx_dir = $self->{'vnx_dir'};
    
    my $mess = shift;
    
-   if (-f "$vnuml_dir/LOCK") {
+   if (-f "$vnx_dir/LOCK") {
    	  # Note this 'rm' is not using the path in binaries_path (from VNUML::BinariesData)
    	  # Just a simplification
-      $self->execute("rm -f $vnuml_dir/LOCK");
+      $self->execute("rm -f $vnx_dir/LOCK");
    }
    printf "%s (%s): %s \n", (caller(1))[3], (caller(0))[2], $mess;
    exit 1; 
