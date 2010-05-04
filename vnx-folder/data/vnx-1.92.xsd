@@ -431,7 +431,7 @@
     </xs:complexType>
   </xs:element>
 
-  <xs:element name="vnuml">
+  <xs:element name="vnx">
     <xs:complexType>
       <xs:sequence>
         <xs:element ref="global" />

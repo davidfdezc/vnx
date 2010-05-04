@@ -204,8 +204,8 @@ my @plugins;     # plugins array
 # Version information
 # my $version = "[arroba]PACKAGE_VERSION[arroba]";[JSF]
 # my $release = "[arroba]RELEASE_DATE[arroba]";[JSF]
-my $version = "1.91beta1";
-my $release = "28/01/2010";
+my $version = "1.92beta1";
+my $release = "4/5/2010";
 
 my $branch = "";
 
