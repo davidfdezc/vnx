@@ -39,6 +39,7 @@ cp -v data/*.xml /usr/share/vnx/examples/
 chmod 644 /usr/share/vnx/examples/*
 
 mkdir -vp /usr/share/vnx/filesystems
+mkdir -vp /usr/share/vnx/kernels
 
 echo "** "
 echo "** ...done"
