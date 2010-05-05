@@ -1,0 +1,76 @@
+#!/bin/bash
+
+echo "** Adding VNUML repositories to /etc/apt/sources.list"
+if ! grep -q "http://jungla.dit.upm.es/~vnuml/debian binary/" /etc/apt/sources.list
+then 
+  echo "" >> /etc/apt/sources.list
+  echo "# VNUML/VNX repositories" >> /etc/apt/sources.list
+  echo "deb http://jungla.dit.upm.es/~vnuml/debian binary/" >> /etc/apt/sources.list
+  echo "** http://jungla.dit.upm.es/~vnuml/debian added" 
+else
+  echo "** http://jungla.dit.upm.es/~vnuml/debian already in /etc/apt/sources.list"
+fi
+
+if ! grep -q "http://jungla.dit.upm.es/~vnuml/debian-testing binary/" /etc/apt/sources.list
+then 
+  echo "deb http://jungla.dit.upm.es/~vnuml/debian-testing binary/" >> /etc/apt/sources.list
+  echo "** http://jungla.dit.upm.es/~vnuml/debian-testing added"
+  echo "" >> /etc/apt/sources.list
+else
+  echo "** http://jungla.dit.upm.es/~vnuml/debian-testing already in /etc/apt/sources.list"
+fi
+
+echo "** "
+echo "** Installing packages needed"
+echo "** "
+apt-get update
+apt-get -q -y install virt-manager build-essential ia32-libs            \
+   libxml-libxml-perl vncviewer vlan xterm bridge-utils screen        \
+   curl vnuml linux-um libterm-readline-perl-perl zlib-bin zlib1g-dev \
+   libxen3-dev libxml2-dev libgnutls-dev libsasl2-dev libsdl1.2-dev   \
+   libdevmapper-dev dnsmasq xbase-clients pkg-config
+
+echo "** "
+echo "** Installing QEMU-KVM"
+echo "** "
+mkdir /root/src
+cd /root/src
+wget http://sourceforge.net/projects/kvm/files/qemu-kvm/0.11.1/qemu-kvm-0.11.1.tar.gz/download
+tar xfvz qemu-kvm-0.11.1.tar.gz
+cd qemu-kvm-0.11.1
+./configure --prefix=/usr && make && make install
+ln -s /usr/bin/qemu-system-x86_64 /usr/bin/kvm
+
+if ! grep -q "^kvm$" /etc/modules; then
+  echo "kvm" >> /etc/modules
+fi
+if ! grep -q "^kvm_intel$" /etc/modules; then
+  echo "kvm_intel" >> /etc/modules
+fi
+
+echo "** "
+echo "** Installing Libvirt"
+echo "** "
+apt-get install libvirt-bin
+/etc/init.d/libvirt-bin stop
+cd /root/src
+wget http://libvirt.org/sources/libvirt-0.7.5.tar.gz
+tar xfvz libvirt-0.7.5.tar.gz
+cd libvirt-0.7.5
+./configure --prefix=/usr --without-storage-disk && make && make install
+/etc/init.d/libvirt-bin start
+
+echo "** "
+echo "** Installing Sys::Virt"
+echo "** "
+perl -MCPAN -e "CPAN::Shell->force(qw(install Sys::Virt));"
+
+echo "** "
+echo "** Installing VNUML rootfilesystem and kernel"
+echo "** "
+cd /usr/share/vnuml/filesystems
+wget http://www.dit.upm.es/vnuml/download/scripts/root-fs-installer
+perl root-fs-installer
+cd ../kernels
+ln -s linux-2.6.28.10-1m linux
+ssh-keygen -t rsa1
