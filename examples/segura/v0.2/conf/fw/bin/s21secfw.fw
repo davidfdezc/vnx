@@ -1,0 +1,383 @@
+#!/bin/sh 
+#
+#  This is automatically generated file. DO NOT MODIFY !
+#
+#  Firewall Builder  fwb_ipt v2.1.19-1 
+#
+#  Generated Sun Jan 11 17:24:38 2009 CET by root
+#
+# files: * s21secfw.fw
+#
+#
+#  This firewall has three interfaces. Eth0 faces outside and has a static routable address; eth1 faces inside; eth2 is connected to DMZ subnet.
+#  Policy includes basic rules to permit unrestricted outbound access and anti-spoofing rules. Access to the firewall is permitted only from internal network and only using SSH. The firewall uses one of the machines on internal network for DNS. Internal network is configured with address 192.168.1.0/255.255.255.0, DMZ is 192.168.2.0/255.255.255.0. Since DMZ used private IP address, it needs NAT. There is a mail relay host located on DMZ (object 'server on dmz'). Policy rules permit SMTP connections to it from the Internet and allow this server to connect to a host on internal network 'internal server'. All other access from DMZ to internal net is denied. To provide access to the mail relay its private address is mapped to firewall's outside interface address by NAT rule #1.
+#
+#
+#
+
+
+PATH="/sbin:/usr/sbin:/bin:/usr/bin:${PATH}"
+export PATH
+
+LSMOD="/sbin/lsmod"
+MODPROBE="/sbin/modprobe"
+IPTABLES="/sbin/iptables"
+IPTABLES_RESTORE="/sbin/iptables-restore"
+IP="/sbin/ip"
+LOGGER="/usr/bin/logger"
+
+
+#
+# Prolog script
+#
+
+#
+# End of prolog script
+#
+
+log() {
+  echo "$1"
+  test -x "$LOGGER" && $LOGGER -p info "$1"
+}
+
+check_file() {
+  test -r "$2" || {
+    echo "Can not find file $2 referenced by AddressTable object $1"
+    exit 1
+  }
+}
+
+va_num=1
+add_addr() {
+  addr=$1
+  nm=$2
+  dev=$3
+
+  type=""
+  aadd=""
+
+  L=`$IP -4 link ls $dev | head -n1`
+  if test -n "$L"; then
+    OIFS=$IFS
+    IFS=" /:,<"
+    set $L
+    type=$4
+    IFS=$OIFS
+    if test "$type" = "NO-CARRIER"; then
+      type=$5
+    fi
+
+    L=`$IP -4 addr ls $dev to $addr | grep inet | grep -v :`
+    if test -n "$L"; then
+      OIFS=$IFS
+      IFS=" /"
+      set $L
+      aadd=$2
+      IFS=$OIFS
+    fi
+  fi
+  if test -z "$aadd"; then
+    if test "$type" = "POINTOPOINT"; then
+      $IP -4 addr add $addr dev $dev scope global label $dev:FWB${va_num}
+      va_num=`expr $va_num + 1`
+    fi
+    if test "$type" = "BROADCAST"; then
+      $IP -4 addr add $addr/$nm dev $dev brd + scope global label $dev:FWB${va_num}
+      va_num=`expr $va_num + 1`
+    fi
+  fi
+}
+
+getInterfaceVarName() {
+  echo $1 | sed 's/\./_/'
+}
+
+getaddr() {
+  dev=$1
+  name=$2
+  L=`$IP -4 addr show dev $dev | grep inet | grep -v :`
+  test -z "$L" && { 
+    eval "$name=''"
+    return
+  }
+  OIFS=$IFS
+  IFS=" /"
+  set $L
+  eval "$name=$2"
+  IFS=$OIFS
+}
+
+
+getinterfaces() {
+  NAME=$1
+  $IP link show | grep ": $NAME" | while read L; do
+    OIFS=$IFS
+    IFS=" :"
+    set $L
+    IFS=$OIFS
+    echo $2
+  done
+}
+
+
+# increment ip address
+incaddr()
+{
+  n1=$4
+  n2=$3
+  n3=$2
+  n4=$1
+
+  vn1=`eval  "echo \\$$n1"`
+
+  R=`expr $vn1 \< 255`
+  if test $R = "1"; then
+    eval "$n1=`expr $vn1 + 1`"
+  else
+    eval "$n1=0"
+    incaddr XX $n4 $n3 $n2
+  fi
+}
+
+if $IP link ls >/dev/null 2>&1; then
+  echo;
+else
+  echo "iproute not found"
+  exit 1
+fi
+
+
+
+MODULES_DIR="/lib/modules/`uname -r`/kernel/net/"
+MODULES=`find $MODULES_DIR -name '*conntrack*'|sed  -e 's/^.*\///' -e 's/\([^\.]\)\..*/\1/'`
+for module in $MODULES; do 
+  if $LSMOD | grep ${module} >/dev/null; then continue; fi
+  $MODPROBE ${module} ||  exit 1 
+done
+
+
+# Using 0 address table files
+
+
+INTERFACES="eth1 eth3 lo eth2 eth0 "
+for i in $INTERFACES ; do
+  $IP link show "$i" > /dev/null 2>&1 || {
+    log "Interface $i does not exist"
+    exit 1
+  }
+done
+
+
+# Configure interfaces
+$IP -4 neigh flush dev eth1 >/dev/null 2>&1
+$IP -4 addr flush dev eth1 secondary label "eth1:FWB*" >/dev/null 2>&1
+$IP -4 neigh flush dev eth3 >/dev/null 2>&1
+$IP -4 addr flush dev eth3 secondary label "eth3:FWB*" >/dev/null 2>&1
+$IP -4 neigh flush dev eth2 >/dev/null 2>&1
+$IP -4 addr flush dev eth2 secondary label "eth2:FWB*" >/dev/null 2>&1
+$IP -4 neigh flush dev eth0 >/dev/null 2>&1
+$IP -4 addr flush dev eth0 secondary label "eth0:FWB*" >/dev/null 2>&1
+
+
+add_addr 192.0.0.1 24 eth1
+$IP link set eth1 up
+add_addr 10.0.0.1 24 eth3
+$IP link set eth3 up
+add_addr 127.0.0.1 8 lo
+$IP link set lo up
+add_addr 10.0.10.1 24 eth2
+$IP link set eth2 up
+add_addr 10.255.0.2 30 eth0
+$IP link set eth0 up
+
+
+# Add virtual addresses for NAT rules
+
+
+log 'Activating firewall script generated Sun Jan 11 17:24:38 2009  by root'
+
+$IPTABLES -P OUTPUT  DROP
+$IPTABLES -P INPUT   DROP
+$IPTABLES -P FORWARD DROP
+ip6tables -L -n > /dev/null 2>&1 && {
+  ip6tables -P OUTPUT  DROP
+  ip6tables -P INPUT   DROP
+  ip6tables -P FORWARD DROP
+  ip6tables -A INPUT  -i lo  -j ACCEPT 
+  ip6tables -A OUTPUT  -o lo  -j ACCEPT 
+}
+
+
+
+cat /proc/net/ip_tables_names | while read table; do
+  $IPTABLES -t $table -L -n | while read c chain rest; do
+      if test "X$c" = "XChain" ; then
+        $IPTABLES -t $table -F $chain
+      fi
+  done
+  $IPTABLES -t $table -X
+done
+
+
+$IPTABLES -A INPUT   -m state --state ESTABLISHED,RELATED -j ACCEPT
+$IPTABLES -A OUTPUT  -m state --state ESTABLISHED,RELATED -j ACCEPT
+$IPTABLES -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# 
+# Rule 0 (eth1)
+# 
+echo "Rule 0 (eth1)"
+# 
+# anti spoofing rule
+# 
+$IPTABLES -N In_RULE_0
+$IPTABLES -A INPUT  -i eth1  -s 192.0.0.1  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A INPUT  -i eth1  -s 10.0.0.1  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A INPUT  -i eth1  -s 10.0.10.1  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A INPUT  -i eth1  -s 10.255.0.2  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A INPUT  -i eth1  -s 10.0.0.0/24  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A INPUT  -i eth1  -s 10.0.10.0/24  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A INPUT  -i eth1  -s 10.0.1.0/24  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A INPUT  -i eth1  -s 10.0.2.0/24  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A INPUT  -i eth1  -s 10.0.3.0/24  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A FORWARD  -i eth1  -s 192.0.0.1  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A FORWARD  -i eth1  -s 10.0.0.1  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A FORWARD  -i eth1  -s 10.0.10.1  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A FORWARD  -i eth1  -s 10.255.0.2  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A FORWARD  -i eth1  -s 10.0.0.0/24  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A FORWARD  -i eth1  -s 10.0.10.0/24  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A FORWARD  -i eth1  -s 10.0.1.0/24  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A FORWARD  -i eth1  -s 10.0.2.0/24  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A FORWARD  -i eth1  -s 10.0.3.0/24  -m state --state NEW  -j In_RULE_0 
+$IPTABLES -A In_RULE_0  -j LOG  --log-level info --log-prefix "RULE 0 -- DENY "
+$IPTABLES -A In_RULE_0  -j DROP 
+# 
+# Rule 1 (lo)
+# 
+echo "Rule 1 (lo)"
+# 
+# 
+# 
+$IPTABLES -A INPUT  -i lo  -m state --state NEW  -j ACCEPT 
+$IPTABLES -A OUTPUT  -o lo  -m state --state NEW  -j ACCEPT 
+# 
+# Rule 2 (global)
+# 
+echo "Rule 2 (global)"
+# 
+# SSH Access to firewall is permitted
+# only from internal network
+# 
+$IPTABLES -N Cid493326571234.0
+$IPTABLES -A INPUT -p tcp -m tcp  --dport 22  -m state --state NEW  -j Cid493326571234.0 
+$IPTABLES -A Cid493326571234.0  -s 10.255.0.0/30  -j ACCEPT 
+$IPTABLES -A Cid493326571234.0  -s 10.0.0.0/16  -j ACCEPT 
+# 
+# Rule 3 (global)
+# 
+echo "Rule 3 (global)"
+# 
+# All other attempts to connect to
+# the firewall are denied and logged
+# 
+$IPTABLES -N RULE_3
+$IPTABLES -A OUTPUT  -d 192.0.0.1  -m state --state NEW  -j RULE_3 
+$IPTABLES -A OUTPUT  -d 10.0.0.1  -m state --state NEW  -j RULE_3 
+$IPTABLES -A OUTPUT  -d 10.0.10.1  -m state --state NEW  -j RULE_3 
+$IPTABLES -A OUTPUT  -d 10.255.0.2  -m state --state NEW  -j RULE_3 
+$IPTABLES -A INPUT  -m state --state NEW  -j RULE_3 
+$IPTABLES -A RULE_3  -j LOG  --log-level info --log-prefix "RULE 3 -- DENY "
+$IPTABLES -A RULE_3  -j DROP 
+# 
+# Rule 4 (global)
+# 
+echo "Rule 4 (global)"
+# 
+# Access to DNS server from anywhere
+# 
+$IPTABLES -A OUTPUT -p tcp -m tcp  -d 10.0.10.2  --dport 53  -m state --state NEW  -j ACCEPT 
+$IPTABLES -A OUTPUT -p udp -m udp  -d 10.0.10.2  --dport 53  -m state --state NEW  -j ACCEPT 
+$IPTABLES -A FORWARD -p tcp -m tcp  -d 10.0.10.2  --dport 53  -m state --state NEW  -j ACCEPT 
+$IPTABLES -A FORWARD -p udp -m udp  -d 10.0.10.2  --dport 53  -m state --state NEW  -j ACCEPT 
+# 
+# Rule 5 (global)
+# 
+echo "Rule 5 (global)"
+# 
+# Access to web server from anywhere allowed
+# 
+$IPTABLES -A OUTPUT -p tcp -m tcp  -m multiport  -d 10.0.10.4  --dports 80,443  -m state --state NEW  -j ACCEPT 
+$IPTABLES -A FORWARD -p tcp -m tcp  -m multiport  -d 10.0.10.4  --dports 80,443  -m state --state NEW  -j ACCEPT 
+# 
+# Rule 6 (global)
+# 
+echo "Rule 6 (global)"
+# 
+# Mail relay on DMZ can accept
+# connections from hosts on the
+# Internet
+# 
+$IPTABLES -A OUTPUT -p tcp -m tcp  -d 10.0.10.3  --dport 25  -m state --state NEW  -j ACCEPT 
+$IPTABLES -A FORWARD -p tcp -m tcp  -d 10.0.10.3  --dport 25  -m state --state NEW  -j ACCEPT 
+# 
+# Rule 7 (global)
+# 
+echo "Rule 7 (global)"
+# 
+# All other access from DMZ to
+# internal  net is denied
+# 
+$IPTABLES -N RULE_7
+$IPTABLES -A OUTPUT  -s 10.0.10.0/24  -d 10.0.0.0/16  -m state --state NEW  -j RULE_7 
+$IPTABLES -A INPUT  -s 10.0.10.0/24  -d 10.0.0.0/16  -m state --state NEW  -j RULE_7 
+$IPTABLES -A FORWARD  -s 10.0.10.0/24  -d 10.0.0.0/16  -m state --state NEW  -j RULE_7 
+$IPTABLES -A RULE_7  -j LOG  --log-level info --log-prefix "RULE 7 -- DENY "
+$IPTABLES -A RULE_7  -j DROP 
+# 
+# Rule 8 (global)
+# 
+echo "Rule 8 (global)"
+# 
+# This permits access from internal net
+# to the Internet and DMZ
+# 
+$IPTABLES -A INPUT  -s 10.0.0.0/16  -m state --state NEW  -j ACCEPT 
+$IPTABLES -A OUTPUT  -s 10.0.0.0/16  -m state --state NEW  -j ACCEPT 
+$IPTABLES -A FORWARD  -s 10.0.0.0/16  -m state --state NEW  -j ACCEPT 
+# 
+# Rule 9 (global)
+# 
+echo "Rule 9 (global)"
+# 
+# Access to Subnet1 from outside permitted
+# 
+$IPTABLES -A OUTPUT  -d 10.0.1.0/24  -m state --state NEW  -j ACCEPT 
+$IPTABLES -A FORWARD  -d 10.0.1.0/24  -m state --state NEW  -j ACCEPT 
+# 
+# Rule 10 (global)
+# 
+echo "Rule 10 (global)"
+# 
+# 
+# 
+$IPTABLES -N RULE_10
+$IPTABLES -A OUTPUT  -m state --state NEW  -j RULE_10 
+$IPTABLES -A INPUT  -m state --state NEW  -j RULE_10 
+$IPTABLES -A FORWARD  -m state --state NEW  -j RULE_10 
+$IPTABLES -A RULE_10  -j LOG  --log-level info --log-prefix "RULE 10 -- DENY "
+$IPTABLES -A RULE_10  -j DROP 
+#
+#
+echo 1 > /proc/sys/net/ipv4/ip_forward
+
+
+#
+# Epilog script
+#
+
+
+# End of epilog script
+#
+
+
+
