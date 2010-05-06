@@ -209,8 +209,8 @@ sub defineVM {
 
 		#cogido de UML_bootfile y bootfiles
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
-		open CONFILE, ">$path" . "winboot"
-		  or $execution->smartdie("can not open ${path}winboot: $!")
+		open CONFILE, ">$path" . "vnxboot"
+		  or $execution->smartdie("can not open ${path}vnxboot: $!")
 		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
 
 		#$execution->execute($doc ,*CONFILE);
@@ -655,10 +655,10 @@ sub createVM {
 	}
 	elsif ( $type eq "libvirt-kvm-windows" ) {
 
-		#Salvamos el xml recibido como winboot, para la autoconfiguración
+		#Salvamos el xml recibido como vnxboot, para la autoconfiguración
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
-		open CONFILE, ">$path" . "winboot"
-		  or $execution->smartdie("can not open ${path}winboot: $!")
+		open CONFILE, ">$path" . "vnxboot"
+		  or $execution->smartdie("can not open ${path}vnxboot: $!")
 		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
 
 		#$execution->execute($doc ,*CONFILE);
