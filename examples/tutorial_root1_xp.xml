@@ -5,10 +5,10 @@ VNUML Root Scenario (1)
 See the tutorial/index.html document for details
 -->
 
-<vnuml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.92.xsd">
   <global>
-    <version>1.91</version>
+    <version>1.92</version>
     <simulation_name>tutorial-r1_xp_vnx</simulation_name>
     <automac/>
     <vm_mgmt type="none" />
@@ -31,6 +31,8 @@ See the tutorial/index.html document for details
       <ipv4>10.0.0.1</ipv4>
     </if>
     <route type="ipv4" gw="10.0.0.3">default</route>
+        <exec seq="start" type="verbatim">nohup /usr/bin/hello &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;</exec>
+    <exec seq="stop" type="verbatim">killall hello</exec> 
   </vm>
 
   <vm name="uml2" type="libvirt" subtype="kvm" os="windows">
@@ -72,8 +74,8 @@ See the tutorial/index.html document for details
     </if>
     <route type="ipv4" gw="10.0.1.1">default</route>
     <forwarding type="ip" />
-    <filetree seq="vlc" root="c:\temp">conf/smplayer-portable-0.6.9</filetree>
-    <filetree seq="vlc" root="c:\temp">conf/video</filetree>
+    <filetree seq="libvirt1" root="c:\tem1">/home/jrodriguez/libvirt-0.8.1/</filetree>
+    <exec seq="libvirt1" type="verbatim">notepad.exe c:\tem1\config.log</exec>
     <exec seq="vlc" type="verbatim" mode="processy">c:\temp\smplayer.exe -close-at-end -fullscreen  c:\temp\video.mp4</exec>
     <exec seq="enable-routing" type="verbatim">sc config RemoteAccess start= auto</exec>
     <exec seq="enable-routing" type="verbatim">sc start RemoteAccess</exec>
@@ -95,4 +97,4 @@ See the tutorial/index.html document for details
     <route type="ipv4" gw="10.0.3.1">10.0.0.0/16</route>
   </host>
 
-</vnuml>
+</vnx>
