@@ -1362,7 +1362,6 @@ sub mode_save {
       my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
       unless ($vm_hash{$name}){
-
           next;
       }
 
