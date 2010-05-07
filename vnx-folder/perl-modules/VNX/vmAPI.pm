@@ -1640,6 +1640,10 @@ sub saveVM {
 	my $vmName   = shift;
 	my $type     = shift;
 	my $filename = shift;
+	$dh        = shift;
+	$bd        = shift;
+	$execution = shift;
+	
 
 	my $error = 0;
 
@@ -1660,6 +1664,7 @@ sub saveVM {
 			if ( $dom_name eq $vmName ) {
 				$listDom->save($filename);
 				print "Domain saved to file $filename\n";
+				&change_vm_status( $dh, $vmName, "paused" );
 				return $error;
 			}
 		}
@@ -1681,6 +1686,7 @@ sub saveVM {
 			if ( $dom_name eq $vmName ) {
 				$listDom->save($filename);
 				print "Domain saved to file $filename\n";
+				&change_vm_status( $dh, $vmName, "paused" );
 				return $error;
 			}
 		}
@@ -1718,11 +1724,11 @@ sub restoreVM {
 
 		my $dom = $con->restore_domain($filename);
 		print("Dominio restored from file $filename\n");
-
+		&change_vm_status( $dh, $vmName, "running" );
 		return $error;
 
 	}
-	elsif ( $type eq "libvirt-kvm" ) {
+	elsif ( $type eq "libvirt-kvm-windows" ) {
 		my $addr = "qemu:///system";
 		print "Connecting to $addr...";
 		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
@@ -1730,7 +1736,7 @@ sub restoreVM {
 
 		my $dom = $con->restore_domain($filename);
 		print("Dominio restored from file $filename\n");
-
+		&change_vm_status( $dh, $vmName, "running" );
 		return $error;
 
 	}
