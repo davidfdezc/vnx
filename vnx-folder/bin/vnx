@@ -1140,7 +1140,6 @@ sub mode_define {
    my $only_vm_to_define = shift;
    my $basename = basename $0;
    my $opt_M = $args->get('M');
-   
 
    
    unless ($opt_M || $do_not_build){
@@ -1163,8 +1162,8 @@ sub mode_define {
         &UML_notify_cleanup($sock,$notify_ctl) if ($execution->get_exe_mode() != EXE_DEBUG);
 
         # If <host_mapping> is in use and not in debug mode, process /etc/hosts
-        my $lines = join "\n", @host_lines;
-        &host_mapping_patch ($lines, $dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
+#        my $lines = join "\n", @host_lines;
+#        &host_mapping_patch ($lines, $dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
 
 # WE DON'T BOOT VMS, -B DOESN'T MAKE SENSE
 #        # If -B, block until ready
@@ -1273,7 +1272,8 @@ sub mode_start {
 
         # If <host_mapping> is in use and not in debug mode, process /etc/hosts
         my $lines = join "\n", @host_lines;
-        &host_mapping_patch ($lines, $dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
+#        &host_mapping_patch ($lines, $dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
+        &host_mapping_patch ($dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG)); # lines in the temp file
 
 
         # If -B, block until ready
@@ -3782,7 +3782,7 @@ sub get_kernel_pids {
 #
 sub host_mapping_patch {
 
-   my $lines = shift;
+#   my $lines = shift;
    my $sim_name = shift;
    my $file_name = shift;
 
@@ -3872,7 +3872,9 @@ sub host_mapping_patch {
    }
    
    # Second fragment
-   my $command = $bd->get_binaries_path_ref->{"date"};
+   my $command = $bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_sim_dir . "/hostlines";
+   chomp (my $lines = `$command`);
+   $command = $bd->get_binaries_path_ref->{"date"};
    chomp (my $now = `$command`);
    print SECOND "\# BEGIN: $sim_name\n";
    print SECOND "\# topology built: $now\n";
@@ -3890,6 +3892,7 @@ sub host_mapping_patch {
    my $file_bk = "$dir_name/$basename.vnx.old";
    $execution->execute($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
    $execution->execute($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
+
    $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
 
 }
