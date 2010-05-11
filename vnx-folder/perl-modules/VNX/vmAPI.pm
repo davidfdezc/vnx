@@ -434,6 +434,10 @@ sub defineVM {
 #
 #      $execution->execute("virt-viewer $vmName &");
 
+
+
+
+
 		return $error;
 
 	}
@@ -883,6 +887,7 @@ sub createVM {
 			  . "/pid" );
 
 		$execution->execute("virt-viewer $vmName &");
+		
 
 		###################################################################
 		#                      createVM for UML                           #
@@ -1451,7 +1456,6 @@ sub startVM {
 
 	my $error;
 
-	print "entra a startVM\n\n";
 
 	if ( $type eq "libvirt-kvm" ) {
 		my $addr = "qemu:///system";
@@ -1499,6 +1503,36 @@ sub startVM {
 					  . "/pid" );
 
 				$execution->execute("virt-viewer $vmName &");
+
+
+
+	######
+		my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type, 2 );
+
+#		$execution->execute(
+#			"ifconfig eth0 "
+#			  . $net->addr()
+#			  . " netmask "
+#			  . $net->mask() . " up",
+#			*CONFILE
+#		);
+
+		# If host_mapping is in use, append trailer to /etc/hosts config file
+
+		if ( $dh->get_host_mapping ) {
+
+			#@host_lines = ( @host_lines, $net->addr() . " $vm_name" );
+			#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
+			open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
+				or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
+				unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			print HOSTLINES $net->addr() . " $vmName\n";
+			close HOSTLINES;
+		}
+		######
+
+
+
 
 				$error = 0;
 				return $error;
@@ -2914,7 +2948,8 @@ sub get_kernel_pids {
 
 		# Get name attribute
 		my $name = $vm->getAttribute("name");
-		unless ( ( $vmName = 0 ) && ( $name = $vmName ) ) {
+		print "*$name* y *$vmName*\n";
+		unless ( ( $vmName == 0 ) || ( $name == $vmName ) ) {
 			next;
 		}
 		my $pid_file = $dh->get_run_dir($name) . "/pid";
@@ -2976,9 +3011,15 @@ sub UML_bootfile {
 			*CONFILE
 		);
 
-		# If host_mapping is in use, append trailer to /etc/hosts
+		# If host_mapping is in use, append trailer to /etc/hosts config file
 		if ( $dh->get_host_mapping ) {
-			@host_lines = ( @host_lines, $net->addr() . " $vm_name" );
+			#@host_lines = ( @host_lines, $net->addr() . " $vm_name" );
+			#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
+			open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
+				or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
+				unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			print HOSTLINES $net->addr() . " $vm_name\n";
+			close HOSTLINES;
 		}
 	}
 
