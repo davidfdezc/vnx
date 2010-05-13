@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE vnx SYSTEM "/usr/share/xml/vnx/vnx-1.92.dtd">
+
+<!--
+
+Simple simulation
+Just one Windows XP virtual machine. Use this specification for testing
+
+-->
+
+<vnx>
+  <global>
+    <version>1.92</version>
+    <simulation_name>simple</simulation_name>
+    <automac/>
+    <vm_mgmt type="none" />
+  </global>
+    
+  <!-- NODES -->
+  <vm name="host1" type="libvirt" subtype="kvm" os="windows">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_linux</filesystem>
+    <mem>256M</mem>
+  </vm>
+
+</vnx>
