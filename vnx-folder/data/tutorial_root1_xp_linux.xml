@@ -30,6 +30,9 @@ See the tutorial/index.html document for details
   <net name="Net2" mode="virtual_bridge" />
   <net name="Net3" mode="virtual_bridge" />
 
+
+
+
   <vm name="uml1" type="uml" subtype="" os="">
     <if id="1" net="Net0">
       <ipv4>10.0.0.1</ipv4>
@@ -37,6 +40,15 @@ See the tutorial/index.html document for details
     <route type="ipv4" gw="10.0.0.3">default</route>
         <exec seq="start" type="verbatim">nohup /usr/bin/hello &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;</exec>
     <exec seq="stop" type="verbatim">killall hello</exec> 
+  </vm>
+
+  <vm name="uml7" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/home/jorge/workspace/test_scenarios/ubuntu_base.qcow2</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net2">
+      <ipv4>10.0.2.8</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.2.1">default</route>
   </vm>
 
   <vm name="uml2" type="libvirt" subtype="kvm" os="windows">
@@ -67,7 +79,7 @@ See the tutorial/index.html document for details
     <forwarding type="ip" />
   </vm>
 
-  <vm name="uml4" type="libvirt" subtype="kvm" os="windows">
+  <!--vm name="uml4" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net1">
@@ -78,17 +90,24 @@ See the tutorial/index.html document for details
     </if>
     <route type="ipv4" gw="10.0.1.1">default</route>
     <forwarding type="ip" />
-  </vm>
+    <filetree seq="libvirt1" root="c:\tem1">/home/jrodriguez/libvirt-0.8.1/</filetree>
+    <exec seq="libvirt1" type="verbatim">notepad.exe c:\tem1\config.log</exec>
+    <exec seq="vlc" type="verbatim" mode="processy">c:\temp\smplayer.exe -close-at-end -fullscreen  c:\temp\video.mp4</exec>
+    <exec seq="enable-routing" type="verbatim">sc config RemoteAccess start= auto</exec>
+    <exec seq="enable-routing" type="verbatim">sc start RemoteAccess</exec>
+  </vm-->
 
-  <vm name="uml5" type="libvirt" subtype="kvm" os="windows">
+  <!--vm name="uml5" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net2">
       <ipv4>10.0.2.2</ipv4>
     </if>
     <route type="ipv4" gw="10.0.2.1">default</route>
-  </vm>
+  </vm-->
   
+
+
   <host>
     <hostif net="Net3">
        <ipv4>10.0.3.2</ipv4>
