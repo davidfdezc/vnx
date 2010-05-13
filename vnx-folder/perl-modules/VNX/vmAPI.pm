@@ -3494,7 +3494,7 @@ sub get_kernel_pids {
 		# Get name attribute
 		my $name = $vm->getAttribute("name");
 		print "*$name* y *$vmName*\n";
-		unless ( ( $vmName == 0 ) || ( $name == $vmName ) ) {
+		unless ( ( $vmName eq 0 ) || ( $name eq $vmName ) ) {
 			next;
 		}
 		my $pid_file = $dh->get_run_dir($name) . "/pid";
@@ -4192,6 +4192,7 @@ sub conf_files {
 					$execution->execute( $bd->get_binaries_path_ref->{"scp"} . " -q -r -oProtocol=" . $dh->get_ssh_version . " -o 'StrictHostKeyChecking no'" . " $src/* $user\@$vm_ips{$name}:$dest" );
 				}
 				elsif ( $mode eq "mconsole" ) {
+
 					if ( $typeos eq "uml" ) {
 
 						# Copy to the hostfs mount point and issue a mv command in the virtual machine to the right place.
@@ -4297,7 +4298,9 @@ sub conf_files {
 							print "VNX warning: $mconsole socket does not exist. Copy of $src files can not be performed\n";
 						}
 					}
-					elsif ( $typeos eq "libvirt-kvm-windows" ) {
+					
+					elsif ( ($typeos eq "libvirt-kvm-windows")||($typeos eq "libvirt-kvm-linux") ) {
+
 						my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name)  . " filetree.XXXXXX";
 
 						open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree.xml"
@@ -4782,7 +4785,7 @@ sub command_files {
 				  . $dh->get_tmp_dir
 				  . "/vnx.$name.$seq.$random_id" );
 		}
-		elsif ( $typeos eq "libvirt-kvm-windows" ) {
+		elsif ( ($typeos eq "libvirt-kvm-windows")||($typeos eq "libvirt-kvm-linux") ) {
 
 			# We open file
 			open COMMAND_FILE,
@@ -5023,7 +5026,7 @@ sub exec_command_files {
 				  . $dh->get_tmp_dir
 				  . "/vnx.$name.$seq.$random_id" );
 		}
-		elsif ( $type eq "libvirt-kvm-windows" ) {
+		elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux") ) {
 			if ( $numcomandos != 0 ) {
 				
 				#		$execution->execute( "qemu-img create -f raw /tmp/disco.img "

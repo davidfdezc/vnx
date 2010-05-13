@@ -33,14 +33,14 @@ See the tutorial/index.html document for details
 
 
 
-  <vm name="uml1" type="uml" subtype="" os="">
+  <!--vm name="uml1" type="uml" subtype="" os="">
     <if id="1" net="Net0">
       <ipv4>10.0.0.1</ipv4>
     </if>
     <route type="ipv4" gw="10.0.0.3">default</route>
-        <exec seq="start" type="verbatim">nohup /usr/bin/hello &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;</exec>
+    <exec seq="start" type="verbatim">nohup /usr/bin/hello &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;</exec>
     <exec seq="stop" type="verbatim">killall hello</exec> 
-  </vm>
+  </vm-->
 
   <vm name="uml7" type="libvirt" subtype="kvm" os="linux">
     <filesystem type="cow">/home/jorge/workspace/test_scenarios/ubuntu_base.qcow2</filesystem>
@@ -49,6 +49,7 @@ See the tutorial/index.html document for details
       <ipv4>10.0.2.8</ipv4>
     </if>
     <route type="ipv4" gw="10.0.2.1">default</route>
+    <exec seq="calc" type="verbatim" mode="mconsole">gcalctool</exec>
   </vm>
 
   <vm name="uml2" type="libvirt" subtype="kvm" os="windows">

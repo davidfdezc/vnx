@@ -16,7 +16,7 @@
   <devices>
     <emulator>/usr/bin/kvm</emulator>
     <disk type='file' device='disk'>
-      <source file='/usr/share/vnuml/filesystems/root_fs_winxp'/>
+      <source file='/usr/share/vnx/filesystems/root_fs_winxp'/>
       <target dev='hda'/>
     </disk>
     <!--disk type='file' device='cdrom'>
