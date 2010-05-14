@@ -1849,7 +1849,7 @@ sub destroyVM {
 	# Sample code
 	print "Destroying vm $vmName of type $type\n";
 
-	if ( ( $type eq "libvirt-kvm" ) || ( $type eq "libvirt-kvm-windows" ) ) {
+	if ( ( $type eq "libvirt-kvm" ) || ( $type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ) {
 
 		my $addr = "qemu:///system";
 
@@ -5026,7 +5026,7 @@ sub exec_command_files {
 				  . $dh->get_tmp_dir
 				  . "/vnx.$name.$seq.$random_id" );
 		}
-		elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux") ) {
+		elsif ( ($type eq "libvirt-kvm-windows")) {
 			if ( $numcomandos != 0 ) {
 				
 				#		$execution->execute( "qemu-img create -f raw /tmp/disco.img "
@@ -5051,6 +5051,79 @@ sub exec_command_files {
 		waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
 #		$execution->execute(
 #			"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
+
+		$execution->execute("rm /tmp/empty.iso");
+		$execution->execute("rm /tmp/disco.iso");
+		$execution->execute("rm -r /tmp/disco");
+		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
+			  . $dh->get_tmp_dir
+			  . "/vnx.$name.$seq.$random_id" );
+#				$execution->execute(
+#					"qemu-img create -f raw /tmp/disco.img 32M");
+#				$execution->execute("losetup /dev/loop0 /tmp/disco.img ");
+#				$execution->execute("mkfs.ntfs -f /dev/loop0");
+#				$execution->execute("mkdir /tmp/disco");
+#				$execution->execute("mount /dev/loop0 /tmp/disco");
+#				$execution->execute( "cp "
+#					  . $dh->get_tmp_dir
+#					  . "/vnuml.$name.$seq.$random_id" . " "
+#					  . "/tmp/disco/"
+#					  . "comandos.xml" );
+#
+##$execution->execute( "cp " . $dh->get_tmp_dir . "/vnuml.$name.$seq.$random_id" . " " ."/tmp/disco/" . "comando");
+#				$execution->execute("umount /tmp/disco");
+#				$execution->execute("losetup -d /dev/loop0");
+#				$execution->execute(
+#"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.img sdz'"
+#				);
+#				print "Intentando ejecutar comando en cliente \n";
+#
+#				#<STDIN>;
+#				#sleep(60);
+#				#waitfiletree();
+#				waitexecute($dh->get_run_dir($name). '/'.$name.'_socket',$numcomandos); 
+#				$execution->execute(
+#					"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
+#				$execution->execute("rm /tmp/disco.img");
+#				$execution->execute("rm -r /tmp/disco");
+#				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
+#					  . $dh->get_tmp_dir
+#					  . "/vnuml.$name.$seq.$random_id" );
+			    sleep(2);
+			}
+		}
+		elsif ($type eq "libvirt-kvm-linux") {
+			if ( $numcomandos != 0 ) {
+				
+				#		$execution->execute( "qemu-img create -f raw /tmp/disco.img "
+#			  . "$dimensiondisk"
+#			  . "$unit" );
+#		$execution->execute("losetup /dev/loop0 /tmp/disco.img ");
+#		$execution->execute("mkfs.ntfs -f /dev/loop0");
+		$execution->execute("mkdir /tmp/disco");
+#		$execution->execute("mount /dev/loop0 /tmp/disco");
+		$execution->execute( "cp "
+					  . $dh->get_tmp_dir
+					  . "/vnx.$name.$seq.$random_id" . " "
+					  . "/tmp/disco/"
+					  . "comandos.xml" );
+#		$execution->execute("umount /tmp/disco");
+#		$execution->execute("losetup -d /dev/loop0");
+		$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disco.iso /tmp/disco/");
+		$execution->execute(
+			"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.iso hdb --mode readonly --driver file --type cdrom'"
+		);
+		print "Intentando copiar fichero en el cliente \n";
+		waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
+#		$execution->execute(
+#			"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
+
+		$execution->execute("touch /tmp/empty.iso");
+		$execution->execute(
+			"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/empty.iso hdb --mode readonly --driver file --type cdrom'"
+		);
+		sleep 1;
+
 		$execution->execute("rm /tmp/disco.iso");
 		$execution->execute("rm -r /tmp/disco");
 		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
