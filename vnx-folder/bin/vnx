@@ -237,7 +237,7 @@ sub main {
    
 
 #   my $boot_timeout = 30;		  # by default, 30 seconds for boot timeout
-   my $boot_timeout = 50; #[JSF]: las uml daban timeout con windows en el escenario
+   my $boot_timeout = 60; #[JSF]: las uml daban timeout con windows en el escenario
    
    my $start_time;                   # the moment when the parsers start operation
 

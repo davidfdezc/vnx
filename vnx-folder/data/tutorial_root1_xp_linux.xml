@@ -51,6 +51,9 @@ See the tutorial/index.html document for details
     <route type="ipv4" gw="10.0.2.1">default</route>
     <exec seq="calc" type="verbatim" mode="mconsole">gcalctool</exec>
     <exec seq="killcalc" type="verbatim" mode="mconsole">pkill gcalctool</exec>
+    <exec seq="holas" type="verbatim" mode="system">touch /home/vnx/Desktop/hola_system</exec>
+    <exec seq="holan" type="verbatim" mode="processn">touch /home/vnx/Desktop/hola_processn</exec>
+    <exec seq="holay" type="verbatim" mode="processn">touch /home/vnx/Desktop/hola_processy</exec>
   </vm>
 
   <vm name="uml2" type="libvirt" subtype="kvm" os="windows">
