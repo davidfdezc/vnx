@@ -5,6 +5,7 @@ use POSIX;
 use Sys::Syslog;
 use XML::DOM;
 
+sleep 5;
 &main;
 exit(0);
 
@@ -26,7 +27,7 @@ sub main{
 	&execute_commands;
 }
 
-################ daemonize process ################
+############### daemonize process ################
 sub daemonize {
 
 	open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
@@ -260,15 +261,18 @@ sub execute_commands {
 	my $commands_file;
 	my $continue;
 	while (1){
+
 		$continue = 1;
 		system "mount /media/cdrom";
 		foreach my $file (@files){
+
 			my @files2 = <$file/*>;
 			foreach my $file2 (@files2){
 				if ($file2 eq "/media/cdrom/filetree.xml"){
 					my $path = $file;
 					print LOG "Filetree received in $file2\n";
 					&filetree($path);
+
 					print LOG "   Sending 'done' signal to host...\n";
 					system "echo 1 > /dev/ttyS0";
 					$continue = 0;
@@ -326,13 +330,16 @@ sub execute_commands {
 					system "echo 1 > /dev/ttyS0";
 				}else{
 					# file is neither command nor filetree file
+
 					next;
 				}	
 			}
 			if ($continue eq 0){
+
 				last;
 			}
 		}
+
 		system "umount /media/cdrom";
 		sleep 5;
 	}
