@@ -26,7 +26,7 @@ sub main{
 	&execute_commands;
 }
 
-############### daemonize process ################
+################ daemonize process ################
 sub daemonize {
 
 	open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";

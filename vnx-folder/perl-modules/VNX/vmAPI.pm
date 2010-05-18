@@ -28,7 +28,6 @@ use Sys::Virt::Domain;
 
 #de vnumlparser
 use VNX::DataHandler;
-#use DataHandler;
 
 use VNX::Execution;
 use VNX::BinariesData;
