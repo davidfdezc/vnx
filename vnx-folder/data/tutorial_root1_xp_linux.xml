@@ -11,11 +11,9 @@ See the tutorial/index.html document for details
     <version>1.92</version>
     <simulation_name>tutorial-r1_xp_vnx</simulation_name>
     <automac/>
-
     <vm_mgmt type="private" network="10.250.0.0" mask="24">
        <host_mapping />
-    </vm_mgmt>
-    
+    </vm_mgmt> 
     <vm_defaults exec_mode="mconsole">
        <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
        <mem>64M</mem>
