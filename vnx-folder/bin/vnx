@@ -5264,7 +5264,6 @@ sub make_vm_API_doc {
          $vm_tag->addChild($forwarding_tag);
          $forwarding_tag->addChild( $dom->createAttribute( type => $f_type));
       }
-
       # Management interface, if needed
       my $mng_if_value = &mng_if_value($dh,$vm);
       my $mng_if_tag = $dom->createElement('mng_if');

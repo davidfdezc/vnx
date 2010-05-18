@@ -4440,6 +4440,17 @@ sub conf_files {
 							$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.iso hdb --mode readonly --driver file --type cdrom'");
 							print "Intentando copiar fichero en el cliente, el socket es este: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
 							waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
+							
+							if ($typeos eq "libvirt-kvm-linux"){
+								# mount empty iso, while waiting for new command	
+								$execution->execute("touch /tmp/empty.iso");
+								$execution->execute(
+									"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/empty.iso hdb --mode readonly --driver file --type cdrom'"
+								);
+								sleep 1;
+								$execution->execute("rm /tmp/empty.iso");
+							}
+							
 					#		$execution->execute("virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
 							$execution->execute("rm /tmp/disco.iso");
 							$execution->execute("rm -r /tmp/disco");
@@ -5052,7 +5063,7 @@ sub exec_command_files {
 #		$execution->execute(
 #			"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
 
-		$execution->execute("rm /tmp/empty.iso");
+
 		$execution->execute("rm /tmp/disco.iso");
 		$execution->execute("rm -r /tmp/disco");
 		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
@@ -5111,7 +5122,8 @@ sub exec_command_files {
 				$execution->execute(
 					"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/empty.iso hdb --mode readonly --driver file --type cdrom'"
 				);
-				sleep 1;		
+				sleep 1;
+				$execution->execute("touch /tmp/empty.iso");		
 				$execution->execute("rm /tmp/disco.iso");
 				$execution->execute("rm -r /tmp/disco");
 				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
