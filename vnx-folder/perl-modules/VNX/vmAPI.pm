@@ -5122,7 +5122,7 @@ sub exec_command_files {
 					"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/empty.iso hdb --mode readonly --driver file --type cdrom'"
 				);
 				sleep 1;
-				$execution->execute("touch /tmp/empty.iso");		
+				$execution->execute("rm /tmp/empty.iso");		
 				$execution->execute("rm /tmp/disco.iso");
 				$execution->execute("rm -r /tmp/disco");
 				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
