@@ -24,7 +24,7 @@ echo "** "
 echo "** Installing packages needed"
 echo "** "
 apt-get update
-apt-get -q -y install virt-manager build-essential ia32-libs            \
+apt-get -q -y install virt-manager virt-viewer build-essential ia32-libs \
    libxml-libxml-perl vncviewer vlan xterm bridge-utils screen        \
    curl vnuml linux-um libterm-readline-perl-perl zlib-bin zlib1g-dev \
    libxen3-dev libxml2-dev libgnutls-dev libsasl2-dev libsdl1.2-dev   \
