@@ -272,10 +272,7 @@ sub main {
               'suspend' => \$opt_suspend, 'resume' => \$opt_resume,
               'reboot' => \$opt_reboot, 'reset' => \$opt_reset,
               'execute=s' => \$opt_execute, 'f=s' => \$opt_f);
-      
 
-      
-   #getopts('t:s:p:r:d:m:c:T:gvFVo:M:kiBS:w:e:P:Hx:u:46Za:');
    
    # Build the argument object
    $args = new Arguments(
@@ -333,12 +330,10 @@ sub main {
       # Deprecated, not supported since 1.7.0
       &vnx_die ("-r mode is no longer supported since version 1.7.0, use -x instead\n");
    }
-   #if ($opt_d) { [JSF]
    if ($opt_d||$opt_shutdown) {
       $how_many_args++;
       $mode = "d";
    }
-   #if ($opt_P) { [JSF]
    if ($opt_P||$opt_destroy) {
       $how_many_args++;
       $mode = "P";
@@ -402,36 +397,31 @@ sub main {
    }
    if ($how_many_args lt 1) {
       &usage;
-      &vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -P|--destroy, -V or -H\n"); #&vnuml_die ("missing -t, -x, -d, -P, -V or -H\n"); [JSF]
+      &vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -P|--destroy, -V or -H\n"); 
    }
-   if (($opt_F) && (!($opt_d||$opt_shutdown))) { #if (($opt_F) && (!$opt_d)) { [JSF]
+   if (($opt_F) && (!($opt_d||$opt_shutdown))) { 
       &usage; 
-      &vnx_die ("Option -F only makes sense with -d|--shutdown mode\n"); #&vnuml_die ("Option -F only makes sense with -d mode\n"); [JSF]
+      &vnx_die ("Option -F only makes sense with -d|--shutdown mode\n"); 
    }
-   if (($opt_B) && ($opt_F) && ($opt_d||$opt_shutdown)) {   #if (($opt_B) && ($opt_F) && ($opt_d)) { [JSF]
+   if (($opt_B) && ($opt_F) && ($opt_d||$opt_shutdown)) {
       &vnx_die ("Option -F and -B are incompabible\n");
    }
-    if (($opt_o) && (!($opt_t||$opt_create))) {  # if (($opt_o) && (!$opt_t)) { [JSF]
+    if (($opt_o) && (!($opt_t||$opt_create))) {
       &usage;
-      &vnx_die ("Option -o only makes sense with -t|--create mode\n"); #&vnuml_die ("Option -o only makes sense with -t mode\n"); [JSF]
+      &vnx_die ("Option -o only makes sense with -t|--create mode\n");
    }
-   if (($opt_w) && (!($opt_t||$opt_create))) { #if (($opt_w) && (!$opt_t)) { [JSF]
+   if (($opt_w) && (!($opt_t||$opt_create))) {
       &usage;
-      &vnx_die ("Option -w only makes sense with -t|--create mode\n"); # &vnuml_die ("Option -w only makes sense with -t mode\n"); [JSF]
+      &vnx_die ("Option -w only makes sense with -t|--create mode\n");
    }
-      if (($opt_e) && (!($opt_t||$opt_create))) {  #if (($opt_e) && (!$opt_t)) { [JSF]
+      if (($opt_e) && (!($opt_t||$opt_create))) {
       &usage;
-      &vnx_die ("Option -e only makes sense with -t|--create mode\n"); # &vnuml_die ("Option -e only makes sense with -t mode\n"); [JSF]
+      &vnx_die ("Option -e only makes sense with -t|--create mode\n");
    }
-   if (($opt_Z) && (!($opt_t||$opt_create))) {   #if (($opt_Z) && (!$opt_t)) { [JSF]
+   if (($opt_Z) && (!($opt_t||$opt_create))) {
       &usage;
-      &vnx_die ("Option -Z only makes sense with -t|--create mode\n"); #&vnuml_die ("Option -Z only makes sense with -t mode\n");[JSF]
+      &vnx_die ("Option -Z only makes sense with -t|--create mode\n");
    }
-#   Option -M is now allowed for -t, -d and -P modes
-#   if (($opt_M) && !($opt_x)) {
-#      &usage;
-#      &vnuml_die ("Option -M only makes sense with -x mode\n");
-#   }
    if (($opt_4) && ($opt_6)) {
       &usage;
       &vnx_die ("-4 and -6 can not be used at the same time\n");
@@ -487,27 +477,6 @@ sub main {
    # Check for file and cmd_seq, depending the mode
    my $cmdseq = '';
    my $input_file;
-#   if ($opt_x) {
-#      if ($input =~ /(.+)\@(.+)/ ) {
-#         $cmdseq = $1;
-#         $input_file = $2;
-#      }
-#      else {
-#         &usage;
-#         &vnuml_die ("\"-x $input\" is not valid. Specify a cmd_seq before VNUML_file (cmd_seq\@VNUML_file)\n");
-#      }
-#   }
-#   else {
-#      if ($input =~ /(.+)\@(.+)/ ) {
-#         $cmdseq = $1;
-#         &usage;
-#         &vnuml_die ("cmd_seq \"$cmdseq\" only make sense in -x mode\n");	   
-#      }
-#      else {
-#         $input_file = $input;
-#      }
-#   }
-
 
    if ($opt_x) {
       $cmdseq = $opt_x;
@@ -517,8 +486,6 @@ sub main {
    
    $input_file = $input;
  
-
-
    # Reserved words for cmd_seq
    #if ($cmdseq eq "always") {
    #   &vnuml_die ("\"always\" is a reserved word and can not be used as cmd_seq\n");
@@ -778,33 +745,29 @@ exit;
 
    # Mode selection
 
-   if ($opt_t||$opt_create) { #||$opt_define||$opt_start) {    #   if ($opt_t) { [JSF]
-#      if ($exemode != EXE_DEBUG) {
+   if ($opt_t||$opt_create) {
 	   if ($exemode != EXE_DEBUG && !$opt_M && !$opt_start) {
          $execution->smartdie ("simulation " . $dh->get_simname . " already created\n") 
             if &simulation_exists($dh->get_simname);
       }
-      #&mode_t;
-      #&mode_t($opt_M,$opt_define,$opt_start);
-      ##&mode_t2;
       &mode_define;
       &mode_start;
    }
-   elsif ($opt_x||$opt_execute) {  # elsif ($opt_x) { [JSF]
+   elsif ($opt_x||$opt_execute) {
       if ($exemode != EXE_DEBUG) {
          $execution->smartdie ("simulation " . $dh->get_simname . " does not exists: create it with -t before\n")
            unless &simulation_exists($dh->get_simname);
       }
       &mode_x($cmdseq);
    }
-   elsif ($opt_d||$opt_shutdown) { # elsif ($opt_d) { [JSF]
+   elsif ($opt_d||$opt_shutdown) {
       if ($exemode != EXE_DEBUG) {
          $execution->smartdie ("simulation " . $dh->get_simname . " does not exist\n")
            unless &simulation_exists($dh->get_simname);
       }
       &mode_d;
-      my $do_not_build_topology = 1;
-      #&mode_define($do_not_build_topology);
+#      my $do_not_build_topology = 1;
+
       
    }
    elsif ($opt_P||$opt_destroy) {  # elsif ($opt_P) { [JSF]
@@ -814,7 +777,7 @@ exit;
       }
       $args->set('F',1);
       &mode_d;		# First, call destroy mode with force flag activated
-      &mode_P;		# Second, purge another things
+      &mode_P;		# Second, purge other things
       #&mode_undefine;
    }
    elsif ($opt_define){
@@ -836,7 +799,7 @@ exit;
          $execution->smartdie ("simulation " . $dh->get_simname . " does not exist\n")
            unless &simulation_exists($dh->get_simname);
       }
-      &mode_start; # ($opt_M); not necessary
+      &mode_start;
    }
    elsif ($opt_reset) {
       if ($exemode != EXE_DEBUG) {
@@ -846,12 +809,9 @@ exit;
       $args->set('F',1);
       &mode_d;		# First, call destroy mode with force flag activated
       &mode_P;		# Second, purge other things
-      #&mode_undefine;
       sleep(1);     # Let it finish
-      #&mode_t2;
       &mode_define;
       &mode_start;
-      # &mode_reset; waiting for qemu-kvm developers to implement it
    }
    
    elsif ($opt_reboot) {
@@ -860,9 +820,6 @@ exit;
         unless &simulation_exists($dh->get_simname);
      }
      &mode_d;
-#     sleep(1);     # Let it finish
-#     my $do_not_build_topology = 1;
-#     &mode_define($do_not_build_topology);
      &mode_start;
    }
    
@@ -915,85 +872,25 @@ exit;
 
 #####################################################
 
-# mode_t
-#
-# Build topology mode
-#sub mode_t {
+#sub mode_t2 {
 #
 #    my $basename = basename $0;
-#    my $opt_M = shift;
-#    my $opt_define = shift;
-#    my $opt_start = shift;
+#    my $opt_M = $args->get('M');
+#
+#   unless ($opt_M){
+#      &build_topology;
+#   }
 #
 #    try {
 #
-#        # If -M mode in use, avoid creation of scenario
-#        unless ($opt_M){
-#
-#            # To load tun module if needed
-#            if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
-#                if (! -e "/dev/net/tun") {
-#                    !$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
-#                }
-#            }
-#
-#            # To make directory to store files related with the topology
-#            if (! -d $dh->get_sim_dir && $execution->get_exe_mode != EXE_DEBUG) {
-#                mkdir $dh->get_sim_dir or $execution->smartdie ("error making directory " . $dh->get_sim_dir . ": $!");
-#            }
-#            # To copy the scenario file
-#            my $command = $bd->get_binaries_path_ref->{"date"};
-#            chomp (my $now = `$command`);
-#            my $input_file_basename = basename $dh->get_input_file;
-#            $execution->execute($bd->get_binaries_path_ref->{"cp"} . " " . $dh->get_input_file . " " . $dh->get_sim_dir);
-#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " '<'!-- copied by $basename at $now --'>' >> ".$dh->get_sim_dir."/$input_file_basename");       
-#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " '<'!-- original path: ".abs_path($dh->get_input_file)." --'>' >> ".$dh->get_sim_dir."/$input_file_basename");
-#
-#            # To make lock file (it exists while topology is running)
-#            $execution->execute ($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_sim_dir . "/lock");
-#
-#            # Create the mgmn_net socket when <vmmgnt type="net">, if needed
-#            if (($dh->get_vmmgmt_type eq "net") && ($dh->get_vmmgmt_autoconfigure ne "")) {
-#                if ($> == 0) {
-#                    my $sock = &do_path_expansion($dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock"));
-#                        if (-S $sock) {
-#                            print "VNUML warning: <mgmt_net> socket already exists. Ignoring socket autoconfiguration\n";
-#                        }
-#                        else {
-#                        # Create the socket
-#                        &mgmt_sock_create($sock,$dh->get_vmmgmt_autoconfigure,$dh->get_vmmgmt_hostip,$dh->get_vmmgmt_mask);
-#                        }
-#                }
-#                else {
-#                    print "VNUML warning: <mgmt_net> autoconfigure attribute only is used when VNUML parser is invoked by root. Ignoring socket autoconfiguration\n";
-#                }
-#            }
-#
-#            # 1. To perform configuration for bridged virtual networks (<net mode="virtual_bridge">) and TUN/TAP for management
-#            &configure_virtual_bridged_networks;
-#
-#            # 2. Host configuration
-#            &host_config;
-#
-#            # 3. Set appropriate permissions and perform configuration for switched virtual networks and uml_switches creation (<net mode="uml_switch">)
-#            &chown_working_dir;
-#            &configure_switched_networks;
-#	   
-#            # 4. To link TUN/TAP to the bridges (for bridged virtual networks only, <net mode="virtual_bridge">)
-#            &tun_connect;
-#
-#            # 5. To create fs, hostsfs and run directories
-#            &create_dirs;
-#        
-#        }
 #        # 6. Initialize the notify socket
 #        my ($sock,$notify_ctl) = &UML_notify_init if ($execution->get_exe_mode() != EXE_DEBUG);
 #
-#        # 7. Set appropriate permissions and boot/define each UML
+#        # 7. Set appropriate permissions and boot each UML
 #        &chown_working_dir;
 #        &xauth_add;
-#        &boot_VMs($sock,$notify_ctl,$opt_define,$opt_start);
-#
+#        &boot_VMs($sock,$notify_ctl);
+#         
 #        # 8. Clean up the notify socket
 #        &UML_notify_cleanup($sock,$notify_ctl) if ($execution->get_exe_mode() != EXE_DEBUG);
 #
@@ -1018,12 +915,13 @@ exit;
 #        # Print vnc ports, if used
 #        my @vm_ordered = $dh->get_vm_ordered;
 #        my $first = 1;
+#
 #        for ( my $i = 0; $i < @vm_ordered; $i++) {
 #			my $vm = $vm_ordered[$i];
 #			
 #			my $name = $vm->getAttribute("name");
-#           my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
-#			 
+#			my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+#
 #			if ($merged_type eq "libvirt-kvm-windows"){
 #				if ($first eq 1){
 #					print "\nList of vnc ports used:\n";
@@ -1039,7 +937,7 @@ exit;
 #		}
 #        
 #    } 
-#    catch Vnuml::Exception with {
+#    catch Vnx::Exception with {
 #	   my $E = shift;
 #	   print $E->as_string;
 #	   print $E->message;
@@ -1051,85 +949,6 @@ exit;
 #	   print $E->stringify;
 #    }
 #}
-
-
-sub mode_t2 {
-
-    my $basename = basename $0;
-    my $opt_M = $args->get('M');
-
-   unless ($opt_M){
-      &build_topology;
-   }
-
-    try {
-
-        # 6. Initialize the notify socket
-        my ($sock,$notify_ctl) = &UML_notify_init if ($execution->get_exe_mode() != EXE_DEBUG);
-
-        # 7. Set appropriate permissions and boot each UML
-        &chown_working_dir;
-        &xauth_add;
-        &boot_VMs($sock,$notify_ctl);
-         
-        # 8. Clean up the notify socket
-        &UML_notify_cleanup($sock,$notify_ctl) if ($execution->get_exe_mode() != EXE_DEBUG);
-
-        # If <host_mapping> is in use and not in debug mode, process /etc/hosts
-        my $lines = join "\n", @host_lines;
-        &host_mapping_patch ($lines, $dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
-   
-        # If -B, block until ready
-        if ($args->get('B')) {
-            my $time_0 = time();
-            my %vm_ips = &get_UML_command_ip("");
-            while (!&UMLs_cmd_ready(%vm_ips)) {
-                #system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
-                sleep($dh->get_delay);
-                my $time_w = time();
-                my $interval = $time_w - $time_0;
-                print "$interval seconds elapsed...\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
-                %vm_ips = &get_UML_command_ip("");
-            }
-        }
-        
-        # Print vnc ports, if used
-        my @vm_ordered = $dh->get_vm_ordered;
-        my $first = 1;
-
-        for ( my $i = 0; $i < @vm_ordered; $i++) {
-			my $vm = $vm_ordered[$i];
-			
-			my $name = $vm->getAttribute("name");
-			my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
-
-			if ($merged_type eq "libvirt-kvm-windows"){
-				if ($first eq 1){
-					print "\nList of vnc ports used:\n";
-					$first = 0;
-				}
-				my $vnc_port = 6900 + $i;
-				print $name . ": " . $vnc_port . "\n";
-			}
-			my $last = @vm_ordered - $i;
-			if ($last eq 1){
-				print "\n";	
-			}
-		}
-        
-    } 
-    catch Vnx::Exception with {
-	   my $E = shift;
-	   print $E->as_string;
-	   print $E->message;
-    
-    } 
-    catch Error with {
-	   my $E = shift;
-	   print "ERROR: " . $E->text . " at " . $E->file . ", line " .$E->line;
-	   print $E->stringify;
-    }
-}
 
 
 sub mode_define {
@@ -1154,53 +973,10 @@ sub mode_define {
         # 7. Set appropriate permissions and boot each UML
         &chown_working_dir;
         &xauth_add;
-        &define_VMs($sock,$notify_ctl,$only_vm_to_define); # [JSF] do the sockets make sense here?
+        &define_VMs($sock,$notify_ctl,$only_vm_to_define);
          
         # 8. Clean up the notify socket
         &UML_notify_cleanup($sock,$notify_ctl) if ($execution->get_exe_mode() != EXE_DEBUG);
-
-        # If <host_mapping> is in use and not in debug mode, process /etc/hosts
-#        my $lines = join "\n", @host_lines;
-#        &host_mapping_patch ($lines, $dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
-
-# WE DON'T BOOT VMS, -B DOESN'T MAKE SENSE
-#        # If -B, block until ready
-#        if ($args->get('B')) {
-#            my $time_0 = time();
-#            my %vm_ips = &get_UML_command_ip("");
-#            while (!&UMLs_cmd_ready(%vm_ips)) {
-#                #system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
-#                sleep($dh->get_delay);
-#                my $time_w = time();
-#                my $interval = $time_w - $time_0;
-#                print "$interval seconds elapsed...\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
-#                %vm_ips = &get_UML_command_ip("");
-#            }
-#        }
-
-# WE DON'T BOOT VMS, NO VNC PORTS USED        
-#        # Print vnc ports, if used
-#        my @vm_ordered = $dh->get_vm_ordered;
-#        my $first = 1;
-#        for ( my $i = 0; $i < @vm_ordered; $i++) {
-#			my $vm = $vm_ordered[$i];
-#			
-#			my $name = $vm->getAttribute("name");
-#			my $type = $vm->getAttribute("type");
-#			
-#			if ($type eq "libvirt-kvm-windows"){
-#				if ($first eq 1){
-#					print "\nList of vnc ports used:\n";
-#					$first = 0;
-#				}
-#				my $vnc_port = 6900 + $i;
-#				print $name . ": " . $vnc_port . "\n";
-#			}
-#			my $last = @vm_ordered - $i;
-#			if ($last eq 1){
-#				print "\n";	
-#			}
-#		}
         
     } 
     catch Vnx::Exception with {
@@ -1247,18 +1023,12 @@ sub mode_undefine{
 sub mode_start {
 
    my $basename = basename $0;
-#   my $opt_M = shift;
-
-
-#   unless ($opt_M){
-#      &build_topology;
-#   }
 
     try {
 
         # 6. Initialize the notify socket
         my ($sock,$notify_ctl) = &UML_notify_init if ($execution->get_exe_mode() != EXE_DEBUG);
-#
+
 #        # 7. Set appropriate permissions and boot each UML
 #        &chown_working_dir;
 #        &xauth_add;
@@ -1985,333 +1755,7 @@ sub UML_notify_cleanup {
 	unlink $notify_ctl;
 }
 
-######################################################
-# To boot each UML
-#
-#sub boot {
-#
-#   my $sock = shift;
-#   my $notify_ctl = shift;
-#   my $opt_define = shift;
-#   my $opt_start = shift;
-#   
-#   my @vm_ordered = $dh->get_vm_ordered;
-#   my %vm_hash = $dh->get_vm_to_use;
-#
-#   my $dom;
-#   
-#
-#   # If defined screen configuration file, open it
-#   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
-#      open SCREEN_CONF, ">". $args->get('e')
-#         or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
-#   }
-#
-#   #contador para management ip, lo necesita el código de bootfiles que está pasado al API.
-#   #se pasa al API en la llamada al CreateVM
-#   my $manipcounter = 0;
-#
-#
-#   for ( my $i = 0; $i < @vm_ordered; $i++) {
-#      my $vm = $vm_ordered[$i];
-#
-#      $dom = XML::LibXML->createDocument( "1.0", "UTF-8" );
-#   
-#      my $create_conf_tag = $dom->createElement('create_conf');
-#      $dom->addChild($create_conf_tag);
-#   
-#      my $vm_tag = $dom->createElement('vm');
-#      $create_conf_tag->addChild($vm_tag);
-#
-#      # We get name attribute
-#      my $name = $vm->getAttribute("name");
-#      $vm_tag->addChild( $dom->createAttribute( name => $name));
-#      my $vmType = $vm->getAttribute("type");
-#      
-#      unless ($vm_hash{$name}){
-#         next;
-#         
-#      }
-#      &change_vm_status($dh,$name,"booting");
-#      
-#      # kernel to be booted
-#      my $kernel;
-#      my @params;
-#      my @build_params;
-#      my $kernel_list = $vm->getElementsByTagName("kernel");
-#      
-#      # kernel tag in dom tree
-#      my $kernel_tag = $dom->createElement('kernel');
-#      $vm_tag->addChild($kernel_tag);
-#      if ($kernel_list->getLength == 1) {
-#		 my $kernel_item = $kernel_list->item(0);
-#         $kernel = &do_path_expansion(&text_tag($kernel_item));         
-#         # to dom tree
-#         $kernel_tag->addChild($dom->createTextNode($kernel));         
-#      }
-#      else {    	
-#      	 # include a 'default' in dom tree
-#      	 $kernel_tag->addChild($dom->createTextNode('default'));
-#         
-#      }
-#      
-#      # To get filesystem and type
-#      my $filesystem;
-#      my $filesystem_type;
-#      my $filesystem_list = $vm->getElementsByTagName("filesystem");
-#
-#      # filesystem tag in dom tree        
-#      my $fs_tag = $dom->createElement('filesystem');
-#      $vm_tag->addChild($fs_tag);
-#
-#      if ($filesystem_list->getLength == 1) {
-#         $filesystem = &do_path_expansion(&text_tag($vm->getElementsByTagName("filesystem")->item(0)));
-#         $filesystem_type = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
-#
-#
-#         # to dom tree
-#         $fs_tag->addChild( $dom->createAttribute( type => $filesystem_type));
-#         $fs_tag->addChild($dom->createTextNode($filesystem));       
-#      }
-#      else {
-#      	
-#         $filesystem = $dh->get_default_filesystem;
-#         $filesystem_type = $dh->get_default_filesystem_type;
-#
-#         #to dom tree
-#         $fs_tag->addChild( $dom->createAttribute( type => $filesystem_type));
-#         $fs_tag->addChild($dom->createTextNode($filesystem));
-#      }
-#
-#      # Memory assignment
-#      my $mem = $dh->get_default_mem;      
-#      my $mem_list = $vm->getElementsByTagName("mem");
-#      if ($mem_list->getLength == 1) {
-#         $mem = &text_tag($mem_list->item(0));
-#      }
-#      
-#      # mem tag in dom tree
-#      my $mem_tag = $dom->createElement('mem');
-#      $vm_tag->addChild($mem_tag);
-#      $mem_tag->addChild($dom->createTextNode($mem));
-#
-#      # To process all interfaces
-#      # To get UML's interfaces list
-#      my $if_list = $vm->getElementsByTagName("if");
-#      my $longitud = $if_list->getLength;
-#
-#      # To process list, we ignore interface zero since it
-#      # gets setup as necessary management interface
-#      for ( my $j = 0; $j < $if_list->getLength; $j++) {
-#      
-#         my $if = $if_list->item($j);
-#	     
-#	     # To get attributes
-#	     my $id = $if->getAttribute("id");
-#	     my $net = $if->getAttribute("net");
-#
-#	     # To get MAC address
-#	     my $mac_list = $if->getElementsByTagName("mac");
-#	     my $mac;
-#	     # If <mac> is not present, we ask for an automatic one (if
-#	     # <automac> is not enable may be null; in this case UML 
-#	     # autoconfiguration based in IP address of the interface 
-#	     # is used -but it doesn't work with IPv6!)
-#	     if ($mac_list->getLength == 1) {
-#	     	
-#	        $mac = &text_tag($mac_list->item(0));
-#	        # expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
-#	        $mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
-#	        $mac = "," . $mac;
-#	        
-#	        #$mac = "," . &text_tag($mac_list->item(0));
-#
-#	     }
-#	     else {	  #my @group = getgrnam("@TUN_GROUP@");
-#	        $mac = &automac($i+1, $id);
-#	        $mac =~ s/,//;
-#	        # expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
-#	        $mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
-#	        $mac = "," . $mac;
-#	        
-#	     }
-#         
-#         # if tags in dom tree 
-#         my $if_tag = $dom->createElement('if');
-#         $vm_tag->addChild($if_tag);
-#         $if_tag->addChild( $dom->createAttribute( id => $id));
-#         $if_tag->addChild( $dom->createAttribute( net => $net));
-#         $if_tag->addChild( $dom->createAttribute( mac => $mac));
-#         
-#         # To process interface IPv4 addresses
-#	     # The first address has to be assigned without "add" to avoid creating subinterfaces
-#	     if ($dh->is_ipv4_enabled) {
-#	        my $ipv4_list = $if->getElementsByTagName("ipv4");
-#	        #my $command = "";
-#	        for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
-#	           my $ip = &text_tag($ipv4_list->item($j));
-#	           my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
-#	           if (&valid_ipv4_with_mask($ip)) {
-#	              # Implicit slashed mask in the address
-#	              $ip =~ /.(\d+)$/;
-#	              $ipv4_effective_mask = &slashed_to_dotted_mask($1);
-#	              # The IP need to be chomped of the mask suffix
-#	              $ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
-#	              $ip = "$1.$2.$3.$4";
-#	           }
-#	           else {
-#	              # Check the value of the mask attribute
-#	              my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
-#	              if ($ipv4_mask_attr ne "") {
-#  	                 # Slashed or dotted?
-#	                 if (&valid_dotted_mask($ipv4_mask_attr)) {
-#	                    $ipv4_effective_mask = $ipv4_mask_attr;
-#	                 }
-#	                 else {
-#                        $ipv4_mask_attr =~ /.(\d+)$/;
-#	                    $ipv4_effective_mask = &slashed_to_dotted_mask($1);
-#	                 }
-#	              }
-#	           }
-#	       
-#	           my $ipv4_tag = $dom->createElement('ipv4');
-#               $if_tag->addChild($ipv4_tag);
-#               $ipv4_tag->addChild( $dom->createAttribute( mask => $ipv4_effective_mask));
-#               $ipv4_tag->addChild($dom->createTextNode($ip));
-#               
-#	        }
-#	     }
-#	     
-#	     # To process interface IPv6 addresses
-#  	     if ($dh->is_ipv6_enabled) {
-#	        my $ipv6_list = $if->getElementsByTagName("ipv6");
-#	        for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
-#	           my $ipv6_tag = $dom->createElement('ipv6');
-#               $if_tag->addChild($ipv6_tag);
-#	           my $ip = &text_tag($ipv6_list->item($j));
-#	           if (&valid_ipv6_with_mask($ip)) {
-#	              # Implicit slashed mask in the address
-#	              $ipv6_tag->addChild($dom->createTextNode($ip));
-#	           }
-#	           else {
-#	              # Check the value of the mask attribute
-# 	              my $ipv6_effective_mask = "/64"; # Default mask value	       
-#	              my $ipv6_mask_attr = $ipv6_list->item($j)->getAttribute("mask");
-#	              if ($ipv6_mask_attr ne "") {
-#	                 # Note that, in the case of IPv6, mask are always slashed
-#                     $ipv6_effective_mask = $ipv6_mask_attr;
-#	              }
-#	              
-#                  $ipv6_tag->addChild($dom->createTextNode("$ip$ipv6_effective_mask"));
-#	            }	       
-#	        }
-#	     }
-#      }
-#      
-#     
-#      #rutas de la máquina.
-#      my @route_list = $dh->merge_route($vm);
-#      foreach my $route (@route_list) {
-#      	
-#         my $route_dest = &text_tag($route);
-#         my $route_gw = $route->getAttribute("gw");
-#         my $route_type = $route->getAttribute("type");       
-#         my $route_tag = $dom->createElement('route');
-#         $vm_tag->addChild($route_tag);
-#       
-#         $route_tag->addChild( $dom->createAttribute( type => $route_type));
-#         $route_tag->addChild( $dom->createAttribute( gw => $route_gw));
-#         $route_tag->addChild($dom->createTextNode($route_dest));
-#      }
-#    
-#      # Forwarding
-#      my $f_type = $dh->get_default_forwarding_type;
-#      my $forwarding_list = $vm->getElementsByTagName("forwarding");
-#      if ($forwarding_list->getLength == 1) {
-#         $f_type = $forwarding_list->item(0)->getAttribute("type");
-#         $f_type = "ip" if ($f_type =~ /^$/);
-#      }
-#      if ($f_type ne ""){
-#         my $forwarding_tag = $dom->createElement('forwarding');
-#         $vm_tag->addChild($forwarding_tag);
-#         $forwarding_tag->addChild( $dom->createAttribute( type => $f_type));
-#      }
-#
-#      # Management interface, if needed
-#      my $mng_if_value = &mng_if_value($dh,$vm);
-#      my $mng_if_tag = $dom->createElement('mng_if');
-#      $vm_tag->addChild($mng_if_tag);
-#      $mng_if_tag->addChild( $dom->createAttribute( value => $mng_if_value));
-#      my $mac = &automac($i+1, 0);
-#      $mng_if_tag->addChild( $dom->createAttribute( mac => $mac));
-#
-#	  $curr_uml = $name; # stays in vnx, should go up before the call to createVM
-#
-#	  # my @group = getgrnam("@TUN_GROUP@");
-#      my @group = getgrnam("uml-net");
-#
-#      # flag 'o' tag in dom tree 
-#      my $o_flag_tag = $dom->createElement('o_flag');
-#      $vm_tag->addChild($o_flag_tag);
-#      $o_flag_tag->addChild($dom->createTextNode($args->get('o')));
-#
-#      # flag 'e' tag in dom tree 
-#      my $e_flag_tag = $dom->createElement('e_flag');
-#      $vm_tag->addChild($e_flag_tag);
-#      $e_flag_tag->addChild($dom->createTextNode($args->get('e')));
-#
-#      # flag 'Z' tag in dom tree
-#      my $Z_flag_tag = $dom->createElement('Z_flag');
-#      $vm_tag->addChild($Z_flag_tag);
-#      $Z_flag_tag->addChild($dom->createTextNode($args->get('Z')));
-#
-#      # flag 'F' tag in dom tree
-#      my $F_flag_tag = $dom->createElement('F_flag');
-#      $vm_tag->addChild($F_flag_tag);
-#      $F_flag_tag->addChild($dom->createTextNode($args->get('F')));
-#
-#      # 'group2' tag in dom tree (luego se usa $group[2])
-#      my $group2_tag = $dom->createElement('group2');
-#      $vm_tag->addChild($group2_tag);
-#      $group2_tag->addChild($dom->createTextNode($args->get('group2')));
-#
-#      # 'notify_ctl' tag in dom tree
-#      my $notify_ctl_tag = $dom->createElement('notify_ctl');
-#      $vm_tag->addChild($notify_ctl_tag);
-#      $notify_ctl_tag->addChild($dom->createTextNode($notify_ctl));
-#
-#      my $format = 1;
-#	  
-#      # dom es un XML::LibXML::Document; 
-#      my $docstring = $dom->toString($format);
-#	  
-#      # llamada a vmAPI.pm
-#      if ($opt_define){
-#      	my $error = vmAPI->defineVM($name, $vmType, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
-#      }elsif($opt_start){
-#        my $error = vmAPI->startVM($name, $vmType, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
-#      }else{	
-#        my $error = vmAPI->createVM($name, $vmType, $docstring, $execution, $bd, $dh,$sock, $manipcounter);	
-#      }
-#      
-#      $manipcounter++;
-#	  
-#      undef($curr_uml); #se queda en vnx, despues de llamar a createVM
-#	  
-#      if ($opt_define){
-#      	&change_vm_status($dh,$name,"defined");
-#      }else{
-#      	&change_vm_status($dh,$name,"running");
-#      }
-#      
-#   }
-#
-#   # Close screen configuration file
-#   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
-#      close SCREEN_CONF;
-#   }
-#
-#}
+
 
 sub boot_VMs {
 
@@ -2344,25 +1788,11 @@ sub boot_VMs {
       my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);
-	  
-#      # llamada a vmAPI.pm
-#      if ($opt_define){
-#      	my $error = vmAPI->defineVM($name, $vmType, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
-#      }elsif($opt_start){
-#        my $error = vmAPI->startVM($name, $vmType, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
-#      }else{	
       my $error = vmAPI->createVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);	
-#      }
-
-      $manipcounter++;
-	  
+      $manipcounter++;	  
       undef($curr_uml);
-	  
-#      if ($opt_define){
-#      	&change_vm_status($dh,$name,"defined");
-#      }else{
+
       &change_vm_status($dh,$name,"running");
-#      }
       
    }
 
@@ -2424,8 +1854,8 @@ sub define_VMs {
    if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
       close SCREEN_CONF;
    }
-
 }
+
 sub merge_vm_type {
 	my $type = shift;
 	my $subtype = shift;
@@ -2449,8 +1879,6 @@ sub start_VMs {
    
    my @vm_ordered = $dh->get_vm_ordered;
    my %vm_hash = $dh->get_vm_to_use;
-
-#   my $dom;
  
    # If defined screen configuration file, open it
    if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
@@ -2461,7 +1889,6 @@ sub start_VMs {
    #contador para management ip, lo necesita el código de bootfiles que está pasado al API.
    #se pasa al API en la llamada al CreateVM
    my $manipcounter = 0; # only needed for uml vms
-#   
    my $docstring; # only needed for uml vms
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -2470,15 +1897,13 @@ sub start_VMs {
       my $name = $vm->getAttribute("name");
 
       unless ($vm_hash{$name}){
-
          next;       
       }
 
       my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
       
-      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i); # only needed for uml vms
-      # $docstring, $bd, $sock and $manipcounter are only needed for uml vms  
+      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i); # only needed for uml vms 
       my $error = vmAPI->startVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter); 
       $manipcounter++;
       undef($curr_uml);
@@ -2527,633 +1952,7 @@ sub mode_x {
 	
      # my $error = vmAPI->shutdownVM($name, $type, $execution, $bd,$dh);
 
-   # Commands sequence (start, stop or whatever).
-#   my $seq = shift;
-#
-#   # Previous checkings and warnings
-#   my @vm_ordered = $dh->get_vm_ordered;
-#   my %vm_hash = $dh->get_vm_to_use(@plugins);
-#   
-#   # First loop: look for uml_mconsole exec capabilities if needed. This
-#   # loop can cause exit, if capabilities are not accomplished
-#   for ( my $i = 0; $i < @vm_ordered; $i++) {
-#      my $vm = $vm_ordered[$i];
-#
-#      # We get name attribute
-#      my $name = $vm->getAttribute("name");
-#
-#      # We have to process it?
-#      unless ($vm_hash{$name}) {
-#      	next;
-#      }
-#      
-#      if (&get_vm_exec_mode($vm) eq "mconsole") {
-#         unless (&check_mconsole_exec_capabilities($vm)) {
-#            $execution->smartdie ("vm $name uses mconsole to exec and it is not a uml_mconsole exec capable virtual machine");
-#         }
-#      }
-#   }   
-#   
-#   # Second loop: warning
-#   for ( my $i = 0; $i < @vm_ordered; $i++) {
-#      my $vm = $vm_ordered[$i];
-#
-#      # We get name attribute
-#      my $name = $vm->getAttribute("name");
-#
-#      # We have to process it?
-#      unless ($vm_hash{$name}) {
-#      	next;
-#      }
-#      
-#      # Check if the virtual machine execute commans using "net" mode. This
-#      # involves additional checkings
-#      if (&get_vm_exec_mode($vm) eq "net") {
-#         
-#         my $mng_if = &mng_if_value($dh,$vm);
-#	     if ($dh->get_vmmgmt_type eq 'none') {
-#		    print "VNUML warning: vm $name uses network to exec and vm management is not enabled (via <vm_mgmt> element)\n";
-#		    print "VNUML warning: connectivity is needed to vm $name throught the virtual networks\n";
-#	     }
-#	     elsif ($mng_if eq "no") {
-#	        # Network management is being used, but the virtual machine is configured to
-#	        # not use management interface
-#		    print "VNUML warning: vm $name uses network to exec but is not using management interface (<mng_if>no</mng_if>)\n";
-#		    print "VNUML warning: connectivity is needed to vm $name throught the virtual networks\n";
-#	     }
-#	  }
-#   }
-#      
-#   my %vm_ips;
-#
-#   # If -B, block until ready
-#   if ($args->get('B')) {
-#      my $time_0 = time();
-#      %vm_ips = &get_UML_command_ip($seq);
-#      while (!&UMLs_cmd_ready(%vm_ips)) {
-#         #system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
-#         sleep($dh->get_delay);
-#         my $time_f = time();
-#         my $interval = $time_f - $time_0;
-#         print "$interval seconds eslapsed...\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
-#         %vm_ips = &get_UML_command_ip($seq);
-#      }
-#   }
-#   else {
-#      %vm_ips = &get_UML_command_ip($seq);
-#      $execution->smartdie ("some vm is not ready to exec sequence $seq through net. Wait a while and retry...\n") unless &UMLs_cmd_ready(%vm_ips);
-#   }
-#
-#   # Each -x invocation uses an "unique" random generated identifier, that
-#   # would avoid collision problems among several users
-#   my $random_id = &generate_random_string(6);
-#
-#   # 1. To install configuration files subtree
-#   &conf_files($seq, %vm_ips);
-#
-#   # 2. To build commands files
-#   &command_files($random_id, $seq);
-#
-#   # 3. To load commands file in each UML
-#   &install_command_files($random_id, $seq, %vm_ips);
-#
-#   # 4. To execute commands file in each UML
-#   &exec_command_files($random_id, $seq, %vm_ips);
-#
-#   # 5. To execute commands file in host
-#   &exec_command_host($seq);
-
 }
-
-#sub conf_files {
-#
-#   my $seq = shift;
-#   my %vm_ips = @_;
-#   
-#   my @vm_ordered = $dh->get_vm_ordered;
-#   my %vm_hash = $dh->get_vm_to_use(@plugins);
-#      
-#   for ( my $i = 0; $i < @vm_ordered; $i++) {
-#      my $vm = $vm_ordered[$i];
-#
-#      # We get name attribute
-#      my $name = $vm->getAttribute("name");
-#
-#      # We have to process it?
-#      unless ($vm_hash{$name}) {
-#      	next;
-#      }
-#
-#      # We look for <filetree> tag
-#      
-#      # Calculate the efective basedir
-#      my $basedir = $dh->get_default_basedir;
-#      my $basedir_list = $vm->getElementsByTagName("basedir");
-#      if ($basedir_list->getLength == 1) {
-#         $basedir = &text_tag($basedir_list->item(0));
-#      }
-#      
-#      my @filetree_list = $dh->merge_filetree($vm);
-#      foreach my $filetree (@filetree_list) {
-#
-#         # To get host directory (subtree) to install in the UML
-#         my $src;
-#         my $filetree_value = &text_tag($filetree);       
-#         if ($filetree_value =~ /^\//) {
-#            # Absolute pathname
-#            $src = &do_path_expansion($filetree_value);
-#         }
-#         else {
-#         	# Relative pahtname
-#         	if ($basedir eq "") {
-#         	   # Relative to xml_dir
-#         	   $src = &do_path_expansion(&chompslash($dh->get_xml_dir) . "/$filetree_value");
-#         	}
-#         	else {
-#               # Relative to basedir
-#               $src = &do_path_expansion(&chompslash($basedir) . "/$filetree_value");
-#         	}
-#         }                 
-#	     $src = &chompslash($src);
-#
-#	     # To get installation point at the UML
-#	     my $dest = $filetree->getAttribute("root");
-#
-#	     # To get momment
-#	     my $filetree_seq = $filetree->getAttribute("seq");
-#	    
-#         # To install subtree (only in the right momment)
-#         # FIXME: think again the "always issue"; by the moment deactivated
-#	     #if (($filetree_seq eq $seq) || ($filetree_seq eq "always")) {
-#	     if ($filetree_seq eq $seq) {
-#	     	
-# 	        # To get executing user and execution mode
-#            my $user = &get_user_in_seq($vm,$seq);
-#            my $mode = &get_v_exec_mode($vm);
-#            
-#            if ($mode eq "net") {
-#               $execution->execute($bd->get_binaries_path_ref->{"scp"} . " -q -r -oProtocol=" . $dh->get_ssh_version . " -o 'StrictHostKeyChecking no'" .  " $src/* $user\@$vm_ips{$name}:$dest");
-#            }
-#            elsif ($mode eq "mconsole") {
-#               # Copy to the hostfs mount point and issue a mv command in the virtual machine to the right place.
-#               #
-#               # It seems that permissions in host context are not the same that permissions in vm context
-#               # (for example, the root in vm can not go into directories owned by root in host with 700 permissions)
-#               # This cause some problems, because of some files of the tree could be lost during mv command.
-#               # The workaorund consists in:
-#               #
-#               # 1. In host: save directory permissions (the three octal digit triplet) in a hash
-#               # 2. In host: 777-ize all files
-#               # 3. In vm: perform the cp operation (scripted)
-#               # 4. In vm: restore permissions (using the hash in step 1)
-#               
-#               my $mconsole = $dh->get_run_dir($name) . "/mconsole";
-#               if (-S $mconsole) {
-#                  my $command = $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name) . " filetree.XXXXXX";
-#                  chomp(my $filetree_host = `$command`);
-#                  $filetree_host =~ /filetree\.(\w+)$/;
-#                  my $random_id = $1;
-#                  my $filetree_vm = "/mnt/hostfs/filetree.$random_id";                  
-#                                    
-#                  $execution->execute($bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host");
-#                  
-#                  # 1. Save directory permissions
-#                  my %file_perms = &save_dir_permissions($filetree_host);
-#                  
-#                  # 2. 777-ize all                  
-#                  $execution->execute($bd->get_binaries_path_ref->{"chmod"} . " -R 777 $filetree_host");                  
-#                  
-#                  # 3a. Prepare the copying script. Note that cp can not be executed directly, because
-#                  # wee need to "mark" the end of copy and actively monitoring it before continue. Otherwise
-#                  # race condictions may occur. See https://lists.dit.upm.es/pipermail/vnuml-devel/2007-January/000459.html
-#                  # for some detail
-#                  # FIXME: the procedure is quite similar to the one in commands_file function. Maybe
-#                  # it could be generalized in a external function, to avoid duplication
-#                  open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id"
-#                     or $execution->smartdie ("can not open " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id: $!")
-#	              unless ($execution->get_exe_mode() == EXE_DEBUG);
-#	              
-#                  my $verb_prompt_bk = $execution->get_verb_prompt();
-#                  # FIXME: consider to use a different new VNX::Execution object to perform this
-#                  # actions (avoiding this nasty verb_prompt backup)
-#                  $execution->set_verb_prompt("$name> ");	  
-#	  
-#	              my $shell = $dh->get_default_shell;
-#	              my $shell_list = $vm->getElementsByTagName("shell");
-#                  if ($shell_list->getLength == 1) {
-#                     $shell = &text_tag($shell_list->item(0));
-#                  }
-#                  my $date_command = $bd->get_binaries_path_ref->{"date"};
-#                  chomp (my $now = `$date_command`);
-#                  my $basename = basename $0;
-#                  $execution->execute("#!" . $shell,*COMMAND_FILE);
-#                  $execution->execute("#filetree.$random_id copying script",*COMMAND_FILE);
-#                  $execution->execute("#generated by $basename $version$branch at $now",*COMMAND_FILE);
-#                  $execution->execute("cp -r $filetree_vm/* $dest",*COMMAND_FILE);
-#                  $execution->execute("echo 1 > /mnt/hostfs/filetree_cp.$random_id.end",*COMMAND_FILE);
-#	              
-#	              close COMMAND_FILE unless ($execution->get_exe_mode() == EXE_DEBUG);
-#	              $execution->set_verb_prompt($verb_prompt_bk);
-#                  $execution->execute($bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id");                  
-#                  
-#                  # 3b. Script execution
-#                  $execution->execute_mconsole($mconsole,"/mnt/hostfs/filetree_cp.$random_id");
-#                                    
-#                  # 3c. Actively wait for the copying end
-#                  chomp (my $init = `$date_command`);                  
-#                  print "Waiting filetree $src->$dest filetree copy... " if ($execution->get_exe_mode() == EXE_VERBOSE);
-#                  &filetree_wait($dh->get_hostfs_dir($name) . "/filetree_cp.$random_id.end");
-#                  chomp (my $end = `$date_command`);
-#                  my $time = $init - $end;
-#                  print "(" . $time ."s)\n" if ($execution->get_exe_mode() == EXE_VERBOSE);                  
-#                  
-#                  # 3d. Cleaning
-#                  $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf $filetree_host");
-#                  $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id");
-#                  $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id.end");
-#                  
-#                  # 4. Restore directory permissions; we need to perform some transformation
-#                  # in the keys (finelame) host-relative -> vm-relative
-#                  my %file_vm_perms;
-#                  foreach (keys %file_perms) {
-#                     $_ =~ /^$filetree_host\/(.*)$/;
-#                     my $new_key = "$dest/$1";
-#                     $file_vm_perms{$new_key} = $file_perms{$_};
-#                  }
-#                  &set_file_permissions($mconsole,$dh->get_hostfs_dir($name),%file_vm_perms);                  
-#                  
-#                  # Setting proper user
-#                  &set_file_user ($mconsole, $dh->get_hostfs_dir($name), $user, keys %file_vm_perms);                  
-#	           }
-#	           else {
-#                  print "VNUML warning: $mconsole socket does not exist. Copy of $src files can not be performed\n";
-#	           }
-#            } 
-#            elsif ($mode eq "pts") {
-#               # TODO (Casey's works)
-#            }
-#         }
-#      }
-#      
-#      # Plugin operation
-#      foreach my $plugin (@plugins) {
-#         my %files = $plugin->execCreateFiles($name,$seq);
-#
-#         if (defined($files{"ERROR"}) && $files{"ERROR"} ne "") {
-#            $execution->smartdie("plugin $plugin execCreateFiles($name) error: ".$files{"ERROR"});
-#         }
-#
-#         # To get execution mode
-#         my $mode = &get_vm_exec_mode($vm);
-#
-#         if ($mode eq "net") {
-#         
-#            foreach my $key (keys %files) {
-#               my $dest = $key;
-#               my $src  = $files{$key};
-#               $execution->execute($bd->get_binaries_path_ref->{"scp"} . " -q -r -oProtocol=" . $dh->get_ssh_version . " -o 'StrictHostKeyChecking no'" .  " $src $vm_ips{$name}:$dest");
-#               $execution->execute($bd->get_binaries_path_ref->{"rm"} . " $src");
-#            }
-#         }
-#         elsif ($mode eq "mconsole") {
-#            # FIXME: there is a lot of code here that is very much the same that conventional
-#            # <filetree> processing. Re-factoring code should be highly recommendable         
-#
-#            my $mconsole = $dh->get_run_dir($name) . "/mconsole";
-#            if (-S $mconsole) {
-#               my $command = $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name) . " pluginfiles.XXXXXX";
-#               chomp(my $pluginfiles_host = `$command`);
-#               $pluginfiles_host =~ /pluginfiles\.(\w+)$/;
-#               my $random_id = $1;
-#               my $pluginfiles_vm = "/mnt/hostfs/pluginfiles.$random_id"; 
-#            
-#               foreach my $key (keys %files) {
-#                  my $dest = $key;
-#                  my $src  = $files{$key};
-#                                
-#                  my $dir_dest = dirname($dest);
-#                  my $basename_dest = basename($dest);
-#                  
-#                  mkpath("$pluginfiles_host/$dir_dest", {verbose => 0} );
-#                  $execution->execute($bd->get_binaries_path_ref->{"mv"} . " $src $pluginfiles_host/$dir_dest/$basename_dest");
-#               }
-#               
-#               # 1. Save directory permissions
-#               my %file_perms = &save_dir_permissions($pluginfiles_host);
-#                  
-#               # 2. 777-ize all                  
-#               $execution->execute($bd->get_binaries_path_ref->{"chmod"} . " -R 777 $pluginfiles_host");                                 
-#               
-#               # 3a. Prepare the copying script. Note that cp can not be executed directly, because
-#               # we need to "mark" the end of copy and actively monitoring it before continue. Otherwise
-#               # race condictions may occur. See https://lists.dit.upm.es/pipermail/vnuml-devel/2007-January/000459.html
-#               # for some detail
-#               open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id"
-#                  or $execution->smartdie ("can not open " . $dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id: $!")
-#	           unless ($execution->get_exe_mode() == EXE_DEBUG);
-#	           
-#               my $verb_prompt_bk = $execution->get_verb_prompt();
-#               # FIXME: consider to use a different new VNX::Execution object to perform this
-#               # actions (avoiding this nasty verb_prompt backup)
-#               $execution->set_verb_prompt("$name> ");	  
-#	  
-#	           my $shell = $dh->get_default_shell;
-#	           my $shell_list = $vm->getElementsByTagName("shell");
-#               if ($shell_list->getLength == 1) {
-#                  $shell = &text_tag($shell_list->item(0));
-#               }
-#               my $date_command = $bd->get_binaries_path_ref->{"date"};
-#               chomp (my $now = `$date_command`);
-#               my $basename = basename $0;
-#               $execution->execute("#!" . $shell,*COMMAND_FILE);
-#               $execution->execute("#pluginfiles.$random_id copying script",*COMMAND_FILE);
-#               $execution->execute("#generated by $basename $version$branch at $now",*COMMAND_FILE);
-#               $execution->execute("cp -r $pluginfiles_vm/* /",*COMMAND_FILE);
-#               $execution->execute("echo 1 > /mnt/hostfs/pluginfiles_cp.$random_id.end",*COMMAND_FILE);
-#	              
-#	           close COMMAND_FILE unless ($execution->get_exe_mode() == EXE_DEBUG);
-#	           $execution->set_verb_prompt($verb_prompt_bk);
-#               $execution->execute($bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id");                  	           
-#               
-#               # 3b. Script execution
-#               $execution->execute_mconsole($mconsole,"/mnt/hostfs/pluginfiles_cp.$random_id");
-#                                    
-#               # 3c. Actively wait for the copying end
-#               chomp (my $init = `$date_command`);                  
-#               print "Waiting $plugin execCreateFiles copy... " if ($execution->get_exe_mode() == EXE_VERBOSE);
-#               &filetree_wait($dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id.end");
-#               chomp (my $end = `$date_command`);
-#               my $time = $init - $end;
-#               print "(" . $time ."s)\n" if ($execution->get_exe_mode() == EXE_VERBOSE);                  
-#                  
-#               # 3d. Cleaning
-#               $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf $pluginfiles_host");
-#               $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id");
-#               $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id.end");                                                                 
-#               
-#               # 4. Restore directory permissions; we need to perform some transformation
-#               # in the keys (finelame) host-relative -> vm-relative
-#               my %file_vm_perms;
-#               foreach (keys %file_perms) {
-#                  $_ =~ /^$pluginfiles_host\/(.*)$/;
-#                  my $new_key = "/$1";
-#                  $file_vm_perms{$new_key} = $file_perms{$_};
-#               }
-#               &set_file_permissions($mconsole,$dh->get_hostfs_dir($name),%file_vm_perms);               
-#            }
-#            else {
-#               print "VNUML warning: $mconsole socket does not exist. Copy $plugin execCreateFiles can not be performed\n";
-#            }
-#         }
-#         elsif ($mode eq "pts") {
-#            # TODO (Casey's works)
-#         }
-#      }  
-#   }
-#}
-
-#sub command_files {
-#
-#   my $random_id = shift;
-#   my $seq = shift;
-#
-#   my @vm_ordered = $dh->get_vm_ordered;
-#   my %vm_hash = $dh->get_vm_to_use(@plugins);   
-#      
-#   for ( my $i = 0; $i < @vm_ordered; $i++) {
-#      my $vm = $vm_ordered[$i];
-#
-#      my $basename = basename $0;
-#
-#      # We get name attribute
-#      my $name = $vm->getAttribute("name");
-#
-#      # We have to process it?
-#      unless ($vm_hash{$name}) {
-#      	next;
-#      }
-#
-#      # We open file
-#      open COMMAND_FILE, ">" . $dh->get_tmp_dir . "/vnuml.$name.$seq.$random_id"
-#         or $execution->smartdie ("can not open " . $dh->get_tmp_dir ."/vnuml.$name.$seq: $!")
-#	  unless ($execution->get_exe_mode() == EXE_DEBUG);
-#	  
-#      my $verb_prompt_bk = $execution->get_verb_prompt();
-#      # FIXME: consider to use a different new VNX::Execution object to perform this
-#      # actions (avoiding this nasty verb_prompt backup)
-#      $execution->set_verb_prompt("$name> ");	  
-#	  
-#	  my $shell = $dh->get_default_shell;
-#	  my $shell_list = $vm->getElementsByTagName("shell");
-#      if ($shell_list->getLength == 1) {
-#         $shell = &text_tag($shell_list->item(0));
-#      }
-#      my $command = $bd->get_binaries_path_ref->{"date"};
-#      chomp (my $now = `$command`);
-#      $execution->execute("#!" . $shell,*COMMAND_FILE);
-#      $execution->execute("#commands sequence: $seq",*COMMAND_FILE);
-#      $execution->execute("#file generated by $basename $version$branch at $now",*COMMAND_FILE);
-#
-#      # To process exec tags of matching commands sequence
-#      my $command_list = $vm->getElementsByTagName("exec");
-#
-#      # To process list, dumping commands to file
-#      for ( my $j = 0; $j < $command_list->getLength; $j++) {
-#         my $command = $command_list->item($j);
-#      	
-#         # To get attributes
-#         my $cmd_seq = $command->getAttribute("seq");
-#         my $type = $command->getAttribute("type");
-#         
-#         if ($cmd_seq eq $seq) {
-#            # Case 1. Verbatim type
-#	        if ($type eq "verbatim") {
-#	           # Including command "as is"
-#	           $execution->execute(&text_tag_multiline($command),*COMMAND_FILE);		   
-#	        }
-#	        # Case 2. File type
-#            elsif ($type eq "file") {
-#	           # We open the file and write commands line by line
-#	           my $include_file = &do_path_expansion(&text_tag($command));
-#	           open INCLUDE_FILE, "$include_file"
-#	              or $execution->smartdie ("can not open $include_file: $!");
-#	           while (<INCLUDE_FILE>) {
-#	              chomp;
-#	              $execution->execute($_,*COMMAND_FILE);
-#	           }
-#	           close INCLUDE_FILE;
-#	        }
-#	        # Other case. Don't do anything (it would be and error in the XML!)         	
-#         }         
-#      }
-#
-#      # Plugin operation
-#      $execution->execute("# commands generated by plugins",*COMMAND_FILE);
-#      foreach my $plugin (@plugins) {      
-#      
-#         my @commands = $plugin->execCommands($name,$seq);
-#       
-#         my $error = shift(@commands);
-#         if ($error ne "") {
-#            $execution->smartdie("plugin $plugin execCommands($name,$seq) error: $error");
-#         }
-#       
-#         foreach my $cmd (@commands) {
-#            $execution->execute($cmd,*COMMAND_FILE);
-#         }
-#      
-#      }
-#      
-#      # We close file and mark it executable
-#      close COMMAND_FILE unless ($execution->get_exe_mode() == EXE_DEBUG);
-#      $execution->set_verb_prompt($verb_prompt_bk);
-#      $execution->execute($bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_tmp_dir. "/vnuml.$name.$seq.$random_id");
-#      
-#   }
-#
-#}
-#
-#sub install_command_files {
-#
-#   my $random_id = shift;
-#   my $seq = shift;
-#   my %vm_ips = @_;
-#
-#   my @vm_ordered = $dh->get_vm_ordered;
-#   my %vm_hash = $dh->get_vm_to_use(@plugins);
-#
-#   for ( my $i = 0; $i < @vm_ordered; $i++) {
-#      my $vm = $vm_ordered[$i];
-#
-#      # To get name attribute
-#      my $name = $vm->getAttribute("name");
-#
-#      # Process it?
-#      unless ($vm_hash{$name}) {
-#      	next;
-#      }
-#        
-#      # To get executing user and mode
-#      my $user = &get_user_in_seq($vm,$seq);
-#      my $mode = &get_vm_exec_mode($vm);
-#     
-#      if ($mode eq "net") {
-#         # We install the file in /tmp of the virtual machine, using ssh
-#         $execution->execute($bd->get_binaries_path_ref->{"ssh"} . " -x -" . $dh->get_ssh_version . " -o 'StrictHostKeyChecking no'" . " -l $user $vm_ips{$name} rm -f /tmp/vnuml.$name.$seq.$random_id &> /dev/null");
-#         $execution->execute($bd->get_binaries_path_ref->{"scp"} . " -q -oProtocol=" . $dh->get_ssh_version . " -o 'StrictHostKeyChecking no' " . $dh->get_tmp_dir . "/vnuml.$name.$seq.$random_id $user\@$vm_ips{$name}:/tmp");
-#      }
-#      elsif ($mode eq "mconsole") {
-#      	 # We install the file in /mnt/hostfs of the virtual machine, using a simple cp
-#      	 $execution->execute($bd->get_binaries_path_ref->{"cp"} . " /tmp/vnuml.$name.$seq.$random_id " .$dh->get_hostfs_dir($name));
-#      }
-#      elsif ($mode eq "pts") {
-#         # TODO (Casey's works)
-#      }      
-#
-#   }
-#
-#}
-#
-#sub exec_command_files {
-#
-#   my $random_id = shift;
-#   my $seq = shift;
-#   my %vm_ips = @_;
-#
-#   my @vm_ordered = $dh->get_vm_ordered;
-#   my %vm_hash = $dh->get_vm_to_use(@plugins);
-#
-#   for ( my $i = 0; $i < @vm_ordered; $i++) {
-#      my $vm = $vm_ordered[$i];
-#
-#      # To get name attribute
-#      my $name = $vm->getAttribute("name");
-#      
-#      # Get execution user and mode
-#      my $user = &get_user_in_seq($vm,$seq);
-#      my $mode = &get_vm_exec_mode($vm);
-#
-#      # Process it?
-#      unless ($vm_hash{$name}) {
-#      	next;
-#      }
-#
-#      # We execute the file. Several possibilities, depending on the mode
-#      if ($mode eq "net") {
-#         # Executing through SSH
-#         $execution->execute($bd->get_binaries_path_ref->{"ssh"} . " -x -" . $dh->get_ssh_version .  " -o 'StrictHostKeyChecking no'" .  " -l $user $vm_ips{$name} /tmp/vnuml.$name.$seq.$random_id");  
-#      }
-#      elsif ($mode eq "mconsole") {
-#         # Executing through mconsole
-#         my $mconsole = $dh->get_run_dir($name) . "/mconsole";
-#         if (-S $mconsole) {
-#            # Note the explicit declaration of standard input, ouput and error descriptors. It has been noticed
-#            # (http://www.mail-archive.com/user-mode-linux-user@lists.sourceforge.net/msg05369.html)
-#            # that not doing so can cause problems in some situations (i.e., executin /etc/init.d/apache2)
-#         	$execution->execute_mconsole($mconsole,"su $user /mnt/hostfs/vnuml.$name.$seq.$random_id </dev/null >/dev/null 2>/dev/null");
-#	     }
-#	     else {
-#            print "VNUML warning: $mconsole socket does not exist. Commands in vnuml.$name.$seq.$random_id has not been executed\n";
-#	     }
-#      }
-#      elsif ($mode eq "pts") {
-#         # TODO (Casey's works)
-#      }
-#
-#      # We delete the file in the host after installation (this line could be 
-#      # commented out in order to hold the scripts in the hosts for debugging 
-#      # purposes)
-#      $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnuml.$name.$seq.$random_id");
-#
-#   }   
-#
-#}
-#
-#sub exec_command_host {
-#
-#   my $seq = shift;
-#   
-#   my $doc = $dh->get_doc;
-#
-#   # If host <host> is not present, there is nothing to do
-#   return if ($doc->getElementsByTagName("host")->getLength eq 0);
-#
-#   # To get <host> tag
-#   my $host = $doc->getElementsByTagName("host")->item(0);
-#    
-#    # To process exec tags of matching commands sequence
-#    my $command_list = $host->getElementsByTagName("exec");
-#     
-#    # To process list, dumping commands to file
-#    for ( my $j = 0; $j < $command_list->getLength; $j++) {
-#       my $command = $command_list->item($j);
-#       
-#       # To get attributes
-#       my $cmd_seq = $command->getAttribute("seq");
-#       my $type = $command->getAttribute("type");
-#         
-#       if ($cmd_seq eq $seq) {
-#          # Case 1. Verbatim type
-#          if ($type eq "verbatim") {
-#             # To include the command "as is"
-#             $execution->execute(&text_tag_multiline($command));
-#          }
-#          # Case 2. File type
-#          elsif ($type eq "file") {
-#             # We open file and write commands line by line
-#             my $include_file = &do_path_expansion(&text_tag($command));
-#             open INCLUDE_FILE, "$include_file"
-#                or $execution->smartdie ("can not open $include_file: $!");
-#             while (<INCLUDE_FILE>) {
-#                chomp;
-#                $execution->execute($_);
-#             }
-#             close INCLUDE_FILE;
-#          }
-#          # Other case. Don't do anything (it would be and error in the XML!)
-#        }
-#    }
-#}
 
 
 #####################################################
@@ -3169,14 +1968,12 @@ sub mode_d {
    
 ###############################################################
 
-
    my @vm_ordered = $dh->get_vm_ordered;
    my %vm_hash = $dh->get_vm_to_use;
    my $vmleft = 0;
    my $only_vm = "";
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
-   	
 
       my $vm = $vm_ordered[$i];
       # To get name attribute
@@ -3192,16 +1989,6 @@ sub mode_d {
       if ($args->get('M')){
          $only_vm = $name;  	
       }
-      
-#      # undefine vm if status is "defined"
-#      my $status_file = $dh->get_vm_dir($name) . "/status";
-#      next if (! -f $status_file);
-#      my $command = $bd->get_binaries_path_ref->{"cat"} . " $status_file";
-#      chomp(my $status = `$command`);
-#      if ($status eq "defined"){
-#      	my $error = vmAPI->undefineVM($name, $type);#, $execution, $bd,$dh);
-#      	next;
-#      }
       
       # DFC 21/01/2010
       if ($args->get('F')){
@@ -3238,53 +2025,12 @@ sub mode_d {
             my $time_f = time();
             my $interval = $time_f - $time_0;
             print "$interval seconds elapsed...\n"; #if ($execution->get_exe_mode() == EXE_VERBOSE);
-         }
-         
-         
-         
+         }       
       }
-      
-
-      # una vez que todos apagan, hay que comprobar en qué estado han quedado los libvirt.
-      # recorrer otra vez todas las máquinas llamando para cada una a una sub del API, que me
-      # devuelve el estado en el que ha quedado la mquina, si procede (para uml no hace nada)
-#      for ( my $i = 0; $i < @vm_ordered; $i++) {
-#         my $vm = $vm_ordered[$i];
-#         # To get name attribute
-#         my $name = $vm->getAttribute("name");
-#         my $type = $vm->getAttribute("type");
-#         unless ($vm_hash{$name}){
-#             $vmleft = 1;
-#             next;
-#         }     
-#         my $real_state = vmAPI->checkStateVM($name, $type);
-#         print "final state of $name according to libvirt: $real_state\n";<STDIN>;
-#         if ($args->get('F')){
-#            # si la máquina aún existe -> hacer undefine
-#            if (!$real_state eq 0){
-#            	&mode_undefine;
-#            }
-#         }
-#         else{
-#            # si la máquina no existe, hacer define
-#            if ($real_state eq 0){
-#               my $do_not_build_topology = 1;
-#               &mode_define($do_not_build_topology,$name);
-#            }
-#            if ($real_state eq "running"){
-#               print "ojo!";<STDIN>;
-#            }
-#         }
-#      }
-      ###########
-      ###########
-      
 
 
-#      unless ($vmleft)   {
       if (($args->get('F'))&(!($args->get('M'))))   {
-
-   
+      	
          # 1. To stop UML
          #   &halt;
 
@@ -3326,7 +2072,7 @@ sub mode_d {
          # To remove lock file (it exists while topology is running)
          $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_sim_dir . "/lock");
       }
-#   }
+
 }
 
 ######################################################
@@ -3394,24 +2140,6 @@ sub host_unconfig {
    }
 
 }
-
-# movido a vmAPI, solo lo usa el createVM
-#######################################################
-## Kill currently booting UML
-
-#sub kill_curr_uml {
-#    # Force kill the currently booting uml process, if there is one
-#	if (defined($curr_uml)) {
-#		my $mconsole_init = $curr_uml =~ s/#$//;
-#		# Halt through mconsole socket,
-#		my $mconsole = $dh->get_run_dir($curr_uml) . "/mconsole";
-#		if (-S $mconsole && $mconsole_init) {
-#			$execution->execute($bd->get_binaries_path_ref->{"uml_mconsole"} . " $mconsole halt 2>/dev/null");
-#		} elsif (-f $dh->get_run_dir($curr_uml) .  "/pid") {
-#			$execution->execute($bd->get_binaries_path_ref->{"kill"} . " -SIGTERM `" . $bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_run_dir($curr_uml) .  "/pid`"); 
-#		}
-#	}
-#}
 
 
 
@@ -3505,13 +2233,6 @@ sub tun_destroy_switched {
 			}
 	        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
          }
-
-         # To check if VLAN is being used
-         #my $tun_vlan_if = $tun_if . ".$vlan" unless ($vlan =~ /^$/);
-       
-         # To decrease use counter
-         #&dec_cter($tun_vlan_if);
-         #} 
       }
    }
 }
@@ -3619,10 +2340,6 @@ sub mode_P {
             next;
         }
         my $error = vmAPI->undefineVM($name, $merged_type, $dh,$bd,$execution);
-        # DFC: No hay que llamar a destroyVM aquí, ya que cuando se
-        #      hace un -P se llama primero a mode_d con el F_flag activado, 
-        #      desde donde se llama a destroyVM
-        # my $error = vmAPI->destroyVM($name, $type, $execution, $bd,$dh);
 
     }
     if ( ($vm_left eq 0) && (!$args->get('M') ) ) {
@@ -3731,23 +2448,7 @@ sub get_kernel_pids {
 	}
 	return @pid_list;
 }
-	
-#sub get_all_kernel_pids {
-#
-#	my @pid_list;
-#	   
-#	foreach my $vm ($dh->get_vm_ordered) {
-#		# Get name attribute
-#		my $name = $vm->getAttribute("name");
-#		my $pid_file = $dh->get_run_dir($name) . "/pid";
-#		next if (! -f $pid_file);
-#		my $command = $bd->get_binaries_path_ref->{"cat"} . " $pid_file";
-#		print "command: " . $command . "\n";#[JSF]
-#		chomp(my $pid = `$command`);
-#		push(@pid_list, $pid);
-#	}
-#	return @pid_list;	
-#}
+
 
 
 
@@ -4015,26 +2716,6 @@ sub host_mapping_unpatch {
 
 }
 
-#sub what_VMs_alive {
-#
-#   my $pids_string = shift;
-##   if ($#pids < 0) {
-##	   return 0;
-##   }
-##   my $pids_string = join(" ",@pids);
-#   print "pids_string: " . $pids_string . "\n"; #[JSF]
-#   my $pids_on = `"ps --no-headers -p $pids_string 2> /dev/null | awk '{print \$1}'"`;
-#   my $pipe = $bd->get_binaries_path_ref->{"ps"} . " --no-headers -p $pids_string 2> /dev/null | awk '{print \$1}'";   ## Avoiding strange warnings in the ps list
-#   print "pids_on: " . $pids_on;
-#   open my $ps_list, "$pipe";
-#   if (<$ps_list>) {
-#	  close $ps_list;
-#      return $pids_on;
-#   }
-#   close $ps_list;
-#   return 0;
-#}  
-
 
 # VM_alive
 #
@@ -4060,51 +2741,7 @@ sub VM_alive {
    }
    close $ps_list;
    return 0;
-   
- 
 
-#   #my $doc = $dh->get_doc;
-#
-#   # To get a greped ps
-#   my @greped_ps;
-#   my $line = 0;
-#   #my $pipe = "@PS@" . " axw | " . "@GREP@" . " linux |";
-#   #my $pipe = "@PS@" . " axw |";  ## changed to support <kernel> tag
-#   my $pipe = "@PS@" . " axw 2> /dev/null|";   ## Avoiding strange warnings in the ps list
-#   open PS_LIST, "$pipe";
-#   while (<PS_LIST>) {
-#      chomp;
-#      $greped_ps[$line++] = $_;
-#   }
-#   close PS_LIST;
-#
-#   # To get list of defined <vm>
-#   # my $vm_list = $doc->getElementsByTagName("vm");
-#   #
-#   # To process list
-#   # for ( my $i = 0; $i < $vm_list->getLength; $i++ ) {
-#   #   my $vm = $vm_list->item($i);
-#
-#   my @vm_ordered = $dh->get_vm_ordered;
-#
-#   for ( my $i = 0; $i < @vm_ordered; $i++) {
-#      my $vm = $vm_ordered[$i];
-#
-#      # To get name attribute
-#      my $name = $vm->getAttribute("name");
-#
-#      # To look for the current UML (if found, at least this UML is alive)
-#      # The name is looked for between [ ] (looking for the name alone crashes when 
-#      # the name of one vm could be a substring of another, like with "uml1" and "uml1b")
-#      my $success = 0;
-#      for ( my $j = 0; $j < $line; $j++) {
-#         $_ = $greped_ps[$j];
-#         return 1 if (/\($name\)/);
-#      }
-#
-#   }
-#   # There is no UML running 
-#   return 0;
 
 }
 
@@ -4779,63 +3416,6 @@ sub get_vm_exec_mode {
       
 }
 
-# check_mconsole_exec_capabilities
-#
-# Check the mconsole exec capabilities of the virtual machine
-# given as argument. Perform a checking for the uml_mconsole binary (the
-# exec command) and another for the UML kernel (MCONSOLE_EXEC kernel
-# option)
-#
-# Argument:
-# - the virtual machine node
-#
-# Returns:
-# - 1 if the capability is supported
-# - 0 otherwise
-#
-#sub check_mconsole_exec_capabilities {
-#   my $vm = shift;
-#   
-#   my $name = $vm->getAttribute("name");
-#
-#   # Checking the kernel
-#   my $kernel_check = 0;
-#   my $kernel = $dh->get_default_kernel;
-#   my $kernel_list = $vm->getElementsByTagName("kernel");
-#   if ($kernel_list->getLength > 0) {
-#      $kernel = &text_tag($kernel_list->item(0));
-#
-#   }
-#   print "\nkernel: \n" . $kernel;
-#   my $grep = $bd->get_binaries_path_ref->{"grep"};
-#   my $result = `$kernel --showconfig | $grep MCONSOLE_EXEC`;
-#   print "\nresult: $result\n";
-#   if ($result =~ /^CONFIG_MCONSOLE_EXEC=y$/) {
-#      $kernel_check = 1;
-#
-#   }
-#   $kernel_check = 1;
-#   # Checking the uml_mconsole command
-#   my $mconsole_check = 0;
-#   my $mconsole = $dh->get_run_dir($name) . "/mconsole";
-#
-#   if (-S $mconsole) {
-#
-#      my $grep = $bd->get_binaries_path_ref->{"grep"};
-#      my $uml_mconsole = $bd->get_binaries_path_ref->{"uml_mconsole"};
-#      my $result = `$uml_mconsole $mconsole help 2> /dev/null | $grep exec`;
-#      if ($result ne "") {
-#
-#         $mconsole_check = 1;
-#      }
-#   }
-#   else {
-#      print "VNUML warning: $mconsole socket does not exist\n";
-#
-#   }
-#   
-#   return ($kernel_check && $mconsole_check);
-#}
 
 # mgmt_sock_create
 #
@@ -4893,13 +3473,6 @@ sub mgmt_sock_destroy {
    $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tap down");
    $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tap");
 }
-
-
-
-
-
-
-
 
 
 # validation_fail
@@ -5058,9 +3631,7 @@ sub make_vm_API_doc {
    my $name = $vm->getAttribute("name");
    $vm_tag->addChild( $dom->createAttribute( name => $name));
 
-      
 
-#      &change_vm_status($dh,$name,"booting");
       
    # kernel to be booted
    my $kernel;
@@ -5371,39 +3942,5 @@ sub usage {
 	print "       -T tmp_dir, temporal files directory (default is /tmp)\n";
 	print "       -M vm_list, start/stop/restart simulation in vm_list UMLs (a list of names separated by ,)\n";
    
-   
-#   print "Usage: $basename -t VNUML_file [-o prefix] [-c vnuml_dir] [-u user]\n";
-#   print "                 [-T tmp_dir] [-i] [-w timeout] [-B] [-Z]\n";
-#   print "                 [-e screen_file] [-4] [-6] [-v] [-g]\n";
-#   print "       $basename -x cmd_seq\@VNUML_file [-T tmp_dir] [-M vm_list] [-i] [-B] [-4] [-6] [-v] [-g]\n";
-#   print "       $basename -d VNUML_file [-c vnuml_dir] [-F] [-T tmp_dir] [-i] [-B] [-4] [-6] [-v] [-g]\n";
-#   print "       $basename -P VNUML_file [-T tmp_file] [-i] [-v] [-g]\n";
-#   print "       $basename -h\n";
-#   print "       $basename -V\n";
-#   print "Mode:\n";
-#   print "       -t VNUML_file, build topology (using VNUML_file) as source\n";
-#   print "       -x cmd_seq\@VNUML_file, execute the cmd_seq command sequence (using VNUML_file as source)\n";
-#   print "       -d VNUML_file, destroy current simulation (using VNUML_file as source)\n";
-#   print "       -P VNUML_file, purge simulation (warning: it will remove UML cowed filesystems!)\n";
-#   print "Pseudomode:\n";
-#   print "       -V, show program version and exits.\n";
-#   print "       -H, show this help message and exits.\n";
-#   print "Options:\n";
-##  print "       -k, skips XML validation in VNUML_file (warning: it is not recommended)\n";
-#   print "       -o prefix, dump UML boot messages output to files (using given prefix in pathname)\n";
-#   print "       -c vnuml_dir, $basename working directory (default is ~/.vnuml)\n";
-#   print "       -u user, if run as root, UML and uml_switch processes will be owned by this user instead (default [arroba]VNUML_USER[arroba])\n"; #[JSF] poner @
-#   print "       -F, force stopping of UMLs (warning: UML filesystems may be corrupted)\n";
-##  print "       -S scan_mode, the way UML readiness is scanned (default is 0, socket style)\n";
-#   print "       -w timeout, waits timeout seconds for a UML to boot before prompting the user for further action; a timeout of 0 indicates no timeout (default is 30)\n";
-#   print "       -B, blocking mode\n";
-##  print "       -Z, avoids filesystem VNUMLization\n";
-#   print "       -e screen_file, make screen configuration file for pts devices\n";
-#   print "       -i, interactive execution (in combination with -v mode)\n";
-#   print "       -4, process only IPv4 related tags (and not process IPv6 related tags)\n";
-#   print "       -6, process only IPv6 related tags (and not process IPv4 related tags)\n";
-#   print "       -v, verbose mode on\n";
-#   print "       -g, debug mode on (overrides verbose)\n";
-#   print "       -T tmp_dir, temporal files directory (default is /tmp)\n";
-#   print "       -M vm_list, start/stop/restart simulation in vm_list UMLs (a list of names separated by ,)\n";
+
 }
