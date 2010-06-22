@@ -5,7 +5,7 @@
 # This file is a sample for VNUML generalization API.
 ###############
 package vmAPI;
-# [JSF] modificacion
+
 @ISA    = qw(Exporter);
 @EXPORT = qw(defineVM
   undefineVM
@@ -39,7 +39,7 @@ use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
 
-#necesario para mover UML_bootfile aqui
+#necesario para UML_bootfile
 use File::Basename;
 
 use XML::DOM;
@@ -48,7 +48,6 @@ use XML::DOM;
 #use XML::DOM::ValParser;
 
 
-# Jorge
 use IO::Socket::UNIX qw( SOCK_STREAM );
 
 # Global objects
@@ -196,17 +195,6 @@ sub defineVM {
 	}
 	elsif ( $type eq "libvirt-kvm-windows" ) {
 
-#      my $addr = "qemu:///system";
-#      print "Connecting to $addr...";
-#      my $con = Sys::Virt->new(address => $addr, readonly => 0);
-#      print "OK\n";
-#      <STDIN>;
-#      open(FILEHANDLE, $configFile) or die  "cannot open $configFile file. Aborting\n";
-#      my $file_data;
-#      read (FILEHANDLE,$file_data, -s FILEHANDLE);
-#      my $dom = $con->define_domain($file_data);
-
-		#cogido de UML_bootfile y bootfiles
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "vnxboot"
 		  or $execution->smartdie("can not open ${path}vnxboot: $!")
@@ -242,9 +230,6 @@ sub defineVM {
 					  . " create -b $filesystem -f qcow2 "
 					  . $dh->get_fs_dir($vmName)
 					  . "/root_cow_fs" );
-
-# $execution->execute("qemu-img" . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
-# $execution->execute($bd->get_binaries_path_ref->{"qemu-img"} . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
 			}
 			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
 		}
@@ -432,27 +417,12 @@ sub defineVM {
 #      $execution->execute("ps aux | grep kvm | grep " . $uuid . " | grep -v grep | awk '{print \$2}' >> " . $dh->get_run_dir($vmName) . "/pid");
 #
 #      $execution->execute("virt-viewer $vmName &");
-
-
-
-
 
 		return $error;
 
 	}
 	elsif ( $type eq "libvirt-kvm-linux" ) {
 
-#      my $addr = "qemu:///system";
-#      print "Connecting to $addr...";
-#      my $con = Sys::Virt->new(address => $addr, readonly => 0);
-#      print "OK\n";
-#      <STDIN>;
-#      open(FILEHANDLE, $configFile) or die  "cannot open $configFile file. Aborting\n";
-#      my $file_data;
-#      read (FILEHANDLE,$file_data, -s FILEHANDLE);
-#      my $dom = $con->define_domain($file_data);
-
-		#cogido de UML_bootfile y bootfiles
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "vnxboot"
 		  or $execution->smartdie("can not open ${path}vnxboot: $!")
@@ -678,10 +648,6 @@ sub defineVM {
 #      $execution->execute("ps aux | grep kvm | grep " . $uuid . " | grep -v grep | awk '{print \$2}' >> " . $dh->get_run_dir($vmName) . "/pid");
 #
 #      $execution->execute("virt-viewer $vmName &");
-
-
-
-
 
 		return $error;
 
@@ -797,17 +763,6 @@ sub createVM {
 		unless ( $name eq $vmName ) {
 			next;
 		}
-
-# DONE IN CREATE_DIRS IN VNUMLPARSER
-#      # create fs, hostsfs and run directories, if they don't already exist
-#      if ($execution->get_exe_mode() != EXE_DEBUG) {
-#         if (! -d $dh->get_vm_dir ) {
-#            mkdir $dh->get_vm_dir or $execution->smartdie ("error making directory " . $dh->get_vm_dir . ": $!");
-#         }
-#         mkdir $dh->get_vm_dir($name);
-#         mkdir $dh->get_fs_dir($name);
-#         mkdir $dh->get_hostfs_dir($name);
-#    }
 
 		# To get filesystem and type
 		my $filesystem_type;
@@ -1986,17 +1941,7 @@ sub startVM {
 				$execution->execute("virt-viewer $vmName &");
 
 
-
-	######
 		my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type, 2 );
-
-#		$execution->execute(
-#			"ifconfig eth0 "
-#			  . $net->addr()
-#			  . " netmask "
-#			  . $net->mask() . " up",
-#			*CONFILE
-#		);
 
 		# If host_mapping is in use, append trailer to /etc/hosts config file
 
@@ -2010,10 +1955,6 @@ sub startVM {
 			print HOSTLINES $net->addr() . " $vmName\n";
 			close HOSTLINES;
 		}
-		######
-
-
-
 
 				$error = 0;
 				return $error;
@@ -2049,17 +1990,7 @@ sub startVM {
 				$execution->execute("virt-viewer $vmName &");
 
 
-
-	######
 		my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type, 2 );
-
-#		$execution->execute(
-#			"ifconfig eth0 "
-#			  . $net->addr()
-#			  . " netmask "
-#			  . $net->mask() . " up",
-#			*CONFILE
-#		);
 
 		# If host_mapping is in use, append trailer to /etc/hosts config file
 
@@ -2073,10 +2004,6 @@ sub startVM {
 			print HOSTLINES $net->addr() . " $vmName\n";
 			close HOSTLINES;
 		}
-		######
-
-
-
 
 				$error = 0;
 				return $error;
@@ -2088,8 +2015,6 @@ sub startVM {
 	}
 	elsif ( $type eq "uml" ) {
 
-		#   	  print "vmName start: " . $vmName . "\n";
-		#   	  print "datahandler start: " . $dh . "\n";
 		$error = &createVM(
 			$self, $vmName, $type, $doc, $execution,
 			$bd,   $dh,     $sock, $manipcounter
@@ -2164,36 +2089,6 @@ sub shutdownVM {
 
 				#remove run directory
 				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) );
-
-				# PROBANDO a hacerlo con PIDs
-				#               # Wait for the domain to shutdown
-				#               my $wait_for_domain = 1;
-				#               while ($wait_for_domain eq 1){
-				#                  @doms = $con->list_domains();
-				#                  $wait_for_domain = 0;
-				#
-				#                     foreach my $listDom2 (@doms) {
-				#                        my $dom_name2 = $listDom2->get_name();
-				#                        if ($dom_name2 eq $vmName){
-				#                           $wait_for_domain = 1;
-				#                        }
-				#                     }
-				#
-				#               }
-
-				#my $info;
-				#my $estado;
-				#$info = $listDom->get_info;
-				#$estado = $states{$info->{state}};
-				#print "estado: $estado\n";
-				#print "is active:" . $listDom->is_active() . "\n";
-				#$info = $listDom->get_info;
-				#$estado = $states{$info->{state}};
-				#print "estado: $estado\n";
-				#sleep(1);
-				#my @doms = $con->list_domains();
-
-				#            }
 
 				print "Domain shut down\n";
 				return $error;
@@ -2669,25 +2564,6 @@ sub executeCMD {
 
 	}
 
-#   my %vm_ips;
-#
-#   # If -B, block until ready
-#   if ($args->get('B')) {
-#      my $time_0 = time();
-#      %vm_ips = &get_UML_command_ip($seq);
-#      while (!&UMLs_cmd_ready(%vm_ips)) {
-#         #system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
-#         sleep($dh->get_delay);
-#         my $time_f = time();
-#         my $interval = $time_f - $time_0;
-#         print "$interval seconds eslapsed...\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
-#         %vm_ips = &get_UML_command_ip($seq);
-#      }
-#   }
-#   else {
-#      %vm_ips = &get_UML_command_ip($seq);
-#      $execution->smartdie ("some vm is not ready to exec sequence $seq through net. Wait a while and retry...\n") unless &UMLs_cmd_ready(%vm_ips);
-#   }
 
 	# Each -x invocation uses an "unique" random generated identifier, that
 	# would avoid collision problems among several users
@@ -2810,62 +2686,6 @@ sub get_net_by_mode {
 	return 0;
 }
 
-# movido de vnumlparser, se usa en el createVM
-# Nota DFC: creo que esto no sirve ya que es una rutina para liberar el escenario entero,
-#           lo cual hay que gestionar desde vnx (aqui solo se tiene vision de vms individuales).
-#           Cambio la llamada al mode_d del createVM a una llamada directa a halt_uml
-#####################################################
-
-# mode_d
-#
-# Destroy current simulation mode
-#sub mode_d {
-#
-#   # Since version 1.4.0, UML must be halted before the routes to the UMLs disapear with the unconfiguration,
-#   # to allow SSH halt when <mng_if>no</mng_if> is used. Anyway, problems still, if one VM that is routing
-#   # traffic to other is halted first, for example.
-#
-#   # 1. To stop UML
-#   &halt_uml ($vmName, $F_flag);
-#
-#   # 2. Remove xauth data
-#   &xauth_remove;
-#
-#   # 3a. To remote TUN/TAPs devices (for uml_switched networks, <net mode="uml_switch">)
-#   &tun_destroy_switched;
-#
-#   # 3b. To destroy TUN/TAPs devices (for bridged_networks, <net mode="virtual_bridge">)
-#   &tun_destroy;
-#
-#   # 4. To restore host configuration
-#   &host_unconfig;
-#
-#   # 5. To remove external interfaces
-#   &external_if_remove;
-#
-#   # 6. To remove bridges
-#   &bridges_destroy;
-#
-#   # Destroy the mgmn_net socket when <vmmgnt type="net">, if needed
-#   if (($dh->get_vmmgmt_type eq "net") && ($dh->get_vmmgmt_autoconfigure ne "")) {
-#      if ($> == 0) {
-#         my $sock = &do_path_expansion($dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock"));
-#         if (-S $sock) {
-#            # Destroy the socket
-#            &mgmt_sock_destroy($sock,$dh->get_vmmgmt_autoconfigure);
-#         }
-#      }
-#      else {
-#         print "VNUML warning: <mgmt_net> autoconfigure attribute only is used when VNUML parser is invoked by root. Ignoring socket autodestruction\n";
-#      }
-#   }
-#
-#   # If <host_mapping> is in use and not in debug mode, process /etc/hosts
-#   &host_mapping_unpatch ($dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
-#
-#   # To remove lock file (it exists while topology is running)
-#   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_sim_dir . "/lock");
-#}
 
 ######################################################
 # 3. To stop UML (politely) copiado de vnumlparser, lo utiliza el createVM-UML cuando llama a mode_d
@@ -2919,31 +2739,6 @@ sub halt_uml {
 			print "VNX warning: $mconsole socket does not exist\n";
 		}
 	}
-
-#   # For no-forced mode, we have to wait all UMLs dead before to destroy
-#   # TUN/TAP (next step) due to these devices are yet in use
-#   #
-#   # Note that -B doensn't affect to this functionallity. UML extinction
-#   # blocks can't be avoided (is needed to perform bridges and interfaces
-#   # release)
-#   my $time_0 = time();
-#
-#   #antigua:   if ((!$args->get('F'))&&($execution->get_exe_mode() != EXE_DEBUG)) {
-#   #mia 1:   if ((!$F_flag)&&($execution->get_exe_mode() != EXE_DEBUG)) {
-#   #mia 2:
-#   if ((!$vmName)&&(!$F_flag)&&($execution->get_exe_mode() != EXE_DEBUG)) {
-#      print"\nControl 12\n";
-#
-#      print "---------- Waiting until UML extinction ----------\n"; #if ($execution->get_exe_mode() == EXE_VERBOSE);
-#      while (my $pids = &UML_alive) {
-#         print "waiting on processes $pids...\n"; #if ($execution->get_exe_mode() == EXE_VERBOSE);
-#         #system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
-#         sleep($dh->get_delay);
-#         my $time_f = time();
-#         my $interval = $time_f - $time_0;
-#         print "$interval seconds elapsed...\n"; #if ($execution->get_exe_mode() == EXE_VERBOSE);
-#      }
-#   }
 
 }
 
@@ -5474,8 +5269,6 @@ sub UML_notify_cleanup {
 	unlink $notify_ctl;
 }
 
-
-# hola, esto es el final
 
 1;
 
