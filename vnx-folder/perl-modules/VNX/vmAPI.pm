@@ -39,7 +39,7 @@ use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
 
-#necesario para UML_bootfile
+#needed for UML_bootfile
 use File::Basename;
 
 use XML::DOM;
@@ -56,14 +56,14 @@ my $execution;    # the VNX::Execution object
 my $dh;           # the VNX::DataHandler object
 my $bd;           # the VNX::BinariesData object
 
-my $numcomandos;  # Dice el numero de comandos que hay para ejecutar
+my $numcomandos;  # Number of commands to be executed
 
 # Name of UML whose boot process has started but not reached the init program
 # (for emergency cleanup).  If the mconsole socket has successfully been initialized
 # on the UML then '#' is appended.
 my $curr_uml;
-my $F_flag;       # tiene que estar aqui porque el createVM se lo pasa a halt
-my $M_flag;       # tiene que estar aqui porque el createVM se lo pasa a halt
+my $F_flag;       # passed from createVM to halt
+my $M_flag;       # passed from createVM to halt
 
 sub defineVM {
 
@@ -84,7 +84,6 @@ sub defineVM {
 	my @vm_ordered = $dh->get_vm_ordered;
 
 	# UMLs counter (used to generate IPv4 management addresses)
-	#my $counter = 0; ahora se recoge como parametro de CreateVM
 
 	#my $vm;
 	my $path;
@@ -119,7 +118,7 @@ sub defineVM {
 			$filesystem_type = $dh->get_default_filesystem_type;
 		}
 
-		# my $path;lo defino fuera del for para que esté disponible
+
 		if ( $execution->get_exe_mode() != EXE_DEBUG ) {
 			my $command =
 			    $bd->get_binaries_path_ref->{"mktemp"}
@@ -239,7 +238,7 @@ sub defineVM {
 		my $memTag     = $memTagList->item($0);
 		my $mem        = $memTag->getFirstChild->getData;
 
-		# creamos XML para libvirt
+		# create XML for libvirt
 		my $init_xml;
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 		my $domain_tag = $init_xml->createElement('domain');
@@ -249,19 +248,19 @@ sub defineVM {
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
 
-		#meter name
+		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
 
 		my $memory_tag = $init_xml->createElement('memory');
 		$domain_tag->addChild($memory_tag);
 
-		#meter memory
+		#memory
 		$memory_tag->addChild( $init_xml->createTextNode($mem) );
 
 		my $vcpu_tag = $init_xml->createElement('vcpu');
 		$domain_tag->addChild($vcpu_tag);
 
-		#meter vcpu
+		#vcpu
 		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
 
 		my $os_tag = $init_xml->createElement('os');
@@ -366,7 +365,7 @@ sub defineVM {
 		$graphics_tag->addChild(
 			$init_xml->createAttribute( port => $vnc_port ) );
 
-		#[JSF] falta sacar la ip del host
+		#[JSF] host ip left
 		$graphics_tag->addChild(
 			$init_xml->createAttribute( listen => $ip_host ) );
 
@@ -470,7 +469,7 @@ sub defineVM {
 		my $memTag     = $memTagList->item($0);
 		my $mem        = $memTag->getFirstChild->getData;
 
-		# creamos XML para libvirt
+		# create XML for libvirt
 		my $init_xml;
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 		my $domain_tag = $init_xml->createElement('domain');
@@ -480,19 +479,19 @@ sub defineVM {
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
 
-		#meter name
+		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
 
 		my $memory_tag = $init_xml->createElement('memory');
 		$domain_tag->addChild($memory_tag);
 
-		#meter memory
+		#memory
 		$memory_tag->addChild( $init_xml->createTextNode($mem) );
 
 		my $vcpu_tag = $init_xml->createElement('vcpu');
 		$domain_tag->addChild($vcpu_tag);
 
-		#meter vcpu
+		#vcpu
 		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
 
 		my $os_tag = $init_xml->createElement('os');
@@ -597,7 +596,7 @@ sub defineVM {
 		$graphics_tag->addChild(
 			$init_xml->createAttribute( port => $vnc_port ) );
 
-		#[JSF] falta sacar la ip del host
+		#[JSF] host ip left
 		$graphics_tag->addChild(
 			$init_xml->createAttribute( listen => $ip_host ) );
 
@@ -653,11 +652,11 @@ sub defineVM {
 
 	}
 	elsif ( $type eq "uml" ) {
-		$error = "El tipo uml aun no esta hecho...\n";
+		$error = "Can't define vm of type uml.\n";
 		return $error;
 	}
 	else {
-		$error = "Tipo aun no soportado...\n";
+		$error = "Define for type $type not implemented yet.\n";
 		return $error;
 	}
 }
@@ -683,12 +682,12 @@ sub undefineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 				$listDom->undefine();
-				print "Domain undefined\n";
+				print "Domain undefined.\n";
 				$error = 0;
 				return $error;
 			}
 		}
-		$error = "that domain does not exist...\n";
+		$error = "Domain $vmName does not exist.\n";
 		return $error;
 
 	}
@@ -705,21 +704,21 @@ sub undefineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 				$listDom->undefine();
-				print "Domain undefined\n";
+				print "Domain undefined.\n";
 				$error = 0;
 				return $error;
 			}
 		}
-		$error = "that domain does not exist...\n";
+		$error = "Domain $vmName does not exist.\n";
 		return $error;
 
 	}
 	elsif ( $type eq "uml" ) {
-		$error = "Type uml is not yet supported...\n";
+		$error = "Can't undefine vm of type uml.\n";
 		return $error;
 	}
 	else {
-		$error = "Type is not yet supported...\n";
+		$error = "undefineVM for type $type not implemented yet.\n";
 		return $error;
 	}
 }
@@ -739,13 +738,8 @@ sub createVM {
 
 	my $error = 0;
 
-	#   print "datahandler create: " . $dh . "\n";
-	#   print "vmName create: " . $vmName . "\n";
 	my $doc2       = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
-
-	# UMLs counter (used to generate IPv4 management addresses)
-	#my $counter = 0; ahora se recoge como parametro de CreateVM
 
 	#my $vm;
 	my $path;
@@ -849,7 +843,7 @@ sub createVM {
 		open( FILEHANDLE, $doc ) or die "cannot open $doc file. Aborting\n";
 		my $file_data;
 		read( FILEHANDLE, $file_data, -s FILEHANDLE );
-		print "Creating domain...\n";
+		print "Creating domain ...\n";
 		my $dom = $con->create_domain($file_data);
 		return $error;
 
@@ -859,7 +853,7 @@ sub createVM {
 	}
 	elsif ( $type eq "libvirt-kvm-windows" ) {
 
-		#Salvamos el xml recibido como vnxboot, para la autoconfiguración
+		#Save xml received in vnxboot, for the autoconfiguration
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "vnxboot"
 		  or $execution->smartdie("can not open ${path}vnxboot: $!")
@@ -887,7 +881,7 @@ sub createVM {
 
 		if ( $filesystem_type eq "cow" ) {
 
-			# DFC If cow file does not exist, we create it
+			# If cow file does not exist, we create it
 			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
 
 #print "----- Creating COW file: qemu-img create -b $filesystem -f qcow2" . $dh->get_fs_dir($vmName) . "/root_cow_fs\n";
@@ -907,7 +901,7 @@ sub createVM {
 		my $memTag     = $memTagList->item($0);
 		my $mem        = $memTag->getFirstChild->getData;
 
-		# creamos XML para el libvirt
+		# create XML for libvirt
 		my $init_xml;
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 		my $domain_tag = $init_xml->createElement('domain');
@@ -917,19 +911,19 @@ sub createVM {
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
 
-		#meter name
+		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
 
 		my $memory_tag = $init_xml->createElement('memory');
 		$domain_tag->addChild($memory_tag);
 
-		#meter memory
+		#memory
 		$memory_tag->addChild( $init_xml->createTextNode($mem) );
 
 		my $vcpu_tag = $init_xml->createElement('vcpu');
 		$domain_tag->addChild($vcpu_tag);
 
-		#meter vcpu
+		#vcpu
 		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
 
 		my $os_tag = $init_xml->createElement('os');
@@ -1034,7 +1028,7 @@ sub createVM {
 		$graphics_tag->addChild(
 			$init_xml->createAttribute( port => $vnc_port ) );
 
-		#[JSF] falta sacar la ip del host
+		#[JSF] host ip left
 		$graphics_tag->addChild(
 			$init_xml->createAttribute( listen => $ip_host ) );
 
@@ -1042,7 +1036,6 @@ sub createVM {
 		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
 		$devices_tag->addChild($serial_tag);
 
-		# $devices_tag->addChild($disk2_tag);
 		my $source3_tag = $init_xml->createElement('source');
 		$serial_tag->addChild($source3_tag);
 		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
@@ -1095,7 +1088,7 @@ sub createVM {
 	}
 	elsif ( $type eq "libvirt-kvm-linux" ) {
 
-		#Salvamos el xml recibido como vnxboot, para la autoconfiguración
+		#Save xml received in vnxboot, for the autoconfiguration
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "vnxboot"
 		  or $execution->smartdie("can not open ${path}vnxboot: $!")
@@ -1143,7 +1136,7 @@ sub createVM {
 		my $memTag     = $memTagList->item($0);
 		my $mem        = $memTag->getFirstChild->getData;
 
-		# creamos XML para el libvirt
+		# create XML for libvirt
 		my $init_xml;
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 		my $domain_tag = $init_xml->createElement('domain');
@@ -1153,19 +1146,19 @@ sub createVM {
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
 
-		#meter name
+		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
 
 		my $memory_tag = $init_xml->createElement('memory');
 		$domain_tag->addChild($memory_tag);
 
-		#meter memory
+		#memory
 		$memory_tag->addChild( $init_xml->createTextNode($mem) );
 
 		my $vcpu_tag = $init_xml->createElement('vcpu');
 		$domain_tag->addChild($vcpu_tag);
 
-		#meter vcpu
+		#vcpu
 		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
 
 		my $os_tag = $init_xml->createElement('os');
@@ -1369,7 +1362,6 @@ sub createVM {
 		my $virtualm      = $virtualmList->item($0);
 		my $virtualm_name = $virtualm->getAttribute("name");
 
-		# recoger tag kernel del dom -> kernel_item
 		my $kernelTagList = $virtualm->getElementsByTagName("kernel");
 		my $kernelTag     = $kernelTagList->item($0);
 		my $kernel_item   = $kernelTag->getFirstChild->getData;
@@ -1424,7 +1416,7 @@ sub createVM {
 			}
 		}
 
-		# Recoger el tag filesystem y el filesystem_type del dom
+
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
 		my $filesystemTag     = $filesystemTagList->item($0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
@@ -1498,7 +1490,7 @@ sub createVM {
 		my $mem        = $memTag->getFirstChild->getData;
 		push( @params, "mem=" . $mem );
 
-		# Bucle donde se recogen las interfaces y para cada una se hace el push
+		# Go through each interface
 		my $ifTagList = $virtualm->getElementsByTagName("if");
 		my $numif     = $ifTagList->getLength;
 
@@ -1521,7 +1513,6 @@ sub createVM {
 
 		# Management interface
 
-		#recoger tag mng_if
 		my $mng_ifTagList = $virtualm->getElementsByTagName("mng_if");
 		my $mng_ifTag     = $mng_ifTagList->item($0);
 		my $mng_if_value  = $mng_ifTag->getAttribute("value");
@@ -1560,7 +1551,7 @@ sub createVM {
 			push( @params, "con$console_id=$console_value" );
 		}
 
-		#recoger tag notify_ctl
+		#get tag notify_ctl
 		my $notify_ctlTagList = $virtualm->getElementsByTagName("notify_ctl");
 		my $notify_ctlTag     = $notify_ctlTagList->item($0);
 		my $notify_ctl        = $notify_ctlTag->getFirstChild->getData;
@@ -1568,36 +1559,31 @@ sub createVM {
 		# Add mconsole option to command line
 		push( @params, "mconsole=notify:$notify_ctl" );
 
-		# movido a antes de llamar al createVM en vnumlparser
-		# $curr_uml = $vmName;
-
 		# my @group = getgrnam("[arroba]TUN_GROUP[arroba]");
 		my @group = getgrnam("uml-net");
 
 		# Boot command execution
 
-	   # Posiblemente en el core se recogería args-> o y se pasaría por el xml
-
-		#recoger tag o_flag (el output)
+		#get tag o_flag (el output)
 		my $o_flagTagList = $virtualm->getElementsByTagName("o_flag");
 		my $num           = $o_flagTagList->getLength;
 		my $o_flagTag     = $o_flagTagList->item(0);
 		my $o_flag        = "";
 		eval { $o_flag = $o_flagTag->getFirstChild->getData; };
 
-		#recoger tag e_flag
+		#get tag e_flag
 		my $e_flagTagList = $virtualm->getElementsByTagName("e_flag");
 		my $e_flagTag     = $e_flagTagList->item(0);
 		my $e_flag        = "";
 		eval { $e_flag = $e_flagTag->getFirstChild->getData; };
 
-		#recoger tag group2_flag (el output)
+		#get tag group2_flag (output)
 		my $group2TagList = $virtualm->getElementsByTagName("group2");
 		my $group2Tag     = $group2TagList->item($0);
 		my $group2        = "";
 		eval { $group2 = $group2Tag->getFirstChild->getData; };
 
-		#recoger tag F_flag
+		#get tag F_flag
 		my $F_flagTagList = $virtualm->getElementsByTagName("F_flag");
 		my $F_flagTag     = $F_flagTagList->item($0);
 		my $F_flag        = "";
@@ -1661,8 +1647,7 @@ sub createVM {
 
 				&UML_notify_cleanup( $sock, $notify_ctl );
 
-				# &mode_d;
-				halt_uml( $vmName, $F_flag );    # DFC
+				halt_uml( $vmName, $F_flag );
 				$execution->smartdie("Boot timeout exceeded for vm $vmName!");
 			}
 			elsif ( $boot_status < 0 && !&UML_init_wait( $sock, 1, 1 ) ) {
@@ -1774,8 +1759,8 @@ sub createVM {
 			}
 		}
 
-# este chang status se haría en el core si la llamada al API-create tiene exito.
-		&change_vm_status( $dh, $vmName, "running" );
+		# done in vnx core
+		# &change_vm_status( $dh, $vmName, "running" );
 
 		# Close screen configuration file
 		if ( ($e_flag) && ( $execution->get_exe_mode() != EXE_DEBUG ) ) {
@@ -1784,7 +1769,7 @@ sub createVM {
 
 	}
 	else {
-		$error = "Tipo aun no soportado...\n";
+		$error = "createVM for type $type not implemented yet.\n";
 		return $error;
 	}
 }
@@ -1799,9 +1784,6 @@ sub destroyVM {
 	$dh        = shift;
 
 	my $error = 0;
-
-	# Sample code
-	print "Destroying vm $vmName of type $type\n";
 
 	if ( ( $type eq "libvirt-kvm" ) || ( $type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ) {
 
@@ -2078,12 +2060,6 @@ sub shutdownVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 
-			   # DFC: movida la comprobación del F_flag al procedimiento mode_d
-			   #            if ($F_flag){
-			   #               $listDom->destroy();
-			   #            }
-			   #            else{
-
 				$listDom->shutdown();
 				&change_vm_status( $dh, $vmName, "REMOVE" );
 
@@ -2099,7 +2075,7 @@ sub shutdownVM {
 
 	}
 	elsif ( $type eq "uml" ) {
-		&halt_uml( $vmName, $F_flag );    # DFC
+		&halt_uml( $vmName, $F_flag );
 	}
 	else {
 		$error = "Type is not yet supported\n";
@@ -2196,7 +2172,7 @@ sub restoreVM {
 		print "OK\n";
 
 		my $dom = $con->restore_domain($filename);
-		print("Dominio restored from file $filename\n");
+		print("Domain $vmName restored from file $filename\n");
 		&change_vm_status( $dh, $vmName, "running" );
 		return $error;
 
@@ -2208,7 +2184,7 @@ sub restoreVM {
 		print "OK\n";
 
 		my $dom = $con->restore_domain($filename);
-		print("Dominio restored from file $filename\n");
+		print("Domain restored from file $filename\n");
 		&change_vm_status( $dh, $vmName, "running" );
 		return $error;
 
@@ -2357,8 +2333,6 @@ sub rebootVM {
 
 	my $error = 0;
 
-	# Sample code
-	print "dummy plugin: rebooting vm $vmName of type $type\n";
 
 	if ( $type eq "libvirt-kvm" ) {
 		my $addr = "qemu:///system";
@@ -2587,8 +2561,6 @@ sub executeCMD {
 	#}
 }
 
-# VAMOS A TENER QUE LLAMAR A ESTOS METODOS PASANDO $dh, $execution y lo que toque
-# o mejor, como datahandler, etc son globales en vnumlparser, los ponemos globales aqui tb
 
 sub UML_init_wait {
 	my $sock      = shift;
@@ -2688,7 +2660,7 @@ sub get_net_by_mode {
 
 
 ######################################################
-# 3. To stop UML (politely) copiado de vnumlparser, lo utiliza el createVM-UML cuando llama a mode_d
+# 3. To stop UML (politely)
 
 sub halt_uml {
 
@@ -4462,13 +4434,6 @@ sub conf_files {
 	}
 }
 
-# De aqui para abajo está utilizado por el modo de ejecucion de comandos
-
-
-
-
-
-
 
 
 
@@ -4834,28 +4799,19 @@ sub exec_command_files {
 		elsif ( ($type eq "libvirt-kvm-windows")) {
 			if ( $numcomandos != 0 ) {
 				
-				#		$execution->execute( "qemu-img create -f raw /tmp/disco.img "
-#			  . "$dimensiondisk"
-#			  . "$unit" );
-#		$execution->execute("losetup /dev/loop0 /tmp/disco.img ");
-#		$execution->execute("mkfs.ntfs -f /dev/loop0");
+
 		$execution->execute("mkdir /tmp/disco");
-#		$execution->execute("mount /dev/loop0 /tmp/disco");
 		$execution->execute( "cp "
 					  . $dh->get_tmp_dir
 					  . "/vnx.$name.$seq.$random_id" . " "
 					  . "/tmp/disco/"
 					  . "comandos.xml" );
-#		$execution->execute("umount /tmp/disco");
-#		$execution->execute("losetup -d /dev/loop0");
 		$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disco.iso /tmp/disco/");
 		$execution->execute(
 			"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.iso hdb --mode readonly --driver file --type cdrom'"
 		);
 		print "Intentando copiar fichero en el cliente \n";
 		waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
-#		$execution->execute(
-#			"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
 
 
 		$execution->execute("rm /tmp/disco.iso");
@@ -4863,37 +4819,6 @@ sub exec_command_files {
 		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
 			  . $dh->get_tmp_dir
 			  . "/vnx.$name.$seq.$random_id" );
-#				$execution->execute(
-#					"qemu-img create -f raw /tmp/disco.img 32M");
-#				$execution->execute("losetup /dev/loop0 /tmp/disco.img ");
-#				$execution->execute("mkfs.ntfs -f /dev/loop0");
-#				$execution->execute("mkdir /tmp/disco");
-#				$execution->execute("mount /dev/loop0 /tmp/disco");
-#				$execution->execute( "cp "
-#					  . $dh->get_tmp_dir
-#					  . "/vnuml.$name.$seq.$random_id" . " "
-#					  . "/tmp/disco/"
-#					  . "comandos.xml" );
-#
-##$execution->execute( "cp " . $dh->get_tmp_dir . "/vnuml.$name.$seq.$random_id" . " " ."/tmp/disco/" . "comando");
-#				$execution->execute("umount /tmp/disco");
-#				$execution->execute("losetup -d /dev/loop0");
-#				$execution->execute(
-#"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disco.img sdz'"
-#				);
-#				print "Intentando ejecutar comando en cliente \n";
-#
-#				#<STDIN>;
-#				#sleep(60);
-#				#waitfiletree();
-#				waitexecute($dh->get_run_dir($name). '/'.$name.'_socket',$numcomandos); 
-#				$execution->execute(
-#					"virsh -c qemu:///system 'detach-disk \"$name\" sdz'");
-#				$execution->execute("rm /tmp/disco.img");
-#				$execution->execute("rm -r /tmp/disco");
-#				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
-#					  . $dh->get_tmp_dir
-#					  . "/vnuml.$name.$seq.$random_id" );
 			    sleep(2);
 			}
 		}
@@ -4975,7 +4900,7 @@ sub exec_command_host {
 				close INCLUDE_FILE;
 			}
 
-			# Other case. Don't do anything (it would be and error in the XML!)
+			# Other case. Don't do anything (it would be an error in the XML!)
 		}
 	}
 }
@@ -4986,7 +4911,7 @@ sub get_user_in_seq {
 
 	my $username = "";
 
-	# Lookinf for in <exec>
+	# Looking for in <exec>
 	my $exec_list = $vm->getElementsByTagName("exec");
 	for ( my $i = 0 ; $i < $exec_list->getLength ; $i++ ) {
 		if ( $exec_list->item($i)->getAttribute("seq") eq $seq ) {
