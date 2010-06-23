@@ -3287,7 +3287,7 @@ sub get_kernel_pids {
 
 		# Get name attribute
 		my $name = $vm->getAttribute("name");
-		print "*$name* y *$vmName*\n";
+#		print "*$name* vs *$vmName*\n";
 		unless ( ( $vmName eq 0 ) || ( $name eq $vmName ) ) {
 			next;
 		}

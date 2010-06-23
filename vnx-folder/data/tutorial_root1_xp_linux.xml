@@ -71,7 +71,7 @@ See the tutorial/index.html document for details
     <exec seq="deg" type="verbatim">shutdown -a</exec>
   </vm>
 
-  <vm name="uml3" type="libvirt" subtype="kvm" os="linux">
+  <vm name="uml4" type="libvirt" subtype="kvm" os="linux">
   <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_linux</filesystem>
   <mem>256M</mem>
     <if id="1" net="Net0">
@@ -91,7 +91,7 @@ See the tutorial/index.html document for details
     <exec seq="killcalc" type="verbatim" mode="system">pkill gcalctool</exec>
   </vm>
 
-  <vm name="uml4" type="uml" subtype="" os="">
+  <vm name="uml5" type="uml" subtype="" os="">
     <if id="1" net="Net1">
       <ipv4>10.0.1.2</ipv4>
     </if>
@@ -102,7 +102,7 @@ See the tutorial/index.html document for details
     <forwarding type="ip" />
   </vm>
 
-  <vm name="uml5" type="uml" subtype="" os="">
+  <vm name="uml6" type="uml" subtype="" os="">
     <if id="1" net="Net2">
       <ipv4>10.0.2.2</ipv4>
     </if>
