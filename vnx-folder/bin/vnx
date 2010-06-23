@@ -296,7 +296,7 @@ sub main {
 
    # To check arguments consistency
    # 0. Check if -f is present
-   if (!($opt_f)) { #[JSF]
+   if (!($opt_f)) {
    	  &usage;
       &vnx_die ("Option -f missing\n");
    }
@@ -870,85 +870,7 @@ exit;
 
 }
 
-#####################################################
 
-#sub mode_t2 {
-#
-#    my $basename = basename $0;
-#    my $opt_M = $args->get('M');
-#
-#   unless ($opt_M){
-#      &build_topology;
-#   }
-#
-#    try {
-#
-#        # 6. Initialize the notify socket
-#        my ($sock,$notify_ctl) = &UML_notify_init if ($execution->get_exe_mode() != EXE_DEBUG);
-#
-#        # 7. Set appropriate permissions and boot each UML
-#        &chown_working_dir;
-#        &xauth_add;
-#        &boot_VMs($sock,$notify_ctl);
-#         
-#        # 8. Clean up the notify socket
-#        &UML_notify_cleanup($sock,$notify_ctl) if ($execution->get_exe_mode() != EXE_DEBUG);
-#
-#        # If <host_mapping> is in use and not in debug mode, process /etc/hosts
-#        my $lines = join "\n", @host_lines;
-#        &host_mapping_patch ($lines, $dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
-#   
-#        # If -B, block until ready
-#        if ($args->get('B')) {
-#            my $time_0 = time();
-#            my %vm_ips = &get_UML_command_ip("");
-#            while (!&UMLs_cmd_ready(%vm_ips)) {
-#                #system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
-#                sleep($dh->get_delay);
-#                my $time_w = time();
-#                my $interval = $time_w - $time_0;
-#                print "$interval seconds elapsed...\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
-#                %vm_ips = &get_UML_command_ip("");
-#            }
-#        }
-#        
-#        # Print vnc ports, if used
-#        my @vm_ordered = $dh->get_vm_ordered;
-#        my $first = 1;
-#
-#        for ( my $i = 0; $i < @vm_ordered; $i++) {
-#			my $vm = $vm_ordered[$i];
-#			
-#			my $name = $vm->getAttribute("name");
-#			my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
-#
-#			if ($merged_type eq "libvirt-kvm-windows"){
-#				if ($first eq 1){
-#					print "\nList of vnc ports used:\n";
-#					$first = 0;
-#				}
-#				my $vnc_port = 6900 + $i;
-#				print $name . ": " . $vnc_port . "\n";
-#			}
-#			my $last = @vm_ordered - $i;
-#			if ($last eq 1){
-#				print "\n";	
-#			}
-#		}
-#        
-#    } 
-#    catch Vnx::Exception with {
-#	   my $E = shift;
-#	   print $E->as_string;
-#	   print $E->message;
-#    
-#    } 
-#    catch Error with {
-#	   my $E = shift;
-#	   print "ERROR: " . $E->text . " at " . $E->file . ", line " .$E->line;
-#	   print $E->stringify;
-#    }
-#}
 
 
 sub mode_define {
@@ -1821,8 +1743,7 @@ sub define_VMs {
          or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
    }
 
-   #contador para management ip, lo necesita el código de bootfiles que está pasado al API.
-   #se pasa al API en la llamada al CreateVM
+   #management ip counter needed in API
    my $manipcounter = 0;
    
    my $docstring;
@@ -1886,8 +1807,7 @@ sub start_VMs {
          or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
    }
 
-   #contador para management ip, lo necesita el código de bootfiles que está pasado al API.
-   #se pasa al API en la llamada al CreateVM
+   #management ip counter needed in API
    my $manipcounter = 0; # only needed for uml vms
    my $docstring; # only needed for uml vms
    
@@ -1950,7 +1870,7 @@ sub mode_x {
    }
 	my $error = vmAPI->executeCMD($seq, $execution, $bd, $dh,%vm_ips);
 	
-     # my $error = vmAPI->shutdownVM($name, $type, $execution, $bd,$dh);
+
 
 }
 
@@ -1980,7 +1900,6 @@ sub mode_d {
       my $name = $vm->getAttribute("name");
       my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       
-      # remove?
       unless ($vm_hash{$name}){
           $vmleft = 1;
           next;
@@ -1990,7 +1909,6 @@ sub mode_d {
          $only_vm = $name;  	
       }
       
-      # DFC 21/01/2010
       if ($args->get('F')){
 
            my $error = vmAPI->destroyVM($name, $merged_type, $execution, $bd,$dh);
