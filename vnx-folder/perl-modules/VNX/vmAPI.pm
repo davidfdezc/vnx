@@ -4093,6 +4093,9 @@ sub conf_files {
 					chomp( my $now = `$date_command` );
 					my $basename = basename $0;
 					$execution->execute( "<filetrees>", *COMMAND_FILE );
+				    # Insert random id number for the command file
+					my $fileid = $name . "-" . &generate_random_string(6);
+					$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
 					my $contador = 0;
 					chomp( my $filetree_host = `$command` );
 					$filetree_host =~ /filetree\.(\w+)$/;
@@ -5191,19 +5194,11 @@ sub exec_command_files {
 				
 
 		$execution->execute("mkdir /tmp/diskc.$seq.$random_id");
-		$execution->execute( "cp "
-					  . $dh->get_tmp_dir
-					  . "/vnx.$name.$seq.$random_id" . " "
-					  . "/tmp/diskc.$seq.$random_id/"
-					  . "command.xml" );
+		$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
 		$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
-		$execution->execute(
-			"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'"
-		);
+		$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 		print "Intentando copiar fichero en el cliente \n";
 		waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
-
-
 		$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
 		$execution->execute("rm -r /tmp/diskc.$seq.$random_id");
 		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
@@ -5217,8 +5212,7 @@ sub exec_command_files {
 				$execution->execute("mkdir /tmp/diskc.$seq.$random_id");
 				$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
 				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
-				$execution->execute(
-					"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'"
+				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'"
 				);
 				print "Sending command to client... \n";			
 				waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
@@ -5229,10 +5223,8 @@ sub exec_command_files {
 				$execution->execute("rm /tmp/empty.iso");		
 				$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
 				$execution->execute("rm -r /tmp/diskc.$seq.$random_id");
-				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f "
-					  . $dh->get_tmp_dir
-					  . "/vnx.$name.$seq.$random_id" );
-					    sleep(2);
+				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir  . "/vnx.$name.$seq.$random_id" );
+				sleep(2);
 			}
 		}
 	}
