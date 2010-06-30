@@ -1,0 +1,47 @@
+//
+// Do any local configuration here
+//
+
+// Consider adding the 1918 zones here, if they are not used in your
+// organization
+//include "/etc/bind/zones.rfc1918";
+
+zone "s21seclabsvirtual.com" {
+	type master;
+	file "/etc/bind/s21seclabsvirtual.com.hosts";
+	};
+zone "0.10.in-addr.arpa" {
+	type master;
+	file "/etc/bind/10.0.rev";
+	};
+zone "168.192.in-addr.arpa" {
+	type master;
+	file "/etc/bind/192.168.rev";
+	};
+
+
+logging {
+    	category "default" { "debug"; };
+	category "general" { "debug"; };
+	category "database" { "debug"; };
+	category "security" { "debug"; };
+	category "config" { "debug"; };
+	category "resolver" { "debug"; };
+	category "xfer-in" { "debug"; };
+	category "xfer-out" { "debug"; };
+	category "notify" { "debug"; };
+	category "client" { "debug"; };
+	category "unmatched" { "debug"; };
+	category "network" { "debug"; };
+	category "update" { "debug"; };
+	category "queries" { "debug"; };
+	category "dispatch" { "debug"; };
+	category "dnssec" { "debug"; };
+	category "lame-servers" { "debug"; };
+	channel "debug" {
+		file "/var/log/named/bind.log" versions 2 size 50m;
+		print-time yes;
+		print-category yes;
+	};
+};
+

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE vnuml SYSTEM "/usr/share/xml/vnuml/vnuml-1.91.dtd">
+
+<!--
+
+Simple simulation
+Just one Windows XP virtual machine. Use this specification for testing
+
+-->
+
+<vnuml>
+  <global>
+    <version>1.91</version>
+    <simulation_name>simple</simulation_name>
+    <automac/>
+    <vm_mgmt type="none" />
+  </global>
+    
+  <!-- NODES -->
+  <vm name="host1" type="libvirt-kvm-windows">
+    <filesystem type="cow">/usr/share/vnuml/filesystems/root_fs_winxp</filesystem>
+    <mem>256M</mem>
+  </vm>
+
+</vnuml>
