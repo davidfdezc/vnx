@@ -250,9 +250,7 @@ sub defineVM {
 
 my $fileid_tag = $init_xml->createElement('id');
 $domain_tag->addChild($fileid_tag);
-my $command1 = $vmName . "_vnxboot.XXXXXX";
-chomp( my $fileid = `$command1` );
-	$fileid =~ /(_vnxboot\.\w+)$/;
+my $fileid = $vmName . "-" . &generate_random_string(6);
 $fileid_tag->addChild( $init_xml->createTextNode($fileid) );
 
 		#name
@@ -488,15 +486,8 @@ $fileid_tag->addChild( $init_xml->createTextNode($fileid) );
 
 my $fileid_tag = $init_xml->createElement('id');
 $domain_tag->addChild($fileid_tag);
-my $command1 = $vmName . "_vnxboot.XXXXXX";
-print "command1: " . $command1 . "\n";
-my $fileid;
-chomp( $fileid = `$command1` );
-print "fileid: " . $fileid . "\n";
-	$fileid =~ /(_vnxboot\.\w+)$/;
-print "fileid: " . $fileid . "\n";
+my $fileid = $vmName . "-" . &generate_random_string(6);
 $fileid_tag->addChild( $init_xml->createTextNode($fileid) );
-<STDIN>;
 
 		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
@@ -932,9 +923,7 @@ sub createVM {
 
 my $fileid_tag = $init_xml->createElement('id');
 $domain_tag->addChild($fileid_tag);
-my $command1 = $vmName . "_vnxboot.XXXXXX";
-chomp( my $fileid = `$command1` );
-	$fileid =~ /(_vnxboot\.\w+)$/;
+my $fileid = $vmName . "-" . &generate_random_string(6);
 $fileid_tag->addChild( $init_xml->createTextNode($fileid) );
 
 		#name
@@ -1174,14 +1163,9 @@ $fileid_tag->addChild( $init_xml->createTextNode($fileid) );
 
 my $fileid_tag = $init_xml->createElement('id');
 $domain_tag->addChild($fileid_tag);
-my $command1 = $vmName . "_vnxboot.XXXXXX";
-print "command1: " . $command1 . "\n";
-chomp( my $fileid = `$command1` );
-print "fileid: " . $fileid . "\n";
-	$fileid =~ /(_vnxboot\.\w+)$/;
-print "fileid: " . $fileid . "\n";
+my $fileid = $vmName . "-" . &generate_random_string(6);
 $fileid_tag->addChild( $init_xml->createTextNode($fileid) );
-<STDIN>;
+
 		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
 
@@ -4625,12 +4609,9 @@ sub command_files {
 			$execution->execute( "<command>", *COMMAND_FILE );
 			
 			# Insert random id number for the command file
+my $fileid = $vmName . "-" . &generate_random_string(6);
 			
-my $command1 = $name . "_command.XXXXXX";
-chomp( my $fileid = `$command1` );
-$fileid =~ /(_command\.\w+)$/;
-			
-			$execution->execute(  "<id>" . $fileid ."<id>");
+			$execution->execute(  "<id>" . $fileid ."</id>");
 			
 			$numcommands = 0;
 			for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
@@ -4900,14 +4881,14 @@ sub exec_command_files {
 }
 
 
-sub generate_random_string {
-    my $stringsize = shift;
-    my @alphanumeric = ('a'..'z', 'A'..'Z', 0..9);
-    my $randstring = join '', 
-           map $alphanumeric[rand @alphanumeric], 0..$stringsize;
-
-    return $randstring;
-}
+#sub generate_random_string {
+#    my $stringsize = shift;
+#    my @alphanumeric = ('a'..'z', 'A'..'Z', 0..9);
+#    my $randstring = join '', 
+#           map $alphanumeric[rand @alphanumeric], 0..$stringsize;
+#
+#    return $randstring;
+#}
 
 
 sub exec_command_host {
