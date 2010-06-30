@@ -4551,7 +4551,7 @@ sub command_files {
 			
 			# Insert random id number for the command file
 			my $fileid = $name . "-" . &generate_random_string(6);
-			$execution->execute(  "<id>" . $fileid ."</id>");
+			$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
 			
 			$numcommands = 0;
 			for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
