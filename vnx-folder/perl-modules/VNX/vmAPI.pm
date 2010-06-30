@@ -4569,7 +4569,7 @@ sub command_files {
 			$execution->execute( "<command>", *COMMAND_FILE );
 			
 			# Insert random id number for the command file
-			my $fileid = $vmName . "-" . &generate_random_string(6);
+			my $fileid = $name . "-" . &generate_random_string(6);
 
 			$execution->execute(  "<id>" . $fileid ."</id>");
 			
