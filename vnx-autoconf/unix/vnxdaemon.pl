@@ -84,17 +84,17 @@ sub listen {
 			my @files2 = <$file/*>;
 			foreach my $file2 (@files2){
 				if ($file2 eq "/media/cdrom/filetree.xml"){
-					unless (&check_if_new_file($file2)){
+					unless (&check_if_new_file($file2,"filetrees")){
 
 						next;				
 					}
-					my $path = $file2;
+					my $path = $file;
 					print LOG "   filetree received in $file2\n";
 					&filetree($path);
 					print LOG "   sending 'done' signal to host...\n\n";
 					system "echo 1 > /dev/ttyS0";
 				}elsif ($file2 eq "/media/cdrom/command.xml"){
-					unless (&check_if_new_file($file2)){
+					unless (&check_if_new_file($file2,"command")){
 						next;				
 					}
 					print LOG "   command received in $file2\n";
@@ -102,7 +102,7 @@ sub listen {
 					print LOG "   sending 'done' signal to host...\n\n";
 					system "echo 1 > /dev/ttyS0";
 				}elsif ($file2 eq "/media/cdrom/vnxboot"){
-					unless (&check_if_new_file($file2)){
+					unless (&check_if_new_file($file2,"create_conf")){
 						next;				
 					}
 					print LOG "   configuration file received in $file2\n";
@@ -121,17 +121,10 @@ sub listen {
 
 sub check_if_new_file {
 	my $file = shift;
+	my $type = shift;
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($file);
-	my $globalNodeList   = $dom->getElementsByTagName("command");
-	my $globalNode;
-	my $numglobalNode   = $globalNodeList->getLength;
-	if ($numglobalNode lt 1){
-		$globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-	}
-	else{
-		$globalNode   = $dom->getElementsByTagName("command")->item(0);
-	}
+	my $globalNode   = $dom->getElementsByTagName($type)->item(0);
 
 	my $idTagList = $globalNode->getElementsByTagName("id");
 	my $idTag     = $idTagList->item($0);
