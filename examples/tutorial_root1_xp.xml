@@ -40,12 +40,14 @@ See the tutorial/index.html document for details
   </vm>
 
   <vm name="uml2" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
+    <filesystem type="cow">/home/jrodriguez/root_fs_win7-es-v01.qcow2</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.2</ipv4>
     </if>
     <route type="ipv4" gw="10.0.0.3">default</route>
+    <filetree seq="opera" root="c:\temp1">/home/jrodriguez/entregable</filetree>
+    <exec seq="opera" type="verbatim">c:\temp1\operausb1053\opera.exe</exec>
     <exec seq="dir" type="verbatim">dir </exec>
     <exec seq="logout" type="verbatim">shutdown -l</exec>
     <exec seq="reboot" type="verbatim">shutdown -r</exec>
@@ -68,7 +70,7 @@ See the tutorial/index.html document for details
   </vm>
 
   <vm name="uml4" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
+    <filesystem type="cow">/home/jrodriguez/root_fs_winxp-es-v023b.qcow2</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net1">
       <ipv4>10.0.1.2</ipv4>
@@ -81,7 +83,7 @@ See the tutorial/index.html document for details
   </vm>
 
   <vm name="uml5" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
+    <filesystem type="cow">/home/jrodriguez/ubuntu_base.qcow2</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net2">
       <ipv4>10.0.2.2</ipv4>

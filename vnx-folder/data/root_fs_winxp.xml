@@ -35,12 +35,10 @@
     <interface type='network'>
       <source network='default'/>
     </interface>
-     <devices>
-
-
-  </devices>
-    
-    <!--graphics type='sdl' display=':0.0'/!-->
-    <graphics type='vnc'/>
+    <serial type='pty'>
+      <source path='/dev/pts/3'/>
+      <target port='0'/>
+    </serial>
+    <graphics type='vnc' port='5005'/>
   </devices>
 </domain>

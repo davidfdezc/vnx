@@ -23,7 +23,7 @@ cd tmp
 tar cfvz  ${FNAME}.tgz ${FNAME}
 mv ${FNAME}.tgz ..
 cd ..
-rm -rf tmp/*
+# rm -rf tmp/*
 echo "** "
 echo "** ...done"
 echo "** "
