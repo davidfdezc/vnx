@@ -248,6 +248,13 @@ sub defineVM {
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
 
+my $fileid_tag = $init_xml->createElement('id');
+$domain_tag->addChild($fileid_tag);
+my $command1 = $vmName . "_vnxboot.XXXXXX";
+chomp( my $fileid = `$command1` );
+	$fileid =~ /(_vnxboot\.\w+)$/;
+$fileid_tag->addChild( $init_xml->createTextNode($fileid) );
+
 		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
 
@@ -478,6 +485,18 @@ sub defineVM {
 
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
+
+my $fileid_tag = $init_xml->createElement('id');
+$domain_tag->addChild($fileid_tag);
+my $command1 = $vmName . "_vnxboot.XXXXXX";
+print "command1: " . $command1 . "\n";
+my $fileid;
+chomp( $fileid = `$command1` );
+print "fileid: " . $fileid . "\n";
+	$fileid =~ /(_vnxboot\.\w+)$/;
+print "fileid: " . $fileid . "\n";
+$fileid_tag->addChild( $init_xml->createTextNode($fileid) );
+<STDIN>;
 
 		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
@@ -911,6 +930,13 @@ sub createVM {
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
 
+my $fileid_tag = $init_xml->createElement('id');
+$domain_tag->addChild($fileid_tag);
+my $command1 = $vmName . "_vnxboot.XXXXXX";
+chomp( my $fileid = `$command1` );
+	$fileid =~ /(_vnxboot\.\w+)$/;
+$fileid_tag->addChild( $init_xml->createTextNode($fileid) );
+
 		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
 
@@ -1146,6 +1172,16 @@ sub createVM {
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
 
+my $fileid_tag = $init_xml->createElement('id');
+$domain_tag->addChild($fileid_tag);
+my $command1 = $vmName . "_vnxboot.XXXXXX";
+print "command1: " . $command1 . "\n";
+chomp( my $fileid = `$command1` );
+print "fileid: " . $fileid . "\n";
+	$fileid =~ /(_vnxboot\.\w+)$/;
+print "fileid: " . $fileid . "\n";
+$fileid_tag->addChild( $init_xml->createTextNode($fileid) );
+<STDIN>;
 		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
 
@@ -3856,7 +3892,7 @@ sub waitfiletree {
 	   or die("Can't connect to server: $!\n");
 	
 	chomp( my $line = <$socket> );
-	print qq{Ejecucion finalizada \n};
+	print qq{Done. \n};
 	sleep(2);
 	$socket->close();
 
@@ -3873,7 +3909,7 @@ sub waitexecute {
 			)
    			or die("Can't connect to server: $!\n");
 	chomp( my $line = <$socket> );
-	print qq{Ejecucion finalizada \n};
+	print qq{Done. \n};
 	sleep(2);
 	$socket->close();
 
@@ -4587,6 +4623,15 @@ sub command_files {
 
 			# To process list, dumping commands to file
 			$execution->execute( "<command>", *COMMAND_FILE );
+			
+			# Insert random id number for the command file
+			
+my $command1 = $name . "_command.XXXXXX";
+chomp( my $fileid = `$command1` );
+$fileid =~ /(_command\.\w+)$/;
+			
+			$execution->execute(  "<id>" . $fileid ."<id>");
+			
 			$numcommands = 0;
 			for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
 				my $command = $command_list->item($j);
@@ -4853,6 +4898,17 @@ sub exec_command_files {
 		}
 	}
 }
+
+
+sub generate_random_string {
+    my $stringsize = shift;
+    my @alphanumeric = ('a'..'z', 'A'..'Z', 0..9);
+    my $randstring = join '', 
+           map $alphanumeric[rand @alphanumeric], 0..$stringsize;
+
+    return $randstring;
+}
+
 
 sub exec_command_host {
 
