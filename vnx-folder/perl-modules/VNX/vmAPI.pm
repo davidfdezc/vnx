@@ -4068,7 +4068,6 @@ sub conf_files {
 					#}
 				}
    			 } elsif ( ($typeos eq "libvirt-kvm-windows")||($typeos eq "libvirt-kvm-linux") ) {
-   			 	print "1";
  
 							
 					# To get executing user and execution mode
@@ -4099,13 +4098,13 @@ sub conf_files {
 					$filetree_host =~ /filetree\.(\w+)$/;
 					my $random_id  = $1;
 					foreach my $filetree (@filetree_list) {
-						$contador++;
 						# To get momment
 						my $filetree_seq = $filetree->getAttribute("seq");
 			
 						# To install subtree (only in the right momment)
 						# FIXME: think again the "always issue"; by the moment deactivated
 						if ( $filetree_seq eq $seq ) {
+							$contador++;
 							my $src;
 							my $filetree_value = &text_tag($filetree);
 							if ( $filetree_value =~ /^\// ) {
@@ -5216,11 +5215,7 @@ sub exec_command_files {
 		elsif ($type eq "libvirt-kvm-linux") {
 			if ( $numcommands != 0 ) {
 				$execution->execute("mkdir /tmp/diskc.$seq.$random_id");
-				$execution->execute( "cp "
-							  . $dh->get_tmp_dir
-							  . "/vnx.$name.$seq.$random_id" . " "
-							  . "/tmp/diskc.$seq.$random_id/"
-							  . "command.xml" );
+				$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
 				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
 				$execution->execute(
 					"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'"
@@ -5229,9 +5224,7 @@ sub exec_command_files {
 				waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
 				# mount empty iso, while waiting for new command	
 				$execution->execute("touch /tmp/empty.iso");
-				$execution->execute(
-					"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/empty.iso hdb --mode readonly --driver file --type cdrom'"
-				);
+				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/empty.iso hdb --mode readonly --driver file --type cdrom'"	);
 				sleep 1;
 				$execution->execute("rm /tmp/empty.iso");		
 				$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
