@@ -4187,7 +4187,7 @@ sub conf_files {
 						$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "/tmp/disk.$random_id/" );
 						$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso /tmp/disk.$random_id/");
 						$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
-						print "Intentando copiar fichero en el cliente, el socket es este: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
+						print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
 						waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
 						
 						if ($typeos eq "libvirt-kvm-linux"){
@@ -5197,7 +5197,7 @@ sub exec_command_files {
 		$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
 		$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
 		$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
-		print "Intentando copiar fichero en el cliente \n";
+		print "Copying file tree in client\n";
 		waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
 		$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
 		$execution->execute("rm -r /tmp/diskc.$seq.$random_id");
