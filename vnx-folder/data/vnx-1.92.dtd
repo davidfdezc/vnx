@@ -1,0 +1,103 @@
+<!-- VNX DTD version 1.92 -->
+<!ELEMENT vnx (global,net*,vm*,host?)>
+<!ELEMENT global (version,simulation_name,ssh_version?,ssh_key*,automac?,netconfig?,vm_mgmt?,
+          tun_device?,vm_defaults?,extension*)>
+<!ELEMENT vm_defaults (filesystem?,mem?,kernel?,shell?,basedir?,
+          mng_if?,console*,xterm?,route*,forwarding?,user*,filetree*)>
+<!ATTLIST vm_defaults exec_mode (net|mconsole|pst) "net">
+<!ELEMENT extension EMPTY>
+<!ATTLIST extension plugin CDATA #REQUIRED
+	                conf CDATA #REQUIRED>
+<!ELEMENT net (bw?)>
+<!ATTLIST net name CDATA #REQUIRED
+              mode (virtual_bridge|uml_switch) #REQUIRED
+			  sock CDATA #IMPLIED
+              type (lan|ppp) "lan"
+              external CDATA #IMPLIED
+              vlan CDATA #IMPLIED
+              uml_switch_binary CDATA #IMPLIED
+              hub (yes|no) "no"
+              scope (shared|no-shared) "no-shared"
+              capture_file CDATA #IMPLIED
+              capture_expression CDATA #IMPLIED
+              capture_dev CDATA #IMPLIED>
+<!ELEMENT vm (filesystem?,mem?,kernel?,shell?,basedir?,mng_if?,console*,xterm?,if*,
+              route*,forwarding?,user*,filetree*,exec*)>
+<!ATTLIST vm name CDATA #REQUIRED
+             type CDATA #REQUIRED
+             subtype CDATA #REQUIRED
+             os CDATA #REQUIRED
+             order CDATA #IMPLIED
+             exec_mode (net|mconsole|pst) "net">
+<!ELEMENT host (hostif*,physicalif*,route*,forwarding?,exec*)>
+<!ELEMENT version (#PCDATA)>
+<!ELEMENT simulation_name (#PCDATA)>
+<!ELEMENT ssh_version (#PCDATA)>
+<!ELEMENT ssh_key (#PCDATA)>
+<!ELEMENT automac EMPTY>
+<!ATTLIST automac offset CDATA "0">
+<!ELEMENT netconfig EMPTY>
+<!ATTLIST netconfig stp (on|off) "off"
+                    promisc (on|off) "on">
+<!ELEMENT vm_mgmt (mgmt_net?,host_mapping?)>
+<!ATTLIST vm_mgmt type (private|net|none) #REQUIRED
+			     network CDATA "192.168.0.0"
+                 mask CDATA "24"
+				 offset CDATA "0">
+<!ELEMENT mgmt_net EMPTY>
+<!ATTLIST mgmt_net sock CDATA #REQUIRED 
+				hostip CDATA #REQUIRED
+				autoconfigure CDATA #IMPLIED>
+<!ELEMENT host_mapping EMPTY>
+<!ELEMENT shell (#PCDATA)>
+<!ELEMENT tun_device (#PCDATA)>
+<!ELEMENT basedir (#PCDATA)>
+<!ELEMENT bw (#PCDATA)>
+<!ELEMENT filesystem (#PCDATA)>
+<!ATTLIST filesystem type (direct|cow|hostfs) #REQUIRED>
+<!ELEMENT mem (#PCDATA)>
+<!ELEMENT kernel (#PCDATA)>
+<!ATTLIST kernel initrd CDATA #IMPLIED
+					devfs (mount|nomount) #IMPLIED
+					root CDATA #IMPLIED
+					modules CDATA #IMPLIED
+					trace (on|off) "off">
+<!ELEMENT mng_if (#PCDATA)>
+<!ELEMENT console (#PCDATA)>
+<!ATTLIST console id CDATA #REQUIRED>
+<!ELEMENT if (mac?,ipv4*,ipv6*)>
+<!ATTLIST if id CDATA #REQUIRED
+             net CDATA #REQUIRED>
+<!ELEMENT route (#PCDATA)>
+<!ATTLIST route type (ipv4|ipv6) #REQUIRED
+                gw CDATA #REQUIRED>
+<!ELEMENT forwarding EMPTY>
+<!ATTLIST forwarding type (ip|ipv4|ipv6) "ip">
+<!ELEMENT user (group*,ssh_key*)>
+<!ATTLIST user username CDATA #REQUIRED
+			   group CDATA #IMPLIED>
+<!ELEMENT group (#PCDATA)>
+<!ELEMENT filetree (#PCDATA)>
+<!ATTLIST filetree root CDATA #REQUIRED
+                   seq CDATA #REQUIRED
+                   user CDATA #IMPLIED>
+<!ELEMENT exec (#PCDATA)>
+<!ATTLIST exec type (verbatim|file) #REQUIRED
+               seq CDATA #REQUIRED
+	       mode (mconsole|net|pts|system|processn|processy) #IMPLIED
+	       gui (yes|no) #IMPLIED
+               user CDATA #IMPLIED>
+<!ELEMENT hostif (ipv4*,ipv6*)>
+<!ATTLIST hostif net CDATA #REQUIRED>
+<!ELEMENT mac (#PCDATA)>
+<!ELEMENT ipv4 (#PCDATA)>
+<!ATTLIST ipv4 mask CDATA "255.255.255.0">
+<!ELEMENT ipv6 (#PCDATA)>
+<!ATTLIST ipv6 mask CDATA #IMPLIED>
+<!ELEMENT physicalif EMPTY>
+<!ATTLIST physicalif name CDATA #REQUIRED
+                     type (ipv4|ipv6) "ipv4"
+                     ip CDATA #REQUIRED
+                     mask CDATA #IMPLIED
+                     gw CDATA #IMPLIED>
+<!ELEMENT xterm (#PCDATA)>
