@@ -3543,10 +3543,21 @@ sub make_vm_API_doc {
    my $create_conf_tag = $dom->createElement('create_conf');
    $dom->addChild($create_conf_tag);
    
-   my $vm_tag = $dom->createElement('vm');
-   $create_conf_tag->addChild($vm_tag);
    # We get name attribute
    my $name = $vm->getAttribute("name");
+
+   # Insert random id number
+   my $fileid_tag = $dom->createElement('id');
+   $create_conf_tag->addChild($fileid_tag);
+   my $fileid = $name . "-" . &generate_random_string(6);
+   $fileid_tag->addChild( $dom->createTextNode($fileid) );
+   
+   
+   my $vm_tag = $dom->createElement('vm');
+   $create_conf_tag->addChild($vm_tag);
+
+   
+   
    $vm_tag->addChild( $dom->createAttribute( name => $name));
 
 

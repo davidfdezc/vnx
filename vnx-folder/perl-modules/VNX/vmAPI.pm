@@ -248,11 +248,6 @@ sub defineVM {
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
 
-my $fileid_tag = $init_xml->createElement('id');
-$domain_tag->addChild($fileid_tag);
-my $fileid = $vmName . "-" . &generate_random_string(6);
-$fileid_tag->addChild( $init_xml->createTextNode($fileid) );
-
 		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
 
@@ -484,10 +479,6 @@ $fileid_tag->addChild( $init_xml->createTextNode($fileid) );
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
 
-my $fileid_tag = $init_xml->createElement('id');
-$domain_tag->addChild($fileid_tag);
-my $fileid = $vmName . "-" . &generate_random_string(6);
-$fileid_tag->addChild( $init_xml->createTextNode($fileid) );
 
 		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
@@ -921,11 +912,6 @@ sub createVM {
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
 
-my $fileid_tag = $init_xml->createElement('id');
-$domain_tag->addChild($fileid_tag);
-my $fileid = $vmName . "-" . &generate_random_string(6);
-$fileid_tag->addChild( $init_xml->createTextNode($fileid) );
-
 		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
 
@@ -1160,11 +1146,6 @@ $fileid_tag->addChild( $init_xml->createTextNode($fileid) );
 
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
-
-my $fileid_tag = $init_xml->createElement('id');
-$domain_tag->addChild($fileid_tag);
-my $fileid = $vmName . "-" . &generate_random_string(6);
-$fileid_tag->addChild( $init_xml->createTextNode($fileid) );
 
 		#name
 		$name_tag->addChild( $init_xml->createTextNode($vmName) );
@@ -4570,7 +4551,6 @@ sub command_files {
 			
 			# Insert random id number for the command file
 			my $fileid = $name . "-" . &generate_random_string(6);
-
 			$execution->execute(  "<id>" . $fileid ."</id>");
 			
 			$numcommands = 0;
