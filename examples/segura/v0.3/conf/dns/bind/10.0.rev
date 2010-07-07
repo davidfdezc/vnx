@@ -1,0 +1,49 @@
+$ttl 38400
+0.10.in-addr.arpa.	IN	SOA	dns.s21seclabsvirtual.com. root.s21seclabsvirtual.com. (
+			1227931235
+			10800
+			3600
+			604800
+			38400 )
+0.10.in-addr.arpa.	IN	NS	dns.s21seclabsvirtual.com.
+
+; IntNet
+1.0.0.10.in-addr.arpa.  IN      PTR     fw1-int.s21seclabsvirtual.com.
+2.0.0.10.in-addr.arpa.  IN      PTR     r1-int.s21seclabsvirtual.com.
+
+; DMZ
+1.10.0.10.in-addr.arpa. IN      PTR     fw1-dmz.s21seclabsvirtual.com.
+2.10.0.10.in-addr.arpa. IN      PTR     dns.s21seclabsvirtual.com.
+4.10.0.10.in-addr.arpa. IN      PTR     www.s21seclabsvirtual.com.
+3.10.0.10.in-addr.arpa. IN      PTR     mail.s21seclabsvirtual.com.
+
+; Subnet1
+1.1.0.10.in-addr.arpa.  IN      PTR     r1-s1.s21seclabsvirtual.com.
+2.1.0.10.in-addr.arpa.  IN      PTR     vpn.s21seclabsvirtual.com.
+3.1.0.10.in-addr.arpa.  IN      PTR     bbdd.s21seclabsvirtual.com.
+4.1.0.10.in-addr.arpa.  IN      PTR     tomcat.s21seclabsvirtual.com.
+5.1.0.10.in-addr.arpa.  IN      PTR     gfish.s21seclabsvirtual.com.
+11.1.0.10.in-addr.arpa. IN      PTR     net1-1.s21seclabsvirtual.com.
+12.1.0.10.in-addr.arpa. IN      PTR     net1-2.s21seclabsvirtual.com.
+
+; Subnet2
+1.2.0.10.in-addr.arpa.  IN      PTR     r1-s2.s21seclabsvirtual.com.
+11.2.0.10.in-addr.arpa. IN      PTR     net2-1.s21seclabsvirtual.com.
+12.2.0.10.in-addr.arpa. IN      PTR     net2-2.s21seclabsvirtual.com.
+13.2.0.10.in-addr.arpa. IN      PTR     net2-3.s21seclabsvirtual.com.
+14.2.0.10.in-addr.arpa. IN      PTR     net2-4.s21seclabsvirtual.com.
+15.2.0.10.in-addr.arpa. IN      PTR     net2-5.s21seclabsvirtual.com.
+16.2.0.10.in-addr.arpa. IN      PTR     net2-6.s21seclabsvirtual.com.
+17.2.0.10.in-addr.arpa. IN      PTR     net2-7.s21seclabsvirtual.com.
+18.2.0.10.in-addr.arpa. IN      PTR     net2-8.s21seclabsvirtual.com.
+
+; Subnet3
+1.3.0.10.in-addr.arpa.  IN      PTR     r1-s3.s21seclabsvirtual.com.
+11.3.0.10.in-addr.arpa. IN      PTR     net3-1.s21seclabsvirtual.com.
+12.3.0.10.in-addr.arpa. IN      PTR     net3-2.s21seclabsvirtual.com.
+13.3.0.10.in-addr.arpa. IN      PTR     net3-3.s21seclabsvirtual.com.
+14.3.0.10.in-addr.arpa. IN      PTR     net3-4.s21seclabsvirtual.com.
+15.3.0.10.in-addr.arpa. IN      PTR     net3-5.s21seclabsvirtual.com.
+16.3.0.10.in-addr.arpa. IN      PTR     net3-6.s21seclabsvirtual.com.
+17.3.0.10.in-addr.arpa. IN      PTR     net3-7.s21seclabsvirtual.com.
+18.3.0.10.in-addr.arpa. IN      PTR     net3-8.s21seclabsvirtual.com.
