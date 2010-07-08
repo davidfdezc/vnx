@@ -2562,7 +2562,506 @@ sub executeCMD {
 	#}
 }
 
-
+#sub executeCMDL {
+#
+#	my $self = shift;
+#	my $seq  = shift;
+#	$execution = shift;
+#	$bd        = shift;
+#	$dh        = shift;
+#	%vm_ips    = shift;
+#
+#	#Commands sequence (start, stop or whatever).
+#
+#	# Previous checkings and warnings
+#	my @vm_ordered = $dh->get_vm_ordered;
+#	my %vm_hash    = $dh->get_vm_to_use(@plugins);
+#
+#	# First loop: look for uml_mconsole exec capabilities if needed. This
+#	# loop can cause exit, if capabilities are not accomplished
+#	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+#		my $vm = $vm_ordered[$i];
+#
+#		# We get name attribute
+#		my $name = $vm->getAttribute("name");
+#
+#		# We have to process it?
+#		unless ( $vm_hash{$name} ) {
+#			next;
+#		}
+#		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+#		if ( $merged_type eq "libvirt-kvm-windows" ) {
+#
+#			#Nothing to do.
+#			
+#			#Filetree
+#			my @filetree_list = $dh->merge_filetree($vm);
+#			my $user   = &get_user_in_seq( $vm, $seq );
+#					my $mode   = &get_vm_exec_mode($vm);
+#	
+#					my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name)  . " filetree.XXXXXX";
+#	
+#					open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#			
+#					my $verb_prompt_bk = $execution->get_verb_prompt();
+#			
+#					# FIXME: consider to use a different new VNX::Execution object to perform this
+#					# actions (avoiding this nasty verb_prompt backup)
+#					$execution->set_verb_prompt("$name> ");
+#			
+#					my $shell      = $dh->get_default_shell;
+#					my $shell_list = $vm->getElementsByTagName("shell");
+#					if ( $shell_list->getLength == 1 ) {
+#						$shell = &text_tag( $shell_list->item(0) );
+#					}
+#					my $date_command = $bd->get_binaries_path_ref->{"date"};
+#					chomp( my $now = `$date_command` );
+#					my $basename = basename $0;
+#					$execution->execute( "<filetrees>", *COMMAND_FILE );
+#				    # Insert random id number for the command file
+#					my $fileid = $name . "-" . &generate_random_string(6);
+#					$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
+#					my $contador = 0;
+#					chomp( my $filetree_host = `$command` );
+#					$filetree_host =~ /filetree\.(\w+)$/;
+#					my $random_id  = $1;
+#					foreach my $filetree (@filetree_list) {
+#						# To get momment
+#						my $filetree_seq = $filetree->getAttribute("seq");
+#			
+#						# To install subtree (only in the right momment)
+#						# FIXME: think again the "always issue"; by the moment deactivated
+#						if ( $filetree_seq eq $seq ) {
+#							$contador++;
+#							my $src;
+#							my $filetree_value = &text_tag($filetree);
+#							if ( $filetree_value =~ /^\// ) {
+#			
+#								# Absolute pathname
+#								$src = &do_path_expansion($filetree_value);
+#							}
+#							else {
+#			
+#								# Relative pahtname
+#								if ( $basedir eq "" ) {
+#			
+#									# Relative to xml_dir
+#									$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
+#								}
+#								else {
+#			
+#									# Relative to basedir
+#									$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
+#								}
+#							}
+#							
+#							$src = &chompslash($src);
+#							my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
+#							$execution->execute("mkdir " . $filetree_host ."/".  $contador);
+#							$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/" . $contador );
+#			
+#							# 1. Save directory permissions
+#							my %file_perms = &save_dir_permissions($filetree_host);
+#			
+#							# 2. 777-ize all
+##							$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " -R 777 $filetree_host" );
+#			
+#							# 3a. Prepare the copying script. Note that cp can not be executed directly, because
+#							# wee need to "mark" the end of copy and actively monitoring it before continue. Otherwise
+#							# race condictions may occur. See https://lists.dit.upm.es/pipermail/vnuml-devel/2007-January/000459.html
+#							# for some detail
+#							# FIXME: the procedure is quite similar to the one in commands_file function. Maybe
+#							# it could be generalized in a external function, to avoid duplication
+#			
+#							# To get installation point at the UML
+#							my $dest = $filetree->getAttribute("root");
+#			
+##							# To get executing user and execution mode
+##							my $user   = &get_user_in_seq( $vm, $seq );
+##							my $mode   = &get_vm_exec_mode($vm);
+##							my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+#			
+#			
+#							my $filetreetxt = $filetree->toString(1);
+#							$execution->execute( "$filetreetxt", *COMMAND_FILE );
+#						}
+#					}
+#					$execution->execute( "</filetrees>", *COMMAND_FILE );
+#					close COMMAND_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#					open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |"
+#					) || die "Failed: $!\n";
+#					my $dimension = <DU>;
+#					$dimension = $dimension + 20;
+#					my $dimensiondisk = $dimension + 30;
+#					close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#					open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var3 = substr(var,length(var),length(var)+1); print var3} ' |"
+#					) || die "Failed: $!\n";
+#					my $unit = <DU>;
+#					close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#					if ($contador > 0){
+#						if (   ( $unit eq "K\n" || $unit eq "B\n" )
+#							|| ( ( $unit eq "M\n" ) && ( $dimension <= 32 ) ) )
+#						{
+#							$unit          = 'M';
+#							$dimension     = 32;
+#							$dimensiondisk = 50;
+#						}
+#						$execution->execute("mkdir /tmp/disk.$random_id");
+#						$execution->execute("mkdir  /tmp/disk.$random_id/destination");
+#						$execution->execute( "cp -rL " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" . "/*" . " " . "/tmp/disk.$random_id/destination" );
+#						$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "/tmp/disk.$random_id/" );
+#						$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso /tmp/disk.$random_id/");
+#						$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
+#						print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
+#						waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
+#						
+#						if ($typeos eq "libvirt-kvm-linux"){
+#							# mount empty iso, while waiting for new command	
+#							$execution->execute("touch /tmp/empty.iso");
+#							$execution->execute(
+#								"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/empty.iso hdb --mode readonly --driver file --type cdrom'"
+#							);
+#							sleep 1;
+#							$execution->execute("rm /tmp/empty.iso");
+#						}
+#						
+#						$execution->execute("rm /tmp/disk.$random_id.iso");
+#						$execution->execute("rm -r /tmp/disk.$random_id");
+#						$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" );
+#					    $execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -r " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" );
+#				
+#			    		# 3d. Cleaning
+#						$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf $filetree_host" );
+#						$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id" );
+#						$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree.xml" );
+#						$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id.end" );
+#				    }
+#				}
+#		}
+#			
+#			
+#		}
+#	}
+#
+#
+#
+#
+#	# Each -x invocation uses an "unique" random generated identifier, that
+#	# would avoid collision problems among several users
+#	my $random_id = &generate_random_string(6);
+#
+#	# 1. To install configuration files subtree
+#	#&conf_files( $seq, %vm_ips );
+#
+#	my $seq    = shift;
+#	my %vm_ips = @_;
+#
+#	my @vm_ordered = $dh->get_vm_ordered;
+#	my %vm_hash    = $dh->get_vm_to_use(@plugins);
+#
+#	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+#		my $vm = $vm_ordered[$i];
+#
+#		# We get name attribute
+#		my $name = $vm->getAttribute("name");
+#
+#		# We have to process it?
+#		unless ( $vm_hash{$name} ) {
+#			next;
+#		}
+#
+#		# We look for <filetree> tag
+#
+#		# Calculate the efective basedir
+#		my $basedir      = $dh->get_default_basedir;
+#		my $basedir_list = $vm->getElementsByTagName("basedir");
+#		if ( $basedir_list->getLength == 1 ) {
+#			$basedir = &text_tag( $basedir_list->item(0) );
+#		}
+#		########################## UML ################################
+#		my @filetree_list = $dh->merge_filetree($vm);
+#		my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+#		if ( ($typeos eq "libvirt-kvm-windows")||($typeos eq "libvirt-kvm-linux") ) {
+# 
+#							
+#					# To get executing user and execution mode
+#					my $user   = &get_user_in_seq( $vm, $seq );
+#					my $mode   = &get_vm_exec_mode($vm);
+#	
+#					my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name)  . " filetree.XXXXXX";
+#	
+#					open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#			
+#					my $verb_prompt_bk = $execution->get_verb_prompt();
+#			
+#					# FIXME: consider to use a different new VNX::Execution object to perform this
+#					# actions (avoiding this nasty verb_prompt backup)
+#					$execution->set_verb_prompt("$name> ");
+#			
+#					my $shell      = $dh->get_default_shell;
+#					my $shell_list = $vm->getElementsByTagName("shell");
+#					if ( $shell_list->getLength == 1 ) {
+#						$shell = &text_tag( $shell_list->item(0) );
+#					}
+#					my $date_command = $bd->get_binaries_path_ref->{"date"};
+#					chomp( my $now = `$date_command` );
+#					my $basename = basename $0;
+#					$execution->execute( "<filetrees>", *COMMAND_FILE );
+#				    # Insert random id number for the command file
+#					my $fileid = $name . "-" . &generate_random_string(6);
+#					$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
+#					my $contador = 0;
+#					chomp( my $filetree_host = `$command` );
+#					$filetree_host =~ /filetree\.(\w+)$/;
+#					my $random_id  = $1;
+#					foreach my $filetree (@filetree_list) {
+#						# To get momment
+#						my $filetree_seq = $filetree->getAttribute("seq");
+#			
+#						# To install subtree (only in the right momment)
+#						# FIXME: think again the "always issue"; by the moment deactivated
+#						if ( $filetree_seq eq $seq ) {
+#							$contador++;
+#							my $src;
+#							my $filetree_value = &text_tag($filetree);
+#							if ( $filetree_value =~ /^\// ) {
+#			
+#								# Absolute pathname
+#								$src = &do_path_expansion($filetree_value);
+#							}
+#							else {
+#			
+#								# Relative pahtname
+#								if ( $basedir eq "" ) {
+#			
+#									# Relative to xml_dir
+#									$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
+#								}
+#								else {
+#			
+#									# Relative to basedir
+#									$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
+#								}
+#							}
+#							
+#							$src = &chompslash($src);
+#							my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
+#							$execution->execute("mkdir " . $filetree_host ."/".  $contador);
+#							$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/" . $contador );
+#			
+#							# 1. Save directory permissions
+#							my %file_perms = &save_dir_permissions($filetree_host);
+#			
+#							# 2. 777-ize all
+##							$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " -R 777 $filetree_host" );
+#			
+#							# 3a. Prepare the copying script. Note that cp can not be executed directly, because
+#							# wee need to "mark" the end of copy and actively monitoring it before continue. Otherwise
+#							# race condictions may occur. See https://lists.dit.upm.es/pipermail/vnuml-devel/2007-January/000459.html
+#							# for some detail
+#							# FIXME: the procedure is quite similar to the one in commands_file function. Maybe
+#							# it could be generalized in a external function, to avoid duplication
+#			
+#							# To get installation point at the UML
+#							my $dest = $filetree->getAttribute("root");
+#			
+##							# To get executing user and execution mode
+##							my $user   = &get_user_in_seq( $vm, $seq );
+##							my $mode   = &get_vm_exec_mode($vm);
+##							my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+#			
+#			
+#							my $filetreetxt = $filetree->toString(1);
+#							$execution->execute( "$filetreetxt", *COMMAND_FILE );
+#						}
+#					}
+#					$execution->execute( "</filetrees>", *COMMAND_FILE );
+#					close COMMAND_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#					open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |"
+#					) || die "Failed: $!\n";
+#					my $dimension = <DU>;
+#					$dimension = $dimension + 20;
+#					my $dimensiondisk = $dimension + 30;
+#					close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#					open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var3 = substr(var,length(var),length(var)+1); print var3} ' |"
+#					) || die "Failed: $!\n";
+#					my $unit = <DU>;
+#					close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#					if ($contador > 0){
+#						if (   ( $unit eq "K\n" || $unit eq "B\n" )
+#							|| ( ( $unit eq "M\n" ) && ( $dimension <= 32 ) ) )
+#						{
+#							$unit          = 'M';
+#							$dimension     = 32;
+#							$dimensiondisk = 50;
+#						}
+#						$execution->execute("mkdir /tmp/disk.$random_id");
+#						$execution->execute("mkdir  /tmp/disk.$random_id/destination");
+#						$execution->execute( "cp -rL " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" . "/*" . " " . "/tmp/disk.$random_id/destination" );
+#						$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "/tmp/disk.$random_id/" );
+#						$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso /tmp/disk.$random_id/");
+#						$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
+#						print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
+#						waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
+#						
+#						if ($typeos eq "libvirt-kvm-linux"){
+#							# mount empty iso, while waiting for new command	
+#							$execution->execute("touch /tmp/empty.iso");
+#							$execution->execute(
+#								"virsh -c qemu:///system 'attach-disk \"$name\" /tmp/empty.iso hdb --mode readonly --driver file --type cdrom'"
+#							);
+#							sleep 1;
+#							$execution->execute("rm /tmp/empty.iso");
+#						}
+#						
+#						$execution->execute("rm /tmp/disk.$random_id.iso");
+#						$execution->execute("rm -r /tmp/disk.$random_id");
+#						$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" );
+#					    $execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -r " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" );
+#				
+#			    		# 3d. Cleaning
+#						$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf $filetree_host" );
+#						$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id" );
+#						$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree.xml" );
+#						$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id.end" );
+#				    }
+#				}
+#		}
+#	}
+#		
+#		# Plugin operation
+#		foreach my $plugin (@plugins) {
+#			my %files = $plugin->execCreateFiles( $name, $seq );
+#
+#			if ( defined( $files{"ERROR"} ) && $files{"ERROR"} ne "" ) {
+#				$execution->smartdie("plugin $plugin execCreateFiles($name) error: " . $files{"ERROR"} );
+#			}
+#
+#			# To get execution mode
+#			my $mode = &get_vm_exec_mode($vm);
+#
+#			if ( $mode eq "net" ) {
+#
+#				foreach my $key ( keys %files ) {
+#					my $dest = $key;
+#					my $src  = $files{$key};
+#					$execution->execute($bd->get_binaries_path_ref->{"scp"} . " -q -r -oProtocol=" . $dh->get_ssh_version . " -o 'StrictHostKeyChecking no'" . " $src $vm_ips{$name}:$dest" );
+#					$execution->execute($bd->get_binaries_path_ref->{"rm"} . " $src" );
+#				}
+#			}
+#			elsif ( $mode eq "mconsole" ) {
+#
+## FIXME: there is a lot of code here that is very much the same that conventional
+## <filetree> processing. Re-factoring code should be highly recommendable
+#
+#				my $mconsole = $dh->get_run_dir($name) . "/mconsole";
+#				if ( -S $mconsole ) {
+#					my $command =$bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name) . " pluginfiles.XXXXXX";
+#					chomp( my $pluginfiles_host = `$command` );
+#					$pluginfiles_host =~ /pluginfiles\.(\w+)$/;
+#					my $random_id      = $1;
+#					my $pluginfiles_vm = "/mnt/hostfs/pluginfiles.$random_id";
+#
+#					foreach my $key ( keys %files ) {
+#						my $dest = $key;
+#						my $src  = $files{$key};
+#
+#						my $dir_dest      = dirname($dest);
+#						my $basename_dest = basename($dest);
+#
+#						mkpath( "$pluginfiles_host/$dir_dest",
+#							{ verbose => 0 } );
+#						$execution->execute( $bd->get_binaries_path_ref->{"mv"}  . " $src $pluginfiles_host/$dir_dest/$basename_dest");
+#					}
+#
+#					# 1. Save directory permissions
+#					my %file_perms = &save_dir_permissions($pluginfiles_host);
+#
+#					# 2. 777-ize all
+#					$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " -R 777 $pluginfiles_host" );
+#
+## 3a. Prepare the copying script. Note that cp can not be executed directly, because
+## we need to "mark" the end of copy and actively monitoring it before continue. Otherwise
+## race condictions may occur. See https://lists.dit.upm.es/pipermail/vnuml-devel/2007-January/000459.html
+## for some detail
+#					open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id" or $execution->smartdie( "can not open " . $dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id: $!" ) unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#
+#					my $verb_prompt_bk = $execution->get_verb_prompt();
+#
+## FIXME: consider to use a different new VNX::Execution object to perform this
+## actions (avoiding this nasty verb_prompt backup)
+#					$execution->set_verb_prompt("$name> ");
+#
+#					my $shell      = $dh->get_default_shell;
+#					my $shell_list = $vm->getElementsByTagName("shell");
+#					if ( $shell_list->getLength == 1 ) {
+#						$shell = &text_tag( $shell_list->item(0) );
+#					}
+#					my $date_command = $bd->get_binaries_path_ref->{"date"};
+#					chomp( my $now = `$date_command` );
+#					my $basename = basename $0;
+#					$execution->execute( "#!" . $shell, *COMMAND_FILE );
+#					$execution->execute("#pluginfiles.$random_id copying script",*COMMAND_FILE );
+#					$execution->execute("#generated by $basename $version$branch at $now",*COMMAND_FILE );
+#					$execution->execute("cp -r $pluginfiles_vm/* /",*COMMAND_FILE );
+#					$execution->execute("echo 1 > /mnt/hostfs/pluginfiles_cp.$random_id.end",*COMMAND_FILE );
+#					close COMMAND_FILE  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#					$execution->set_verb_prompt($verb_prompt_bk);
+#					$execution->execute($bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id" );
+#
+#					# 3b. Script execution
+#					$execution->execute_mconsole( $mconsole,"/mnt/hostfs/pluginfiles_cp.$random_id" );
+#
+#					# 3c. Actively wait for the copying end
+#					chomp( my $init = `$date_command` );
+#					print "Waiting $plugin execCreateFiles copy... "
+#					  if ( $execution->get_exe_mode() == EXE_VERBOSE );
+#					&filetree_wait( $dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id.end" );
+#					chomp( my $end = `$date_command` );
+#					my $time = $init - $end;
+#					print "(" . $time . "s)\n"
+#					  if ( $execution->get_exe_mode() == EXE_VERBOSE );
+#
+#					# 3d. Cleaning
+#					$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $pluginfiles_host" );
+#					$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id" );
+#					$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/pluginfiles_cp.$random_id.end" );
+#
+#	  # 4. Restore directory permissions; we need to perform some transformation
+#	  # in the keys (finelame) host-relative -> vm-relative
+#					my %file_vm_perms;
+#					foreach ( keys %file_perms ) {
+#						$_ =~ /^$pluginfiles_host\/(.*)$/;
+#						my $new_key = "/$1";
+#						$file_vm_perms{$new_key} = $file_perms{$_};
+#					}
+#					&set_file_permissions( $mconsole, $dh->get_hostfs_dir($name), %file_vm_perms );
+#				}
+#				else {
+#					print
+#"VNX warning: $mconsole socket does not exist. Copy $plugin execCreateFiles can not be performed\n";
+#				}
+#				virtio libvirt;
+#			}
+#			elsif ( $mode eq "pts" ) {
+#
+#				# TODO (Casey's works)
+#			}
+#
+#	# 2. To build commands files
+#	&command_files( $random_id, $seq );
+#
+#	# 3. To load commands file in each UML
+#	&install_command_files( $random_id, $seq, %vm_ips );
+#
+#	# 4. To execute commands file in each UML
+#	&exec_command_files( $random_id, $seq, %vm_ips );
+#
+#	# 5. To execute commands file in host
+#	&exec_command_host($seq);
+#
+#	#}
+#}
 
 sub UML_init_wait {
 	my $sock      = shift;
