@@ -2839,17 +2839,8 @@ sub executeCMDL {
 		if ( $mode eq "net" ) {
 
 			# We install the file in /tmp of the virtual machine, using ssh
-			$execution->execute( $bd->get_binaries_path_ref->{"ssh"} . " -x -"
-				  . $dh->get_ssh_version
-				  . " -o 'StrictHostKeyChecking no'"
-				  . " -l $user $vm_ips{$name} rm -f /tmp/vnx.$name.$seq.$random_id &> /dev/null"
-			);
-			$execution->execute( $bd->get_binaries_path_ref->{"scp"}
-				  . " -q -oProtocol="
-				  . $dh->get_ssh_version
-				  . " -o 'StrictHostKeyChecking no' "
-				  . $dh->get_tmp_dir
-				  . "/vnx.$name.$seq.$random_id $user\@$vm_ips{$name}:/tmp" );
+			$execution->execute( $bd->get_binaries_path_ref->{"ssh"} . " -x -" . $dh->get_ssh_version . " -o 'StrictHostKeyChecking no'" . " -l $user $vm_ips{$name} rm -f /tmp/vnx.$name.$seq.$random_id &> /dev/null"	);
+			$execution->execute( $bd->get_binaries_path_ref->{"scp"} . " -q -oProtocol=" . $dh->get_ssh_version  . " -o 'StrictHostKeyChecking no' " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id $user\@$vm_ips{$name}:/tmp" );
 		}
 		elsif ( $mode eq "mconsole" ) {
 
@@ -2933,6 +2924,7 @@ sub executeCMDL {
 			my $countfiletree = 0;
 			chomp( my $filetree_host = `$command` );
 			$filetree_host =~ /filetree\.(\w+)$/;
+			$execution->execute("mkdir " . $filetree_host ."/destination");
 			foreach my $filetree (@filetree_list) {
 				# To get momment
 				my $filetree_seq = $filetree->getAttribute("seq");
@@ -2959,8 +2951,9 @@ sub executeCMDL {
 					}
 					$src = &chompslash($src);
 					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
-					$execution->execute("mkdir " . $filetree_host ."/".  $contador);
-					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/" . $contador );
+					
+					$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
+					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/" . $countfiletree );
 					my %file_perms = &save_dir_permissions($filetree_host);
 					my $dest = $filetree->getAttribute("root");
 					my $filetreetxt = $filetree->toString(1);
@@ -2969,6 +2962,7 @@ sub executeCMDL {
 			}
 			$execution->execute( "</filetrees>", *COMMAND_FILE );
 			close COMMAND_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			
 			open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |") || die "Failed: $!\n";
 			my $dimension = <DU>;
 			$dimension = $dimension + 20;
@@ -2986,8 +2980,8 @@ sub executeCMDL {
 				$execution->execute("mkdir /tmp/disk.$random_id");
 				$execution->execute("mkdir  /tmp/disk.$random_id/destination");
 				$execution->execute( "cp -rL " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" . "/*" . " " . "/tmp/disk.$random_id/destination" );
-				$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "/tmp/disk.$random_id/" );
-				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso /tmp/disk.$random_id/");
+				$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "$filetree_host" );
+				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
 				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 				print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
 				waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
@@ -3023,11 +3017,11 @@ sub executeCMDL {
 			$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
 			my $countcommand = 0;
 			for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
-				my $command = $command_list->item($j);
-
+				my $command = $command_list->item($j);	
 				# To get attributes
 				my $cmd_seq = $command->getAttribute("seq");
 				if ( $cmd_seq eq $seq ) {
+					my $type = $command->getAttribute("type");
 					# Case 1. Verbatim type
 					if ( $type eq "verbatim" ) {
 						# Including command "as is"
