@@ -2953,7 +2953,7 @@ sub executeCMDL {
 					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
 					
 					$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
-					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/" . $countfiletree );
+					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
 					my %file_perms = &save_dir_permissions($filetree_host);
 					my $dest = $filetree->getAttribute("root");
 					my $filetreetxt = $filetree->toString(1);
