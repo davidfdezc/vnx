@@ -3068,7 +3068,7 @@ sub executeCMDL {
 				$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
 				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
 				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
-				print "Copying file tree in client\n";
+				print "Sending command to client... \n";
 				waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
 				$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
 				$execution->execute("rm -r /tmp/diskc.$seq.$random_id");
@@ -3098,13 +3098,13 @@ sub executeCMDL {
 			chomp( my $now = `$date_command` );
 			my $basename = basename $0;
 			$execution->execute( "<filetrees>", *COMMAND_FILE );
-			  # Insert random id number for the command file
+			# Insert random id number for the command file
 			my $fileid = $name . "-" . &generate_random_string(6);
 			$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
 			my $countfiletree = 0;
 			chomp( my $filetree_host = `$command` );
 			$filetree_host =~ /filetree\.(\w+)$/;
-			my $random_id  = $1;
+			$execution->execute("mkdir " . $filetree_host ."/destination");
 			foreach my $filetree (@filetree_list) {
 				# To get momment
 				my $filetree_seq = $filetree->getAttribute("seq");
@@ -3115,25 +3115,25 @@ sub executeCMDL {
 					my $src;
 					my $filetree_value = &text_tag($filetree);
 					if ( $filetree_value =~ /^\// ) {
-						# Absolute pathname
-						$src = &do_path_expansion($filetree_value);
+					# Absolute pathname
+					$src = &do_path_expansion($filetree_value);
 					}
 					else {
-					# Relative pahtname
+						# Relative pahtname
 						if ( $basedir eq "" ) {
 						# Relative to xml_dir
 							$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
 						}
 						else {
-							# Relative to basedir
+						# Relative to basedir
 							$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
 						}
 					}
 					$src = &chompslash($src);
 					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
-					$execution->execute("mkdir " . $filetree_host ."/".  $contador);
-					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/" . $contador );
-					# 1. Save directory permissions
+					
+					$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
+					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
 					my %file_perms = &save_dir_permissions($filetree_host);
 					my $dest = $filetree->getAttribute("root");
 					my $filetreetxt = $filetree->toString(1);
@@ -3142,6 +3142,7 @@ sub executeCMDL {
 			}
 			$execution->execute( "</filetrees>", *COMMAND_FILE );
 			close COMMAND_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			
 			open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |") || die "Failed: $!\n";
 			my $dimension = <DU>;
 			$dimension = $dimension + 20;
@@ -3159,8 +3160,8 @@ sub executeCMDL {
 				$execution->execute("mkdir /tmp/disk.$random_id");
 				$execution->execute("mkdir  /tmp/disk.$random_id/destination");
 				$execution->execute( "cp -rL " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" . "/*" . " " . "/tmp/disk.$random_id/destination" );
-				$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "/tmp/disk.$random_id/" );
-				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso /tmp/disk.$random_id/");
+				$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "$filetree_host" );
+				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
 				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 				print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
 				waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
