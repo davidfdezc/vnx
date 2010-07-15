@@ -2899,6 +2899,7 @@ sub executeCMDL {
 			
 		}
 		elsif ( $merged_type eq "libvirt-kvm-windows" ) {
+			############ WINDOWS ##############
 			############ FILETREE ##############
 			my @filetree_list = $dh->merge_filetree($vm);
 			my $user   = &get_user_in_seq( $vm, $seq );
@@ -2979,9 +2980,9 @@ sub executeCMDL {
 				}
 				$execution->execute("mkdir /tmp/disk.$random_id");
 				$execution->execute("mkdir  /tmp/disk.$random_id/destination");
-				$execution->execute( "cp -rL " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" . "/*" . " " . "/tmp/disk.$random_id/destination" );
 				$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "$filetree_host" );
-				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
+				#$execution->execute( "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/destination" );
+				$execution->execute("mkisofs -D -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
 				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 				print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
 				waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
@@ -3159,9 +3160,9 @@ sub executeCMDL {
 				}
 				$execution->execute("mkdir /tmp/disk.$random_id");
 				$execution->execute("mkdir  /tmp/disk.$random_id/destination");
-				$execution->execute( "cp -rL " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" . "/*" . " " . "/tmp/disk.$random_id/destination" );
 				$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "$filetree_host" );
-				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
+				#$execution->execute( "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/destination" );
+				$execution->execute("mkisofs -D -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
 				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 				print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
 				waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
@@ -3291,7 +3292,7 @@ sub executeCMDL {
 				my $host = $doc->getElementsByTagName("host")->item(0);
 			
 				# To process exec tags of matching commands sequence
-				MY $command_list_host = $host->getElementsByTagName("exec");
+				my $command_list_host = $host->getElementsByTagName("exec");
 			
 				# To process list, dumping commands to file
 				for ( my $j = 0 ; $j < $command_list_host->getLength ; $j++ ) {
