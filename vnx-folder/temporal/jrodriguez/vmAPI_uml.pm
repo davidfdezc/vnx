@@ -4,7 +4,7 @@
 #
 # This file is a sample for VNUML generalization API.
 ###############
-package vmAPIuml;
+package vmAPI_uml;
 
 @ISA    = qw(Exporter);
 @EXPORT = qw(defineVM
@@ -177,481 +177,481 @@ sub defineVM {
 
 	# Sample code
 
-	if ( $type eq "libvirt-kvm" ) {
-		my $addr = "qemu:///system";
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		open( FILEHANDLE, $configFile )
-		  or die "cannot open $configFile file. Aborting\n";
-		my $file_data;
-		read( FILEHANDLE, $file_data, -s FILEHANDLE );
-		my $dom = $con->define_domain($file_data);
-		return $error;
-
-	}
-	elsif ( $type eq "libvirt-kvm-windows" ) {
-
-		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
-		open CONFILE, ">$path" . "vnxboot"
-		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-
-		#$execution->execute($doc ,*CONFILE);
-		print CONFILE "$doc\n";
-
-		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
-			  . " -l -R -quiet -o $filesystem_small $path" );
-		$execution->execute(
-			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
-
-		my $parser       = new XML::DOM::Parser;
-		my $dom          = $parser->parse($doc);
-		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
-
-		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
-		my $filesystem_type   = $filesystemTag->getAttribute("type");
-		my $filesystem        = $filesystemTag->getFirstChild->getData;
-
-		if ( $filesystem_type eq "cow" ) {
-
-			# DFC If cow file does not exist, we create it
-			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
-
-#print "----- Creating COW file: qemu-img create -b $filesystem -f qcow2" . $dh->get_fs_dir($vmName) . "/root_cow_fs\n";
-				$execution->execute( "qemu-img"
-					  . " create -b $filesystem -f qcow2 "
-					  . $dh->get_fs_dir($vmName)
-					  . "/root_cow_fs" );
-			}
-			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
-		}
-
-		# memory
-		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
-		my $mem        = $memTag->getFirstChild->getData;
-
-		# create XML for libvirt
-		my $init_xml;
-		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
-		my $domain_tag = $init_xml->createElement('domain');
-		$init_xml->addChild($domain_tag);
-		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-
-		my $name_tag = $init_xml->createElement('name');
-		$domain_tag->addChild($name_tag);
-
-		#name
-		$name_tag->addChild( $init_xml->createTextNode($vmName) );
-
-		my $memory_tag = $init_xml->createElement('memory');
-		$domain_tag->addChild($memory_tag);
-
-		#memory
-		$memory_tag->addChild( $init_xml->createTextNode($mem) );
-
-		my $vcpu_tag = $init_xml->createElement('vcpu');
-		$domain_tag->addChild($vcpu_tag);
-
-		#vcpu
-		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
-
-		my $os_tag = $init_xml->createElement('os');
-		$domain_tag->addChild($os_tag);
-		my $type_tag = $init_xml->createElement('type');
-		$os_tag->addChild($type_tag);
-		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
-		$type_tag->addChild( $init_xml->createTextNode("hvm") );
-		my $boot1_tag = $init_xml->createElement('boot');
-		$os_tag->addChild($boot1_tag);
-		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
-		my $boot2_tag = $init_xml->createElement('boot');
-		$os_tag->addChild($boot2_tag);
-		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
-
-		my $features_tag = $init_xml->createElement('features');
-		$domain_tag->addChild($features_tag);
-		my $pae_tag = $init_xml->createElement('pae');
-		$features_tag->addChild($pae_tag);
-		my $acpi_tag = $init_xml->createElement('acpi');
-		$features_tag->addChild($acpi_tag);
-		my $apic_tag = $init_xml->createElement('apic');
-		$features_tag->addChild($apic_tag);
-
-		my $clock_tag = $init_xml->createElement('clock');
-		$domain_tag->addChild($clock_tag);
-		$clock_tag->addChild(
-			$init_xml->createAttribute( sync => "localtime" ) );
-
-		my $devices_tag = $init_xml->createElement('devices');
-		$domain_tag->addChild($devices_tag);
-
-		my $emulator_tag = $init_xml->createElement('emulator');
-		$devices_tag->addChild($emulator_tag);
-		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
-
-		my $disk1_tag = $init_xml->createElement('disk');
-		$devices_tag->addChild($disk1_tag);
-		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
-		my $source1_tag = $init_xml->createElement('source');
-		$disk1_tag->addChild($source1_tag);
-		$source1_tag->addChild(
-			$init_xml->createAttribute( file => $filesystem ) );
-		my $target1_tag = $init_xml->createElement('target');
-		$disk1_tag->addChild($target1_tag);
-		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
-
-		my $disk2_tag = $init_xml->createElement('disk');
-		$devices_tag->addChild($disk2_tag);
-		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
-		my $source2_tag = $init_xml->createElement('source');
-		$disk2_tag->addChild($source2_tag);
-		$source2_tag->addChild(
-			$init_xml->createAttribute( file => $filesystem_small ) );
-		my $target2_tag = $init_xml->createElement('target');
-		$disk2_tag->addChild($target2_tag);
-		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
-
-		my $ifTagList = $virtualm->getElementsByTagName("if");
-		my $numif     = $ifTagList->getLength;
-
-		for ( my $j = 0 ; $j < $numif ; $j++ ) {
-			my $ifTag = $ifTagList->item($j);
-			my $id    = $ifTag->getAttribute("id");
-			my $net   = $ifTag->getAttribute("net");
-			my $mac   = $ifTag->getAttribute("mac");
-
-			my $interface_tag = $init_xml->createElement('interface');
-			$devices_tag->addChild($interface_tag);
-			$interface_tag->addChild(
-				$init_xml->createAttribute( type => 'bridge' ) );
-			$interface_tag->addChild(
-				$init_xml->createAttribute( name => "eth" . $id ) );
-			$interface_tag->addChild(
-				$init_xml->createAttribute( onboot => "yes" ) );
-			my $source_tag = $init_xml->createElement('source');
-			$interface_tag->addChild($source_tag);
-			$source_tag->addChild(
-				$init_xml->createAttribute( bridge => $net ) );
-			my $mac_tag = $init_xml->createElement('mac');
-			$interface_tag->addChild($mac_tag);
-			$mac =~ s/,//;
-			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
-
-		}
-
-		my $graphics_tag = $init_xml->createElement('graphics');
-		$devices_tag->addChild($graphics_tag);
-		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-		my $vnc_port;
-		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-			my $vm = $vm_ordered[$i];
-
-			# To get name attribute
-			my $name = $vm->getAttribute("name");
-			if ( $vmName eq $name ) {
-				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-			}
-		}
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( port => $vnc_port ) );
-
-		#[JSF] host ip left
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( listen => $ip_host ) );
-
-		my $serial_tag = $init_xml->createElement('serial');
-		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
-		$devices_tag->addChild($serial_tag);
-
-		# $devices_tag->addChild($disk2_tag);
-		my $source3_tag = $init_xml->createElement('source');
-		$serial_tag->addChild($source3_tag);
-		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName). '/' . $vmName . '_socket' ) );
-		my $target_tag = $init_xml->createElement('target');
-		$serial_tag->addChild($target_tag);
-		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
-
-#   ############<graphics type='sdl' display=':0.0'/>
-#      my $graphics_tag2 = $init_xml->createElement('graphics');
-#      $devices_tag->addChild($graphics_tag2);
-#      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
-#      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
-#      $disp = $ENV{'DISPLAY'};
-#      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
+#	if ( $type eq "libvirt-kvm" ) {
+#		my $addr = "qemu:///system";
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		open( FILEHANDLE, $configFile )
+#		  or die "cannot open $configFile file. Aborting\n";
+#		my $file_data;
+#		read( FILEHANDLE, $file_data, -s FILEHANDLE );
+#		my $dom = $con->define_domain($file_data);
+#		return $error;
+#
+#	}
+#	elsif ( $type eq "libvirt-kvm-windows" ) {
+#
+#		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
+#		open CONFILE, ">$path" . "vnxboot"
+#		  or $execution->smartdie("can not open ${path}vnxboot: $!")
+#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#
+#		#$execution->execute($doc ,*CONFILE);
+#		print CONFILE "$doc\n";
+#
+#		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
+#			  . " -l -R -quiet -o $filesystem_small $path" );
+#		$execution->execute(
+#			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
+#
+#		my $parser       = new XML::DOM::Parser;
+#		my $dom          = $parser->parse($doc);
+#		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
+#		my $virtualmList = $globalNode->getElementsByTagName("vm");
+#		my $virtualm     = $virtualmList->item($0);
+#
+#		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
+#		my $filesystemTag     = $filesystemTagList->item($0);
+#		my $filesystem_type   = $filesystemTag->getAttribute("type");
+#		my $filesystem        = $filesystemTag->getFirstChild->getData;
+#
+#		if ( $filesystem_type eq "cow" ) {
+#
+#			# DFC If cow file does not exist, we create it
+#			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
+#
+##print "----- Creating COW file: qemu-img create -b $filesystem -f qcow2" . $dh->get_fs_dir($vmName) . "/root_cow_fs\n";
+#				$execution->execute( "qemu-img"
+#					  . " create -b $filesystem -f qcow2 "
+#					  . $dh->get_fs_dir($vmName)
+#					  . "/root_cow_fs" );
+#			}
+#			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
+#		}
+#
+#		# memory
+#		my $memTagList = $virtualm->getElementsByTagName("mem");
+#		my $memTag     = $memTagList->item($0);
+#		my $mem        = $memTag->getFirstChild->getData;
+#
+#		# create XML for libvirt
+#		my $init_xml;
+#		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
+#		my $domain_tag = $init_xml->createElement('domain');
+#		$init_xml->addChild($domain_tag);
+#		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
+#
+#		my $name_tag = $init_xml->createElement('name');
+#		$domain_tag->addChild($name_tag);
+#
+#		#name
+#		$name_tag->addChild( $init_xml->createTextNode($vmName) );
+#
+#		my $memory_tag = $init_xml->createElement('memory');
+#		$domain_tag->addChild($memory_tag);
+#
+#		#memory
+#		$memory_tag->addChild( $init_xml->createTextNode($mem) );
+#
+#		my $vcpu_tag = $init_xml->createElement('vcpu');
+#		$domain_tag->addChild($vcpu_tag);
+#
+#		#vcpu
+#		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
+#
+#		my $os_tag = $init_xml->createElement('os');
+#		$domain_tag->addChild($os_tag);
+#		my $type_tag = $init_xml->createElement('type');
+#		$os_tag->addChild($type_tag);
+#		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
+#		$type_tag->addChild( $init_xml->createTextNode("hvm") );
+#		my $boot1_tag = $init_xml->createElement('boot');
+#		$os_tag->addChild($boot1_tag);
+#		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
+#		my $boot2_tag = $init_xml->createElement('boot');
+#		$os_tag->addChild($boot2_tag);
+#		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
+#
+#		my $features_tag = $init_xml->createElement('features');
+#		$domain_tag->addChild($features_tag);
+#		my $pae_tag = $init_xml->createElement('pae');
+#		$features_tag->addChild($pae_tag);
+#		my $acpi_tag = $init_xml->createElement('acpi');
+#		$features_tag->addChild($acpi_tag);
+#		my $apic_tag = $init_xml->createElement('apic');
+#		$features_tag->addChild($apic_tag);
+#
+#		my $clock_tag = $init_xml->createElement('clock');
+#		$domain_tag->addChild($clock_tag);
+#		$clock_tag->addChild(
+#			$init_xml->createAttribute( sync => "localtime" ) );
+#
+#		my $devices_tag = $init_xml->createElement('devices');
+#		$domain_tag->addChild($devices_tag);
+#
+#		my $emulator_tag = $init_xml->createElement('emulator');
+#		$devices_tag->addChild($emulator_tag);
+#		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
+#
+#		my $disk1_tag = $init_xml->createElement('disk');
+#		$devices_tag->addChild($disk1_tag);
+#		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
+#		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
+#		my $source1_tag = $init_xml->createElement('source');
+#		$disk1_tag->addChild($source1_tag);
+#		$source1_tag->addChild(
+#			$init_xml->createAttribute( file => $filesystem ) );
+#		my $target1_tag = $init_xml->createElement('target');
+#		$disk1_tag->addChild($target1_tag);
+#		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
+#
+#		my $disk2_tag = $init_xml->createElement('disk');
+#		$devices_tag->addChild($disk2_tag);
+#		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
+#		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
+#		my $source2_tag = $init_xml->createElement('source');
+#		$disk2_tag->addChild($source2_tag);
+#		$source2_tag->addChild(
+#			$init_xml->createAttribute( file => $filesystem_small ) );
+#		my $target2_tag = $init_xml->createElement('target');
+#		$disk2_tag->addChild($target2_tag);
+#		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
+#
+#		my $ifTagList = $virtualm->getElementsByTagName("if");
+#		my $numif     = $ifTagList->getLength;
+#
+#		for ( my $j = 0 ; $j < $numif ; $j++ ) {
+#			my $ifTag = $ifTagList->item($j);
+#			my $id    = $ifTag->getAttribute("id");
+#			my $net   = $ifTag->getAttribute("net");
+#			my $mac   = $ifTag->getAttribute("mac");
+#
+#			my $interface_tag = $init_xml->createElement('interface');
+#			$devices_tag->addChild($interface_tag);
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( type => 'bridge' ) );
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( name => "eth" . $id ) );
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( onboot => "yes" ) );
+#			my $source_tag = $init_xml->createElement('source');
+#			$interface_tag->addChild($source_tag);
+#			$source_tag->addChild(
+#				$init_xml->createAttribute( bridge => $net ) );
+#			my $mac_tag = $init_xml->createElement('mac');
+#			$interface_tag->addChild($mac_tag);
+#			$mac =~ s/,//;
+#			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+#
+#		}
+#
+#		my $graphics_tag = $init_xml->createElement('graphics');
+#		$devices_tag->addChild($graphics_tag);
+#		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
+#		my $vnc_port;
+#		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+#			my $vm = $vm_ordered[$i];
+#
+#			# To get name attribute
+#			my $name = $vm->getAttribute("name");
+#			if ( $vmName eq $name ) {
+#				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
+#			}
+#		}
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( port => $vnc_port ) );
+#
+#		#[JSF] host ip left
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( listen => $ip_host ) );
+#
+#		my $serial_tag = $init_xml->createElement('serial');
+#		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
+#		$devices_tag->addChild($serial_tag);
+#
+#		# $devices_tag->addChild($disk2_tag);
+#		my $source3_tag = $init_xml->createElement('source');
+#		$serial_tag->addChild($source3_tag);
+#		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
+#		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName). '/' . $vmName . '_socket' ) );
+#		my $target_tag = $init_xml->createElement('target');
+#		$serial_tag->addChild($target_tag);
+#		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
+#
+##   ############<graphics type='sdl' display=':0.0'/>
+##      my $graphics_tag2 = $init_xml->createElement('graphics');
+##      $devices_tag->addChild($graphics_tag2);
+##      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
+##      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
+##      $disp = $ENV{'DISPLAY'};
+##      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
+##
+##
+##   ############
+#
+#		my $addr = "qemu:///system";
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#		my $format    = 1;
+#		my $xmlstring = $init_xml->toString($format);
+#
+#		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
+#		  or $execution->smartdie(
+#			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml' )
+#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#		print XML_FILE "$xmlstring\n";
+#		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#
+#		#<STDIN>;
+#		my $domain = $con->define_domain($xmlstring);
+#
+##      No PID exists for defined VMs
+##      # save pid in run dir
+##      my $uuid = $domain->get_uuid_string();
+##      $execution->execute("ps aux | grep kvm | grep " . $uuid . " | grep -v grep | awk '{print \$2}' >> " . $dh->get_run_dir($vmName) . "/pid");
+##
+##      $execution->execute("virt-viewer $vmName &");
+#
+#		return $error;
+#
+#	}
+#	elsif ( $type eq "libvirt-kvm-linux" ) {
+#
+#		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
+#		open CONFILE, ">$path" . "vnxboot"
+#		  or $execution->smartdie("can not open ${path}vnxboot: $!")
+#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#
+#		#$execution->execute($doc ,*CONFILE);
+#		print CONFILE "$doc\n";
+#
+#		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
+#			  . " -l -R -quiet -o $filesystem_small $path" );
+#		$execution->execute(
+#			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
+#
+#		my $parser       = new XML::DOM::Parser;
+#		my $dom          = $parser->parse($doc);
+#		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
+#		my $virtualmList = $globalNode->getElementsByTagName("vm");
+#		my $virtualm     = $virtualmList->item($0);
+#
+#		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
+#		my $filesystemTag     = $filesystemTagList->item($0);
+#		my $filesystem_type   = $filesystemTag->getAttribute("type");
+#		my $filesystem        = $filesystemTag->getFirstChild->getData;
+#
+#		if ( $filesystem_type eq "cow" ) {
+#
+#			# DFC If cow file does not exist, we create it
+#			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
+#
+##print "----- Creating COW file: qemu-img create -b $filesystem -f qcow2" . $dh->get_fs_dir($vmName) . "/root_cow_fs\n";
+#				$execution->execute( "qemu-img"
+#					  . " create -b $filesystem -f qcow2 "
+#					  . $dh->get_fs_dir($vmName)
+#					  . "/root_cow_fs" );
+#
+## $execution->execute("qemu-img" . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
+## $execution->execute($bd->get_binaries_path_ref->{"qemu-img"} . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
+#			}
+#			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
+#		}
+#
+#		# memory
+#		my $memTagList = $virtualm->getElementsByTagName("mem");
+#		my $memTag     = $memTagList->item($0);
+#		my $mem        = $memTag->getFirstChild->getData;
+#
+#		# create XML for libvirt
+#		my $init_xml;
+#		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
+#		my $domain_tag = $init_xml->createElement('domain');
+#		$init_xml->addChild($domain_tag);
+#		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
+#
+#		my $name_tag = $init_xml->createElement('name');
+#		$domain_tag->addChild($name_tag);
 #
 #
-#   ############
-
-		my $addr = "qemu:///system";
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-		my $format    = 1;
-		my $xmlstring = $init_xml->toString($format);
-
-		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
-		  or $execution->smartdie(
-			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml' )
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-		print XML_FILE "$xmlstring\n";
-		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-
-		#<STDIN>;
-		my $domain = $con->define_domain($xmlstring);
-
-#      No PID exists for defined VMs
-#      # save pid in run dir
-#      my $uuid = $domain->get_uuid_string();
-#      $execution->execute("ps aux | grep kvm | grep " . $uuid . " | grep -v grep | awk '{print \$2}' >> " . $dh->get_run_dir($vmName) . "/pid");
+#		#name
+#		$name_tag->addChild( $init_xml->createTextNode($vmName) );
 #
-#      $execution->execute("virt-viewer $vmName &");
-
-		return $error;
-
-	}
-	elsif ( $type eq "libvirt-kvm-linux" ) {
-
-		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
-		open CONFILE, ">$path" . "vnxboot"
-		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-
-		#$execution->execute($doc ,*CONFILE);
-		print CONFILE "$doc\n";
-
-		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
-			  . " -l -R -quiet -o $filesystem_small $path" );
-		$execution->execute(
-			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
-
-		my $parser       = new XML::DOM::Parser;
-		my $dom          = $parser->parse($doc);
-		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
-
-		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
-		my $filesystem_type   = $filesystemTag->getAttribute("type");
-		my $filesystem        = $filesystemTag->getFirstChild->getData;
-
-		if ( $filesystem_type eq "cow" ) {
-
-			# DFC If cow file does not exist, we create it
-			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
-
-#print "----- Creating COW file: qemu-img create -b $filesystem -f qcow2" . $dh->get_fs_dir($vmName) . "/root_cow_fs\n";
-				$execution->execute( "qemu-img"
-					  . " create -b $filesystem -f qcow2 "
-					  . $dh->get_fs_dir($vmName)
-					  . "/root_cow_fs" );
-
-# $execution->execute("qemu-img" . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
-# $execution->execute($bd->get_binaries_path_ref->{"qemu-img"} . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
-			}
-			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
-		}
-
-		# memory
-		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
-		my $mem        = $memTag->getFirstChild->getData;
-
-		# create XML for libvirt
-		my $init_xml;
-		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
-		my $domain_tag = $init_xml->createElement('domain');
-		$init_xml->addChild($domain_tag);
-		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-
-		my $name_tag = $init_xml->createElement('name');
-		$domain_tag->addChild($name_tag);
-
-
-		#name
-		$name_tag->addChild( $init_xml->createTextNode($vmName) );
-
-		my $memory_tag = $init_xml->createElement('memory');
-		$domain_tag->addChild($memory_tag);
-
-		#memory
-		$memory_tag->addChild( $init_xml->createTextNode($mem) );
-
-		my $vcpu_tag = $init_xml->createElement('vcpu');
-		$domain_tag->addChild($vcpu_tag);
-
-		#vcpu
-		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
-
-		my $os_tag = $init_xml->createElement('os');
-		$domain_tag->addChild($os_tag);
-		my $type_tag = $init_xml->createElement('type');
-		$os_tag->addChild($type_tag);
-		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
-		$type_tag->addChild( $init_xml->createTextNode("hvm") );
-		my $boot1_tag = $init_xml->createElement('boot');
-		$os_tag->addChild($boot1_tag);
-		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
-		my $boot2_tag = $init_xml->createElement('boot');
-		$os_tag->addChild($boot2_tag);
-		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
-
-		my $features_tag = $init_xml->createElement('features');
-		$domain_tag->addChild($features_tag);
-		my $pae_tag = $init_xml->createElement('pae');
-		$features_tag->addChild($pae_tag);
-		my $acpi_tag = $init_xml->createElement('acpi');
-		$features_tag->addChild($acpi_tag);
-		my $apic_tag = $init_xml->createElement('apic');
-		$features_tag->addChild($apic_tag);
-
-		my $clock_tag = $init_xml->createElement('clock');
-		$domain_tag->addChild($clock_tag);
-		$clock_tag->addChild(
-			$init_xml->createAttribute( sync => "localtime" ) );
-
-		my $devices_tag = $init_xml->createElement('devices');
-		$domain_tag->addChild($devices_tag);
-
-		my $emulator_tag = $init_xml->createElement('emulator');
-		$devices_tag->addChild($emulator_tag);
-		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
-
-		my $disk1_tag = $init_xml->createElement('disk');
-		$devices_tag->addChild($disk1_tag);
-		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
-		my $source1_tag = $init_xml->createElement('source');
-		$disk1_tag->addChild($source1_tag);
-		$source1_tag->addChild(
-			$init_xml->createAttribute( file => $filesystem ) );
-		my $target1_tag = $init_xml->createElement('target');
-		$disk1_tag->addChild($target1_tag);
-		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
-
-		my $disk2_tag = $init_xml->createElement('disk');
-		$devices_tag->addChild($disk2_tag);
-		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
-		my $source2_tag = $init_xml->createElement('source');
-		$disk2_tag->addChild($source2_tag);
-		$source2_tag->addChild(
-			$init_xml->createAttribute( file => $filesystem_small ) );
-		my $target2_tag = $init_xml->createElement('target');
-		$disk2_tag->addChild($target2_tag);
-		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
-
-		my $ifTagList = $virtualm->getElementsByTagName("if");
-		my $numif     = $ifTagList->getLength;
-
-		for ( my $j = 0 ; $j < $numif ; $j++ ) {
-			my $ifTag = $ifTagList->item($j);
-			my $id    = $ifTag->getAttribute("id");
-			my $net   = $ifTag->getAttribute("net");
-			my $mac   = $ifTag->getAttribute("mac");
-
-			my $interface_tag = $init_xml->createElement('interface');
-			$devices_tag->addChild($interface_tag);
-			$interface_tag->addChild(
-				$init_xml->createAttribute( type => 'bridge' ) );
-			$interface_tag->addChild(
-				$init_xml->createAttribute( name => "eth" . $id ) );
-			$interface_tag->addChild(
-				$init_xml->createAttribute( onboot => "yes" ) );
-			my $source_tag = $init_xml->createElement('source');
-			$interface_tag->addChild($source_tag);
-			$source_tag->addChild(
-				$init_xml->createAttribute( bridge => $net ) );
-			my $mac_tag = $init_xml->createElement('mac');
-			$interface_tag->addChild($mac_tag);
-			$mac =~ s/,//;
-			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
-
-		}
-
-		my $graphics_tag = $init_xml->createElement('graphics');
-		$devices_tag->addChild($graphics_tag);
-		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-		my $vnc_port;
-		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-			my $vm = $vm_ordered[$i];
-
-			# To get name attribute
-			my $name = $vm->getAttribute("name");
-			if ( $vmName eq $name ) {
-				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-			}
-		}
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( port => $vnc_port ) );
-
-		#[JSF] host ip left
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( listen => $ip_host ) );
-
-		my $serial_tag = $init_xml->createElement('serial');
-		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
-		$devices_tag->addChild($serial_tag);
-
-		# $devices_tag->addChild($disk2_tag);
-		my $source3_tag = $init_xml->createElement('source');
-		$serial_tag->addChild($source3_tag);
-		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName). '/' . $vmName . '_socket' ) );
-		my $target_tag = $init_xml->createElement('target');
-		$serial_tag->addChild($target_tag);
-		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
-
-#   ############<graphics type='sdl' display=':0.0'/>
-#      my $graphics_tag2 = $init_xml->createElement('graphics');
-#      $devices_tag->addChild($graphics_tag2);
-#      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
-#      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
-#      $disp = $ENV{'DISPLAY'};
-#      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
+#		my $memory_tag = $init_xml->createElement('memory');
+#		$domain_tag->addChild($memory_tag);
 #
+#		#memory
+#		$memory_tag->addChild( $init_xml->createTextNode($mem) );
 #
-#   ############
-
-		my $addr = "qemu:///system";
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-		my $format    = 1;
-		my $xmlstring = $init_xml->toString($format);
-
-		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
-		  or $execution->smartdie(
-			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml' )
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-		print XML_FILE "$xmlstring\n";
-		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-
-		#<STDIN>;
-		my $domain = $con->define_domain($xmlstring);
-
-#      No PID exists for defined VMs
-#      # save pid in run dir
-#      my $uuid = $domain->get_uuid_string();
-#      $execution->execute("ps aux | grep kvm | grep " . $uuid . " | grep -v grep | awk '{print \$2}' >> " . $dh->get_run_dir($vmName) . "/pid");
+#		my $vcpu_tag = $init_xml->createElement('vcpu');
+#		$domain_tag->addChild($vcpu_tag);
 #
-#      $execution->execute("virt-viewer $vmName &");
-
-		return $error;
-
-	}
-	elsif ( $type eq "uml" ) {
+#		#vcpu
+#		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
+#
+#		my $os_tag = $init_xml->createElement('os');
+#		$domain_tag->addChild($os_tag);
+#		my $type_tag = $init_xml->createElement('type');
+#		$os_tag->addChild($type_tag);
+#		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
+#		$type_tag->addChild( $init_xml->createTextNode("hvm") );
+#		my $boot1_tag = $init_xml->createElement('boot');
+#		$os_tag->addChild($boot1_tag);
+#		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
+#		my $boot2_tag = $init_xml->createElement('boot');
+#		$os_tag->addChild($boot2_tag);
+#		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
+#
+#		my $features_tag = $init_xml->createElement('features');
+#		$domain_tag->addChild($features_tag);
+#		my $pae_tag = $init_xml->createElement('pae');
+#		$features_tag->addChild($pae_tag);
+#		my $acpi_tag = $init_xml->createElement('acpi');
+#		$features_tag->addChild($acpi_tag);
+#		my $apic_tag = $init_xml->createElement('apic');
+#		$features_tag->addChild($apic_tag);
+#
+#		my $clock_tag = $init_xml->createElement('clock');
+#		$domain_tag->addChild($clock_tag);
+#		$clock_tag->addChild(
+#			$init_xml->createAttribute( sync => "localtime" ) );
+#
+#		my $devices_tag = $init_xml->createElement('devices');
+#		$domain_tag->addChild($devices_tag);
+#
+#		my $emulator_tag = $init_xml->createElement('emulator');
+#		$devices_tag->addChild($emulator_tag);
+#		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
+#
+#		my $disk1_tag = $init_xml->createElement('disk');
+#		$devices_tag->addChild($disk1_tag);
+#		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
+#		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
+#		my $source1_tag = $init_xml->createElement('source');
+#		$disk1_tag->addChild($source1_tag);
+#		$source1_tag->addChild(
+#			$init_xml->createAttribute( file => $filesystem ) );
+#		my $target1_tag = $init_xml->createElement('target');
+#		$disk1_tag->addChild($target1_tag);
+#		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
+#
+#		my $disk2_tag = $init_xml->createElement('disk');
+#		$devices_tag->addChild($disk2_tag);
+#		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
+#		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
+#		my $source2_tag = $init_xml->createElement('source');
+#		$disk2_tag->addChild($source2_tag);
+#		$source2_tag->addChild(
+#			$init_xml->createAttribute( file => $filesystem_small ) );
+#		my $target2_tag = $init_xml->createElement('target');
+#		$disk2_tag->addChild($target2_tag);
+#		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
+#
+#		my $ifTagList = $virtualm->getElementsByTagName("if");
+#		my $numif     = $ifTagList->getLength;
+#
+#		for ( my $j = 0 ; $j < $numif ; $j++ ) {
+#			my $ifTag = $ifTagList->item($j);
+#			my $id    = $ifTag->getAttribute("id");
+#			my $net   = $ifTag->getAttribute("net");
+#			my $mac   = $ifTag->getAttribute("mac");
+#
+#			my $interface_tag = $init_xml->createElement('interface');
+#			$devices_tag->addChild($interface_tag);
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( type => 'bridge' ) );
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( name => "eth" . $id ) );
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( onboot => "yes" ) );
+#			my $source_tag = $init_xml->createElement('source');
+#			$interface_tag->addChild($source_tag);
+#			$source_tag->addChild(
+#				$init_xml->createAttribute( bridge => $net ) );
+#			my $mac_tag = $init_xml->createElement('mac');
+#			$interface_tag->addChild($mac_tag);
+#			$mac =~ s/,//;
+#			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+#
+#		}
+#
+#		my $graphics_tag = $init_xml->createElement('graphics');
+#		$devices_tag->addChild($graphics_tag);
+#		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
+#		my $vnc_port;
+#		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+#			my $vm = $vm_ordered[$i];
+#
+#			# To get name attribute
+#			my $name = $vm->getAttribute("name");
+#			if ( $vmName eq $name ) {
+#				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
+#			}
+#		}
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( port => $vnc_port ) );
+#
+#		#[JSF] host ip left
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( listen => $ip_host ) );
+#
+#		my $serial_tag = $init_xml->createElement('serial');
+#		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
+#		$devices_tag->addChild($serial_tag);
+#
+#		# $devices_tag->addChild($disk2_tag);
+#		my $source3_tag = $init_xml->createElement('source');
+#		$serial_tag->addChild($source3_tag);
+#		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
+#		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName). '/' . $vmName . '_socket' ) );
+#		my $target_tag = $init_xml->createElement('target');
+#		$serial_tag->addChild($target_tag);
+#		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
+#
+##   ############<graphics type='sdl' display=':0.0'/>
+##      my $graphics_tag2 = $init_xml->createElement('graphics');
+##      $devices_tag->addChild($graphics_tag2);
+##      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
+##      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
+##      $disp = $ENV{'DISPLAY'};
+##      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
+##
+##
+##   ############
+#
+#		my $addr = "qemu:///system";
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#		my $format    = 1;
+#		my $xmlstring = $init_xml->toString($format);
+#
+#		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
+#		  or $execution->smartdie(
+#			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml' )
+#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#		print XML_FILE "$xmlstring\n";
+#		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#
+#		#<STDIN>;
+#		my $domain = $con->define_domain($xmlstring);
+#
+##      No PID exists for defined VMs
+##      # save pid in run dir
+##      my $uuid = $domain->get_uuid_string();
+##      $execution->execute("ps aux | grep kvm | grep " . $uuid . " | grep -v grep | awk '{print \$2}' >> " . $dh->get_run_dir($vmName) . "/pid");
+##
+##      $execution->execute("virt-viewer $vmName &");
+#
+#		return $error;
+#
+#	}
+	if ( $type eq "uml" ) {
 		$error = "Can't define vm of type uml.\n";
 		return $error;
 	}
@@ -669,51 +669,51 @@ sub undefineVM {
 
 	my $error;
 
-	if ( $type eq "libvirt-kvm" ) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_defined_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->undefine();
-				print "Domain undefined.\n";
-				$error = 0;
-				return $error;
-			}
-		}
-		$error = "Domain $vmName does not exist.\n";
-		return $error;
-
-	}
-	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux") ) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_defined_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->undefine();
-				print "Domain undefined.\n";
-				$error = 0;
-				return $error;
-			}
-		}
-		$error = "Domain $vmName does not exist.\n";
-		return $error;
-
-	}
-	elsif ( $type eq "uml" ) {
+#	if ( $type eq "libvirt-kvm" ) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_defined_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->undefine();
+#				print "Domain undefined.\n";
+#				$error = 0;
+#				return $error;
+#			}
+#		}
+#		$error = "Domain $vmName does not exist.\n";
+#		return $error;
+#
+#	}
+#	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux") ) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_defined_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->undefine();
+#				print "Domain undefined.\n";
+#				$error = 0;
+#				return $error;
+#			}
+#		}
+#		$error = "Domain $vmName does not exist.\n";
+#		return $error;
+#
+#	}
+	if ( $type eq "uml" ) {
 		$error = "Can't undefine vm of type uml.\n";
 		return $error;
 	}
@@ -835,494 +835,494 @@ sub createVM {
 	###################################################################
 	#                    createVM for libvirt-kvm                     #
 	###################################################################
-	if ( $type eq "libvirt-kvm" ) {
-		my $addr = "qemu:///system";
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-		open( FILEHANDLE, $doc ) or die "cannot open $doc file. Aborting\n";
-		my $file_data;
-		read( FILEHANDLE, $file_data, -s FILEHANDLE );
-		print "Creating domain ...\n";
-		my $dom = $con->create_domain($file_data);
-		return $error;
-
-		###################################################################
-		#                  createVM for libvirt-kvm-windows               #
-		###################################################################
-	}
-	elsif ( $type eq "libvirt-kvm-windows" ) {
-
-		#Save xml received in vnxboot, for the autoconfiguration
-		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
-		open CONFILE, ">$path" . "vnxboot"
-		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-
-		#$execution->execute($doc ,*CONFILE);
-		print CONFILE "$doc\n";
-
-		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
-			  . " -l -R -quiet -o $filesystem_small $path" );
-		$execution->execute(
-			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
-
-		my $parser       = new XML::DOM::Parser;
-		my $dom          = $parser->parse($doc);
-		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
-
-		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
-		my $filesystem_type   = $filesystemTag->getAttribute("type");
-		my $filesystem        = $filesystemTag->getFirstChild->getData;
-
-		if ( $filesystem_type eq "cow" ) {
-
-			# If cow file does not exist, we create it
-			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
-
-#print "----- Creating COW file: qemu-img create -b $filesystem -f qcow2" . $dh->get_fs_dir($vmName) . "/root_cow_fs\n";
-				$execution->execute( "qemu-img"
-					  . " create -b $filesystem -f qcow2 "
-					  . $dh->get_fs_dir($vmName)
-					  . "/root_cow_fs" );
-
-# $execution->execute("qemu-img" . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
-# $execution->execute($bd->get_binaries_path_ref->{"qemu-img"} . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
-			}
-			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
-		}
-
-		# memory
-		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
-		my $mem        = $memTag->getFirstChild->getData;
-
-		# create XML for libvirt
-		my $init_xml;
-		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
-		my $domain_tag = $init_xml->createElement('domain');
-		$init_xml->addChild($domain_tag);
-		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-
-		my $name_tag = $init_xml->createElement('name');
-		$domain_tag->addChild($name_tag);
-
-		#name
-		$name_tag->addChild( $init_xml->createTextNode($vmName) );
-
-		my $memory_tag = $init_xml->createElement('memory');
-		$domain_tag->addChild($memory_tag);
-
-		#memory
-		$memory_tag->addChild( $init_xml->createTextNode($mem) );
-
-		my $vcpu_tag = $init_xml->createElement('vcpu');
-		$domain_tag->addChild($vcpu_tag);
-
-		#vcpu
-		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
-
-		my $os_tag = $init_xml->createElement('os');
-		$domain_tag->addChild($os_tag);
-		my $type_tag = $init_xml->createElement('type');
-		$os_tag->addChild($type_tag);
-		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
-		$type_tag->addChild( $init_xml->createTextNode("hvm") );
-		my $boot1_tag = $init_xml->createElement('boot');
-		$os_tag->addChild($boot1_tag);
-		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
-		my $boot2_tag = $init_xml->createElement('boot');
-		$os_tag->addChild($boot2_tag);
-		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
-
-		my $features_tag = $init_xml->createElement('features');
-		$domain_tag->addChild($features_tag);
-		my $pae_tag = $init_xml->createElement('pae');
-		$features_tag->addChild($pae_tag);
-		my $acpi_tag = $init_xml->createElement('acpi');
-		$features_tag->addChild($acpi_tag);
-		my $apic_tag = $init_xml->createElement('apic');
-		$features_tag->addChild($apic_tag);
-
-		my $clock_tag = $init_xml->createElement('clock');
-		$domain_tag->addChild($clock_tag);
-		$clock_tag->addChild(
-			$init_xml->createAttribute( sync => "localtime" ) );
-
-		my $devices_tag = $init_xml->createElement('devices');
-		$domain_tag->addChild($devices_tag);
-
-		my $emulator_tag = $init_xml->createElement('emulator');
-		$devices_tag->addChild($emulator_tag);
-		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
-
-		my $disk1_tag = $init_xml->createElement('disk');
-		$devices_tag->addChild($disk1_tag);
-		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
-		my $source1_tag = $init_xml->createElement('source');
-		$disk1_tag->addChild($source1_tag);
-		$source1_tag->addChild(
-			$init_xml->createAttribute( file => $filesystem ) );
-		my $target1_tag = $init_xml->createElement('target');
-		$disk1_tag->addChild($target1_tag);
-		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
-
-		my $disk2_tag = $init_xml->createElement('disk');
-		$devices_tag->addChild($disk2_tag);
-		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
-		my $source2_tag = $init_xml->createElement('source');
-		$disk2_tag->addChild($source2_tag);
-		$source2_tag->addChild(
-			$init_xml->createAttribute( file => $filesystem_small ) );
-		my $target2_tag = $init_xml->createElement('target');
-		$disk2_tag->addChild($target2_tag);
-		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
-
-		my $ifTagList = $virtualm->getElementsByTagName("if");
-		my $numif     = $ifTagList->getLength;
-
-		for ( my $j = 0 ; $j < $numif ; $j++ ) {
-			my $ifTag = $ifTagList->item($j);
-			my $id    = $ifTag->getAttribute("id");
-			my $net   = $ifTag->getAttribute("net");
-			my $mac   = $ifTag->getAttribute("mac");
-
-			my $interface_tag = $init_xml->createElement('interface');
-			$devices_tag->addChild($interface_tag);
-			$interface_tag->addChild(
-				$init_xml->createAttribute( type => 'bridge' ) );
-			$interface_tag->addChild(
-				$init_xml->createAttribute( name => "eth" . $id ) );
-			$interface_tag->addChild(
-				$init_xml->createAttribute( onboot => "yes" ) );
-			my $source_tag = $init_xml->createElement('source');
-			$interface_tag->addChild($source_tag);
-			$source_tag->addChild(
-				$init_xml->createAttribute( bridge => $net ) );
-			my $mac_tag = $init_xml->createElement('mac');
-			$interface_tag->addChild($mac_tag);
-			$mac =~ s/,//;
-			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
-
-		}
-
-		my $graphics_tag = $init_xml->createElement('graphics');
-		$devices_tag->addChild($graphics_tag);
-		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-		my $vnc_port;
-		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-			my $vm = $vm_ordered[$i];
-
-			# To get name attribute
-			my $name = $vm->getAttribute("name");
-			if ( $vmName eq $name ) {
-				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-			}
-		}
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( port => $vnc_port ) );
-
-		#[JSF] host ip left
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( listen => $ip_host ) );
-
-		my $serial_tag = $init_xml->createElement('serial');
-		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
-		$devices_tag->addChild($serial_tag);
-
-		my $source3_tag = $init_xml->createElement('source');
-		$serial_tag->addChild($source3_tag);
-		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
-		my $target_tag = $init_xml->createElement('target');
-		$serial_tag->addChild($target_tag);
-		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
-
-#   ############<graphics type='sdl' display=':0.0'/>
-#      my $graphics_tag2 = $init_xml->createElement('graphics');
-#      $devices_tag->addChild($graphics_tag2);
-#      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
-#      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
-#      $disp = $ENV{'DISPLAY'};
-#      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
+#	if ( $type eq "libvirt-kvm" ) {
+#		my $addr = "qemu:///system";
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#		open( FILEHANDLE, $doc ) or die "cannot open $doc file. Aborting\n";
+#		my $file_data;
+#		read( FILEHANDLE, $file_data, -s FILEHANDLE );
+#		print "Creating domain ...\n";
+#		my $dom = $con->create_domain($file_data);
+#		return $error;
 #
+#		###################################################################
+#		#                  createVM for libvirt-kvm-windows               #
+#		###################################################################
+#	}
+#	elsif ( $type eq "libvirt-kvm-windows" ) {
 #
-#   ############
-
-		my $addr = "qemu:///system";
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-		my $format    = 1;
-		my $xmlstring = $init_xml->toString($format);
-
-		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
-		  or $execution->smartdie(
-			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml')
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-		print XML_FILE "$xmlstring\n";
-		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-
-		my $domain = $con->create_domain($xmlstring);
-
-		# save pid in run dir
-		my $uuid = $domain->get_uuid_string();
-		$execution->execute( "ps aux | grep kvm | grep " 
-			  . $uuid
-			  . " | grep -v grep | awk '{print \$2}' >> "
-			  . $dh->get_run_dir($vmName)
-			  . "/pid" );
-
-		$execution->execute("virt-viewer $vmName &");
-		
-
-		###################################################################
-		#                      createVM for linux                         #
-		###################################################################
-	}
-	elsif ( $type eq "libvirt-kvm-linux" ) {
-
-		#Save xml received in vnxboot, for the autoconfiguration
-		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
-		open CONFILE, ">$path" . "vnxboot"
-		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-
-		#$execution->execute($doc ,*CONFILE);
-		print CONFILE "$doc\n";
-
-		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
-			  . " -l -R -quiet -o $filesystem_small $path" );
-		$execution->execute(
-			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
-
-		my $parser       = new XML::DOM::Parser;
-		my $dom          = $parser->parse($doc);
-		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
-
-		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
-		my $filesystem_type   = $filesystemTag->getAttribute("type");
-		my $filesystem        = $filesystemTag->getFirstChild->getData;
-
-		if ( $filesystem_type eq "cow" ) {
-
-			# DFC If cow file does not exist, we create it
-			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
-
-#print "----- Creating COW file: qemu-img create -b $filesystem -f qcow2" . $dh->get_fs_dir($vmName) . "/root_cow_fs\n";
-				$execution->execute( "qemu-img"
-					  . " create -b $filesystem -f qcow2 "
-					  . $dh->get_fs_dir($vmName)
-					  . "/root_cow_fs" );
-
-# $execution->execute("qemu-img" . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
-# $execution->execute($bd->get_binaries_path_ref->{"qemu-img"} . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
-			}
-			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
-		}
-
-		# memory
-		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
-		my $mem        = $memTag->getFirstChild->getData;
-
-		# create XML for libvirt
-		my $init_xml;
-		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
-		my $domain_tag = $init_xml->createElement('domain');
-		$init_xml->addChild($domain_tag);
-		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-
-		my $name_tag = $init_xml->createElement('name');
-		$domain_tag->addChild($name_tag);
-
-		#name
-		$name_tag->addChild( $init_xml->createTextNode($vmName) );
-
-		my $memory_tag = $init_xml->createElement('memory');
-		$domain_tag->addChild($memory_tag);
-
-		#memory
-		$memory_tag->addChild( $init_xml->createTextNode($mem) );
-
-		my $vcpu_tag = $init_xml->createElement('vcpu');
-		$domain_tag->addChild($vcpu_tag);
-
-		#vcpu
-		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
-
-		my $os_tag = $init_xml->createElement('os');
-		$domain_tag->addChild($os_tag);
-		my $type_tag = $init_xml->createElement('type');
-		$os_tag->addChild($type_tag);
-		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
-		$type_tag->addChild( $init_xml->createTextNode("hvm") );
-		my $boot1_tag = $init_xml->createElement('boot');
-		$os_tag->addChild($boot1_tag);
-		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
-		my $boot2_tag = $init_xml->createElement('boot');
-		$os_tag->addChild($boot2_tag);
-		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
-
-		my $features_tag = $init_xml->createElement('features');
-		$domain_tag->addChild($features_tag);
-		my $pae_tag = $init_xml->createElement('pae');
-		$features_tag->addChild($pae_tag);
-		my $acpi_tag = $init_xml->createElement('acpi');
-		$features_tag->addChild($acpi_tag);
-		my $apic_tag = $init_xml->createElement('apic');
-		$features_tag->addChild($apic_tag);
-
-		my $clock_tag = $init_xml->createElement('clock');
-		$domain_tag->addChild($clock_tag);
-		$clock_tag->addChild(
-			$init_xml->createAttribute( sync => "localtime" ) );
-
-		my $devices_tag = $init_xml->createElement('devices');
-		$domain_tag->addChild($devices_tag);
-
-		my $emulator_tag = $init_xml->createElement('emulator');
-		$devices_tag->addChild($emulator_tag);
-		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
-
-		my $disk1_tag = $init_xml->createElement('disk');
-		$devices_tag->addChild($disk1_tag);
-		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
-		my $source1_tag = $init_xml->createElement('source');
-		$disk1_tag->addChild($source1_tag);
-		$source1_tag->addChild(
-			$init_xml->createAttribute( file => $filesystem ) );
-		my $target1_tag = $init_xml->createElement('target');
-		$disk1_tag->addChild($target1_tag);
-		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
-
-		my $disk2_tag = $init_xml->createElement('disk');
-		$devices_tag->addChild($disk2_tag);
-		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
-		my $source2_tag = $init_xml->createElement('source');
-		$disk2_tag->addChild($source2_tag);
-		$source2_tag->addChild(
-			$init_xml->createAttribute( file => $filesystem_small ) );
-		my $target2_tag = $init_xml->createElement('target');
-		$disk2_tag->addChild($target2_tag);
-		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
-
-		my $ifTagList = $virtualm->getElementsByTagName("if");
-		my $numif     = $ifTagList->getLength;
-
-		for ( my $j = 0 ; $j < $numif ; $j++ ) {
-			my $ifTag = $ifTagList->item($j);
-			my $id    = $ifTag->getAttribute("id");
-			my $net   = $ifTag->getAttribute("net");
-			my $mac   = $ifTag->getAttribute("mac");
-
-			my $interface_tag = $init_xml->createElement('interface');
-			$devices_tag->addChild($interface_tag);
-			$interface_tag->addChild(
-				$init_xml->createAttribute( type => 'bridge' ) );
-			$interface_tag->addChild(
-				$init_xml->createAttribute( name => "eth" . $id ) );
-			$interface_tag->addChild(
-				$init_xml->createAttribute( onboot => "yes" ) );
-			my $source_tag = $init_xml->createElement('source');
-			$interface_tag->addChild($source_tag);
-			$source_tag->addChild(
-				$init_xml->createAttribute( bridge => $net ) );
-			my $mac_tag = $init_xml->createElement('mac');
-			$interface_tag->addChild($mac_tag);
-			$mac =~ s/,//;
-			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
-
-		}
-
-		my $graphics_tag = $init_xml->createElement('graphics');
-		$devices_tag->addChild($graphics_tag);
-		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-		my $vnc_port;
-		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-			my $vm = $vm_ordered[$i];
-
-			# To get name attribute
-			my $name = $vm->getAttribute("name");
-			if ( $vmName eq $name ) {
-				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-			}
-		}
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( port => $vnc_port ) );
-
-		#[JSF] falta sacar la ip del host
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( listen => $ip_host ) );
-
-		my $serial_tag = $init_xml->createElement('serial');
-		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
-		$devices_tag->addChild($serial_tag);
-
-		# $devices_tag->addChild($disk2_tag);
-		my $source3_tag = $init_xml->createElement('source');
-		$serial_tag->addChild($source3_tag);
-		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
-		my $target_tag = $init_xml->createElement('target');
-		$serial_tag->addChild($target_tag);
-		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
-
-#   ############<graphics type='sdl' display=':0.0'/>
-#      my $graphics_tag2 = $init_xml->createElement('graphics');
-#      $devices_tag->addChild($graphics_tag2);
-#      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
-#      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
-#      $disp = $ENV{'DISPLAY'};
-#      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
+#		#Save xml received in vnxboot, for the autoconfiguration
+#		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
+#		open CONFILE, ">$path" . "vnxboot"
+#		  or $execution->smartdie("can not open ${path}vnxboot: $!")
+#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
 #
+#		#$execution->execute($doc ,*CONFILE);
+#		print CONFILE "$doc\n";
 #
-#   ############
-
-		my $addr = "qemu:///system";
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-		my $format    = 1;
-		my $xmlstring = $init_xml->toString($format);
-
-		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
-		  or $execution->smartdie(
-			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml')
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-		print XML_FILE "$xmlstring\n";
-		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-
-		my $domain = $con->create_domain($xmlstring);
-
-		# save pid in run dir
-		my $uuid = $domain->get_uuid_string();
-		$execution->execute( "ps aux | grep kvm | grep " 
-			  . $uuid
-			  . " | grep -v grep | awk '{print \$2}' >> "
-			  . $dh->get_run_dir($vmName)
-			  . "/pid" );
-
-		$execution->execute("virt-viewer $vmName &");
-		
-
-		###################################################################
-		#                      createVM for UML                           #
-		###################################################################
-	}
-	elsif ( $type eq "uml" ) {
+#		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
+#			  . " -l -R -quiet -o $filesystem_small $path" );
+#		$execution->execute(
+#			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
+#
+#		my $parser       = new XML::DOM::Parser;
+#		my $dom          = $parser->parse($doc);
+#		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
+#		my $virtualmList = $globalNode->getElementsByTagName("vm");
+#		my $virtualm     = $virtualmList->item($0);
+#
+#		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
+#		my $filesystemTag     = $filesystemTagList->item($0);
+#		my $filesystem_type   = $filesystemTag->getAttribute("type");
+#		my $filesystem        = $filesystemTag->getFirstChild->getData;
+#
+#		if ( $filesystem_type eq "cow" ) {
+#
+#			# If cow file does not exist, we create it
+#			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
+#
+##print "----- Creating COW file: qemu-img create -b $filesystem -f qcow2" . $dh->get_fs_dir($vmName) . "/root_cow_fs\n";
+#				$execution->execute( "qemu-img"
+#					  . " create -b $filesystem -f qcow2 "
+#					  . $dh->get_fs_dir($vmName)
+#					  . "/root_cow_fs" );
+#
+## $execution->execute("qemu-img" . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
+## $execution->execute($bd->get_binaries_path_ref->{"qemu-img"} . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
+#			}
+#			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
+#		}
+#
+#		# memory
+#		my $memTagList = $virtualm->getElementsByTagName("mem");
+#		my $memTag     = $memTagList->item($0);
+#		my $mem        = $memTag->getFirstChild->getData;
+#
+#		# create XML for libvirt
+#		my $init_xml;
+#		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
+#		my $domain_tag = $init_xml->createElement('domain');
+#		$init_xml->addChild($domain_tag);
+#		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
+#
+#		my $name_tag = $init_xml->createElement('name');
+#		$domain_tag->addChild($name_tag);
+#
+#		#name
+#		$name_tag->addChild( $init_xml->createTextNode($vmName) );
+#
+#		my $memory_tag = $init_xml->createElement('memory');
+#		$domain_tag->addChild($memory_tag);
+#
+#		#memory
+#		$memory_tag->addChild( $init_xml->createTextNode($mem) );
+#
+#		my $vcpu_tag = $init_xml->createElement('vcpu');
+#		$domain_tag->addChild($vcpu_tag);
+#
+#		#vcpu
+#		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
+#
+#		my $os_tag = $init_xml->createElement('os');
+#		$domain_tag->addChild($os_tag);
+#		my $type_tag = $init_xml->createElement('type');
+#		$os_tag->addChild($type_tag);
+#		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
+#		$type_tag->addChild( $init_xml->createTextNode("hvm") );
+#		my $boot1_tag = $init_xml->createElement('boot');
+#		$os_tag->addChild($boot1_tag);
+#		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
+#		my $boot2_tag = $init_xml->createElement('boot');
+#		$os_tag->addChild($boot2_tag);
+#		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
+#
+#		my $features_tag = $init_xml->createElement('features');
+#		$domain_tag->addChild($features_tag);
+#		my $pae_tag = $init_xml->createElement('pae');
+#		$features_tag->addChild($pae_tag);
+#		my $acpi_tag = $init_xml->createElement('acpi');
+#		$features_tag->addChild($acpi_tag);
+#		my $apic_tag = $init_xml->createElement('apic');
+#		$features_tag->addChild($apic_tag);
+#
+#		my $clock_tag = $init_xml->createElement('clock');
+#		$domain_tag->addChild($clock_tag);
+#		$clock_tag->addChild(
+#			$init_xml->createAttribute( sync => "localtime" ) );
+#
+#		my $devices_tag = $init_xml->createElement('devices');
+#		$domain_tag->addChild($devices_tag);
+#
+#		my $emulator_tag = $init_xml->createElement('emulator');
+#		$devices_tag->addChild($emulator_tag);
+#		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
+#
+#		my $disk1_tag = $init_xml->createElement('disk');
+#		$devices_tag->addChild($disk1_tag);
+#		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
+#		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
+#		my $source1_tag = $init_xml->createElement('source');
+#		$disk1_tag->addChild($source1_tag);
+#		$source1_tag->addChild(
+#			$init_xml->createAttribute( file => $filesystem ) );
+#		my $target1_tag = $init_xml->createElement('target');
+#		$disk1_tag->addChild($target1_tag);
+#		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
+#
+#		my $disk2_tag = $init_xml->createElement('disk');
+#		$devices_tag->addChild($disk2_tag);
+#		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
+#		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
+#		my $source2_tag = $init_xml->createElement('source');
+#		$disk2_tag->addChild($source2_tag);
+#		$source2_tag->addChild(
+#			$init_xml->createAttribute( file => $filesystem_small ) );
+#		my $target2_tag = $init_xml->createElement('target');
+#		$disk2_tag->addChild($target2_tag);
+#		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
+#
+#		my $ifTagList = $virtualm->getElementsByTagName("if");
+#		my $numif     = $ifTagList->getLength;
+#
+#		for ( my $j = 0 ; $j < $numif ; $j++ ) {
+#			my $ifTag = $ifTagList->item($j);
+#			my $id    = $ifTag->getAttribute("id");
+#			my $net   = $ifTag->getAttribute("net");
+#			my $mac   = $ifTag->getAttribute("mac");
+#
+#			my $interface_tag = $init_xml->createElement('interface');
+#			$devices_tag->addChild($interface_tag);
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( type => 'bridge' ) );
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( name => "eth" . $id ) );
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( onboot => "yes" ) );
+#			my $source_tag = $init_xml->createElement('source');
+#			$interface_tag->addChild($source_tag);
+#			$source_tag->addChild(
+#				$init_xml->createAttribute( bridge => $net ) );
+#			my $mac_tag = $init_xml->createElement('mac');
+#			$interface_tag->addChild($mac_tag);
+#			$mac =~ s/,//;
+#			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+#
+#		}
+#
+#		my $graphics_tag = $init_xml->createElement('graphics');
+#		$devices_tag->addChild($graphics_tag);
+#		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
+#		my $vnc_port;
+#		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+#			my $vm = $vm_ordered[$i];
+#
+#			# To get name attribute
+#			my $name = $vm->getAttribute("name");
+#			if ( $vmName eq $name ) {
+#				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
+#			}
+#		}
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( port => $vnc_port ) );
+#
+#		#[JSF] host ip left
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( listen => $ip_host ) );
+#
+#		my $serial_tag = $init_xml->createElement('serial');
+#		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
+#		$devices_tag->addChild($serial_tag);
+#
+#		my $source3_tag = $init_xml->createElement('source');
+#		$serial_tag->addChild($source3_tag);
+#		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
+#		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
+#		my $target_tag = $init_xml->createElement('target');
+#		$serial_tag->addChild($target_tag);
+#		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
+#
+##   ############<graphics type='sdl' display=':0.0'/>
+##      my $graphics_tag2 = $init_xml->createElement('graphics');
+##      $devices_tag->addChild($graphics_tag2);
+##      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
+##      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
+##      $disp = $ENV{'DISPLAY'};
+##      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
+##
+##
+##   ############
+#
+#		my $addr = "qemu:///system";
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#		my $format    = 1;
+#		my $xmlstring = $init_xml->toString($format);
+#
+#		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
+#		  or $execution->smartdie(
+#			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml')
+#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#		print XML_FILE "$xmlstring\n";
+#		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#
+#		my $domain = $con->create_domain($xmlstring);
+#
+#		# save pid in run dir
+#		my $uuid = $domain->get_uuid_string();
+#		$execution->execute( "ps aux | grep kvm | grep " 
+#			  . $uuid
+#			  . " | grep -v grep | awk '{print \$2}' >> "
+#			  . $dh->get_run_dir($vmName)
+#			  . "/pid" );
+#
+#		$execution->execute("virt-viewer $vmName &");
+#		
+#
+#		###################################################################
+#		#                      createVM for linux                         #
+#		###################################################################
+#	}
+#	elsif ( $type eq "libvirt-kvm-linux" ) {
+#
+#		#Save xml received in vnxboot, for the autoconfiguration
+#		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
+#		open CONFILE, ">$path" . "vnxboot"
+#		  or $execution->smartdie("can not open ${path}vnxboot: $!")
+#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#
+#		#$execution->execute($doc ,*CONFILE);
+#		print CONFILE "$doc\n";
+#
+#		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
+#			  . " -l -R -quiet -o $filesystem_small $path" );
+#		$execution->execute(
+#			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
+#
+#		my $parser       = new XML::DOM::Parser;
+#		my $dom          = $parser->parse($doc);
+#		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
+#		my $virtualmList = $globalNode->getElementsByTagName("vm");
+#		my $virtualm     = $virtualmList->item($0);
+#
+#		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
+#		my $filesystemTag     = $filesystemTagList->item($0);
+#		my $filesystem_type   = $filesystemTag->getAttribute("type");
+#		my $filesystem        = $filesystemTag->getFirstChild->getData;
+#
+#		if ( $filesystem_type eq "cow" ) {
+#
+#			# DFC If cow file does not exist, we create it
+#			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
+#
+##print "----- Creating COW file: qemu-img create -b $filesystem -f qcow2" . $dh->get_fs_dir($vmName) . "/root_cow_fs\n";
+#				$execution->execute( "qemu-img"
+#					  . " create -b $filesystem -f qcow2 "
+#					  . $dh->get_fs_dir($vmName)
+#					  . "/root_cow_fs" );
+#
+## $execution->execute("qemu-img" . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
+## $execution->execute($bd->get_binaries_path_ref->{"qemu-img"} . " create -c -b $filesystem -f qcow2 " . $dh->get_fs_dir($vmName) . "/root_cow_fs");
+#			}
+#			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
+#		}
+#
+#		# memory
+#		my $memTagList = $virtualm->getElementsByTagName("mem");
+#		my $memTag     = $memTagList->item($0);
+#		my $mem        = $memTag->getFirstChild->getData;
+#
+#		# create XML for libvirt
+#		my $init_xml;
+#		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
+#		my $domain_tag = $init_xml->createElement('domain');
+#		$init_xml->addChild($domain_tag);
+#		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
+#
+#		my $name_tag = $init_xml->createElement('name');
+#		$domain_tag->addChild($name_tag);
+#
+#		#name
+#		$name_tag->addChild( $init_xml->createTextNode($vmName) );
+#
+#		my $memory_tag = $init_xml->createElement('memory');
+#		$domain_tag->addChild($memory_tag);
+#
+#		#memory
+#		$memory_tag->addChild( $init_xml->createTextNode($mem) );
+#
+#		my $vcpu_tag = $init_xml->createElement('vcpu');
+#		$domain_tag->addChild($vcpu_tag);
+#
+#		#vcpu
+#		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
+#
+#		my $os_tag = $init_xml->createElement('os');
+#		$domain_tag->addChild($os_tag);
+#		my $type_tag = $init_xml->createElement('type');
+#		$os_tag->addChild($type_tag);
+#		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
+#		$type_tag->addChild( $init_xml->createTextNode("hvm") );
+#		my $boot1_tag = $init_xml->createElement('boot');
+#		$os_tag->addChild($boot1_tag);
+#		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
+#		my $boot2_tag = $init_xml->createElement('boot');
+#		$os_tag->addChild($boot2_tag);
+#		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
+#
+#		my $features_tag = $init_xml->createElement('features');
+#		$domain_tag->addChild($features_tag);
+#		my $pae_tag = $init_xml->createElement('pae');
+#		$features_tag->addChild($pae_tag);
+#		my $acpi_tag = $init_xml->createElement('acpi');
+#		$features_tag->addChild($acpi_tag);
+#		my $apic_tag = $init_xml->createElement('apic');
+#		$features_tag->addChild($apic_tag);
+#
+#		my $clock_tag = $init_xml->createElement('clock');
+#		$domain_tag->addChild($clock_tag);
+#		$clock_tag->addChild(
+#			$init_xml->createAttribute( sync => "localtime" ) );
+#
+#		my $devices_tag = $init_xml->createElement('devices');
+#		$domain_tag->addChild($devices_tag);
+#
+#		my $emulator_tag = $init_xml->createElement('emulator');
+#		$devices_tag->addChild($emulator_tag);
+#		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
+#
+#		my $disk1_tag = $init_xml->createElement('disk');
+#		$devices_tag->addChild($disk1_tag);
+#		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
+#		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
+#		my $source1_tag = $init_xml->createElement('source');
+#		$disk1_tag->addChild($source1_tag);
+#		$source1_tag->addChild(
+#			$init_xml->createAttribute( file => $filesystem ) );
+#		my $target1_tag = $init_xml->createElement('target');
+#		$disk1_tag->addChild($target1_tag);
+#		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
+#
+#		my $disk2_tag = $init_xml->createElement('disk');
+#		$devices_tag->addChild($disk2_tag);
+#		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
+#		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
+#		my $source2_tag = $init_xml->createElement('source');
+#		$disk2_tag->addChild($source2_tag);
+#		$source2_tag->addChild(
+#			$init_xml->createAttribute( file => $filesystem_small ) );
+#		my $target2_tag = $init_xml->createElement('target');
+#		$disk2_tag->addChild($target2_tag);
+#		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
+#
+#		my $ifTagList = $virtualm->getElementsByTagName("if");
+#		my $numif     = $ifTagList->getLength;
+#
+#		for ( my $j = 0 ; $j < $numif ; $j++ ) {
+#			my $ifTag = $ifTagList->item($j);
+#			my $id    = $ifTag->getAttribute("id");
+#			my $net   = $ifTag->getAttribute("net");
+#			my $mac   = $ifTag->getAttribute("mac");
+#
+#			my $interface_tag = $init_xml->createElement('interface');
+#			$devices_tag->addChild($interface_tag);
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( type => 'bridge' ) );
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( name => "eth" . $id ) );
+#			$interface_tag->addChild(
+#				$init_xml->createAttribute( onboot => "yes" ) );
+#			my $source_tag = $init_xml->createElement('source');
+#			$interface_tag->addChild($source_tag);
+#			$source_tag->addChild(
+#				$init_xml->createAttribute( bridge => $net ) );
+#			my $mac_tag = $init_xml->createElement('mac');
+#			$interface_tag->addChild($mac_tag);
+#			$mac =~ s/,//;
+#			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+#
+#		}
+#
+#		my $graphics_tag = $init_xml->createElement('graphics');
+#		$devices_tag->addChild($graphics_tag);
+#		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
+#		my $vnc_port;
+#		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+#			my $vm = $vm_ordered[$i];
+#
+#			# To get name attribute
+#			my $name = $vm->getAttribute("name");
+#			if ( $vmName eq $name ) {
+#				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
+#			}
+#		}
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( port => $vnc_port ) );
+#
+#		#[JSF] falta sacar la ip del host
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( listen => $ip_host ) );
+#
+#		my $serial_tag = $init_xml->createElement('serial');
+#		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
+#		$devices_tag->addChild($serial_tag);
+#
+#		# $devices_tag->addChild($disk2_tag);
+#		my $source3_tag = $init_xml->createElement('source');
+#		$serial_tag->addChild($source3_tag);
+#		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
+#		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
+#		my $target_tag = $init_xml->createElement('target');
+#		$serial_tag->addChild($target_tag);
+#		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
+#
+##   ############<graphics type='sdl' display=':0.0'/>
+##      my $graphics_tag2 = $init_xml->createElement('graphics');
+##      $devices_tag->addChild($graphics_tag2);
+##      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
+##      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
+##      $disp = $ENV{'DISPLAY'};
+##      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
+##
+##
+##   ############
+#
+#		my $addr = "qemu:///system";
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#		my $format    = 1;
+#		my $xmlstring = $init_xml->toString($format);
+#
+#		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
+#		  or $execution->smartdie(
+#			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml')
+#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#		print XML_FILE "$xmlstring\n";
+#		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#
+#		my $domain = $con->create_domain($xmlstring);
+#
+#		# save pid in run dir
+#		my $uuid = $domain->get_uuid_string();
+#		$execution->execute( "ps aux | grep kvm | grep " 
+#			  . $uuid
+#			  . " | grep -v grep | awk '{print \$2}' >> "
+#			  . $dh->get_run_dir($vmName)
+#			  . "/pid" );
+#
+#		$execution->execute("virt-viewer $vmName &");
+#		
+#
+#		###################################################################
+#		#                      createVM for UML                           #
+#		###################################################################
+#	}
+	if ( $type eq "uml" ) {
 
 		my @params;
 		my @build_params;
@@ -1785,38 +1785,38 @@ sub destroyVM {
 
 	my $error = 0;
 
-	if ( ( $type eq "libvirt-kvm" ) || ( $type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ) {
-
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		$error = "Domain does not exist\n";
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->destroy();
-				print "Domain destroyed\n";
-
-				# Delete vm directory (DFC 21/01/2010)
-				$error = 0;
-				last;
-
-				# return $error;
-			}
-		}
-
-		# DFC
-		# Remove vm fs directory (cow and iso filesystems)
-		$execution->execute( "rm " . $dh->get_fs_dir($vmName) . "/*" );
-		return $error;
-
-	}
-	elsif ( $type eq "uml" ) {
+#	if ( ( $type eq "libvirt-kvm" ) || ( $type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ) {
+#
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		$error = "Domain does not exist\n";
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->destroy();
+#				print "Domain destroyed\n";
+#
+#				# Delete vm directory (DFC 21/01/2010)
+#				$error = 0;
+#				last;
+#
+#				# return $error;
+#			}
+#		}
+#
+#		# DFC
+#		# Remove vm fs directory (cow and iso filesystems)
+#		$execution->execute( "rm " . $dh->get_fs_dir($vmName) . "/*" );
+#		return $error;
+#
+#	}
+	if ( $type eq "uml" ) {
 
 		my @pids;
 
@@ -1875,78 +1875,78 @@ sub startVM {
 	my $error;
 
 
-	if ( $type eq "libvirt-kvm" ) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_defined_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->create();
-				print "Domain started\n";
-				$error = 0;
-				return $error;
-			}
-		}
-		$error = "Domain does not exist";
-		return $error;
-
-	}
-	elsif ( $type eq "libvirt-kvm-windows" ) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_defined_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->create();
-				print "Domain started\n";
-
-				# save pid in run dir
-				my $uuid = $listDom->get_uuid_string();
-				$execution->execute( "ps aux | grep kvm | grep " 
-					  . $uuid
-					  . " | grep -v grep | awk '{print \$2}' >> "
-					  . $dh->get_run_dir($vmName)
-					  . "/pid" );
-
-				$execution->execute("virt-viewer $vmName &");
-
-
-		my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type, 2 );
-
-		# If host_mapping is in use, append trailer to /etc/hosts config file
-
-		if ( $dh->get_host_mapping ) {
-
-			#@host_lines = ( @host_lines, $net->addr() . " $vm_name" );
-			#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
-			open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
-				or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
-				unless ( $execution->get_exe_mode() == EXE_DEBUG );
-			print HOSTLINES $net->addr() . " $vmName\n";
-			close HOSTLINES;
-		}
-
-				$error = 0;
-				return $error;
-			}
-		}
-		$error = "Domain does not exist";
-		return $error;
-
-	}
-	elsif ( $type eq "libvirt-kvm-linux" ) {
+#	if ( $type eq "libvirt-kvm" ) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_defined_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->create();
+#				print "Domain started\n";
+#				$error = 0;
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist";
+#		return $error;
+#
+#	}
+#	elsif ( $type eq "libvirt-kvm-windows" ) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_defined_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->create();
+#				print "Domain started\n";
+#
+#				# save pid in run dir
+#				my $uuid = $listDom->get_uuid_string();
+#				$execution->execute( "ps aux | grep kvm | grep " 
+#					  . $uuid
+#					  . " | grep -v grep | awk '{print \$2}' >> "
+#					  . $dh->get_run_dir($vmName)
+#					  . "/pid" );
+#
+#				$execution->execute("virt-viewer $vmName &");
+#
+#
+#		my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type, 2 );
+#
+#		# If host_mapping is in use, append trailer to /etc/hosts config file
+#
+#		if ( $dh->get_host_mapping ) {
+#
+#			#@host_lines = ( @host_lines, $net->addr() . " $vm_name" );
+#			#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
+#			open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
+#				or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
+#				unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#			print HOSTLINES $net->addr() . " $vmName\n";
+#			close HOSTLINES;
+#		}
+#
+#				$error = 0;
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist";
+#		return $error;
+#
+#	}
+	if ( $type eq "libvirt-kvm-linux" ) {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -2025,56 +2025,56 @@ sub shutdownVM {
 	# Sample code
 	print "Shutting down vm $vmName of type $type\n";
 
-	if ( $type eq "libvirt-kvm" ) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->shutdown();
-				print "Domain shut down\n";
-				&change_vm_status( $dh, $vmName, "REMOVE" );
-				return $error;
-			}
-		}
-		$error = "Domain does not exist";
-		return $error;
-
-	}
-	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux") ) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-
-				$listDom->shutdown();
-				&change_vm_status( $dh, $vmName, "REMOVE" );
-
-				#remove run directory
-				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) );
-
-				print "Domain shut down\n";
-				return $error;
-			}
-		}
-		$error = "Domain does not exist..";
-		return $error;
-
-	}
-	elsif ( $type eq "uml" ) {
+#	if ( $type eq "libvirt-kvm" ) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->shutdown();
+#				print "Domain shut down\n";
+#				&change_vm_status( $dh, $vmName, "REMOVE" );
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist";
+#		return $error;
+#
+#	}
+#	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux") ) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#
+#				$listDom->shutdown();
+#				&change_vm_status( $dh, $vmName, "REMOVE" );
+#
+#				#remove run directory
+#				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) );
+#
+#				print "Domain shut down\n";
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist..";
+#		return $error;
+#
+#	}
+	if ( $type eq "uml" ) {
 		&halt_uml( $vmName, $F_flag );
 	}
 	else {
@@ -2099,51 +2099,51 @@ sub saveVM {
 	# Sample code
 	print "dummy plugin: saving vm $vmName of type $type\n";
 
-	if ( $type eq "libvirt-kvm" ) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->save($filename);
-				print "Domain saved to file $filename\n";
-				&change_vm_status( $dh, $vmName, "paused" );
-				return $error;
-			}
-		}
-		$error = "Domain does not exist..";
-		return $error;
-
-	}
-	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->save($filename);
-				print "Domain saved to file $filename\n";
-				&change_vm_status( $dh, $vmName, "paused" );
-				return $error;
-			}
-		}
-		$error = "Domain does not exist..";
-		return $error;
-
-	}
-	elsif ( $type eq "uml" ) {
+#	if ( $type eq "libvirt-kvm" ) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->save($filename);
+#				print "Domain saved to file $filename\n";
+#				&change_vm_status( $dh, $vmName, "paused" );
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist..";
+#		return $error;
+#
+#	}
+#	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->save($filename);
+#				print "Domain saved to file $filename\n";
+#				&change_vm_status( $dh, $vmName, "paused" );
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist..";
+#		return $error;
+#
+#	}
+	if ( $type eq "uml" ) {
 		$error = "Type uml is not yet supported\n";
 		return $error;
 	}
@@ -2165,31 +2165,31 @@ sub restoreVM {
 	print
 	  "dummy plugin: restoring vm $vmName of type $type from file $filename\n";
 
-	if ( $type eq "libvirt-kvm" ) {
-		my $addr = "qemu:///system";
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my $dom = $con->restore_domain($filename);
-		print("Domain $vmName restored from file $filename\n");
-		&change_vm_status( $dh, $vmName, "running" );
-		return $error;
-
-	}
-	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
-		my $addr = "qemu:///system";
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my $dom = $con->restore_domain($filename);
-		print("Domain restored from file $filename\n");
-		&change_vm_status( $dh, $vmName, "running" );
-		return $error;
-
-	}
-	elsif ( $type eq "uml" ) {
+#	if ( $type eq "libvirt-kvm" ) {
+#		my $addr = "qemu:///system";
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my $dom = $con->restore_domain($filename);
+#		print("Domain $vmName restored from file $filename\n");
+#		&change_vm_status( $dh, $vmName, "running" );
+#		return $error;
+#
+#	}
+#	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+#		my $addr = "qemu:///system";
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my $dom = $con->restore_domain($filename);
+#		print("Domain restored from file $filename\n");
+#		&change_vm_status( $dh, $vmName, "running" );
+#		return $error;
+#
+#	}
+	if ( $type eq "uml" ) {
 		$error = "Type uml is not yet supported\n";
 		return $error;
 	}
@@ -2210,49 +2210,49 @@ sub suspendVM {
 	# Sample code
 	print "dummy plugin: suspending vm $vmName\n";
 
-	if ( $type eq "libvirt-kvm" ) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->suspend();
-				print "Domain suspended\n";
-				return $error;
-			}
-		}
-		$error = "Domain does not exist.";
-		return $error;
-
-	}
-	elsif (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->suspend();
-				print "Domain suspended\n";
-				return $error;
-			}
-		}
-		$error = "Domain does not exist.";
-		return $error;
-
-	}
-	elsif ( $type eq "uml" ) {
+#	if ( $type eq "libvirt-kvm" ) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->suspend();
+#				print "Domain suspended\n";
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist.";
+#		return $error;
+#
+#	}
+#	elsif (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->suspend();
+#				print "Domain suspended\n";
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist.";
+#		return $error;
+#
+#	}
+	if ( $type eq "uml" ) {
 		$error = "Type uml is not yet supported\n";
 		return $error;
 	}
@@ -2273,49 +2273,49 @@ sub resumeVM {
 	# Sample code
 	print "dummy plugin: resuming vm $vmName\n";
 
-	if ( $type eq "libvirt-kvm" ) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->resume();
-				print "Domain resumed\n";
-				return $error;
-			}
-		}
-		$error = "Domain does not exist.\n";
-		return $error;
-
-	}
-	elsif (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->resume();
-				print "Domain resumed\n";
-				return $error;
-			}
-		}
-		$error = "Domain does not exist.\n";
-		return $error;
-
-	}
-	elsif ( $type eq "uml" ) {
+#	if ( $type eq "libvirt-kvm" ) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->resume();
+#				print "Domain resumed\n";
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist.\n";
+#		return $error;
+#
+#	}
+#	elsif (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->resume();
+#				print "Domain resumed\n";
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist.\n";
+#		return $error;
+#
+#	}
+	if ( $type eq "uml" ) {
 		$error = "Type uml is not yet supported\n";
 		return $error;
 	}
@@ -2334,49 +2334,49 @@ sub rebootVM {
 	my $error = 0;
 
 
-	if ( $type eq "libvirt-kvm" ) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->reboot($Sys::Virt::Domain::REBOOT_RESTART);
-				print "Domain rebooting\n";
-				return $error;
-			}
-		}
-		$error = "Domain does not exist\n";
-		return $error;
-
-	}
-	elsif (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->reboot($Sys::Virt::Domain::REBOOT_RESTART);
-				print "Domain rebooting\n";
-				return $error;
-			}
-		}
-		$error = "Domain does not exist\n";
-		return $error;
-
-	}
-	elsif ( $type eq "uml" ) {
+#	if ( $type eq "libvirt-kvm" ) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->reboot($Sys::Virt::Domain::REBOOT_RESTART);
+#				print "Domain rebooting\n";
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist\n";
+#		return $error;
+#
+#	}
+#	elsif (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->reboot($Sys::Virt::Domain::REBOOT_RESTART);
+#				print "Domain rebooting\n";
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist\n";
+#		return $error;
+#
+#	}
+	if ( $type eq "uml" ) {
 		$error = "Type uml is not yet supported\n";
 		return $error;
 	}
@@ -2398,51 +2398,51 @@ sub resetVM {
 	# Sample code
 	print "dummy plugin: reseting vm $vmName\n";
 
-	if ( $type eq "libvirt-kwm" ) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->reboot(&Sys::Virt::Domain::REBOOT_DESTROY);
-				print "Domain reset";
-				$error = 0;
-				return $error;
-			}
-		}
-		$error = "Domain does not exist";
-		return $error;
-
-	}
-	elsif (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
-		my $addr = "qemu:///system";
-
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->reboot(&Sys::Virt::Domain::REBOOT_DESTROY);
-				print "Domain reset";
-				$error = 0;
-				return $error;
-			}
-		}
-		$error = "Domain does not exist";
-		return $error;
-
-	}
-	elsif ( $type eq "uml" ) {
+#	if ( $type eq "libvirt-kwm" ) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->reboot(&Sys::Virt::Domain::REBOOT_DESTROY);
+#				print "Domain reset";
+#				$error = 0;
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist";
+#		return $error;
+#
+#	}
+#	elsif (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+#		my $addr = "qemu:///system";
+#
+#		print "Connecting to $addr...";
+#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+#		print "OK\n";
+#
+#		my @doms = $con->list_domains();
+#
+#		foreach my $listDom (@doms) {
+#			my $dom_name = $listDom->get_name();
+#			if ( $dom_name eq $vmName ) {
+#				$listDom->reboot(&Sys::Virt::Domain::REBOOT_DESTROY);
+#				print "Domain reset";
+#				$error = 0;
+#				return $error;
+#			}
+#		}
+#		$error = "Domain does not exist";
+#		return $error;
+#
+#	}
+	if ( $type eq "uml" ) {
 		$error = "Type uml is not yet supported\n";
 		return $error;
 	}

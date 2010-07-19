@@ -88,6 +88,8 @@ See the tutorial/index.html document for details
     <exec seq="showlog" type="verbatim" mode="system">'while true; do cat /var/log/vnxdaemon.log;sleep 3;clear; done'</exec>
     <exec seq="calc" type="verbatim" mode="system">gcalctool</exec>
     <exec seq="killcalc" type="verbatim" mode="system">pkill gcalctool</exec>
+    <exec seq="firefox" type="verbatim" mode="system">firefox</exec>
+    <exec seq="term" type="verbatim" mode="processy">gnome-terminal</exec>
   </vm>
 
   <vm name="uml5" type="uml" subtype="" os="">
