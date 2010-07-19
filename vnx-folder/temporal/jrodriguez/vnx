@@ -156,7 +156,8 @@ use VNX::NetChecks;
 use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
-use vmAPIt;
+use vmAPIuml;
+use vmAPIlibvirt;
 
 use Error qw(:try);
 use Exception::Class ( "Vnx::Exception" =>
@@ -1868,6 +1869,8 @@ sub mode_x {
       %vm_ips = &get_UML_command_ip($seq);
       $execution->smartdie ("some vm is not ready to exec sequence $seq through net. Wait a while and retry...\n") unless &UMLs_cmd_ready(%vm_ips);
    }
+   
+   
 	my $error = vmAPI->executeCMDL($seq, $execution, $bd, $dh,%vm_ips);
 	
 
