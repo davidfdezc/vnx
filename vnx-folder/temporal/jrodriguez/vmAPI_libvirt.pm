@@ -64,6 +64,13 @@ my $curr_uml;
 my $F_flag;       # passed from createVM to halt
 my $M_flag;       # passed from createVM to halt
 
+
+
+
+
+
+
+
 sub defineVM {
 
 	my $self   = shift;
@@ -406,7 +413,24 @@ sub defineVM {
 		print XML_FILE "$xmlstring\n";
 		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
 
-		#<STDIN>;
+		# check that the domain is not already defined or started
+        my @doms = $con->list_defined_domains();
+		foreach my $listDom (@doms) {
+			my $dom_name = $listDom->get_name();
+			if ( $dom_name eq $vmName ) {
+				$error = "Domain $vmName already defined\n";
+				return $error;
+			}
+		}
+		@doms = $con->list_domains();
+		foreach my $listDom (@doms) {
+			my $dom_name = $listDom->get_name();
+			if ( $dom_name eq $vmName ) {
+				$error = "Domain $vmName already defined and started\n";
+				return $error;
+			}
+		}
+		
 		my $domain = $con->define_domain($xmlstring);
 
 #      No PID exists for defined VMs
@@ -638,7 +662,24 @@ sub defineVM {
 		print XML_FILE "$xmlstring\n";
 		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
 
-		#<STDIN>;
+        # check that the domain is not already defined or started
+        my @doms = $con->list_defined_domains();
+		foreach my $listDom (@doms) {
+			my $dom_name = $listDom->get_name();
+			if ( $dom_name eq $vmName ) {
+				$error = "Domain $vmName already defined\n";
+				return $error;
+			}
+		}
+		@doms = $con->list_domains();
+		foreach my $listDom (@doms) {
+			my $dom_name = $listDom->get_name();
+			if ( $dom_name eq $vmName ) {
+				$error = "Domain $vmName already defined and started\n";
+				return $error;
+			}
+		}
+		
 		my $domain = $con->define_domain($xmlstring);
 
 #      No PID exists for defined VMs
@@ -1069,6 +1110,26 @@ sub createVM {
 		print XML_FILE "$xmlstring\n";
 		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
 
+
+        # check that the domain is not already defined or started
+        my @doms = $con->list_defined_domains();
+		foreach my $listDom (@doms) {
+			my $dom_name = $listDom->get_name();
+			if ( $dom_name eq $vmName ) {
+				$error = "Domain $vmName already defined\n";
+				return $error;
+			}
+		}
+		@doms = $con->list_domains();
+		foreach my $listDom (@doms) {
+			my $dom_name = $listDom->get_name();
+			if ( $dom_name eq $vmName ) {
+				$error = "Domain $vmName already defined and started\n";
+				return $error;
+			}
+		}
+
+
 		my $domain = $con->create_domain($xmlstring);
 
 		# save pid in run dir
@@ -1081,7 +1142,7 @@ sub createVM {
 
 		$execution->execute("virt-viewer $vmName &");
 		
-
+        return $error;
 		###################################################################
 		#                      createVM for linux                         #
 		###################################################################
@@ -1305,6 +1366,25 @@ sub createVM {
 		print XML_FILE "$xmlstring\n";
 		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
 
+
+        # check that the domain is not already defined or started
+        my @doms = $con->list_defined_domains();
+		foreach my $listDom (@doms) {
+			my $dom_name = $listDom->get_name();
+			if ( $dom_name eq $vmName ) {
+				$error = "Domain $vmName already defined\n";
+				return $error;
+			}
+		}
+		@doms = $con->list_domains();
+		foreach my $listDom (@doms) {
+			my $dom_name = $listDom->get_name();
+			if ( $dom_name eq $vmName ) {
+				$error = "Domain $vmName already defined and started\n";
+				return $error;
+			}
+		}
+
 		my $domain = $con->create_domain($xmlstring);
 
 		# save pid in run dir
@@ -1317,7 +1397,8 @@ sub createVM {
 
 		$execution->execute("virt-viewer $vmName &");
 		
-
+        return $error;
+        
 		###################################################################
 		#                      createVM for UML                           #
 		###################################################################
@@ -1676,7 +1757,7 @@ sub createVM {
 #						my $mconsole_output = `$command`;
 #						if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
 #							$pts = $1;
-#							print "...pts is $pts\n"
+#						       	print "...pts is $pts\n"
 #							  if ( $execution->get_exe_mode() == EXE_VERBOSE );
 #							$execution->execute(
 #								    $bd->get_binaries_path_ref->{"echo"}
@@ -1893,7 +1974,7 @@ sub startVM {
 				return $error;
 			}
 		}
-		$error = "Domain does not exist";
+		$error = "Domain does not exist\n";
 		return $error;
 
 	}
@@ -1942,7 +2023,7 @@ sub startVM {
 				return $error;
 			}
 		}
-		$error = "Domain does not exist";
+		$error = "Domain does not exist\n";
 		return $error;
 
 	}
@@ -1991,7 +2072,7 @@ sub startVM {
 				return $error;
 			}
 		}
-		$error = "Domain does not exist";
+		$error = "Domain does not exist\n";
 		return $error;
 
 	}
@@ -2043,7 +2124,7 @@ sub shutdownVM {
 				return $error;
 			}
 		}
-		$error = "Domain does not exist";
+		$error = "Domain does not exist\n";
 		return $error;
 
 	}
@@ -2070,7 +2151,7 @@ sub shutdownVM {
 				return $error;
 			}
 		}
-		$error = "Domain does not exist..";
+		$error = "Domain does not exist..\n";
 		return $error;
 
 	}
@@ -2117,7 +2198,7 @@ sub saveVM {
 				return $error;
 			}
 		}
-		$error = "Domain does not exist..";
+		$error = "Domain does not exist..\n";
 		return $error;
 
 	}
@@ -2139,7 +2220,7 @@ sub saveVM {
 				return $error;
 			}
 		}
-		$error = "Domain does not exist..";
+		$error = "Domain does not exist...\n";
 		return $error;
 
 	}
@@ -2167,7 +2248,7 @@ sub restoreVM {
 
 	if ( $type eq "libvirt-kvm" ) {
 		my $addr = "qemu:///system";
-		print "Connecting to $addr...";
+		print "Connecting to $addr...\n";
 		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
 		print "OK\n";
 
@@ -2179,7 +2260,7 @@ sub restoreVM {
 	}
 	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
 		my $addr = "qemu:///system";
-		print "Connecting to $addr...";
+		print "Connecting to $addr...\n";
 		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
 		print "OK\n";
 
@@ -2227,7 +2308,7 @@ sub suspendVM {
 				return $error;
 			}
 		}
-		$error = "Domain does not exist.";
+		$error = "Domain does not exist.\n";
 		return $error;
 
 	}
@@ -2248,7 +2329,7 @@ sub suspendVM {
 				return $error;
 			}
 		}
-		$error = "Domain does not exist.";
+		$error = "Domain does not exist.\n";
 		return $error;
 
 	}
@@ -2416,7 +2497,7 @@ sub resetVM {
 				return $error;
 			}
 		}
-		$error = "Domain does not exist";
+		$error = "Domain does not exist\n";
 		return $error;
 
 	}
@@ -2438,7 +2519,7 @@ sub resetVM {
 				return $error;
 			}
 		}
-		$error = "Domain does not exist";
+		$error = "Domain does not exist\n";
 		return $error;
 
 	}
