@@ -941,7 +941,7 @@ sub mode_undefine{
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type, $dh,$bd,$execution);
-      if (!$error eq 0){print $error}
+      if (!($error eq 0)){print $error}
    }
 }
 
@@ -1040,7 +1040,7 @@ sub mode_reset {
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->resetVM($name, $merged_type, $execution, $bd,$dh);
-      if (!$error eq 0){print $error}
+      if (!($error eq 0)){print $error}
    }
 }
 
@@ -1066,7 +1066,7 @@ sub mode_save {
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->saveVM($name, $merged_type, $filename,$dh,$bd,$execution);
-      if (!$error eq 0){print $error}
+      if (!($error eq 0)){print $error}
 
    }
 }
@@ -1093,7 +1093,7 @@ sub mode_restore {
       call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->restoreVM($name, $merged_type, $filename, $dh,$bd,$execution);
-      if (!$error eq 0){print $error}
+      if (!($error eq 0)){print $error}
    }
 }
 
@@ -1116,7 +1116,7 @@ sub mode_suspend {
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->suspendVM($name, $merged_type,$dh,$bd,$execution);
-      if (!$error eq 0){print $error}
+      if (!($error eq 0)){print $error}
    }
 }
 
@@ -1138,7 +1138,7 @@ sub mode_resume {
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->resumeVM($name, $merged_type,$dh,$bd,$execution);
-      if (!$error eq 0){print $error}
+      if (!($error eq 0)){print $error}
    }
 }
 
@@ -1733,7 +1733,7 @@ sub boot_VMs {
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->createVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
-      if (!$error eq 0){print $error}	
+      if (!($error eq 0)){print $error}	
       $manipcounter++;	  
       undef($curr_uml);
 
@@ -1790,7 +1790,7 @@ sub define_VMs {
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->defineVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
-      if (!$error eq 0){print $error}
+      if (!($error eq 0)){print $error}
       $manipcounter++;
       undef($curr_uml);
       &change_vm_status($dh,$name,"defined");
@@ -1853,7 +1853,7 @@ sub start_VMs {
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
-      if (!$error eq 0){print $error} 
+      if (!($error eq 0)){print $error} 
       $manipcounter++;
       undef($curr_uml);
       &change_vm_status($dh,$name,"running");
@@ -1900,7 +1900,7 @@ sub mode_x {
    
    
 	my $error = vmAPI->executeCMDL($seq, $execution, $bd, $dh,%vm_ips);
-	if (!$error eq 0){print $error}
+	if (!($error eq 0)){print $error}
 	
 
 
@@ -1946,14 +1946,14 @@ sub mode_d {
            # call the corresponding vmAPI
            my $vmType = $vm->getAttribute("type");
            my $error = "vmAPI_$vmType"->destroyVM($name, $merged_type, $execution, $bd,$dh);
-           if (!$error eq 0){print $error}
+           if (!($error eq 0)){print $error}
       }
       else{
 
            # call the corresponding vmAPI
            my $vmType = $vm->getAttribute("type");
            my $error = "vmAPI_$vmType"->shutdownVM($name, $merged_type, $execution, $bd,$dh,$args->get('F'));
-           if (!$error eq 0){print $error}
+           if (!($error eq 0)){print $error}
            
       }
 
@@ -2298,7 +2298,7 @@ sub mode_P {
         my $vmType = $vm->getAttribute("type");
         
         my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type, $dh,$bd,$execution);
-        if (!$error eq 0){print $error}
+        if (!($error eq 0)){print $error}
  
     }
     if ( ($vm_left eq 0) && (!$args->get('M') ) ) {
