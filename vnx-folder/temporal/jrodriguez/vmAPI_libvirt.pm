@@ -4,7 +4,7 @@
 #
 # This file is a sample for VNUML generalization API.
 ###############
-package vmAPI;
+package vmAPI_libvirt;
 
 @ISA    = qw(Exporter);
 @EXPORT = qw(defineVM
@@ -3375,7 +3375,7 @@ sub executeCMDL {
 		
 					# Other case. Don't do anything (it would be an error in the XML!)
 				}
-			}
+		}
 }
 
 sub UML_init_wait {
