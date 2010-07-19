@@ -1930,7 +1930,7 @@ sub mode_x {
 #			vmAPÎ_libvirt->executeCMD($merged_type, $seq, $execution, $bd, $dh,$vm);
 #		}elsif ($merged_type eq "libvirt-kvm-linux"){
 #			vmAPÎ_libvirt->executeCMD($merged_type, $seq, $execution, $bd, $dh,$vm);
-#		}
+		}
 
 
 }
