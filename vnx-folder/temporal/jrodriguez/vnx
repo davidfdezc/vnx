@@ -156,8 +156,8 @@ use VNX::NetChecks;
 use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
-use vmAPIuml;
-use vmAPIlibvirt;
+use vmAPI_uml;
+use vmAPI_libvirt;
 
 use Error qw(:try);
 use Exception::Class ( "Vnx::Exception" =>
@@ -938,8 +938,9 @@ sub mode_undefine{
       	$execution->smartdie ("virtual machine $name cannot be undefined from status \"$status\"\n");
       	next;
       }
-  
-      my $error = vmAPI->undefineVM($name, $merged_type, $dh,$bd,$execution);
+      # call the corresponding vmAPI
+      my $vmType = $vm->getAttribute("type");
+      my $error = 'vmAPI' . '_$vmType'->undefineVM($name, $merged_type, $dh,$bd,$execution);
    }
 }
 
@@ -1035,7 +1036,9 @@ sub mode_reset {
       unless ($vm_hash{$name}){
           next;
       }
-      my $error = vmAPI->resetVM($name, $merged_type, $execution, $bd,$dh);
+            # call the corresponding vmAPI
+      my $vmType = $vm->getAttribute("type");
+      my $error = 'vmAPI' . '_$vmType'->resetVM($name, $merged_type, $execution, $bd,$dh);
    }
 }
 
@@ -1057,7 +1060,10 @@ sub mode_save {
       }
 
       $filename = $dh->get_vm_dir($name) . "/" . $name . "_savefile";
-      my $error = vmAPI->saveVM($name, $merged_type, $filename,$dh,$bd,$execution);
+
+      # call the corresponding vmAPI
+      my $vmType = $vm->getAttribute("type");
+      my $error = 'vmAPI' . '_$vmType'->saveVM($name, $merged_type, $filename,$dh,$bd,$execution);
 
    }
 }
@@ -1080,7 +1086,10 @@ sub mode_restore {
       }
       
       $filename = $dh->get_vm_dir($name) . "/" . $name . "_savefile";
-      my $error = vmAPI->restoreVM($name, $merged_type, $filename, $dh,$bd,$execution);
+      # 
+      call the corresponding vmAPI
+      my $vmType = $vm->getAttribute("type");
+      my $error = 'vmAPI' . '_$vmType'->restoreVM($name, $merged_type, $filename, $dh,$bd,$execution);
    }
 }
 
@@ -1100,7 +1109,9 @@ sub mode_suspend {
           next;
       }
       
-      my $error = vmAPI->suspendVM($name, $merged_type,$dh,$bd,$execution);
+      # call the corresponding vmAPI
+      my $vmType = $vm->getAttribute("type");
+      my $error = 'vmAPI' . '_$vmType'->suspendVM($name, $merged_type,$dh,$bd,$execution);
    }
 }
 
@@ -1119,7 +1130,9 @@ sub mode_resume {
       unless ($vm_hash{$name}){
           next;
       }
-      my $error = vmAPI->resumeVM($name, $merged_type,$dh,$bd,$execution);
+      # call the corresponding vmAPI
+      my $vmType = $vm->getAttribute("type");
+      my $error = 'vmAPI' . '_$vmType'->resumeVM($name, $merged_type,$dh,$bd,$execution);
    }
 }
 
@@ -1711,7 +1724,9 @@ sub boot_VMs {
       my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);
-      my $error = vmAPI->createVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);	
+      # call the corresponding vmAPI
+      my $vmType = $vm->getAttribute("type");
+      my $error = 'vmAPI' . '_$vmType'->createVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);	
       $manipcounter++;	  
       undef($curr_uml);
 
@@ -1765,7 +1780,9 @@ sub define_VMs {
       my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);	  
-      my $error = vmAPI->defineVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
+      # call the corresponding vmAPI
+      my $vmType = $vm->getAttribute("type");
+      my $error = 'vmAPI' . '_$vmType'->defineVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
       $manipcounter++;
       undef($curr_uml);
       &change_vm_status($dh,$name,"defined");
@@ -1825,7 +1842,9 @@ sub start_VMs {
       $curr_uml = $name;
       
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i); # only needed for uml vms 
-      my $error = vmAPI->startVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter); 
+      # call the corresponding vmAPI
+      my $vmType = $vm->getAttribute("type");
+      my $error = 'vmAPI' . '_$vmType'->startVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter); 
       $manipcounter++;
       undef($curr_uml);
       &change_vm_status($dh,$name,"running");
@@ -1914,12 +1933,16 @@ sub mode_d {
       
       if ($args->get('F')){
 
-           my $error = vmAPI->destroyVM($name, $merged_type, $execution, $bd,$dh);
+           # call the corresponding vmAPI
+           my $vmType = $vm->getAttribute("type");
+           my $error = 'vmAPI' . '_$vmType'->destroyVM($name, $merged_type, $execution, $bd,$dh);
            #$error = vmAPI->undefineVM($name, $type);  no vale para nada?
       }
       else{
 
-           my $error = vmAPI->shutdownVM($name, $merged_type, $execution, $bd,$dh,$args->get('F'));
+           # call the corresponding vmAPI
+           my $vmType = $vm->getAttribute("type");
+           my $error = 'vmAPI' . '_$vmType'->shutdownVM($name, $merged_type, $execution, $bd,$dh,$args->get('F'));
            
       }
 
@@ -2260,8 +2283,10 @@ sub mode_P {
             $vm_left = 1;
             next;
         }
-        my $error = vmAPI->undefineVM($name, $merged_type, $dh,$bd,$execution);
-
+        # call the corresponding vmAPI
+        my $vmType = $vm->getAttribute("type");
+        my $error = 'vmAPI' . '_$vmType'->undefineVM($name, $merged_type, $dh,$bd,$execution);
+ 
     }
     if ( ($vm_left eq 0) && (!$args->get('M') ) ) {
         # 3. Delete supporting simulation files...
