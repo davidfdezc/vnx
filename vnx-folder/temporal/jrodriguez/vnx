@@ -1918,11 +1918,11 @@ sub mode_x {
 		unless ( $vm_hash{$name} ) {
 			next;
 		}
-		my $random_id  = &generate_random_string(6);
+		
 		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 		# call the corresponding vmAPI
-      my $vmType = $vm->getAttribute("type");
-      my $error = 'vmAPI' . '_$vmType'->executeCMD($merged_type, $seq, $execution, $bd, $dh,$vm);
+       my $vmType = $vm->getAttribute("type");
+       my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $execution, $bd, $dh, $vm, $name);
      	if (!($error eq 0)){print $error}
 #		if ( $merged_type eq "uml"){
 #			vmAPI_uml->executeCMD($merged_type, $seq, $execution, $bd, $dh,$vm);
@@ -1930,7 +1930,8 @@ sub mode_x {
 #			vmAPÎ_libvirt->executeCMD($merged_type, $seq, $execution, $bd, $dh,$vm);
 #		}elsif ($merged_type eq "libvirt-kvm-linux"){
 #			vmAPÎ_libvirt->executeCMD($merged_type, $seq, $execution, $bd, $dh,$vm);
-		}
+	}
+	vmAPI_uml->exec_command_host($seq,$execution,$bd,$dh);
 
 
 }
