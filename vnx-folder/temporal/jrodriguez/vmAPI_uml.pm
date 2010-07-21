@@ -1706,11 +1706,13 @@ sub halt_uml {
 				$execution->execute(
 					$bd->get_binaries_path_ref->{"uml_mconsole"}
 					  . " $mconsole halt 2>/dev/null" );
+
 			}
 			else {
 				$execution->execute(
 					$bd->get_binaries_path_ref->{"uml_mconsole"}
 					  . " $mconsole cad 2>/dev/null" );
+
 			}
 		}
 		else {
