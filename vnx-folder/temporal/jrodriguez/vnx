@@ -1984,7 +1984,7 @@ sub mode_d {
            my $vmType = $vm->getAttribute("type");
            my $error = "vmAPI_$vmType"->shutdownVM($name, $merged_type, $execution, $bd,$dh,$args->get('F'));
            if (!($error eq 0)){print $error}
-           
+          
       }
 
    }
@@ -1998,7 +1998,7 @@ sub mode_d {
       # blocks can't be avoided (is needed to perform bridges and interfaces
       # release)
       my $time_0 = time();
-    
+      
       if ((!$args->get('F'))&&($execution->get_exe_mode() != EXE_DEBUG)) {		
 
          print "---------- Waiting until virtual machines extinction ----------\n"; #if ($execution->get_exe_mode() == EXE_VERBOSE);
@@ -2013,9 +2013,11 @@ sub mode_d {
          }       
       }
 
-
-      if (($args->get('F'))&(!($args->get('M'))))   {
-      	
+print "q pasa\n";
+#      if (($args->get('F'))&(!($args->get('M'))))   {
+      if (!($args->get('M')))   {
+print "nen\n";
+#<STDIN>;
          # 1. To stop UML
          #   &halt;
 
@@ -2428,7 +2430,11 @@ sub get_kernel_pids {
 	foreach my $vm ($dh->get_vm_ordered) {
 		# Get name attribute
 		my $name = $vm->getAttribute("name");
-		next if (!(($only_vm eq "")||($only_vm eq $name)));
+
+		if ($only_vm ne '' && $only_vm ne $name){
+			next;
+		}
+
 		my $pid_file = $dh->get_run_dir($name) . "/pid";
 		next if (! -f $pid_file);
 		my $command = $bd->get_binaries_path_ref->{"cat"} . " $pid_file";
@@ -2722,6 +2728,7 @@ sub VM_alive {
 	   return 0;
    }
    my $pids_string = join(" ",@pids);
+   
    my $pipe = $bd->get_binaries_path_ref->{"ps"} . " --no-headers -p $pids_string 2> /dev/null|";   ## Avoiding strange warnings in the ps list
    open my $ps_list, "$pipe";
    if (<$ps_list>) {

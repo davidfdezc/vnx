@@ -1080,7 +1080,7 @@ sub createVM {
 		my $uuid = $domain->get_uuid_string();
 		$execution->execute( "ps aux | grep kvm | grep " 
 			  . $uuid
-			  . " | grep -v grep | awk '{print \$2}' >> "
+			  . " | grep -v grep | awk '{print \$2}' > "
 			  . $dh->get_run_dir($vmName)
 			  . "/pid" );
 
@@ -1333,7 +1333,7 @@ sub createVM {
 		my $uuid = $domain->get_uuid_string();
 		$execution->execute( "ps aux | grep kvm | grep " 
 			  . $uuid
-			  . " | grep -v grep | awk '{print \$2}' >> "
+			  . " | grep -v grep | awk '{print \$2}' > "
 			  . $dh->get_run_dir($vmName)
 			  . "/pid" );
 
@@ -1453,7 +1453,7 @@ sub startVM {
 				my $uuid = $listDom->get_uuid_string();
 				$execution->execute( "ps aux | grep kvm | grep " 
 					  . $uuid
-					  . " | grep -v grep | awk '{print \$2}' >> "
+					  . " | grep -v grep | awk '{print \$2}' > "
 					  . $dh->get_run_dir($vmName)
 					  . "/pid" );
 
@@ -1504,7 +1504,7 @@ sub startVM {
 				my $uuid = $listDom->get_uuid_string();
 				$execution->execute( "ps aux | grep kvm | grep " 
 					  . $uuid
-					  . " | grep -v grep | awk '{print \$2}' >> "
+					  . " | grep -v grep | awk '{print \$2}' > "
 					  . $dh->get_run_dir($vmName)
 					  . "/pid" );
 
@@ -1584,8 +1584,8 @@ sub shutdownVM {
 				$listDom->shutdown();
 				&change_vm_status( $dh, $vmName, "REMOVE" );
 
-				#remove run directory
-				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) );
+				# remove run directory (de momento no se puede porque necesitamos saber a que pid esperar)
+#				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) );
 
 				print "Domain shut down\n";
 				return $error;
