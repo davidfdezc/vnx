@@ -3633,34 +3633,9 @@ sub make_vm_API_doc {
    
    my $vm_tag = $dom->createElement('vm');
    $create_conf_tag->addChild($vm_tag);
-
-   
    
    $vm_tag->addChild( $dom->createAttribute( name => $name));
-
-
-      
-   # kernel to be booted
-   my $kernel;
-   my @params;
-   my @build_params;
-   my $kernel_list = $vm->getElementsByTagName("kernel");
-      
-   # kernel tag in dom tree
-   my $kernel_tag = $dom->createElement('kernel');
-   $vm_tag->addChild($kernel_tag);
-   if ($kernel_list->getLength == 1) {
-      my $kernel_item = $kernel_list->item(0);
-      $kernel = &do_path_expansion(&text_tag($kernel_item));         
-      # to dom tree
-      $kernel_tag->addChild($dom->createTextNode($kernel));         
-   }
-   else {    	
-      # include a 'default' in dom tree
-      $kernel_tag->addChild($dom->createTextNode('default'));
-         
-   }
-      
+ 
    # To get filesystem and type
    my $filesystem;
    my $filesystem_type;
@@ -3699,6 +3674,47 @@ sub make_vm_API_doc {
    my $mem_tag = $dom->createElement('mem');
    $vm_tag->addChild($mem_tag);
    $mem_tag->addChild($dom->createTextNode($mem));
+
+   # kernel to be booted
+   my $kernel;
+   my @params;
+   my @build_params;
+   my $kernel_list = $vm->getElementsByTagName("kernel");
+      
+   # kernel tag in dom tree
+   my $kernel_tag = $dom->createElement('kernel');
+   $vm_tag->addChild($kernel_tag);
+   if ($kernel_list->getLength == 1) {
+      my $kernel_item = $kernel_list->item(0);
+      $kernel = &do_path_expansion(&text_tag($kernel_item));         
+      # to dom tree
+      $kernel_tag->addChild($dom->createTextNode($kernel));         
+   }
+   else {    	
+      # include a 'default' in dom tree
+      $kernel_tag->addChild($dom->createTextNode('default'));
+         
+   }
+
+   # Add console tags
+   # Get the array of consoles for that VM
+   my @console_list = $dh->merge_console($vm);
+   print "%%%%% Añadiendo consolas al xml de la VM\n";
+
+   if (@console_list > 0) {
+     my $xterm_used = 0;
+     foreach my $console (@console_list) {
+	  		my $console_id    = $console->getAttribute("id");
+		 	my $console_value = &text_tag($console);
+            my $console_tag = $dom->createElement('console');
+            $vm_tag->addChild($console_tag);
+            $console_tag->addChild($dom->createTextNode($console_value));
+            $console_tag->addChild($dom->createAttribute( id => $console_id));
+			print "%%%%%%%%%%%% console_id=$console_id, console_value=$console_value\n";
+     }
+   }   
+
+#####
 
    # To process all interfaces
    # To get UML's interfaces list
