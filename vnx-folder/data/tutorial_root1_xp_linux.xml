@@ -47,7 +47,7 @@ See the tutorial/index.html document for details
     </if>
     <route type="ipv4" gw="10.0.2.1">default</route>
     <filetree seq="arbol" root="/home/vnx/Desktop/">/home/jorge/workspace/dhcp</filetree>
-    <exec seq="calc" type="verbatim" mode="mconsole">gcalctool</exec>
+    <exec seq="calc" type="verbatim" mode="system">gcalctool</exec>
     <exec seq="killcalc" type="verbatim" mode="mconsole">pkill gcalctool</exec>
     <exec seq="holas" type="verbatim" mode="system">touch /home/vnx/Desktop/hola_system</exec>
     <exec seq="holan" type="verbatim" mode="processn">touch /home/vnx/Desktop/hola_processn</exec>
