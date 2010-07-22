@@ -12,7 +12,7 @@ Just one Windows XP virtual machine. Use this specification for testing
   <global>
     <version>1.92</version>
     <simulation_name>simple_w7</simulation_name>
-    <automac/>
+    <automac offset="3"/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
     </vm_defaults>

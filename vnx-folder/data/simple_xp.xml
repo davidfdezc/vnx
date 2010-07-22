@@ -12,16 +12,21 @@ Just one Windows XP virtual machine. Use this specification for testing
   <global>
     <version>1.92</version>
     <simulation_name>simple_xp</simulation_name>
-    <automac/>
+    <automac offset="1"/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
     </vm_defaults>
   </global>
+  
+  <net name="Net0" mode="virtual_bridge" />
     
   <!-- NODES -->
-  <vm name="host1" type="libvirt" subtype="kvm" os="windows">
+  <vm name="winxp" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
     <mem>256M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.2</ipv4>
+    </if>
   </vm>
 
 </vnx>
