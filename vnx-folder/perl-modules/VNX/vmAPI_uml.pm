@@ -386,7 +386,7 @@ sub createVM {
         my $kernelTag     = $kernel_item->getFirstChild->getData;
 		my $kernel;
 
-		if ( $kernel_item ne 'default' ) {
+		if ( $kernelTag ne 'default' ) {
 			$kernel = $kernelTag;
 			if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
 				push( @params,
