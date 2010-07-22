@@ -345,18 +345,18 @@ sub defineVM {
 		my $graphics_tag = $init_xml->createElement('graphics');
 		$devices_tag->addChild($graphics_tag);
 		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-		my $vnc_port;
-		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-			my $vm = $vm_ordered[$i];
-
-			# To get name attribute
-			my $name = $vm->getAttribute("name");
-			if ( $vmName eq $name ) {
-				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-			}
-		}
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( port => $vnc_port ) );
+# DFC		my $vnc_port;
+#		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+#			my $vm = $vm_ordered[$i];
+#
+#			# To get name attribute
+#			my $name = $vm->getAttribute("name");
+#			if ( $vmName eq $name ) {
+#				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
+#			}
+#		}
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( port => $vnc_port ) );
 
 		#[JSF] host ip left
 		$graphics_tag->addChild(
@@ -586,18 +586,18 @@ sub defineVM {
 		my $graphics_tag = $init_xml->createElement('graphics');
 		$devices_tag->addChild($graphics_tag);
 		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-		my $vnc_port;
-		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-			my $vm = $vm_ordered[$i];
-
-			# To get name attribute
-			my $name = $vm->getAttribute("name");
-			if ( $vmName eq $name ) {
-				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-			}
-		}
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( port => $vnc_port ) );
+# DFC		my $vnc_port;
+#		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+#			my $vm = $vm_ordered[$i];
+#
+#			# To get name attribute
+#			my $name = $vm->getAttribute("name");
+#			if ( $vmName eq $name ) {
+#				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
+#			}
+#		}
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( port => $vnc_port ) );
 
 		#[JSF] host ip left
 		$graphics_tag->addChild(
@@ -1001,18 +1001,18 @@ sub createVM {
 		my $graphics_tag = $init_xml->createElement('graphics');
 		$devices_tag->addChild($graphics_tag);
 		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-		my $vnc_port;
-		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-			my $vm = $vm_ordered[$i];
-
-			# To get name attribute
-			my $name = $vm->getAttribute("name");
-			if ( $vmName eq $name ) {
-				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-			}
-		}
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( port => $vnc_port ) );
+# DFC		my $vnc_port;
+#		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+#			my $vm = $vm_ordered[$i];
+#
+#			# To get name attribute
+#			my $name = $vm->getAttribute("name");
+#			if ( $vmName eq $name ) {
+#				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
+#			}
+#		}
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( port => $vnc_port ) );
 
 		#[JSF] host ip left
 		$graphics_tag->addChild(
@@ -1253,18 +1253,18 @@ sub createVM {
 		my $graphics_tag = $init_xml->createElement('graphics');
 		$devices_tag->addChild($graphics_tag);
 		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-		my $vnc_port;
-		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-			my $vm = $vm_ordered[$i];
-
-			# To get name attribute
-			my $name = $vm->getAttribute("name");
-			if ( $vmName eq $name ) {
-				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-			}
-		}
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( port => $vnc_port ) );
+# DFC		my $vnc_port;
+#		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+#			my $vm = $vm_ordered[$i];
+#
+#			# To get name attribute
+#			my $name = $vm->getAttribute("name");
+#			if ( $vmName eq $name ) {
+#				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
+#			}
+#		}
+#		$graphics_tag->addChild(
+#			$init_xml->createAttribute( port => $vnc_port ) );
 
 		#[JSF] falta sacar la ip host
 		$graphics_tag->addChild(

@@ -999,7 +999,15 @@ sub mode_start {
 					$first = 0;
 				}
 				my $vnc_port = 6900 + $i;
-				print $name . ": " . $vnc_port . "\n";
+# DFC			print $name . ": " . $vnc_port . "\n";
+                #my $display=$execution->execute("virsh -c qemu:///system vncdisplay $name");		
+                my $display=system($bd->get_binaries_path_ref->{"virsh"} . "-c qemu:///system vncdisplay $name");		
+				print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
+				print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
+				print $name . ": " . $display . "\n";
+				print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
+				print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
+				
 			}
 			my $last = @vm_ordered - $i;
 			if ($last eq 1){
@@ -3699,7 +3707,6 @@ sub make_vm_API_doc {
    # Add console tags
    # Get the array of consoles for that VM
    my @console_list = $dh->merge_console($vm);
-   print "%%%%% Añadiendo consolas al xml de la VM\n";
 
    if (@console_list > 0) {
      my $xterm_used = 0;
@@ -3710,7 +3717,6 @@ sub make_vm_API_doc {
             $vm_tag->addChild($console_tag);
             $console_tag->addChild($dom->createTextNode($console_value));
             $console_tag->addChild($dom->createAttribute( id => $console_id));
-			print "%%%%%%%%%%%% console_id=$console_id, console_value=$console_value\n";
      }
    }   
 
