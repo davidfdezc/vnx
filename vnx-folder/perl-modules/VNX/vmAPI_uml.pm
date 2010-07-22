@@ -380,11 +380,14 @@ sub createVM {
 		my $virtualm_name = $virtualm->getAttribute("name");
 
 		my $kernelTagList = $virtualm->getElementsByTagName("kernel");
-		my $kernelTag     = $kernelTagList->item($0);
-		my $kernel_item   = $kernelTag->getFirstChild->getData;
+#		my $kernelTag     = $kernelTagList->item($0);
+#		my $kernel_item   = $kernelTag->getFirstChild->getData;
+        my $kernel_item   = $kernelTagList->item($0);
+        my $kernelTag     = $kernel_item->getFirstChild->getData;
 		my $kernel;
 
 		if ( $kernel_item ne 'default' ) {
+			$kernel = $kernelTag;
 			if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
 				push( @params,
 					"initrd=" . $kernel_item->getAttribute("initrd") );
