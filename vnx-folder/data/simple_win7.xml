@@ -21,7 +21,9 @@ Just one Windows XP virtual machine. Use this specification for testing
   <!-- NODES -->
   <vm name="host1" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_win7</filesystem>
-    <mem>512M</mem>
+    <mem>1048576</mem>
+        <filetree seq="opera" root="c:\temp1">/home/jrodriguez/entregable</filetree>
+    <exec seq="opera" type="verbatim">c:\temp1\operausb1053\opera.exe</exec>
   </vm>
 
 </vnx>

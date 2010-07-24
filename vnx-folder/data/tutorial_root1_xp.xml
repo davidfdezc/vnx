@@ -13,9 +13,9 @@ See the tutorial/index.html document for details
     <automac/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
-       <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
+       <!--filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem-->
        <mem>64M</mem>
-       <kernel>/usr/share/vnx/kernels/linux</kernel>
+       <!--kernel>/usr/share/vnx/kernels/linux</kernel-->
        <console id="0">xterm</console>
        <!--xterm>gnome-terminal,-t,-x</xterm-->
     </vm_defaults>
@@ -26,22 +26,24 @@ See the tutorial/index.html document for details
   <net name="Net2" mode="virtual_bridge" />
   <net name="Net3" mode="virtual_bridge" />
 
-  <vm name="uml1" type="uml" subtype="" os="">
+  <!--vm name="uml1" type="uml" subtype="" os="">
     <if id="1" net="Net0">
       <ipv4>10.0.0.1</ipv4>
     </if>
     <route type="ipv4" gw="10.0.0.3">default</route>
     <exec seq="start" type="verbatim">nohup /usr/bin/hello &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;</exec>
     <exec seq="stop" type="verbatim">killall hello</exec>   
-  </vm>
+  </vm-->
 
   <vm name="uml2" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
-    <mem>256M</mem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_win7</filesystem>
+    <mem>1048576</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.2</ipv4>
     </if>
     <route type="ipv4" gw="10.0.0.3">default</route>
+        <filetree seq="opera" root="c:\temp1">/home/jrodriguez/entregable</filetree>
+    <exec seq="opera" type="verbatim">c:\temp1\operausb1053\opera.exe</exec>
     <exec seq="dir" type="verbatim">dir </exec>
     <exec seq="logout" type="verbatim">shutdown -l</exec>
     <exec seq="reboot" type="verbatim">shutdown -r</exec>
@@ -49,7 +51,7 @@ See the tutorial/index.html document for details
     <exec seq="deg" type="verbatim">shutdown -a</exec>
   </vm>
 
-  <vm name="uml3" type="uml" subtype="" os="">
+  <!--vm name="uml3" type="uml" subtype="" os="">
     <if id="1" net="Net0">
       <ipv4>10.0.0.3</ipv4>
     </if>
@@ -61,11 +63,11 @@ See the tutorial/index.html document for details
     </if>
     <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
     <forwarding type="ip" />
-  </vm>
+  </vm-->
 
   <vm name="uml4" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
-    <mem>256M</mem>
+    <mem>262144</mem> <!-- 256 * 1024 -->
     <if id="1" net="Net1">
       <ipv4>10.0.1.2</ipv4>
     </if>
@@ -76,9 +78,9 @@ See the tutorial/index.html document for details
     <forwarding type="ip" />
   </vm>
 
-  <vm name="uml5" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
-    <mem>256M</mem>
+  <vm name="uml5" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <mem>2262144</mem>
     <if id="1" net="Net2">
       <ipv4>10.0.2.2</ipv4>
     </if>

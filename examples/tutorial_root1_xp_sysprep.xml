@@ -35,7 +35,7 @@ See the tutorial/index.html document for details
 
   <vm name="uml2" type="libvirt-kvm-windows">
     <filesystem type="cow">/home/jrodriguez/vnx-0.14b/filesystems/root_fs_winxp-es-v023b.qcow2</filesystem>
-    <mem>256M</mem>
+    <mem>262144</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.2</ipv4>
     </if>
@@ -63,7 +63,7 @@ See the tutorial/index.html document for details
 
   <vm name="uml4" type="libvirt-kvm-windows">
     <filesystem type="cow">/usr/share/vnuml/filesystems/root_fs_winxp</filesystem>
-    <mem>256M</mem>
+    <mem>262144</mem>
     <if id="1" net="Net1">
       <ipv4>10.0.1.2</ipv4>
     </if>
@@ -81,7 +81,7 @@ See the tutorial/index.html document for details
 
   <vm name="uml5" type="libvirt-kvm-windows">
     <filesystem type="cow">/usr/share/vnuml/filesystems/root_fs_winxp</filesystem>
-    <mem>256M</mem>
+    <mem>262144</mem>
     <if id="1" net="Net2">
       <ipv4>10.0.2.2</ipv4>
     </if>
