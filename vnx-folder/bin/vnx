@@ -991,28 +991,26 @@ sub mode_start {
 			my $vm = $vm_ordered[$i];
 			
 			my $name = $vm->getAttribute("name");
-			my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+			# DFC my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 			
-			if ($merged_type eq "libvirt-kvm-windows"){
+			# DFC if ($merged_type eq "libvirt-kvm-windows"){
+			if ( $vm->getAttribute("type") eq "libvirt"){
 				if ($first eq 1){
-					print "\nList of vnc ports used:\n";
+					print "------------------------------\n";	
+					print "List of vm's console displays:\n";
 					$first = 0;
 				}
 				my $vnc_port = 6900 + $i;
 # DFC			print $name . ": " . $vnc_port . "\n";
-                #my $display=$execution->execute("virsh -c qemu:///system vncdisplay $name");		
-                my $display=system($bd->get_binaries_path_ref->{"virsh"} . "-c qemu:///system vncdisplay $name");		
-				print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
-				print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
-				print $name . ": " . $display . "\n";
-				print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
-				print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
-				
+                my $display=`virsh -c qemu:///system vncdisplay $name`;
+                $display =~ s/\s+$//;		
+				print $name . "->  " . $display . "\n";
 			}
 			my $last = @vm_ordered - $i;
-			if ($last eq 1){
-				print "\n";	
-			}
+			#if ($last eq 1){
+			#	print "\n";	
+			#}
+			print "------------------------------\n";	
 		}
         
     } 
