@@ -15,7 +15,7 @@
   <devices>
     <emulator>/usr/bin/kvm</emulator>
     <disk type='file' device='disk'>
-      <source file='/usr/share/vnuml/filesystems/linux-0.2.img'/>
+      <source file='/usr/share/vnx/filesystems/linux-0.2.img'/>
       <target dev='hda'/>
     </disk>
     <interface type='network'>

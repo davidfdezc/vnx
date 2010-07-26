@@ -156,8 +156,8 @@ use VNX::NetChecks;
 use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
-use vmAPI_uml;
-use vmAPI_libvirt;
+use VNX::vmAPI_uml;
+use VNX::vmAPI_libvirt;
 
 use Error qw(:try);
 use Exception::Class ( "Vnx::Exception" =>
