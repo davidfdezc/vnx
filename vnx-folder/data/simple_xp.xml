@@ -23,7 +23,7 @@ Just one Windows XP virtual machine. Use this specification for testing
   <!-- NODES -->
   <vm name="winxp" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
-    <mem>1048576</mem>
+    <mem>512M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.2</ipv4>
     </if>

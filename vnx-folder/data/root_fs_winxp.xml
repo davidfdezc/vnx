@@ -5,7 +5,7 @@
   <os>
     <type arch="i686">hvm</type>
     <boot dev='hd'/>
-    <!--boot dev='cdrom'/-->
+    <boot dev='cdrom'/>
   </os>
   <features>
      <pae/>
@@ -16,13 +16,13 @@
   <devices>
     <emulator>/usr/bin/kvm</emulator>
     <disk type='file' device='disk'>
-      <source file='/usr/share/vnx/filesystems/root_fs_winxp'/>
+      <source file='/usr/share/vnx/filesystems/root_fs_winxp-base.qcow2'/>
       <target dev='hda'/>
     </disk>
-    <!--disk type='file' device='cdrom'>
+    <disk type='file' device='cdrom'>
       <source file='/almacen/iso/winxp.iso'/>
       <target dev='hdb'/>
-    </disk-->
+    </disk>
     <interface type='network'>
       <source network='default'/>
     </interface>
