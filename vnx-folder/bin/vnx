@@ -1,23 +1,24 @@
 #!/usr/bin/perl
 #!@PERL@
 # ---------------------------------------------------------------------------------
-# VNX parser. Version 0.1b (based on VNUML 1.9.1)
+# VNX parser. Version 0.14b (based on VNUML 1.9.1)
 #
-# Author: Fermin Galan Marquez (galan@dit.upm.es)
-# Copyright (C) 2005-2009 DIT-UPM
-# 			Departamento de Ingenieria de Sistemas Telematicos
-#			Universidad Politecnica de Madrid
-#			SPAIN
+# Authors:        Fermin Galan Marquez (galan@dit.upm.es), Jorge Somavilla (somavilla@dit.upm.es), 
+#                 Jorge Rodriguez (jrodriguez@dit.upm.es), David Fernández (david@dit.upm.es)
+# Coordinated by: David Fernández (david@dit.upm.es)
+# Copyright (C) 2005-2010 DIT-UPM
+# 			      Departamento de Ingenieria de Sistemas Telematicos
+#			      Universidad Politecnica de Madrid
+#			      SPAIN
 #			
-# Available at:		http://www.dit.upm.es/vnuml         (IPv4)
-#			http://www.upm.euro6ix.org/vnuml    (IPv6)
+# Available at:	  http://www.dit.upm.es/vnuml 
 #
 # ----------------------------------------------------------------------------------
 #
-# VNUML has been developed by DIT-UPM with the partial support from the European 
-# Commission in the context of the Euro6IX research project: 
-#
-#     http://www.euro6ix.org
+# VNX is the new version of VNUML tool adapated to use new virtualization platforms, mainly by means of 
+# libvirt (libvirt.org), the standard API to control virtual machines in Linux.
+# VNUML was developed by DIT-UPM with the partial support from the European 
+# Commission in the context of the Euro6IX research project (http://www.euro6ix.org).
 #
 # ----------------------------------------------------------------------------------
 #
@@ -42,7 +43,7 @@
 # -----------------------------------------------------------------------------------
 
 # Becuase of I'm not a Perl guru (in fact, this program is my first development
-# in this lenguage :) is possible that the code wouldn't be too tidy.
+# in this language :) is possible that the code wouldn't be too tidy.
 # The careful reader will discover many bad habits due to years of C
 # programming. How many times had I reinvented the wheel in this code? ;)
 #
@@ -514,8 +515,8 @@ sub main {
 		 }
 
 
-	   if (! -d "$vnx_dir/simulations") {
-		   mkdir "$vnx_dir/simulations" or &vnx_die("Unable to create simulations directory $vnx_dir/simulations: $!\n");
+	   if (! -d "$vnx_dir/scenarios") {
+		   mkdir "$vnx_dir/scenarios" or &vnx_die("Unable to create scenarios directory $vnx_dir/scenarios: $!\n");
 	   }
 	   if (! -d "$vnx_dir/networks") {
 		   mkdir "$vnx_dir/networks" or &vnx_die("Unable to create networks directory $vnx_dir/networks: $!\n");
@@ -748,23 +749,23 @@ exit;
 
    if ($opt_t||$opt_create) {
 	   if ($exemode != EXE_DEBUG && !$opt_M && !$opt_start) {
-         $execution->smartdie ("simulation " . $dh->get_simname . " already created\n") 
-            if &simulation_exists($dh->get_simname);
+         $execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
+            if &scenario_exists($dh->get_scename);
       }
       &mode_define;
       &mode_start;
    }
    elsif ($opt_x||$opt_execute) {
       if ($exemode != EXE_DEBUG) {
-         $execution->smartdie ("simulation " . $dh->get_simname . " does not exists: create it with -t before\n")
-           unless &simulation_exists($dh->get_simname);
+         $execution->smartdie ("scenario " . $dh->get_scename . " does not exists: create it with -t before\n")
+           unless &scenario_exists($dh->get_scename);
       }
       &mode_x($cmdseq);
    }
    elsif ($opt_d||$opt_shutdown) {
       if ($exemode != EXE_DEBUG) {
-         $execution->smartdie ("simulation " . $dh->get_simname . " does not exist\n")
-           unless &simulation_exists($dh->get_simname);
+         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           unless &scenario_exists($dh->get_scename);
       }
       &mode_d;
 #      my $do_not_build_topology = 1;
@@ -773,8 +774,8 @@ exit;
    }
    elsif ($opt_P||$opt_destroy) {  # elsif ($opt_P) { [JSF]
       if ($exemode != EXE_DEBUG) {
-      #   $execution->smartdie ("simulation $simname does not exist\n")
-      #     unless &simulation_exists($simname);
+      #   $execution->smartdie ("scenario $scename does not exist\n")
+      #     unless &scenario_exists($scename);
       }
       $args->set('F',1);
       &mode_d;		# First, call destroy mode with force flag activated
@@ -783,29 +784,29 @@ exit;
    }
    elsif ($opt_define){
       if ($exemode != EXE_DEBUG && !$opt_M) {
-         $execution->smartdie ("simulation " . $dh->get_simname . " already created\n") 
-            if &simulation_exists($dh->get_simname);
+         $execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
+            if &scenario_exists($dh->get_scename);
       }
       &mode_define;
    }
    elsif ($opt_undefine){
       if ($exemode != EXE_DEBUG && !$opt_M) {
-         $execution->smartdie ("simulation " . $dh->get_simname . " does not exist\n")
-           unless &simulation_exists($dh->get_simname);
+         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           unless &scenario_exists($dh->get_scename);
       }
       &mode_undefine;
    }
    elsif ($opt_start) {
       if ($exemode != EXE_DEBUG) {
-         $execution->smartdie ("simulation " . $dh->get_simname . " does not exist\n")
-           unless &simulation_exists($dh->get_simname);
+         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           unless &scenario_exists($dh->get_scename);
       }
       &mode_start;
    }
    elsif ($opt_reset) {
       if ($exemode != EXE_DEBUG) {
-         $execution->smartdie ("simulation " . $dh->get_simname . " does not exist\n")
-           unless &simulation_exists($dh->get_simname);
+         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           unless &scenario_exists($dh->get_scename);
       }
       $args->set('F',1);
       &mode_d;		# First, call destroy mode with force flag activated
@@ -817,8 +818,8 @@ exit;
    
    elsif ($opt_reboot) {
      if ($exemode != EXE_DEBUG) {
-        $execution->smartdie ("simulation " . $dh->get_simname . " does not exist\n")
-        unless &simulation_exists($dh->get_simname);
+        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        unless &scenario_exists($dh->get_scename);
      }
      &mode_d;
      &mode_start;
@@ -826,31 +827,31 @@ exit;
    
    elsif ($opt_save) {
      if ($exemode != EXE_DEBUG) {
-        $execution->smartdie ("simulation " . $dh->get_simname . " does not exist\n")
-        unless &simulation_exists($dh->get_simname);
+        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        unless &scenario_exists($dh->get_scename);
      }
      &mode_save;
    }
    elsif ($opt_restore) {
      if ($exemode != EXE_DEBUG) {
-        $execution->smartdie ("simulation " . $dh->get_simname . " does not exist\n")
-        unless &simulation_exists($dh->get_simname);
+        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        unless &scenario_exists($dh->get_scename);
      }
      &mode_restore;
    }
    
    elsif ($opt_suspend) {
      if ($exemode != EXE_DEBUG) {
-        $execution->smartdie ("simulation " . $dh->get_simname . " does not exist\n")
-        unless &simulation_exists($dh->get_simname);
+        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        unless &scenario_exists($dh->get_scename);
      }
      &mode_suspend;
    }
    
    elsif ($opt_resume) {
      if ($exemode != EXE_DEBUG) {
-        $execution->smartdie ("simulation " . $dh->get_simname . " does not exist\n")
-        unless &simulation_exists($dh->get_simname);
+        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        unless &scenario_exists($dh->get_scename);
      }
      &mode_resume;
    }
@@ -965,8 +966,8 @@ sub mode_start {
 
         # If <host_mapping> is in use and not in debug mode, process /etc/hosts
         my $lines = join "\n", @host_lines;
-#        &host_mapping_patch ($lines, $dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
-        &host_mapping_patch ($dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG)); # lines in the temp file
+#        &host_mapping_patch ($lines, $dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
+        &host_mapping_patch ($dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG)); # lines in the temp file
 
 
         # If -B, block until ready
@@ -984,33 +985,42 @@ sub mode_start {
         }
 
     
-        # Print vnc ports, if used
+        # Print information about vm consoles
         my @vm_ordered = $dh->get_vm_ordered;
         my $first = 1;
+        my $scename = $dh->get_scename;
         for ( my $i = 0; $i < @vm_ordered; $i++) {
 			my $vm = $vm_ordered[$i];
 			
 			my $name = $vm->getAttribute("name");
-			# DFC my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+			my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 			
+			if ($first eq 1){
+				print "-------------------------------------------------------------------------------\n";	
+				print "Commands to access vm's consoles of scenario $scename\n";
+				print "\n";	
+				printf "%-12s  %-20s  %s\n", "VM_NAME", "TYPE", "COMMAND";	
+				print "-------------------------------------------------------------------------------\n";	
+				$first = 0;
+			}
 			# DFC if ($merged_type eq "libvirt-kvm-windows"){
 			if ( $vm->getAttribute("type") eq "libvirt"){
-				if ($first eq 1){
-					print "------------------------------\n";	
-					print "List of vm's console displays:\n";
-					$first = 0;
-				}
-				my $vnc_port = 6900 + $i;
+# DFC			my $vnc_port = 6900 + $i;
 # DFC			print $name . ": " . $vnc_port . "\n";
                 my $display=`virsh -c qemu:///system vncdisplay $name`;
-                $display =~ s/\s+$//;		
-				print $name . "->  " . $display . "\n";
-			}
+                $display =~ s/\s+$//;    # Delete linefeed at the end		
+				printf "%-12s  %-20s  virt-viewer %s   or   vncviewer %s\n", $name, $merged_type, $name, $display;
+			} elsif ( $vm->getAttribute("type") eq "uml") {
+			    # xterm -T uml -e screen -t uml /dev/pts/0
+			    my $vnx_dir = $dh->get_vnx_dir;
+			    my $pts=`cat $vnx_dir/scenarios/$scename/vms/$name/run/pts`;
+			    $pts =~ s/\s+$//;        # Delete linefeed at the end
+				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $name, $merged_type, $name, $pts;
+			} 
 			my $last = @vm_ordered - $i;
-			#if ($last eq 1){
-			#	print "\n";	
-			#}
-			print "------------------------------\n";	
+			if ($last eq 1){
+				print "-------------------------------------------------------------------------------\n\n";	
+			} 
 		}
         
     } 
@@ -1155,7 +1165,7 @@ sub mode_resume {
 sub configure_switched_networks {
 
     my $doc = $dh->get_doc;
-    my $sim_name = $dh->get_simname;
+    my $sim_name = $dh->get_scename;
 
 	# Create the symbolic link to the management switch
 	if ($dh->get_vmmgmt_type eq 'net') {
@@ -1228,7 +1238,7 @@ sub configure_switched_networks {
                     }
 				
 				    if ($capture_dev || $capture_file) {
-				       $extra = $extra . " -simulation_name $sim_name $name";
+				       $extra = $extra . " -scenario_name $sim_name $name";
 				    }
 				
 					if (!$command){
@@ -1271,7 +1281,7 @@ sub configure_switched_networks {
                     }
 
                     if ($capture_dev || $capture_file) {
-                       $extra = $extra . " -simulation_name $sim_name $name";
+                       $extra = $extra . " -scenario_name $sim_name $name";
                     }
 
                     if (!$command){
@@ -1947,7 +1957,7 @@ sub mode_x {
 
 # mode_d
 #
-# Destroy current simulation mode 
+# Destroy current scenario mode 
 sub mode_d {
 
    # Since version 1.4.0, UML must be halted before the routes to the UMLs disapear with the unconfiguration,
@@ -2019,10 +2029,8 @@ sub mode_d {
          }       
       }
 
-print "q pasa\n";
 #      if (($args->get('F'))&(!($args->get('M'))))   {
       if (!($args->get('M')))   {
-print "nen\n";
 #<STDIN>;
          # 1. To stop UML
          #   &halt;
@@ -2060,7 +2068,7 @@ print "nen\n";
          }
 
          # If <host_mapping> is in use and not in debug mode, process /etc/hosts
-         &host_mapping_unpatch ($dh->get_simname, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
+         &host_mapping_unpatch ($dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
 
          # To remove lock file (it exists while topology is running)
          $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_sim_dir . "/lock");
@@ -2212,7 +2220,7 @@ sub tun_destroy_switched {
          # Decrease the use counter
          &dec_cter("$name.ctl");
             
-         # Destroy the uml_switch only when no other concurrent simulation is using it
+         # Destroy the uml_switch only when no other concurrent scenario is using it
          if (&get_cter ("$name.ctl") == 0) {
          	my $socket_file = $dh->get_networks_dir() . "/$name.ctl";
          	# Casey (rev 1.90) proposed to use -f instead of -S, however 
@@ -2340,7 +2348,7 @@ sub mode_P {
  
     }
     if ( ($vm_left eq 0) && (!$args->get('M') ) ) {
-        # 3. Delete supporting simulation files...
+        # 3. Delete supporting scenario files...
 	#    ...but only if -M option is not active (DFC 27/01/2010)
 
         $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_sim_dir . "/*");
@@ -2459,7 +2467,7 @@ sub get_kernel_pids {
 # Arguments:
 #
 #    - First: lines to add, in a string
-#    - Second: simulation name
+#    - Second: scenario name
 #    - Third: name file (usually /etc/hosts)
 # 
 # A VNUML sections is inserted in the /etc/hosts file with the following structure:
@@ -2488,7 +2496,7 @@ sub host_mapping_patch {
 
    # DEBUG
    #print "--filename: $file_name\n";
-   #print "--simname:  $simname\n";
+   #print "--scename:  $scename\n";
 
    # Openning files
    open HOST_FILE, "$file_name"
@@ -2503,9 +2511,9 @@ sub host_mapping_patch {
    # Status list:
    # 
    # 0 -> before VNUML section
-   # 1 -> inside VNUML section, before simulation subsection
+   # 1 -> inside VNUML section, before scenario subsection
    # 2 -> inside simultaion subsection
-   # 3 -> after simulation subsection, inside VNUML section
+   # 3 -> after scenario subsection, inside VNUML section
    # 4 -> after VNUML section
    my $status = 0;
 
@@ -2602,7 +2610,7 @@ sub host_mapping_patch {
 # Removes UMLs names in the /etc/hosts file, when <host_mapping> is presented
 # Arguments:
 #
-#    - First: simulation name
+#    - First: scenario name
 #    - Second: name file (usually /etc/hosts)
 #    
 sub host_mapping_unpatch {
@@ -2612,7 +2620,7 @@ sub host_mapping_unpatch {
 
    # DEBUG
    #print "--filename: $file_name\n";
-   #print "--simname:  $simname\n";
+   #print "--scename:  $scename\n";
 
    # Openning files
    open HOST_FILE, "$file_name"
@@ -2627,9 +2635,9 @@ sub host_mapping_unpatch {
    # Status list:
    # 
    # 0 -> before VNUML section
-   # 1 -> inside VNUML section, before simulation subsection
+   # 1 -> inside VNUML section, before scenario subsection
    # 2 -> inside simultaion subsection
-   # 3 -> after simulation subsection, inside VNUML section
+   # 3 -> after scenario subsection, inside VNUML section
    # 4 -> after VNUML section
    my $status = 0;
 
@@ -2928,7 +2936,7 @@ sub get_UML_command_ip {
 #
 # The two argument have to be always diferent in each
 # call to the functions, to guarantee uniqueness of
-# the MAC in the simulation.
+# the MAC in the scenario.
 #
 # Note that the use of this function limits a maximum
 # of 255 UMLs with 255 interfaces each one (a more than
@@ -2998,15 +3006,15 @@ sub physicalif_config {
    }
 }
 
-# exists_simulation
+# exists_scenario
 #
-# Returns true if the simulation (first argument) is currently running
+# Returns true if the scenario (first argument) is currently running
 #
 # In the current version, this check is perform looking for the lock file
-# in the directory that stores simulation files
-sub simulation_exists {
+# in the directory that stores scenario files
+sub scenario_exists {
 
-   my $simulation = shift;
+   my $scenario = shift;
    if ( -f $dh->get_sim_dir . "/lock") {
    	return 1;
    }
@@ -3236,7 +3244,7 @@ sub check_vlan {
 # This counter is stored in a file with the name of the interface
 # (for example, "eth0" or "eth1.22"), sufixed by ".cter" in the working 
 # directory of vnumlparser.pl (by default, ~/.vnuml). The content of this 
-# file is a list of all simulations are currently using this interface as a brigde.
+# file is a list of all scenarios are currently using this interface as a brigde.
 #
 sub inc_cter {
 
@@ -3244,13 +3252,13 @@ sub inc_cter {
    $file .= ".cter";
 
    unless (-f $dh->get_networks_dir . "/$file") {
-      $execution->execute($bd->get_binaries_path_ref->{"echo"} . " " . $dh->get_simname . "> " . $dh->get_networks_dir . "/$file");
+      $execution->execute($bd->get_binaries_path_ref->{"echo"} . " " . $dh->get_scename . "> " . $dh->get_networks_dir . "/$file");
    }
    else {
       my $command = $bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_networks_dir . "/$file";
       my $value = `$command`;
       chomp ($value);
-      $execution->execute($bd->get_binaries_path_ref->{"echo"} . " \"$value " . $dh->get_simname . "\"". "> " . $dh->get_networks_dir . "/$file");
+      $execution->execute($bd->get_binaries_path_ref->{"echo"} . " \"$value " . $dh->get_scename . "\"". "> " . $dh->get_networks_dir . "/$file");
    }
 
 }
@@ -3268,20 +3276,20 @@ sub dec_cter {
       my $command = $bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_networks_dir . "/$file";
       my $value = `$command`; 
       chomp ($value);
-      my $simname = $dh->get_simname;
+      my $scename = $dh->get_scename;
 
-     if ($value =~ /^$simname /) {
-        # $simname is at the beginning of line
-        $value =~ s/^$simname //;
-      } elsif ($value =~ / $simname$/) {
+     if ($value =~ /^$scename /) {
+        # $scename is at the beginning of line
+        $value =~ s/^$scename //;
+      } elsif ($value =~ / $scename$/) {
         # at the end
-        $value =~ s/ $simname$//;
-      } elsif ($value =~ / $simname /) {
+        $value =~ s/ $scename$//;
+      } elsif ($value =~ / $scename /) {
         # in the middle
-        $value =~ s/$simname //;
-      } elsif ($value =~ /^$simname$/) {
+        $value =~ s/$scename //;
+      } elsif ($value =~ /^$scename$/) {
         # it is the only one
-        $value =~ s/^$simname$//;
+        $value =~ s/^$scename$//;
       } else {
         # not found
       }
@@ -3309,7 +3317,7 @@ sub get_cter {
       return 0;
    }
    else {
-      # FIXME: this should be improved to return the number of simulations using
+      # FIXME: this should be improved to return the number of scenarios using
       # the interface. However, currently get_cter is only checked againts 0, so
       # it works
       #my $command = $bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_networks_dir . "/$file";
@@ -3946,8 +3954,8 @@ sub usage {
 	print "Mode:\n";
 	print "       -t|--create, build topology, or create virtual machine (if -M), using VNX_file as source.\n";
 	print "       -x cmd_seq, execute the cmd_seq command sequence, using VNX_file as source.\n";
-	print "       -d|--shutdown, destroy current simulation, or virtual machine (if -M), using VNX_file as source.\n";
-	print "       -P|--destroy, purge simulation, or virtual machine (if -M), (warning: it will remove cowed filesystems!)\n";
+	print "       -d|--shutdown, destroy current scenario, or virtual machine (if -M), using VNX_file as source.\n";
+	print "       -P|--destroy, purge scenario, or virtual machine (if -M), (warning: it will remove cowed filesystems!)\n";
 	print "       --define, define all machines, or the ones speficied (if -M), using VNX_file as source.\n";
 	print "       --undefine, undefine all machines, or the ones speficied (if -M), using VNX_file as source.\n";
 	print "       --start, start all machines, or the ones speficied (if -M), using VNX_file as source.\n";
@@ -3976,7 +3984,7 @@ sub usage {
 	print "       -v, verbose mode on\n";
 	print "       -g, debug mode on (overrides verbose)\n";
 	print "       -T tmp_dir, temporal files directory (default is /tmp)\n";
-	print "       -M vm_list, start/stop/restart simulation in vm_list UMLs (a list of names separated by ,)\n";
+	print "       -M vm_list, start/stop/restart scenario in vm_list UMLs (a list of names separated by ,)\n";
    
 
 }

@@ -9,7 +9,7 @@ See the tutorial/index.html document for details
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.92.xsd">
   <global>
     <version>1.92</version>
-    <simulation_name>tutorial-r1_all</simulation_name>
+    <scenario_name>tutorial-r1_all</scenario_name>
     <automac/>
     <vm_mgmt type="private" network="10.250.0.0" mask="24">
        <host_mapping />
@@ -23,7 +23,7 @@ See the tutorial/index.html document for details
   <net name="Net2" mode="virtual_bridge" />
   <net name="Net3" mode="virtual_bridge" />
 
-  <vm name="uml1" type="libvirt" subtype="kvm" os="linux">
+  <vm name="h1" type="libvirt" subtype="kvm" os="linux">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu-gui</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
@@ -34,7 +34,7 @@ See the tutorial/index.html document for details
     <exec seq="stop" type="verbatim">killall hello</exec> 
   </vm>
 
-  <vm name="uml2" type="libvirt" subtype="kvm" os="windows">
+  <vm name="h2" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
@@ -48,7 +48,7 @@ See the tutorial/index.html document for details
     <exec seq="deg" type="verbatim">shutdown -a</exec>
   </vm>
 
-  <vm name="uml3" type="uml" subtype="" os="">
+  <vm name="r1" type="uml" subtype="" os="">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
     <mem>64M</mem>
     <kernel>/usr/share/vnx/kernels/linux</kernel>
@@ -66,7 +66,7 @@ See the tutorial/index.html document for details
     <forwarding type="ip" />
   </vm>
 
-  <vm name="uml4" type="uml" subtype="" os="">
+  <vm name="r2" type="uml" subtype="" os="">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
     <mem>256M</mem>
     <kernel>/usr/share/vnx/kernels/linux</kernel>
@@ -81,7 +81,7 @@ See the tutorial/index.html document for details
     <forwarding type="ip" />
   </vm>
 
-  <vm name="uml5" type="libvirt" subtype="kvm" os="windows">
+  <vm name="h3" type="libvirt" subtype="kvm" os="windows">
    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_win7</filesystem>
    <mem>1G</mem>
    <if id="1" net="Net2">
@@ -95,7 +95,7 @@ See the tutorial/index.html document for details
     <exec seq="deg" type="verbatim">shutdown -a</exec>    
   </vm>
   
-  <vm name="uml6" type="libvirt" subtype="kvm" os="linux">
+  <vm name="h4" type="libvirt" subtype="kvm" os="linux">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_freebsd-gui</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net2">

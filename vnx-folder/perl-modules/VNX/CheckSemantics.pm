@@ -53,7 +53,7 @@ use VNX::TextManipulation;
 # Currently this check consist in:
 #
 #   - 1a. (formerly version checking, now is performed in the main program before calling check_doc)
-#   - 1b. <simulation_name> content does not have any whitespace  
+#   - 1b. <scenario_name> content does not have any whitespace  
 #   - 2.  ensure that the <ssh_version> is valid
 #   - 3.  check <ssh_key> are valid and readable files
 #   - 4.  check <shell> are valid files
@@ -122,9 +122,9 @@ sub check_doc {
 	my $is_root = $> == 0 ? 1 : 0;
 	my $uid_name = $is_root ? getpwuid($uid) : getpwuid($>);
     
-    # 1b. <simulation_name> content does not have any whitespace
-    return "simulaton name \"".$dh->get_simname."\" can not containt whitespaces"
-      if ($dh->get_simname =~ /\s/);
+    # 1b. <scenario_name> content does not have any whitespace
+    return "simulaton name \"".$dh->get_scename."\" can not containt whitespaces"
+      if ($dh->get_scename =~ /\s/);
     
 	# 2. Check ssh_version
     return $dh->get_ssh_version . " is not a valid ssh version"
@@ -333,7 +333,7 @@ sub check_doc {
       # 8g. To check only two virtual machines for PPP nets
       my $type = $net->getAttribute("type");
       if ($type eq "ppp") {
-         # Get all the ifs of the simulation
+         # Get all the ifs of the scenario
          my $machines = 0;
          my $if_list = $doc->getElementsByTagName("if");
          for ( my $j = 0; $j < $if_list->getLength; $j++ ) {

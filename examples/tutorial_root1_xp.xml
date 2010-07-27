@@ -9,7 +9,7 @@ See the tutorial/index.html document for details
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.92.xsd">
   <global>
     <version>1.92</version>
-    <simulation_name>tutorial-r1_xp_vnx</simulation_name>
+    <scenario_name>tutorial-r1_xp</scenario_name>
     <automac/>
 
     <vm_mgmt type="private" network="10.250.0.0" mask="24">
@@ -41,7 +41,7 @@ See the tutorial/index.html document for details
 
   <vm name="uml2" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/home/jrodriguez/root_fs_win7-es-v01.qcow2</filesystem>
-    <mem>262144</mem>
+    <mem>256M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.2</ipv4>
     </if>
@@ -71,7 +71,7 @@ See the tutorial/index.html document for details
 
   <vm name="uml4" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/home/jrodriguez/root_fs_winxp-es-v023b.qcow2</filesystem>
-    <mem>262144</mem>
+    <mem>256M</mem>
     <if id="1" net="Net1">
       <ipv4>10.0.1.2</ipv4>
     </if>
@@ -84,7 +84,7 @@ See the tutorial/index.html document for details
 
   <vm name="uml5" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/home/jrodriguez/ubuntu_base.qcow2</filesystem>
-    <mem>262144</mem>
+    <mem>256M</mem>
     <if id="1" net="Net2">
       <ipv4>10.0.2.2</ipv4>
     </if>

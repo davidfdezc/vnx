@@ -2800,7 +2800,7 @@ sub tun_destroy_switched {
 			# Decrease the use counter
 			&dec_cter("$name.ctl");
 
-   # Destroy the uml_switch only when no other concurrent simulation is using it
+   # Destroy the uml_switch only when no other concurrent scenario is using it
 			if ( &get_cter("$name.ctl") == 0 ) {
 				my $socket_file = $dh->get_networks_dir() . "/$name.ctl";
 

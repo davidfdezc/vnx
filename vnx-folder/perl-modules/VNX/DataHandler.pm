@@ -170,15 +170,15 @@ sub new {
       $global_data{'default_forwarding_type'} = "";
    }
    
-   # 2. Fields taken from the simulation  
+   # 2. Fields taken from the scenario  
 
-   # Simulation's name
-   my $simname_list = $self->{'doc'}->getElementsByTagName("simulation_name");
-   if ($simname_list->getLength == 1) {
-      $global_data{'simname'} = &text_tag($simname_list->item(0));
+   # scenario's name
+   my $scename_list = $self->{'doc'}->getElementsByTagName("scenario_name");
+   if ($scename_list->getLength == 1) {
+      $global_data{'scename'} = &text_tag($scename_list->item(0));
    }
    else {
-      $self->{'execution'}->smartdie ("simulation name is missing\n");
+      $self->{'execution'}->smartdie ("scenario name is missing\n");
    }
   
    # Host mapping
@@ -205,7 +205,7 @@ sub new {
    $global_data{'vmmgmt_net'} = '192.168.0.0';
    $global_data{'vmmgmt_mask'} = '24';
    $global_data{'vmmgmt_offset'} = '0';
-   $global_data{'vmmgmt_netname'} = $global_data{'simname'} . "_Mgmt";
+   $global_data{'vmmgmt_netname'} = $global_data{'scename'} . "_Mgmt";
    $global_data{'vmmgmt_hostip'} = '192.168.0.1';
    $global_data{'vmmgmt_autoconfigure'} = '';
    my $vmmgmt_list = $self->{'doc'}->getElementsByTagName("vm_mgmt");
@@ -293,13 +293,13 @@ sub get_doc {
    return $self->{'doc'};
 }
 
-# get_simname
+# get_scename
 #
-# Returns the simname
+# Returns the scename
 #
-sub get_simname {
+sub get_scename {
    my $self = shift;
-   return $self->{'global_data'}->{'simname'};
+   return $self->{'global_data'}->{'scename'};
 } 
 
 # get_vnuml_dir
@@ -660,7 +660,7 @@ sub get_vm_ordered {
 
 # get_vm_to_use
 #
-# Returns a hash with the vm names of the simulation to use with -x mode. By
+# Returns a hash with the vm names of the scenario to use with -x mode. By
 # defualt are UMLs defined in the VNUML source file are include, execpt when the -M switch. 
 # is in use.
 #
@@ -761,16 +761,16 @@ sub set_tmp_dir {
 
 # get_sim_dir
 #
-# Returns the simulation directory
+# Returns the scenario directory
 #
 sub get_sim_dir {
    my $self = shift;
-   return $self->get_vnx_dir . "/simulations/" . $self->get_simname;
+   return $self->get_vnx_dir . "/scenarios/" . $self->get_scename;
 }
 
 # get_global_run_dir
 #
-# Returns the directory containing the run time files for a simulation
+# Returns the directory containing the run time files for a scenario
 #
 sub get_global_run_dir {
    my $self = shift;

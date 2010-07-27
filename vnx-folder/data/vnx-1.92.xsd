@@ -103,7 +103,7 @@
     <xs:complexType>
       <xs:sequence>
         <xs:element ref="version" />
-        <xs:element ref="simulation_name" />
+        <xs:element ref="scenario_name" />
         <xs:element ref="ssh_version" minOccurs="0" />
         <xs:element ref="ssh_key" minOccurs="0" maxOccurs="unbounded" />
         <xs:element ref="automac" minOccurs="0" />
@@ -316,7 +316,7 @@
     <xs:complexType mixed="true" />
   </xs:element>
 
-  <xs:element name="simulation_name">
+  <xs:element name="scenario_name">
     <xs:complexType mixed="true" />
   </xs:element>
 

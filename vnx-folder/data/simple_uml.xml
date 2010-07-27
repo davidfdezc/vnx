@@ -3,7 +3,7 @@
 
 <!--
 
-Simple simulation
+Simple scenario
 Just one Linux virtual machine. Use this specification for testing
 
 -->
@@ -11,7 +11,7 @@ Just one Linux virtual machine. Use this specification for testing
 <vnx>
   <global>
     <version>1.92</version>
-    <simulation_name>simple_uml</simulation_name>
+    <scenario_name>simple_uml</scenario_name>
     <automac/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
