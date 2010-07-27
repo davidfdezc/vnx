@@ -5,7 +5,7 @@
   <os>
     <type arch="i686">hvm</type>
     <boot dev='hd'/>
-    <!--boot dev='cdrom'/-->
+    <boot dev='cdrom'/>
   </os>
   <features>
      <pae/>
@@ -19,26 +19,17 @@
       <source file='/usr/share/vnx/filesystems/root_fs_ubuntu'/>
       <target dev='hda'/>
     </disk>
-    <!--disk type='file' device='cdrom'>
-      <source file='/almacen/iso/ubuntu.iso'/>
+    <disk type='file' device='cdrom'>
+      <source file='/almacen/iso/ubuntu-10.04-server-i386.iso'/>
       <target dev='hdb'/>
-    </disk-->
+    </disk>
     <interface type='network'>
       <source network='default'/>
     </interface>
-    <interface type='network'>
-      <source network='default'/>
-    </interface>
-    <interface type='network'>
-      <source network='default'/>
-    </interface>
-    <interface type='network'>
-      <source network='default'/>
-    </interface>
-    <serial type='pty'>
+    <!--serial type='pty'>
       <source path='/dev/pts/3'/>
       <target port='0'/>
-    </serial>
+    </serial-->
     <graphics type='vnc'/>
   </devices>
 </domain>

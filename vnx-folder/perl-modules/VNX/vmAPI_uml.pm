@@ -508,6 +508,9 @@ sub createVM {
 		my $memTagList = $virtualm->getElementsByTagName("mem");
 		my $memTag     = $memTagList->item($0);
 		my $mem        = $memTag->getFirstChild->getData;
+		# DFC: memory comes in Kbytes; convert it to Mbytes and add and "M"
+		$mem = $mem / 1024;
+		$mem = $mem . "M"; 
 		push( @params, "mem=" . $mem );
 
 		# Go through each interface
