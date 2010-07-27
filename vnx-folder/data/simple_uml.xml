@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE vnx SYSTEM "/usr/share/xml/vnx/vnx-1.92.dtd">
+
+<!--
+
+Simple simulation
+Just one Linux virtual machine. Use this specification for testing
+
+-->
+
+<vnx>
+  <global>
+    <version>1.92</version>
+    <simulation_name>simple_uml</simulation_name>
+    <automac/>
+    <vm_mgmt type="none" />
+    <vm_defaults exec_mode="mconsole">
+    </vm_defaults>
+  </global>
+
+  <net name="Net0" mode="virtual_bridge" />
+
+  <!-- NODES -->
+  <vm name="uml" type="uml" subtype="" os="">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
+    <mem>64M</mem>
+    <kernel>/usr/share/vnx/kernels/linux</kernel>
+    <console id="0">xterm</console>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.1</ipv4>
+    </if>
+  </vm>
+
+</vnx>

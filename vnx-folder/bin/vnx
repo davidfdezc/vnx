@@ -3676,22 +3676,13 @@ sub make_vm_API_doc {
       $mem = &text_tag($mem_list->item(0));
    }
    
-   print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
-   print "%%%%%%%%% MEM = $mem \n";
-   print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
-   
+   # Convert <mem> tag value to Kilobytes (only "M" and "G" letters are allowed) 
    if ((($mem =~ /M$/))) {
-      print "con M\n";
       $mem =~ s/M//;
       $mem = $mem * 1024;
-      print "%%%%%%%%% MEM = $mem \n";
    } elsif ((($mem =~ /G$/))) {
-      print "con G\n";
       $mem =~ s/G//;
       $mem = $mem * 1024 * 1024;
-      print "%%%%%%%%% MEM = $mem \n";
-   } else {
-      print "sin letra\n";
    }
    
    # mem tag in dom tree
