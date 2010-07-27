@@ -198,10 +198,8 @@ sub defineVM {
 		print CONFILE "$doc\n";
 
 		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
-			  . " -l -R -quiet -o $filesystem_small $path" );
-		$execution->execute(
-			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
+		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"} . " -l -R -quiet -o $filesystem_small $path" );
+		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
 
 		my $parser       = new XML::DOM::Parser;
 		my $dom          = $parser->parse($doc);
@@ -2037,10 +2035,49 @@ my $random_id  = &generate_random_string(6);
 				$execution->execute("mkdir  /tmp/disk.$random_id/destination");
 				$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "$filetree_host" );
 				#$execution->execute( "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/destination" );
-				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
-				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
+				$execution->execute("mkisofs -R -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
+				
+								
+				my $disk_filetree_windows_xml;
+				$disk_filetree_windows_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
+				
+				my $disk_filetree_windows_tag = $disk_filetree_windows_xml->createElement('disk');
+				$disk_filetree_windows_xml->addChild($disk_filetree_windows_tag);
+				$disk_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( type => "file" ) );
+				$disk_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( device => "cdrom" ) );
+				
+				my $driver_filetree_windows_tag =$disk_filetree_windows_xml->createElement('driver');
+				$disk_filetree_windows_tag->addChild($driver_filetree_windows_tag);
+				$driver_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( name => "qemu" ) );
+				$driver_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( cache => "default" ) );
+				
+				my $source_filetree_windows_tag =$disk_filetree_windows_xml->createElement('source');
+				$disk_filetree_windows_tag->addChild($source_filetree_windows_tag);
+				$source_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( file => "/tmp/disk.$random_id.iso" ) );
+				
+				my $target_filetree_windows_tag =$disk_filetree_windows_xml->createElement('target');
+				$disk_filetree_windows_tag->addChild($target_filetree_windows_tag);
+				$target_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( dev => "hdb" ) );
+				
+				my $readonly_filetree_windows_tag =$disk_filetree_windows_xml->createElement('readonly');
+				$disk_filetree_windows_tag->addChild($readonly_filetree_windows_tag);
+				my $format_filetree_windows   = 1;
+				my $xmlstring_filetree_windows = $disk_filetree_windows_xml->toString($format_filetree_windows );
+				
+				$execution->execute("rm ". $dh->get_hostfs_dir($name) . "/filetree_libvirt.xml"); 
+				open XML_FILETREE_WINDOWS_FILE, ">" . $dh->get_hostfs_dir($name) . '/' . 'filetree_libvirt.xml'
+		 			 or $execution->smartdie("can not open " . $dh->get_hostfs_dir . '/' . 'filetree_libvirt.xml' )
+		  		unless ( $execution->get_exe_mode() == EXE_DEBUG );
+				print XML_FILETREE_WINDOWS_FILE "$xmlstring_filetree_windows\n";
+				close XML_FILETREE_WINDOWS_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+				
+				
+				
+				#$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
+				$execution->execute("virsh -c qemu:///system 'attach-device \"$name\" ". $dh->get_hostfs_dir($name) . "/filetree_libvirt.xml'");
 				print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
 				waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
+				sleep(4);
 				# 3d. Cleaning
 				$execution->execute("rm /tmp/disk.$random_id.iso");
 				$execution->execute("rm -r /tmp/disk.$random_id");
@@ -2123,7 +2160,42 @@ my $random_id  = &generate_random_string(6);
 				$execution->execute("mkdir /tmp/diskc.$seq.$random_id");
 				$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
 				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
-				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
+				
+				my $disk_command_windows_xml;
+				$disk_command_windows_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
+				
+				my $disk_command_windows_tag = $disk_command_windows_xml->createElement('disk');
+				$disk_command_windows_xml->addChild($disk_command_windows_tag);
+				$disk_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( type => "file" ) );
+				$disk_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( device => "cdrom" ) );
+				
+				my $driver_command_windows_tag =$disk_command_windows_xml->createElement('driver');
+				$disk_command_windows_tag->addChild($driver_command_windows_tag);
+				$driver_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( name => "qemu" ) );
+				$driver_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( cache => "default" ) );
+				
+				my $source_command_windows_tag =$disk_command_windows_xml->createElement('source');
+				$disk_command_windows_tag->addChild($source_command_windows_tag);
+				$source_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( file => "/tmp/diskc.$seq.$random_id.iso" ) );
+				
+				my $target_command_windows_tag =$disk_command_windows_xml->createElement('target');
+				$disk_command_windows_tag->addChild($target_command_windows_tag);
+				$target_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( dev => "hdb" ) );
+				
+				my $readonly_command_windows_tag =$disk_command_windows_xml->createElement('readonly');
+				$disk_command_windows_tag->addChild($readonly_command_windows_tag);
+				my $format_command_windows   = 1;
+				my $xmlstring_command_windows = $disk_command_windows_xml->toString($format_command_windows );
+				
+				$execution->execute("rm ". $dh->get_hostfs_dir($name) . "/command_libvirt.xml"); 
+				
+				open XML_COMMAND_WINDOWS_FILE, ">" . $dh->get_hostfs_dir($name) . '/' . 'command_libvirt.xml'
+		 			 or $execution->smartdie("can not open " . $dh->get_hostfs_dir . '/' . 'command_libvirt.xml' )
+		  		unless ( $execution->get_exe_mode() == EXE_DEBUG );
+				print XML_COMMAND_WINDOWS_FILE "$xmlstring_command_windows\n";
+				close XML_COMMAND_WINDOWS_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+				$execution->execute("virsh -c qemu:///system 'attach-device \"$name\" ". $dh->get_hostfs_dir($name) . "/command_libvirt.xml'");
+				#$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 				print "Sending command to client... \n";
 				waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
 				$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
