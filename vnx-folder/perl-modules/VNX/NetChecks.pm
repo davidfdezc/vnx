@@ -37,7 +37,7 @@ use VNX::DocumentChecks;
 
 # tundevice_needed
 #
-# Check if the tundevice will be needed in order to run the simulation.
+# Check if the tundevice will be needed in order to run the scenario.
 #
 # Arguments:
 #

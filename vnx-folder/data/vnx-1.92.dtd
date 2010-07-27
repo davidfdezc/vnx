@@ -1,6 +1,6 @@
 <!-- VNX DTD version 1.92 -->
 <!ELEMENT vnx (global,net*,vm*,host?)>
-<!ELEMENT global (version,simulation_name,ssh_version?,ssh_key*,automac?,netconfig?,vm_mgmt?,
+<!ELEMENT global (version,scenario_name,ssh_version?,ssh_key*,automac?,netconfig?,vm_mgmt?,
           tun_device?,vm_defaults?,extension*)>
 <!ELEMENT vm_defaults (filesystem?,mem?,kernel?,shell?,basedir?,
           mng_if?,console*,xterm?,route*,forwarding?,user*,filetree*)>
@@ -31,7 +31,7 @@
              exec_mode (net|mconsole|pst) "net">
 <!ELEMENT host (hostif*,physicalif*,route*,forwarding?,exec*)>
 <!ELEMENT version (#PCDATA)>
-<!ELEMENT simulation_name (#PCDATA)>
+<!ELEMENT scenario_name (#PCDATA)>
 <!ELEMENT ssh_version (#PCDATA)>
 <!ELEMENT ssh_key (#PCDATA)>
 <!ELEMENT automac EMPTY>

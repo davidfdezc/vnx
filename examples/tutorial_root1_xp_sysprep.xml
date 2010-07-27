@@ -9,7 +9,7 @@ See the tutorial/index.html document for details
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnuml/vnuml-1.91.xsd">
   <global>
     <version>1.91</version>
-    <simulation_name>tutorial-r1_xp</simulation_name>
+    <scenario_name>tutorial-r1_xp</scenario_name>
     <automac/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">

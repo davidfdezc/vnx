@@ -9,7 +9,7 @@ See the tutorial/index.html document for details
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.92.xsd">
   <global>
     <version>1.92</version>
-    <simulation_name>tutorial-r1_xp_vnx</simulation_name>
+    <scenario_name>tutorial-r1_xp_vnx</scenario_name>
     <automac/>
     <vm_mgmt type="private" network="10.250.0.0" mask="24">
        <host_mapping />
