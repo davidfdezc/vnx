@@ -16,7 +16,7 @@
   <devices>
     <emulator>/usr/bin/kvm</emulator>
     <disk type='file' device='disk'>
-      <source file='/usr/share/vnx/filesystems/root_fs_win7-base.qcow2'/>
+      <source file='/usr/share/vnx/filesystems/root_fs_win7'/>
       <target dev='hda'/>
     </disk>
     <disk type='file' device='cdrom'>

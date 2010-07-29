@@ -14,7 +14,7 @@ S21SecLabs scenario v0.3
 
 	<global>
 		<version>1.92</version>
-		<scenario_name>s21seclabsvirtual-v03</scenario_name>
+		<simulation_name>s21seclabsvirtual-v03</simulation_name>
 		<ssh_version>2</ssh_version>
 		<ssh_key>~/.ssh/identity.pub</ssh_key>
 		<automac offset="0"/>

@@ -160,11 +160,14 @@ sub execute_commands2 {
 #	print LOG "   Parsing commands file...\n";
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($commands_file);
+	print LOG "\n";
+	print LOG $dom->toString;
+	print LOG "\n";
 	my $globalNode   = $dom->getElementsByTagName("command")->item(0);
 	my $execTagList = $globalNode->getElementsByTagName("exec");
 	my $numexec        = $execTagList->getLength;
 	for (my $j = 0 ; $j < $numexec ; $j++){
-		my $execTag     = $execTagList->item($0);
+		my $execTag     = $execTagList->item($j);
 		my $seq       = $execTag->getAttribute("seq");
 		my $type       = $execTag->getAttribute("type");
 		my $mode       = $execTag->getAttribute("mode");
@@ -216,6 +219,9 @@ sub autoconfigure2 {
 #	print LOG "Parsing vnxboot file...\n";
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($vnxboot_file);
+	print LOG "\n";
+	print LOG $dom->toString;
+	print LOG "\n";
 	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 	my $virtualmTagList = $globalNode->getElementsByTagName("vm");
 	my $virtualmTag     = $virtualmTagList->item($0);
@@ -399,6 +405,9 @@ sub autoconfigure {
 		print LOG "Parsing vnxboot file...\n";
 		my $parser       = new XML::DOM::Parser;
 		my $dom          = $parser->parsefile($vnxboot_file);
+		print LOG "\n";
+		print LOG $dom->toString;
+		print LOG "\n";
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmTagList = $globalNode->getElementsByTagName("vm");
 		my $virtualmTag     = $virtualmTagList->item($0);
@@ -569,6 +578,9 @@ sub execute_commands {
 					print LOG "   Parsing commands file...\n";
 					my $parser       = new XML::DOM::Parser;
 					my $dom          = $parser->parsefile($commands_file);
+					print LOG "\n";
+					print LOG $dom->toString;
+					print LOG "\n";
 					my $globalNode   = $dom->getElementsByTagName("comandos")->item(0);
 					my $execTagList = $globalNode->getElementsByTagName("exec");
 					my $numexec        = $execTagList->getLength;
@@ -639,6 +651,9 @@ sub filetree {
 	my @files_array = <$path/*>;
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($filetree_file);
+	print LOG "\n";
+	print LOG $dom->toString;
+	print LOG "\n";
 	my $globalNode   = $dom->getElementsByTagName("filetrees")->item(0);
 	my $filetreeTagList = $globalNode->getElementsByTagName("filetree");
 	my $numfiletree        = $filetreeTagList->getLength;
