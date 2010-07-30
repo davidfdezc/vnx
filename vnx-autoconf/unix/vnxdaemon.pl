@@ -57,7 +57,7 @@ sub daemonize {
 	# DFC: con el close dejan de funcionar algunos comandos sencillos, por ejemplo, el 
 	# arranque o parada de apache "service apache2 start". En el ejemplo de
 	# http://www.webreference.com/perl/tutorial/9/3.html lo que hacen es redirigir las 
-	# salidas/entradas a /dev/null 
+	# salidas/entradas a /dev/null. Con eso si funcionan los comandos
 	open STDIN,  '/dev/null'   or die "Can't read /dev/null: $!";
     open STDOUT, '>>/dev/null' or die "Can't write to /dev/null: $!";
     open STDERR, '>>/dev/null' or die "Can't write to /dev/null: $!";
