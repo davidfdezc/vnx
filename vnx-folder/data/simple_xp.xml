@@ -12,7 +12,7 @@ Just one Windows XP virtual machine. Use this specification for testing
   <global>
     <version>1.92</version>
     <scenario_name>simple_xp</scenario_name>
-    <automac offset="1"/>
+    <automac offset="3"/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
     </vm_defaults>
@@ -25,7 +25,7 @@ Just one Windows XP virtual machine. Use this specification for testing
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
     <mem>512M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.2</ipv4>
+      <ipv4>10.0.0.3/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="c:\temp">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="c:\temp">conf/txtfile</filetree>
@@ -35,5 +35,11 @@ Just one Windows XP virtual machine. Use this specification for testing
     <exec seq="logout" type="verbatim" mode="system">shutdown -l</exec>
     <exec seq="reboot" type="verbatim" mode="system">shutdown -r</exec>
   </vm>
+  
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>  
 
 </vnx>
