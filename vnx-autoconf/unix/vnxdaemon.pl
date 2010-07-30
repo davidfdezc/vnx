@@ -51,9 +51,17 @@ sub daemonize {
 	setsid();
 
 	# Close descriptors
-	close(STDERR);
-	close(STDOUT);
-	close(STDIN);
+	#close(STDERR);
+	#close(STDOUT);
+	#close(STDIN);
+	# DFC: con el close dejan de funcionar algunos comandos sencillos, por ejemplo, el 
+	# arranque o parada de apache "service apache2 start". En el ejemplo de
+	# http://www.webreference.com/perl/tutorial/9/3.html lo que hacen es redirigir las 
+	# salidas/entradas a /dev/null 
+	open STDIN,  '/dev/null'   or die "Can't read /dev/null: $!";
+    open STDOUT, '>>/dev/null' or die "Can't write to /dev/null: $!";
+    open STDERR, '>>/dev/null' or die "Can't write to /dev/null: $!";
+	
 
 	# Set permissions for temporary files
 	umask(027);
@@ -172,6 +180,7 @@ sub execute_commands2 {
 		my $type       = $execTag->getAttribute("type");
 		my $mode       = $execTag->getAttribute("mode");
 		my $command2    = $execTag->getFirstChild->getData;
+		# SYSTEM
 		if ($mode eq "system"){
 			print LOG "   executing: '$command2'\n   in mode: 'system'\n";
 			# Fork
@@ -183,7 +192,8 @@ sub execute_commands2 {
 				# child executes command and dies
 				exec "xterm -display :0.0 -e $command2";
 			}
-			}elsif($mode eq "processn"){
+		# PROCESSN
+		}elsif($mode eq "processn"){
 				print LOG "   executing: '$command2'\n   in mode: 'processn'\n";
 				# Fork
 				my $pid2 = fork;
@@ -194,9 +204,10 @@ sub execute_commands2 {
 				# child executes command and dies
 				exec $command2;
 			}
-			}elsif($mode eq "processy"){
-			print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
-			system $command2;
+		# PROCESSY
+		}elsif($mode eq "processy"){
+ 				print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
+				system $command2;
 		}else{
 			print LOG "   Command mode '$mode' not available. Aborting execution...\n";
 		}

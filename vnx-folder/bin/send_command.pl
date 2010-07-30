@@ -38,7 +38,7 @@ system "mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -
 print "> virsh -c qemu:///system 'attach-disk \"$name\" /tmp/vnx_temp_command.iso hdb --mode readonly --driver file --type cdrom'\n";
 system "virsh -c qemu:///system 'attach-disk \"$name\" /tmp/vnx_temp_command.iso hdb --mode readonly --driver file --type cdrom'";
 
-my $x = <STDIN>;
+#my $x = <STDIN>;
              
 print "> rm -rf /tmp/vnx_temp_command*\n";
 system "rm -rf /tmp/vnx_temp_command*";

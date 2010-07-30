@@ -109,7 +109,7 @@ use VNX::TextManipulation;
 #
 sub check_doc {
 	
-	my $max_name_length = 7;
+	my $max_name_length = 12;
 	
 	# Get arguments
 	my $dh= shift;

@@ -12,7 +12,7 @@ Just one FreeBSD virtual machine. Use this specification for testing
   <global>
     <version>1.92</version>
     <scenario_name>simple_freebsd</scenario_name>
-    <automac offset="5"/>
+    <automac offset="6"/>
     <vm_mgmt type="none" />
   </global>
     
@@ -23,8 +23,14 @@ Just one FreeBSD virtual machine. Use this specification for testing
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_freebsd</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.5</ipv4>
+      <ipv4>10.0.0.6/24</ipv4>
     </if>
   </vm>
 
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>
+  
 </vnx>
