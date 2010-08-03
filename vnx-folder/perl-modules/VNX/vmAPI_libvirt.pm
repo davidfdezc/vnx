@@ -445,9 +445,9 @@ sub defineVM {
 	}
 	
 	###################################################################
-	#                  defineVM for libvirt-kvm-linux                 #
+	#                  defineVM for libvirt-kvm-linux/freebsd         #
 	###################################################################
-	elsif ( $type eq "libvirt-kvm-linux" ) {
+	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
 
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "vnxboot"
@@ -711,9 +711,9 @@ sub undefineVM {
 
 
 	###################################################################
-	#                  defineVM for libvirt-kvm-windows/linux         #
+	#                  defineVM for libvirt-kvm-windows/linux/freebsd #
 	###################################################################
-	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux") ) {
+	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1110,9 +1110,9 @@ sub createVM {
 	}
 	
 	###################################################################
-	#                  createVM for libvirt-kvm-linux                 #
+	#                  createVM for libvirt-kvm-linux/freebsd         #
 	###################################################################
-	elsif ( $type eq "libvirt-kvm-linux" ) {
+	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
 
 		#Save xml received in vnxboot, for the autoconfiguration
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
@@ -1390,9 +1390,9 @@ sub destroyVM {
 	my $error = 0;
 	
 	###################################################################
-	#                  destroyVM for libvirt-kvm-windows/linux        #
+	#                  destroyVM for libvirt-kvm-windows/linux/freebsd#
 	###################################################################
-	if ( ( $type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ) {
+	if ( ( $type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
 
 		my $addr = "qemu:///system";
 
@@ -1503,9 +1503,9 @@ sub startVM {
 
 	}
 	###################################################################
-	#                  startVM for libvirt-kvm-linux                  #
+	#                  startVM for libvirt-kvm-linux/freebsd          #
 	###################################################################
-	elsif ( $type eq "libvirt-kvm-linux" ) {
+	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1586,9 +1586,9 @@ sub shutdownVM {
 	print "Shutting down vm $vmName of type $type\n";
 
    	###################################################################
-	#                  shutdownVM for libvirt-kvm-windows/linux       #
+	#                 shutdownVM for libvirt-kvm-windows/linux/freebsd#
 	###################################################################
-	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux") ) {
+	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1670,9 +1670,9 @@ sub saveVM {
 
 	}
 	###################################################################
-	#                  saveVM for libvirt-kvm-windows/linux           #
+	#                  saveVM for libvirt-kvm-windows/linux/freebsd   #
 	###################################################################
-	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1723,9 +1723,9 @@ sub restoreVM {
 	  "dummy plugin: restoring vm $vmName of type $type from file $filename\n";
 
  	###################################################################
-	#                  restoreVM for libvirt-kvm-windows/linux        #
+	#                  restoreVM for libvirt-kvm-windows/linux/freebsd#
 	###################################################################
-	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
 		my $addr = "qemu:///system";
 		print "Connecting to $addr...\n";
 		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
@@ -1762,9 +1762,9 @@ sub suspendVM {
 	my $error = 0;
 
 	###################################################################
-	#                  suspendVM for libvirt-kvm-windows/linux        #
+	#                  suspendVM for libvirt-kvm-windows/linux/freebsd#
 	###################################################################
-    if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+    if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1813,9 +1813,9 @@ sub resumeVM {
 	print "dummy plugin: resuming vm $vmName\n";
 
 	###################################################################
-	#                  resumeVM for libvirt-kvm-windows/linux         #
+	#                  resumeVM for libvirt-kvm-windows/linux/freebsd #
 	###################################################################
-	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1861,9 +1861,9 @@ sub rebootVM {
 	my $error = 0;
 
 	###################################################################
-	#                  rebootVM for libvirt-kvm-windows/linux         #
+	#                  rebootVM for libvirt-kvm-windows/linux/freebsd #
 	###################################################################
-	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1913,9 +1913,9 @@ sub resetVM {
 	print "dummy plugin: reseting vm $vmName\n";
 
 	###################################################################
-	#                  resetVM for libvirt-kvm-windows/linux          #
+	#                  resetVM for libvirt-kvm-windows/linux/freebsd  #
 	###################################################################
-	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")) {
+	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -2227,7 +2227,7 @@ my $random_id  = &generate_random_string(6);
 			}
 			
 
-		}elsif ($merged_type eq "libvirt-kvm-linux"){
+		}elsif (($merged_type eq "libvirt-kvm-linux")||($merged_type eq "libvirt-kvm-freebsd")){
 			############### LINUX ####################
 			############### FILETREE #################
 			my @filetree_list = $dh->merge_filetree($vm);
