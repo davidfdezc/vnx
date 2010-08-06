@@ -1,0 +1,38 @@
+#! /bin/sh
+
+. /etc/rc.subr
+
+name="vnxdaemon"
+start_cmd="${name}_start"
+stop_cmd="${name}_stop"
+status_cmd="${name}_status"
+restart_cmd="${name}_restart"
+
+pidfile="/var/run/${name}.pid"
+
+
+extra_commands="status restart"
+
+vnxdaemon_start()
+{
+   echo 'running' > /var/run/${name}.status
+   perl /usr/sbin/vnxdaemon.pl
+   return 0;
+}
+vnxdaemon_stop()
+{
+   echo 'stopped' > /var/run/${name}.status
+   #perl /usr/sbin/vnxdaemon.pl
+}
+vnxdaemon_status()
+{
+   cat /var/run/${name}.status
+}
+vnxdaemon_restart()
+{
+   echo 'running' > /var/run/${name}.status
+   #perl /usr/sbin/vnxdaemon.pl
+}
+
+load_rc_config $name
+run_rc_command "$1"
