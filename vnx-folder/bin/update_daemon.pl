@@ -3,20 +3,19 @@
 use strict;
 use POSIX;
 use Sys::Syslog;
-use XML::DOM;
+#use XML::DOM;
 use Cwd;
     
 
 my $name = shift;
-my $type = shift;
 
 
-if (($name eq "")||($type eq "")){
-   print " usage (as root):\n    perl update_daemon.pl <vm_name> unix\n      or\n    perl update_daemon.pl <vm_name> freebsd \n";
+if ($name eq ""){
+   print " usage (as root): perl update_daemon.pl <vm_name>\n";
    exit(1);
 }
 
-print "\nupdating vnx daemon in '$name' of type '$type'...\n\n";
+print "\nupdating vnx daemon in virtual machine '$name'...\n\n";
 
 
 my $fileid = $name . "-" . &generate_random_string(6);
