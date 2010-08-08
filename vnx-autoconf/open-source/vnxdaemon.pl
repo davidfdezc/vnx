@@ -23,8 +23,10 @@ sub main{
 	# if this is the first run...
 	unless (-f "/root/.vnx/LOCK"){
 		# generate LOCK file
-		system "mkdir /root/.vnx/";
+		system "mkdir -p /root/.vnx/";
 		system "touch /root/.vnx/LOCK";
+		# generate run dir
+		#system "mkdir -p /var/run/vnxdaemon/";
 		# remove residual log file
 		system "rm -f /var/log/vnxdaemon.log";
 		# generate new log file
@@ -40,8 +42,18 @@ sub main{
 		close LOG;
 	}
 
+	if (-f "/var/run/vnxdaemon.pid"){
+		system "touch /home/vnx/muero";
+		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+		print LOG "Another instance of vnxdaemon seems to be running, aborting execution (PID $$)\n";
+		exit 1;
+	}
+	
+
 	&daemonize;
 	&listen;
+	
+
 }
 
 
@@ -57,9 +69,12 @@ sub daemonize {
 	print LOG "## Daemonizing process ##\n";
 
 	# Fork
-	my $pid = fork;
-	exit if $pid;
-	die "Couldn't fork: $!" unless defined($pid);
+#	my $pid = fork;
+#	exit if $pid;
+#	die "Couldn't fork: $!" unless defined($pid);
+
+	# store process pid
+	system "echo $$ > /var/run/vnxdaemon.pid";
 
 	# Become session leader (independent from shell and terminal)
 	setsid();
@@ -127,6 +142,14 @@ sub listen {
 						print LOG "   configuration file received in $file2\n";
 						&autoconfigure($file2);
 						print LOG "\n";
+					}elsif ($file2 eq "/media/cdrom/vnx_update.xml"){
+						unless (&check_if_new_file($file2,"vnx_update") eq '1'){
+							next;				
+						}
+						print LOG "   update files received in $file2\n";
+						&autoupdate($file2);
+						print LOG "\n";
+
 					}else {
 						# unknown file, do nothing
 					}
@@ -190,7 +213,7 @@ sub listen {
 							next;				
 						}
 						print LOG "   update files received in $file2\n";
-						&update($file2);
+						&autoupdate($file2);
 						print LOG "\n";
 
 					}else {
@@ -206,14 +229,14 @@ sub listen {
 }
 
 
-sub update {
+sub autoupdate {
 	#############################
 	# update for Linux          #
 	#############################
 	if ($platform eq 'Linux'){
 		print LOG "   updating vnxdaemon for Linux\n";
-		system "cp /cdrom/vnxdaemon.pl /etc/init.d/";
-		system "cp /cdrom/unix/vnxdaemon /etc/init/";
+		system "cp /media/cdrom/vnxdaemon.pl /etc/init.d/";
+		system "cp /media/cdrom/unix/* /etc/init/";
 	}
 	#############################
 	# update for FreeBSD        #
