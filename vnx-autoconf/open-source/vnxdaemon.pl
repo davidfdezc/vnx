@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 
-
-
 use strict;
 use POSIX;
 use Sys::Syslog;
@@ -147,7 +145,7 @@ sub listen {
 							next;				
 						}
 						print LOG "   update files received in $file2\n";
-						&autoupdate($file2);
+						&autoupdate;
 						print LOG "\n";
 
 					}else {
@@ -213,7 +211,7 @@ sub listen {
 							next;				
 						}
 						print LOG "   update files received in $file2\n";
-						&autoupdate($file2);
+						&autoupdate;
 						print LOG "\n";
 
 					}else {
@@ -230,6 +228,7 @@ sub listen {
 
 
 sub autoupdate {
+	
 	#############################
 	# update for Linux          #
 	#############################
@@ -247,7 +246,7 @@ sub autoupdate {
 		system "cp /cdrom/freebsd/* /etc/rc.d/vnxdaemon";
 	}
 	system "rm /root/.vnx/LOCK";
-	system "reboot";
+	#system "reboot";
 	return;
 }
 
