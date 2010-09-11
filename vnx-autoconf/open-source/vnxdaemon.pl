@@ -410,7 +410,7 @@ sub autoconfigure {
 	#######################################
 	if ($platform eq 'Linux'){
 		
-		my $vnxboot_file = shift;
+		#my $vnxboot_file = shift;
 		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
 		my $parser       = new XML::DOM::Parser;
 		my $dom          = $parser->parsefile($vnxboot_file);
@@ -542,7 +542,7 @@ sub autoconfigure {
 	# autoconfigure for FreeBSD           #
 	#######################################
 	elsif ($platform eq 'FreeBSD'){
-		my $vnxboot_file = shift;
+		#my $vnxboot_file = shift;
 		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
 		my $parser       = new XML::DOM::Parser;
 		my $dom          = $parser->parsefile($vnxboot_file);
