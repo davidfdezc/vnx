@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE vnx SYSTEM "/usr/share/xml/vnx/vnx-1.92.dtd">
+
+<!--
+
+Simple scenario
+Just one Windows XP virtual machine. Use this specification for testing
+
+-->
+
+<vnx>
+  <global>
+    <version>1.92</version>
+    <scenario_name>simple_xp</scenario_name>
+    <automac offset="3"/>
+    <vm_mgmt type="none" />
+    <vm_defaults exec_mode="mconsole">
+    </vm_defaults>
+  </global>
+  
+  <net name="Net0" mode="virtual_bridge" />
+    
+  <!-- NODES -->
+  <vm name="R1" type="dynamips" subtype="" os="">
+
+  </vm>
+  
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>  
+
+</vnx>
