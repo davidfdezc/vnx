@@ -22,7 +22,6 @@
 #
 # ----------------------------------------------------------------------------------
 #
-# Version JA120120101157
 #
 #
 # This program is free software; you can redistribute it and/or
@@ -159,6 +158,7 @@ use VNX::DocumentChecks;
 use VNX::IPChecks;
 use VNX::vmAPI_uml;
 use VNX::vmAPI_libvirt;
+use VNX::vmAPI_dynamips;
 
 use Error qw(:try);
 use Exception::Class ( "Vnx::Exception" =>
@@ -1939,16 +1939,11 @@ sub mode_x {
 		# call the corresponding vmAPI
        my $vmType = $vm->getAttribute("type");
        my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $execution, $bd, $dh, $vm, $name);
-     	if (!($error eq 0)){print $error}
-#		if ( $merged_type eq "uml"){
-#			vmAPI_uml->executeCMD($merged_type, $seq, $execution, $bd, $dh,$vm);
-#		}elsif ( $merged_type eq "libvirt-kvm-windows" ) {
-#			vmAPÎ_libvirt->executeCMD($merged_type, $seq, $execution, $bd, $dh,$vm);
-#		}elsif ($merged_type eq "libvirt-kvm-linux"){
-#			vmAPÎ_libvirt->executeCMD($merged_type, $seq, $execution, $bd, $dh,$vm);
+     	if (!($error eq 0)){
+     		print $error
+     	}
 	}
 	vmAPI_uml->exec_command_host($seq,$execution,$bd,$dh);
-
 
 }
 
@@ -3988,3 +3983,4 @@ sub usage {
    
 
 }
+
