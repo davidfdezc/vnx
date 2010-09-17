@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE vnx SYSTEM "/usr/share/xml/vnx/vnx-1.92.dtd">
+
 
 <!--
 
@@ -8,10 +8,11 @@ Just one Windows XP virtual machine. Use this specification for testing
 
 -->
 
-<vnx>
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+     xsi:noNamespaceSchemaLocation="/home/jrodriguez/workspace/vnx/vnx-folder/temporal/jrodriguez/vnx-1.93.xsd">
   <global>
     <version>1.92</version>
-    <scenario_name>simple_xp</scenario_name>
+    <scenario_name>simple_dynamips</scenario_name>
     <automac offset="3"/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
@@ -22,7 +23,8 @@ Just one Windows XP virtual machine. Use this specification for testing
     
   <!-- NODES -->
   <vm name="R1" type="dynamips" subtype="" os="">
-
+	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
+	<dynamips_port>7200</dynamips_port>
   </vm>
   
   <host>

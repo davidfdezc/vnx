@@ -27,8 +27,8 @@ Just one Windows XP virtual machine. Use this specification for testing
     <if id="1" net="Net0">
       <ipv4>10.0.0.8/24</ipv4>
     </if>
-    <!--filetree seq="opera" root="c:\temp1">/home/jrodriguez/entregable</filetree>
-    <exec seq="opera" type="verbatim">c:\temp1\operausb1053\opera.exe</exec-->
+    <filetree seq="notepad" root="c:\temp1">/home/jrodriguez/entregable</filetree>
+    <exec seq="notepad" type="verbatim">notepad c:\temp1\cosa.txt</exec>
   </vm>
 
   <host>

@@ -27,28 +27,26 @@
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 #
 
-
-#package vmAPI_dynamips;
 #
 #@ISA    = qw(Exporter);
-#@EXPORT = qw(defineVM
-#  undefineVM
-#  createVM
-#  destroyVM
-#  startVM
-#  shutdownVM
-#  saveVM
-#  restoreVM
-#  suspendVM
-#  resumeVM
-#  rebootVM
-#  resetVM
-#  executeCMD);
-#
+@EXPORT = qw(defineVM
+  undefineVM
+  createVM
+  destroyVM
+  startVM
+  shutdownVM
+  saveVM
+  restoreVM
+  suspendVM
+  resumeVM
+  rebootVM
+  resetVM
+  executeCMD);
+
 package vmAPI_dynamips;
 
 @ISA    = qw(Exporter);
-@EXPORT = qw(defineVM);
+#@EXPORT = qw(defineVM);
   
 
 ##use strict;
@@ -71,6 +69,17 @@ package vmAPI_dynamips;
 
 use Net::Telnet;
 
+my $execution;    # the VNX::Execution object
+my $dh;           # the VNX::DataHandler object
+my $bd;           # the VNX::BinariesData object
+
+
+# Name of UML whose boot process has started but not reached the init program
+# (for emergency cleanup).  If the mconsole socket has successfully been initialized
+# on the UML then '#' is appended.
+my $curr_uml;
+my $F_flag;       # passed from createVM to halt
+my $M_flag;       # passed from createVM to halt
 #
 ##needed for UML_bootfile
 #use File::Basename;
@@ -110,6 +119,61 @@ use Net::Telnet;
 ####################################################################
 #
 sub defineVM {
+	my $self   = shift;
+	my $vmName = shift;
+	my $type   = shift;
+	my $doc    = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	my $sock    = shift;
+	my $counter = shift;
+	$curr_uml = $vmName;
+	
+	my $doc2       = $dh->get_doc;
+	my @vm_ordered = $dh->get_vm_ordered;
+
+	my $path;
+	my $filesystem;
+	
+	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+
+		my $vm = $vm_ordered[$i];
+
+		# We get name attribute
+		my $name = $vm->getAttribute("name");
+
+		unless ( $name eq $vmName ) {
+			next;
+		}
+	}
+	#		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
+	#	open CONFILE, ">$path" . "vnxboot"
+	#	  or $execution->smartdie("can not open ${path}vnxboot: $!")
+	#	  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+
+		#$execution->execute($doc ,*CONFILE);
+	#	print CONFILE "$doc\n";
+
+#		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+#		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"} . " -l -R -quiet -o $filesystem_small $path" );
+#		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
+
+		my $parser       = new XML::DOM::Parser;
+		my $dom          = $parser->parse($doc);
+		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
+		my $virtualmList = $globalNode->getElementsByTagName("vm");
+		my $virtualm     = $virtualmList->item($0);
+
+		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
+		my $filesystemTag     = $filesystemTagList->item($0);
+		my $filesystem_type   = $filesystemTag->getAttribute("type");
+		my $filesystem        = $filesystemTag->getFirstChild->getData;
+		
+		my $dynamips_portList = $virtualm->getElementsByTagName("dynamips_port");
+		my $dynamips_portTag = $dynamips_portList->item($0);
+		my $dynamips_port = $dynamips_portTag->getFirstChild->getData;
+		
 	$HHOST="localhost";
 	$HPORT="7300";
 	$HIDLEPC="0x604f8104";
@@ -146,7 +210,8 @@ sub defineVM {
     $line = $t->getline; print $line;
     $t->print("c3600 set_chassis $rname 3640");
     $line = $t->getline; print $line;
-    $t->print("vm set_ios $rname $RIOSFILE");
+    #$t->print("vm set_ios $rname $RIOSFILE");
+    $t->print("vm set_ios $rname $filesystem");
     $line = $t->getline; print $line;
     $t->print("vm set_ram $rname $ram");
     $line = $t->getline; print $line;
@@ -766,6 +831,9 @@ sub defineVM {
 ##                                                                 #
 ####################################################################
 #
+sub undefineVM{
+	
+}
 #sub undefineVM {
 #
 #	my $self   = shift;
@@ -817,6 +885,9 @@ sub defineVM {
 ##                                                                 #
 ####################################################################
 #
+sub createVM{
+	
+}
 #sub createVM {
 #
 #	my $self   = shift;
@@ -1443,6 +1514,21 @@ sub defineVM {
 ##                                                                 #
 ####################################################################
 #
+sub destroyVM{
+	$rname = "r11";
+	$rconsoleport = "901";	
+	$ram = "96";
+
+    print "-----------------------------\n";
+    print "Creating router: $rname\n";
+    print "  console: $rconsoleport\n";
+    print "  ram: $ram\n";
+
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    $t->print("vm stop ".$rname);
+    $line = $t->getline; print $line;
+}
 #sub destroyVM {
 #
 #	my $self   = shift;
@@ -1645,6 +1731,9 @@ sub startVM {
 ##                                                                 #
 ####################################################################
 #
+sub shutdownVM{
+	
+}
 #sub shutdownVM {
 #
 #	my $self   = shift;
@@ -1706,6 +1795,9 @@ sub startVM {
 ##                                                                 #
 ####################################################################
 #
+sub saveVM{
+	
+}
 #sub saveVM {
 #
 #	my $self     = shift;
@@ -1785,6 +1877,9 @@ sub startVM {
 ##                                                                 #
 ####################################################################
 #
+sub restoreVM{
+	
+}
 #sub restoreVM {
 #
 #	my $self     = shift;
@@ -1828,6 +1923,9 @@ sub startVM {
 ##                                                                 #
 ####################################################################
 #
+sub suspendVM{
+	
+}
 #sub suspendVM {
 #
 #	my $self   = shift;
@@ -1876,6 +1974,9 @@ sub startVM {
 ##                                                                 #
 ####################################################################
 #
+sub resumeVM{
+	
+}
 #sub resumeVM {
 #
 #	my $self   = shift;
@@ -1927,6 +2028,9 @@ sub startVM {
 ##                                                                 #
 ####################################################################
 #
+sub rebootVM{
+	
+}
 #sub rebootVM {
 #
 #	my $self   = shift;
@@ -1976,6 +2080,9 @@ sub startVM {
 ##                                                                 #
 ####################################################################
 #
+sub resetVM{
+	
+}
 #sub resetVM {
 #
 #	my $self   = shift;
@@ -2027,6 +2134,9 @@ sub startVM {
 ##                                                                 #
 ####################################################################
 #
+sub executeCMD{
+	
+}
 #sub executeCMD {
 #
 #	my $self = shift;
