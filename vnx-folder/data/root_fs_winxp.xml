@@ -19,10 +19,10 @@
       <source file='/usr/share/vnx/filesystems/root_fs_winxp'/>
       <target dev='hda'/>
     </disk>
-    <disk type='file' device='cdrom'>
+    <!--disk type='file' device='cdrom'>
       <source file='/almacen/iso/winxp.iso'/>
       <target dev='hdb'/>
-    </disk>
+    </disk-->
     <interface type='network'>
       <source network='default'/>
     </interface>
