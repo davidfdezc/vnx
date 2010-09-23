@@ -26,14 +26,14 @@ See the tutorial/index.html document for details
   <net name="Net2" mode="virtual_bridge" />
   <net name="Net3" mode="virtual_bridge" />
 
-  <!--vm name="uml1" type="uml" subtype="" os="">
+  <vm name="uml1" type="uml" subtype="" os="">
     <if id="1" net="Net0">
       <ipv4>10.0.0.1</ipv4>
     </if>
     <route type="ipv4" gw="10.0.0.3">default</route>
     <exec seq="start" type="verbatim">nohup /usr/bin/hello &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;</exec>
     <exec seq="stop" type="verbatim">killall hello</exec>   
-  </vm-->
+  </vm>
 
   <vm name="uml2" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_win7</filesystem>
