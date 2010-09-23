@@ -20,13 +20,37 @@ Just one Windows XP virtual machine. Use this specification for testing
   </global>
   
   <net name="Net0" mode="virtual_bridge" />
+  <net name="Net1" mode="virtual_bridge" />
     
   <!-- NODES -->
-  <vm name="R1" type="dynamips" subtype="" os="">
+  <vm name="R1" type="dynamips" subtype="3600" os="">
 	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
-	<dynamips_port>7200</dynamips_port>
+	<conf_dynamips>/home/jrodriguez/simpledynamips.txt</conf_dynamips>
+	<if id="1" net="Net0">
+    </if>
+	<if id="2" net="Net1">
+    </if>
+   </vm>
+     <vm name="win71" type="libvirt" subtype="kvm" os="windows">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_win7</filesystem>
+    <mem>1G</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.8/24</ipv4>
+    </if>
+     <route type="ipv4" gw="10.0.0.2">default</route>
+    <filetree seq="notepad" root="c:\temp1">/home/jrodriguez/entregable</filetree>
+    <exec seq="notepad" type="verbatim">notepad c:\temp1\cosa.txt</exec>
   </vm>
-  
+    <vm name="win72" type="libvirt" subtype="kvm" os="windows">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_win7</filesystem>
+    <mem>1G</mem>
+    <if id="1" net="Net1">
+      <ipv4>10.0.1.8/24</ipv4>
+    </if>
+     <route type="ipv4" gw="10.0.1.2">default</route>
+    <filetree seq="notepad" root="c:\temp1">/home/jrodriguez/entregable</filetree>
+    <exec seq="notepad" type="verbatim">notepad c:\temp1\cosa.txt</exec>
+  </vm>
   <host>
     <hostif net="Net0">
        <ipv4>10.0.0.1/24</ipv4>
