@@ -59,7 +59,7 @@ Just one Windows XP virtual machine. Use this specification for testing
     	</if>
     	<route type="ipv4" gw="10.1.1.1">default</route>
   </vm>
-    	<vm name="H3" type="libvirt" subtype="kvm" os="windows">
+  <vm name="H3" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
     <mem>512M</mem>
    		<if id="1" net="Net2">
