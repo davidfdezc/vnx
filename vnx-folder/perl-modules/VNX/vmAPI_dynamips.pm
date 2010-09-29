@@ -850,7 +850,24 @@ sub defineVM {
 ####################################################################
 #
 sub undefineVM{
+		my $self   = shift;
+	my $vmName = shift;
+	my $type   = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	$F_flag    = shift;
+		print "-----------------------------\n";
+    print "Shutdowning router: $vmName\n";
 	
+
+	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
+    
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    $t->print("vm destroy $vmName");
+    $line = $t->getline; print $line;
+    $t->close;
 }
 #sub undefineVM {
 #
@@ -904,6 +921,133 @@ sub undefineVM{
 ####################################################################
 #
 sub createVM{
+	my $self   = shift;
+	my $vmName = shift;
+	my $type   = shift;
+	my $doc    = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	my $sock    = shift;
+	my $counter = shift;
+	$curr_uml = $vmName;
+	
+	my $doc2       = $dh->get_doc;
+	my @vm_ordered = $dh->get_vm_ordered;
+
+	my $path;
+	my $filesystem;
+	
+	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+
+		my $vm = $vm_ordered[$i];
+
+		# We get name attribute
+		my $name = $vm->getAttribute("name");
+
+		unless ( $name eq $vmName ) {
+			next;
+		}
+	}
+
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parse($doc);
+	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+	my $virtualm     = $virtualmList->item($0);
+	
+	my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
+	my $filesystemTag     = $filesystemTagList->item($0);
+	my $filesystem_type   = $filesystemTag->getAttribute("type");
+	my $filesystem        = $filesystemTag->getFirstChild->getData;
+	
+	
+	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("conf_dynamips");
+	my $conf_dynamipsTag     = $conf_dynamipsTagList->item($0);
+	my $conf_dynamips        = $conf_dynamipsTag->getFirstChild->getData;
+		
+		
+	$HIDLEPC="0x604f8104";
+	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
+    print "-----------------------------\n";
+    print "Reset hypervisor:\n";
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    if ($counter == 0)
+    {
+    	$t->print("hypervisor reset");
+   		$line = $t->getline; print $line;
+    	$t->close;
+    	print "-----------------------------\n";
+    }
+    
+
+	my $consoleportbase = "900";
+	my $consoleport = $consoleportbase + $counter;
+	$ram = "96";
+
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    print("hypervisor version\n");
+    $t->print("hypervisor version");
+    $line = $t->getline; print $line;
+    print("hypervisor working_dir \"". $dh->get_fs_dir($vmName)."\" \n");
+    $t->print("hypervisor working_dir \"". $dh->get_fs_dir($vmName). "\" ");
+    $line = $t->getline; print $line;
+    print("vm create $vmName 0 c3600\n");
+    $t->print("vm create $vmName 0 c3600");
+    $line = $t->getline; print $line;
+    print("vm set_con_tcp_port $vmName $consoleport\n");
+    $t->print("vm set_con_tcp_port $vmName $consoleport");
+    $line = $t->getline; print $line;
+    print("c3600 set_chassis $vmName 3640\n");
+    $t->print("c3600 set_chassis $vmName 3640");
+    $line = $t->getline; print $line;
+    #$t->print("vm set_ios $rname $RIOSFILE");
+    print("vm set_ios $vmName $filesystem\n");
+    $t->print("vm set_ios $vmName $filesystem");
+    $line = $t->getline; print $line;
+    print("vm set_ram $vmName $ram\n");
+    $t->print("vm set_ram $vmName $ram");
+    $line = $t->getline; print $line;
+	print("vm set_sparse_mem $vmName 1\n");
+	$t->print("vm set_sparse_mem $vmName 1");
+    $line = $t->getline; print $line;
+	print("vm set_idle_pc $vmName $HIDLEPC\n");
+	$t->print("vm set_idle_pc $vmName $HIDLEPC");
+    $line = $t->getline; print $line;
+	print("vm set_blk_direct_jump $vmName 0\n");
+	$t->print("vm set_blk_direct_jump $vmName 0");
+    $line = $t->getline; print $line;
+	print("vm slot_add_binding $vmName 0 0 NM-4E\n");
+	$t->print("vm slot_add_binding $vmName 0 0 NM-4E");
+    $line = $t->getline; print $line;
+	#print("vm slot_add_binding $vmName 1 0 NM-4T");
+	#$t->print("vm slot_add_binding $vmName 1 0 NM-4T");
+    #$line = $t->getline; print $line;
+    my $ifTagList = $virtualm->getElementsByTagName("if");
+	my $numif     = $ifTagList->getLength;
+
+	for ( my $j = 0 ; $j < $numif ; $j++ ) {
+		my $temp = $j + 1;
+		print("nio create_tap nio_tap$counter$j $vmName-e$temp\n");
+		$t->print("nio create_tap nio_tap$counter$j $vmName-e$temp");
+   		$line = $t->getline; print $line;
+   		print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j\n");
+   		$t->print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j");
+   		$line = $t->getline; print $line;
+   		$execution->execute("ifconfig $vmName-e$temp 0.0.0.0");
+	}
+	print("vm set_config $vmName \"$conf_dynamips\" \n");
+    $t->print("vm set_config $vmName \"$conf_dynamips\" ");
+    $line = $t->getline; print $line;
+
+
+    print "-----------------------------\n";
+    print "-----------------------------\n";
+    print "Starting router: $vmName\n";
+    $t->print("vm start $vmName");
+    $line = $t->getline; print $line;
 	
 }
 #sub createVM {
@@ -1551,8 +1695,8 @@ sub destroyVM{
     $line = $t->getline; print $line;
     $t->print("vm delete $vmName");
     $line = $t->getline; print $line;
-    $t->print("hypervisor reset");
-    $line = $t->getline; print $line;
+    #$t->print("hypervisor reset");
+    #$line = $t->getline; print $line;
     $t->close;
 
 }
@@ -1892,6 +2036,24 @@ sub shutdownVM{
 ####################################################################
 #
 sub saveVM{
+		my $self   = shift;
+	my $vmName = shift;
+	my $type   = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	$F_flag    = shift;
+		print "-----------------------------\n";
+    print "Shutdowning router: $vmName\n";
+	
+
+	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
+    
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    $t->print("vm extract_config $vmName");
+    $line = $t->getline; print $line;
+    $t->close;
 	
 }
 #sub saveVM {
@@ -1975,6 +2137,27 @@ sub saveVM{
 #
 sub restoreVM{
 	
+	my $self   = shift;
+	my $vmName = shift;
+	my $type   = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	$F_flag    = shift;
+		print "-----------------------------\n";
+    print "Shutdowning router: $vmName\n";
+	
+
+	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
+    
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    $t->print("vm stop $vmName");
+    $line = $t->getline; print $line;
+    $t->print("vm start $vmName");
+    $line = $t->getline; print $line;
+    $t->close;
+	
 }
 #sub restoreVM {
 #
@@ -2020,6 +2203,24 @@ sub restoreVM{
 ####################################################################
 #
 sub suspendVM{
+		my $self   = shift;
+	my $vmName = shift;
+	my $type   = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	$F_flag    = shift;
+		print "-----------------------------\n";
+    print "Shutdowning router: $vmName\n";
+	
+
+	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
+    
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    $t->print("vm suspend $vmName");
+    $line = $t->getline; print $line;
+    $t->close;
 	
 }
 #sub suspendVM {
@@ -2071,6 +2272,24 @@ sub suspendVM{
 ####################################################################
 #
 sub resumeVM{
+		my $self   = shift;
+	my $vmName = shift;
+	my $type   = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	$F_flag    = shift;
+		print "-----------------------------\n";
+    print "Shutdowning router: $vmName\n";
+	
+
+	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
+    
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    $t->print("vm resume $vmName");
+    $line = $t->getline; print $line;
+    $t->close;
 	
 }
 #sub resumeVM {
@@ -2125,6 +2344,27 @@ sub resumeVM{
 ####################################################################
 #
 sub rebootVM{
+	my $self   = shift;
+	my $vmName = shift;
+	my $type   = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	$F_flag    = shift;
+		print "-----------------------------\n";
+    print "Shutdowning router: $vmName\n";
+	
+
+	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
+    
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    $t->print("vm stop $vmName");
+    $line = $t->getline; print $line;
+    $t->print("vm start $vmName");
+    $line = $t->getline; print $line;
+    $t->close;
+
 	
 }
 #sub rebootVM {
@@ -2177,6 +2417,26 @@ sub rebootVM{
 ####################################################################
 #
 sub resetVM{
+	my $self   = shift;
+	my $vmName = shift;
+	my $type   = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	$F_flag    = shift;
+		print "-----------------------------\n";
+    print "Shutdowning router: $vmName\n";
+	
+
+	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
+    
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    $t->print("vm stop $vmName");
+    $line = $t->getline; print $line;
+    $t->print("vm start $vmName");
+    $line = $t->getline; print $line;
+    $t->close;
 	
 }
 #sub resetVM {

@@ -4,14 +4,14 @@
 <!--
 
 Simple scenario
-Just one Windows XP virtual machine. Use this specification for testing
+Just one Cisco virtual machine. Use this specification for testing
 
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
      xsi:noNamespaceSchemaLocation="/home/jrodriguez/workspace/vnx/vnx-folder/temporal/jrodriguez/vnx-1.93.xsd">
   <global>
-    <version>1.92</version>
+    <version>1.93</version>
     <scenario_name>simple_dynamips</scenario_name>
     <automac offset="3"/>
     <vm_mgmt type="none" />
