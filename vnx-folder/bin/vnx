@@ -3758,6 +3758,7 @@ sub make_vm_API_doc {
       my $id = $if->getAttribute("id");
       my $net = $if->getAttribute("net");
 
+
       # To get MAC address
       my $mac_list = $if->getElementsByTagName("mac");
       my $mac;
@@ -3789,6 +3790,13 @@ sub make_vm_API_doc {
       $if_tag->addChild( $dom->createAttribute( id => $id));
       $if_tag->addChild( $dom->createAttribute( net => $net));
       $if_tag->addChild( $dom->createAttribute( mac => $mac));
+      try {
+      	my $name = $if->getAttribute("name");
+      	$if_tag->addChild( $dom->createAttribute( name => $name));
+      } 
+      catch Error with {
+      	
+      } ;
          
       # To process interface IPv4 addresses
       # The first address has to be assigned without "add" to avoid creating subinterfaces
