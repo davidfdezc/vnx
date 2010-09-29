@@ -68,6 +68,7 @@ package vmAPI_dynamips;
 #use VNX::IPChecks;
 
 use Net::Telnet;
+use File::Basename;
 
 my $execution;    # the VNX::Execution object
 my $dh;           # the VNX::DataHandler object
@@ -123,6 +124,8 @@ my $M_flag;       # passed from createVM to halt
 ####################################################################
 #
 sub defineVM {
+	
+
 	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
@@ -151,7 +154,10 @@ sub defineVM {
 			next;
 		}
 	}
-
+	
+	my $filenameconf;
+	my $ifTagList;
+	
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parse($doc);
 	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
@@ -165,18 +171,65 @@ sub defineVM {
 	
 	
 	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("conf_dynamips");
-	my $conf_dynamipsTag     = $conf_dynamipsTagList->item($0);
-	my $conf_dynamips        = $conf_dynamipsTag->getFirstChild->getData;
-		
-		
+	if ( $conf_dynamipsTagList->getLength gt 0){
+		my $conf_dynamipsTag     = $conf_dynamipsTagList->item($0);
+		my $conf_dynamips        = $conf_dynamipsTag->getFirstChild->getData;
+	
+
+ 	 #Definicion del fichero host
+ 		if (-e $conf_dynamips)
+		{ 
+			$execution->execute("cp " . $conf_dynamips . " " . $dh->get_vm_dir($vmName));
+   		 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . basename($conf_dynamips);
+		}
+	}
+	else{
+		$filenameconf = $dh->get_vm_dir($vmName) . "/" . $vmName . ".txt";
+		open (CONF_CISCO, ">$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
+		print CONF_CISCO "hostname " . $vmName ."\n";
+ 		$ifTagList = $virtualm->getElementsByTagName("if");
+ 		my $numif = $ifTagList->getLength;
+ 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
+ 			my $ifTag = $ifTagList->item($j);
+			my $id    = $ifTag->getAttribute("id");
+			my $net   = $ifTag->getAttribute("net");
+			my $mac   = $ifTag->getAttribute("mac");
+			$mac =~ s/,//;
+			my @maclist = split(/:/,$mac);
+			$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
+			#$mac =~ s/:/./g;
+			#substr ($mac,2,0,);
+			#substr ($mac,7,0,);
+			#substr ($mac,12,0,);
+			my $nameif   = $ifTag->getAttribute("name");
+			print CONF_CISCO "interface " . $nameif . "\n";	
+			print CONF_CISCO " mac-address " . $mac . "\n";
+			
+			my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
+			if ( $ipv4_list->getLength != 0 ) {
+				my $ipv4_Tag = $ipv4_list->item(0);
+				my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
+				my $subnetv4 = $ipv4_Tag->getAttribute("mask");
+				print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
+			}
+			print CONF_CISCO " no shutdown\n";		
+ 		}
+ 		close(CONF_CISCO);	
+	}
+    
+    # Definicion del router
+
 	$HIDLEPC="0x604f8104";
-	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
-    print "-----------------------------\n";
-    print "Reset hypervisor:\n";
+	#$RIOSFILE="/usr/share/vnx/filesystems/c3640";
+
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
+    # Si es la primera vez que se ejecuta el escenario, se borra todo el hypervisor
+    # Precacion, tambien se borra otros escenarios que este corriendo paralelamente
     if ($counter == 0)
     {
+    	print "-----------------------------\n";
+    	print "Reset hypervisor:\n";
     	$t->print("hypervisor reset");
    		$line = $t->getline; print $line;
     	$t->close;
@@ -227,7 +280,7 @@ sub defineVM {
 	#print("vm slot_add_binding $vmName 1 0 NM-4T");
 	#$t->print("vm slot_add_binding $vmName 1 0 NM-4T");
     #$line = $t->getline; print $line;
-    my $ifTagList = $virtualm->getElementsByTagName("if");
+    $ifTagList = $virtualm->getElementsByTagName("if");
 	my $numif     = $ifTagList->getLength;
 
 	for ( my $j = 0 ; $j < $numif ; $j++ ) {
@@ -240,12 +293,15 @@ sub defineVM {
    		$line = $t->getline; print $line;
    		$execution->execute("ifconfig $vmName-e$temp 0.0.0.0");
 	}
-	print("vm set_config $vmName \"$conf_dynamips\" \n");
-    $t->print("vm set_config $vmName \"$conf_dynamips\" ");
+	print("vm set_config $vmName \"$filenameconf\" \n");
+    $t->print("vm set_config $vmName \"$filenameconf\" ");
     $line = $t->getline; print $line;
     $t->close;
 
     print "-----------------------------\n";
+    
+  
+    
 }
 #sub defineVM {
 #
