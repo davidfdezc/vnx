@@ -3693,13 +3693,13 @@ sub make_vm_API_doc {
    $vm_tag->addChild($mem_tag);
    $mem_tag->addChild($dom->createTextNode($mem));
    
-   ## conf_dynamips
+   ## conf for dynamips
    
    #my $dynamips = $dh->get_default_mem;      
-   my $conf_dynamips_list = $vm->getElementsByTagName("conf_dynamips");
+   my $conf_dynamips_list = $vm->getElementsByTagName("conf");
    if ($conf_dynamips_list->getLength == 1) {
    		my $conf_dynamips = &text_tag($conf_dynamips_list->item(0));
-  		my $conf_dynamips_tag = $dom->createElement('conf_dynamips');
+  		my $conf_dynamips_tag = $dom->createElement('conf');
    		$vm_tag->addChild($conf_dynamips_tag);
    		$conf_dynamips_tag->addChild($dom->createTextNode($conf_dynamips));
    }

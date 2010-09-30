@@ -170,7 +170,7 @@ sub defineVM {
 	my $filesystem        = $filesystemTag->getFirstChild->getData;
 	
 	
-	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("conf_dynamips");
+	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("conf");
 	if ( $conf_dynamipsTagList->getLength gt 0){
 		my $conf_dynamipsTag     = $conf_dynamipsTagList->item($0);
 		my $conf_dynamips        = $conf_dynamipsTag->getFirstChild->getData;
@@ -197,10 +197,6 @@ sub defineVM {
 			$mac =~ s/,//;
 			my @maclist = split(/:/,$mac);
 			$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
-			#$mac =~ s/:/./g;
-			#substr ($mac,2,0,);
-			#substr ($mac,7,0,);
-			#substr ($mac,12,0,);
 			my $nameif   = $ifTag->getAttribute("name");
 			print CONF_CISCO "interface " . $nameif . "\n";	
 			print CONF_CISCO " mac-address " . $mac . "\n";
@@ -212,10 +208,42 @@ sub defineVM {
 				my $subnetv4 = $ipv4_Tag->getAttribute("mask");
 				print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
 			}
+			my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
+			if ( $ipv6_list->getLength != 0 ) {
+				print CONF_CISCO " ipv6 enable\n";	
+				my $ipv6_Tag = $ipv6_list->item(0);
+				my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
+				print CONF_CISCO " ipv6 address " . $ipv6 . " ". $subnetv6 . "\n";	
+			}
 			print CONF_CISCO " no shutdown\n";		
+ 		}
+ 		
+ 		my $routeTagList = $virtualm->getElementsByTagName("route");
+ 		my $numroute = $routeTagList->getLength;
+ 		for ( my $j = 0 ; $j < $numroute ; $j++ ) {
+ 			my $routeTag = 	$routeTagList->item($j);
+ 			my $gw = $routeTag->getAttribute("gw");
+ 			my $destination = $routeTag->getFirstChild->getData;
+ 			my $maskdestination = "";
+ 			if ($destination eq "default"){
+ 				$destination = "0.0.0.0";
+ 				$maskdestination = "0.0.0.0";
+ 			}
+ 			print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
+ 			
  		}
  		close(CONF_CISCO);	
 	}
+    
+    # Preparar las variables
+    my $memTagList = $virtualm->getElementsByTagName("mem");
+    my $mem = "96";
+
+	if ( $memTagList->getLength != 0 ) {
+		my $memTag     = $memTagList->item($0);
+		$mem   = ($memTag->getFirstChild->getData)/1024;
+	} 
+    
     
     # Definicion del router
 
@@ -239,7 +267,6 @@ sub defineVM {
 
 	my $consoleportbase = "900";
 	my $consoleport = $consoleportbase + $counter;
-	$ram = "96";
 
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
@@ -262,8 +289,8 @@ sub defineVM {
     print("vm set_ios $vmName $filesystem\n");
     $t->print("vm set_ios $vmName $filesystem");
     $line = $t->getline; print $line;
-    print("vm set_ram $vmName $ram\n");
-    $t->print("vm set_ram $vmName $ram");
+    print("vm set_ram $vmName $mem\n");
+    $t->print("vm set_ram $vmName $mem");
     $line = $t->getline; print $line;
 	print("vm set_sparse_mem $vmName 1\n");
 	$t->print("vm set_sparse_mem $vmName 1");
