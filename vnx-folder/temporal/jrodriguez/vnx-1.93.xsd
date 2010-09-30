@@ -2,7 +2,7 @@
 
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
   
-  <xs:element name="conf_dynamips">
+  <xs:element name="conf">
     <xs:complexType mixed="true" />
   </xs:element>
   
@@ -356,7 +356,7 @@
     <xs:complexType>
       <xs:sequence>
         <xs:element ref="filesystem" minOccurs="0" />
-        <xs:element ref="conf_dynamips" minOccurs="0" />
+        <xs:element ref="conf" minOccurs="0" />
         <xs:element ref="mem" minOccurs="0" />
         <xs:element ref="kernel" minOccurs="0" />
         <xs:element ref="shell" minOccurs="0" />
