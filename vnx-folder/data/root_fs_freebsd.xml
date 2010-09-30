@@ -20,7 +20,7 @@
       <target dev='hda'/>
     </disk>
     <disk type='file' device='cdrom'>
-      <source file='/almacen/iso/FreeBSD-8.1-RELEASE-i386-disc1.iso'/>
+      <!-- source file='/almacen/iso/FreeBSD-8.1-RELEASE-i386-disc1.iso'/-->
       <target dev='hdb'/>
     </disk>
     <interface type='network'>

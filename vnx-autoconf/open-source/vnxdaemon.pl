@@ -27,6 +27,8 @@ sub main{
 		#system "mkdir -p /var/run/vnxdaemon/";
 		# remove residual log file
 		system "rm -f /var/log/vnxdaemon.log";
+		# remove residual PID file
+		system "rm -f /var/run/vnxdaemon.pid";
 		# generate new log file
 		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
 		print LOG "\n";
@@ -41,9 +43,8 @@ sub main{
 	}
 
 	if (-f "/var/run/vnxdaemon.pid"){
-		system "touch /home/vnx/muero";
 		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
-		print LOG "Another instance of vnxdaemon seems to be running, aborting execution (PID $$)\n";
+		print LOG "Another instance of vnxdaemon (PID " . "/var/run/vnxdaemon.pid" . ") seems to be running, aborting current execution (PID $$)\n";
 		exit 1;
 	}
 	
@@ -246,7 +247,7 @@ sub autoupdate {
 		system "cp /cdrom/freebsd/* /etc/rc.d/vnxdaemon";
 	}
 	system "rm /root/.vnx/LOCK";
-	#system "reboot";
+#	system "reboot";
 	return;
 }
 
@@ -316,7 +317,8 @@ sub execute_commands {
 					# parent does nothing
 				}else{
 					# child executes command and dies
-					exec "xterm -display :0.0 -e $command2";
+					#exec "xterm -display :0.0 -e $command2";
+					exec "DISPLAY=:0.0 $command2";
 				}
 				}elsif($mode eq "processn"){
 					print LOG "   executing: '$command2'\n   in mode: 'processn'\n";
