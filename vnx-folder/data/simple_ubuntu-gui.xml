@@ -37,8 +37,9 @@ Just one Ubuntu virtual machine. Use this specification for testing
     <exec seq="calcoff" type="verbatim" mode="system">pkill gcalctool</exec>
     <exec seq="ping" type="verbatim" mode="system">'ping 10.0.0.1'</exec>
     <exec seq="showlog" type="verbatim" mode="system">tail -f /var/log/vnxdaemon.log</exec>
-    <exec seq="start-www" type="verbatim" mode="system">chmod 644 /var/www/*; /etc/init.d/apache2 start</exec>
-    <exec seq="stop-www" type="verbatim" mode="system">/etc/init.d/apache2 stop</exec>
+    <exec seq="start-www" type="verbatim" mode="system">chmod 644 /var/www/*</exec>
+    <exec seq="start-www" type="verbatim" mode="system">service apache2 start</exec>
+    <exec seq="stop-www" type="verbatim" mode="system">service apache2 stop</exec>
   </vm>
 
   <host>

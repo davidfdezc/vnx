@@ -28,8 +28,9 @@ Just one Ubuntu virtual machine. Use this specification for testing
     <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
     <exec seq="movefile" type="verbatim" mode="system">mv /tmp/vnx.txt /root/</exec>
-    <exec seq="start-www" type="verbatim" mode="system">chmod 644 /var/www/*; /etc/init.d/apache2 start</exec>
-    <exec seq="stop-www" type="verbatim" mode="system">/etc/init.d/apache2 stop</exec>
+    <exec seq="start-www" type="verbatim" mode="system">chmod 644 /var/www/*</exec>
+    <exec seq="start-www" type="verbatim" mode="system">service apache2 start</exec>
+    <exec seq="stop-www" type="verbatim" mode="system">service apache2 stop</exec>
   </vm>
 
   <host>
