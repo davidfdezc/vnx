@@ -1,0 +1,31 @@
+<domain type='kvm'>
+  <name>Freebsd</name>
+  <memory>524288</memory>
+  <vcpu>1</vcpu>
+  <os>
+    <type arch="i686">hvm</type>
+    <boot dev='hd'/>
+    <boot dev='cdrom'/>
+  </os>
+  <features>
+     <pae/>
+     <acpi/>
+     <apic/>
+  </features>
+  <clock sync="localtime"/>
+  <devices>
+    <emulator>/usr/bin/kvm</emulator>
+    <disk type='file' device='disk'>
+      <source file='/usr/share/vnx/filesystems/root_fs_freebsd'/>
+      <target dev='hda'/>
+    </disk>
+    <disk type='file' device='cdrom'>
+      <!-- source file='/almacen/iso/FreeBSD-8.1-RELEASE-i386-disc1.iso'/-->
+      <target dev='hdb'/>
+    </disk>
+    <interface type='network'>
+      <source network='default'/>
+    </interface>
+    <graphics type='vnc'/>
+  </devices>
+</domain>
