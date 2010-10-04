@@ -308,8 +308,9 @@ sub execute_commands {
 			my $type       = $execTag->getAttribute("type");
 			my $mode       = $execTag->getAttribute("mode");
 			my $command2    = $execTag->getFirstChild->getData;
-			if ($mode eq "system"){
-				print LOG "   executing: '$command2'\n   in mode: 'system'\n";
+			
+			if ($mode eq "exec"){
+				print LOG "   executing: '$command2'\n   in mode: 'exec'\n";
 				# Fork
 				my $pid2 = fork;
 				die "Couldn't fork: $!" unless defined($pid2);
@@ -320,23 +321,43 @@ sub execute_commands {
 					#exec "xterm -display :0.0 -e $command2";
 					exec "DISPLAY=:0.0 $command2";
 				}
-				}elsif($mode eq "processn"){
-					print LOG "   executing: '$command2'\n   in mode: 'processn'\n";
-					# Fork
-					my $pid2 = fork;
-					die "Couldn't fork: $!" unless defined($pid2);
-				if ($pid2){
-					# parent does nothing
-				}else{
-					# child executes command and dies
-					exec $command2;
-				}
-				}elsif($mode eq "processy"){
-				print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
-				system $command2;
+			}elsif($mode eq "system"){
+					print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
+					system $command2;
 			}else{
-				print LOG "   Command mode '$mode' not available. Aborting execution...\n";
+				print LOG "   Command mode '$mode' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
 			}
+					
+			
+#			if ($mode eq "system"){
+#				print LOG "   executing: '$command2'\n   in mode: 'system'\n";
+#				# Fork
+#				my $pid2 = fork;
+#				die "Couldn't fork: $!" unless defined($pid2);
+#				if ($pid2){
+#					# parent does nothing
+#				}else{
+#					# child executes command and dies
+#					#exec "xterm -display :0.0 -e $command2";
+#					exec "DISPLAY=:0.0 $command2";
+#				}
+#			}elsif($mode eq "processn"){
+#				print LOG "   executing: '$command2'\n   in mode: 'processn'\n";
+#				# Fork
+#				my $pid2 = fork;
+#				die "Couldn't fork: $!" unless defined($pid2);
+#				if ($pid2){
+#					# parent does nothing
+#				}else{
+#					# child executes command and dies
+#					exec $command2;
+#				}
+#			}elsif($mode eq "processy"){
+#				print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
+#				system $command2;
+#			}else{
+#				print LOG "   Command mode '$mode' not available. Aborting execution...\n";
+#			}
 		}
 	}
 
@@ -357,25 +378,10 @@ sub execute_commands {
 			my $type       = $execTag->getAttribute("type");
 			my $mode       = $execTag->getAttribute("mode");
 			my $command2    = $execTag->getFirstChild->getData;
-			if ($mode eq "system"){
-				print LOG "   executing: '$command2'\n   in mode: 'system'\n";
-				# Fork
-				#my $pid2 = fork;
-				#die "Couldn't fork: $!" unless defined($pid2);
-				#if ($pid2){
-					# parent does nothing
-				#}else{
-					# child executes command and dies
-					system "su - vnx -c \"$command2\"";
-					system $command2;
-					system "$command2";
-					system "xterm -e $command2";
-					system "xterm --display:0.0 -e $command2";
-					exec "xterm -e $command2";
-					exec "xterm --display:0.0 -e $command2";
-				#}
-			}elsif($mode eq "processn"){
-				print LOG "   executing: '$command2'\n   in mode: 'processn'\n";
+
+
+			if ($mode eq "exec"){
+				print LOG "   executing: '$command2'\n   in mode: 'exec'\n";
 				# Fork
 				my $pid2 = fork;
 				die "Couldn't fork: $!" unless defined($pid2);
@@ -383,14 +389,54 @@ sub execute_commands {
 					# parent does nothing
 				}else{
 					# child executes command and dies
-					exec $command2;
+					#exec "xterm -display :0.0 -e $command2";
+					exec "DISPLAY=:0.0 $command2";
 				}
-			}elsif($mode eq "processy"){
-				print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
-				system $command2;
+			}elsif($mode eq "system"){
+					print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
+					system $command2;
 			}else{
-				print LOG "   Command mode '$mode' not available. Aborting execution...\n";
+				print LOG "   Command mode '$mode' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
 			}
+
+
+#			if ($mode eq "system"){
+#				print LOG "   executing: '$command2'\n   in mode: 'system'\n";
+#				# Fork
+#				#my $pid2 = fork;
+#				#die "Couldn't fork: $!" unless defined($pid2);
+#				#if ($pid2){
+#					# parent does nothing
+#				#}else{
+#					# child executes command and dies
+#					system "su - vnx -c \"$command2\"";
+#					system $command2;
+#					system "$command2";
+#					system "xterm -e $command2";
+#					system "xterm --display:0.0 -e $command2";
+#					exec "xterm -e $command2";
+#					exec "xterm --display:0.0 -e $command2";
+#				#}
+#			}elsif($mode eq "processn"){
+#				print LOG "   executing: '$command2'\n   in mode: 'processn'\n";
+#				# Fork
+#				my $pid2 = fork;
+#				die "Couldn't fork: $!" unless defined($pid2);
+#				if ($pid2){
+#					# parent does nothing
+#				}else{
+#					# child executes command and dies
+#					exec $command2;
+#				}
+#			}elsif($mode eq "processy"){
+#				print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
+#				system $command2;
+#			}else{
+#				print LOG "   Command mode '$mode' not available. Aborting execution...\n";
+#			}
+			
+			
+			
 		}
 
 
