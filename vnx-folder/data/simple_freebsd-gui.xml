@@ -26,7 +26,7 @@ Just one FreeBSD virtual machine. Use this specification for testing
       <ipv4>10.0.0.7/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="/tmp">conf/txtfile</filetree>
-    <exec seq="vnxtxt" type="verbatim" mode="processn">gedit /tmp/vnx.txt</exec>
+    <exec seq="vnxtxt" type="verbatim" mode="exec">gedit /tmp/vnx.txt</exec>
     <exec seq="vnxtxt2" type="verbatim" mode="system">'sleep 5; wmctrl -r vnx.txt -b add,maximized_vert,maximized_horz'</exec>
     <exec seq="showlog" type="verbatim" mode="system">tail -f /var/log/vnxdaemon.log</exec>
   </vm>
