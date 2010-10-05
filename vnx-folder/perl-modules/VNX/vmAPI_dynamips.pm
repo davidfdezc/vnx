@@ -68,6 +68,8 @@ package vmAPI_dynamips;
 #use VNX::IPChecks;
 
 use Net::Telnet;
+use Net::IP;
+use Net::Telnet::Cisco;
 use File::Basename;
 
 my $execution;    # the VNX::Execution object
@@ -170,7 +172,7 @@ sub defineVM {
 	my $filesystem        = $filesystemTag->getFirstChild->getData;
 	
 	
-	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("conf");
+	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("dynamips");
 	if ( $conf_dynamipsTagList->getLength gt 0){
 		my $conf_dynamipsTag     = $conf_dynamipsTagList->item($0);
 		my $conf_dynamips        = $conf_dynamipsTag->getFirstChild->getData;
@@ -228,6 +230,10 @@ sub defineVM {
  			if ($destination eq "default"){
  				$destination = "0.0.0.0";
  				$maskdestination = "0.0.0.0";
+ 			}else {
+ 				my $ip = new Net::IP ($destination) or die (Net::IP::Error());
+ 				$maskdestination = $ip->mask();
+ 				$destination = $ip->ip();
  			}
  			print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			
@@ -2574,6 +2580,19 @@ sub resetVM{
 ####################################################################
 #
 sub executeCMD{
+	my $self = shift;
+	my $merged_type = shift;
+	my $seq  = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	my $vm    = shift;
+	my $name = shift;
+	
+	my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1',
+										  Port => '900');
+	my @output = $session->cmd('show version');
+	
 	
 }
 #sub executeCMD {
