@@ -27,7 +27,7 @@ Just one Windows XP virtual machine. Use this specification for testing
   <!-- NODES -->
    <vm name="R1" type="dynamips" subtype="3600" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
-		<conf_dynamips>/home/jrodriguez/R1.txt</conf_dynamips>
+		<dynamips>/home/jrodriguez/R1.txt</dynamips>
 		<if id="1" net="Net0">
     	</if>
 		<if id="2" net="Net1">
@@ -35,9 +35,17 @@ Just one Windows XP virtual machine. Use this specification for testing
     	<if id="3" net="Net2">
     	</if>
    </vm>
+     <vm name="H3" type="libvirt" subtype="kvm" os="windows">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
+    <mem>512M</mem>
+   		<if id="1" net="Net2">
+      		<ipv4>10.1.2.10</ipv4>
+    	</if>
+    	<route type="ipv4" gw="10.1.2.2">default</route>
+  </vm> 
    <vm name="R2" type="dynamips" subtype="3600" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
-		<conf_dynamips>/home/jrodriguez/R2.txt</conf_dynamips>
+		<dynamips>/home/jrodriguez/R2.txt</dynamips>
 		<if id="1" net="Net2">
     	</if>
 		<if id="2" net="Net3">
@@ -59,14 +67,7 @@ Just one Windows XP virtual machine. Use this specification for testing
     	</if>
     	<route type="ipv4" gw="10.1.1.1">default</route>
   </vm>
-  <vm name="H3" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
-    <mem>512M</mem>
-   		<if id="1" net="Net2">
-      		<ipv4>10.1.2.10</ipv4>
-    	</if>
-    	<route type="ipv4" gw="10.1.2.2">default</route>
-  </vm> 
+
   <vm name="H4" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
     <mem>512M</mem>
