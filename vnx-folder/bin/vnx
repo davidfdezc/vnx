@@ -1016,7 +1016,11 @@ sub mode_start {
 			    my $pts=`cat $vnx_dir/scenarios/$scename/vms/$name/run/pts`;
 			    $pts =~ s/\s+$//;        # Delete linefeed at the end
 				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $name, $merged_type, $name, $pts;
-			} 
+			} elsif ( $vm->getAttribute("type") eq "dynamips"){
+				my $port;
+				$port = 900 + $i;
+				printf "%-12s  %-20s  telnet 127.0.0.1 %s\n", $name, $merged_type, $port;
+			}
 			my $last = @vm_ordered - $i;
 			if ($last eq 1){
 				print "-------------------------------------------------------------------------------\n\n";	
@@ -3696,10 +3700,10 @@ sub make_vm_API_doc {
    ## conf for dynamips
    
    #my $dynamips = $dh->get_default_mem;      
-   my $conf_dynamips_list = $vm->getElementsByTagName("conf");
+   my $conf_dynamips_list = $vm->getElementsByTagName("dynamips");
    if ($conf_dynamips_list->getLength == 1) {
    		my $conf_dynamips = &text_tag($conf_dynamips_list->item(0));
-  		my $conf_dynamips_tag = $dom->createElement('conf');
+  		my $conf_dynamips_tag = $dom->createElement('dynamips');
    		$vm_tag->addChild($conf_dynamips_tag);
    		$conf_dynamips_tag->addChild($dom->createTextNode($conf_dynamips));
    }
