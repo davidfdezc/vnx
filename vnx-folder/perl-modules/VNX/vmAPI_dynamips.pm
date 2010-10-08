@@ -249,12 +249,12 @@ sub defineVM {
 		my $memTag     = $memTagList->item($0);
 		$mem   = ($memTag->getFirstChild->getData)/1024;
 	} 
-    
+   my $doc = $dh->get_doc;
+   my $dynamips_ext_list = $doc->getElementsByTagName("dynamips_ext");
+
     
     # Definicion del router
 
-	$HIDLEPC="0x604f8104";
-	#$RIOSFILE="/usr/share/vnx/filesystems/c3640";
 
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
@@ -282,34 +282,45 @@ sub defineVM {
     print("hypervisor working_dir \"". $dh->get_fs_dir($vmName)."\" \n");
     $t->print("hypervisor working_dir \"". $dh->get_fs_dir($vmName). "\" ");
     $line = $t->getline; print $line;
-    print("vm create $vmName 0 c3600\n");
-    $t->print("vm create $vmName 0 c3600");
-    $line = $t->getline; print $line;
-    print("vm set_con_tcp_port $vmName $consoleport\n");
-    $t->print("vm set_con_tcp_port $vmName $consoleport");
-    $line = $t->getline; print $line;
-    print("c3600 set_chassis $vmName 3640\n");
-    $t->print("c3600 set_chassis $vmName 3640");
-    $line = $t->getline; print $line;
-    #$t->print("vm set_ios $rname $RIOSFILE");
-    print("vm set_ios $vmName $filesystem\n");
-    $t->print("vm set_ios $vmName $filesystem");
-    $line = $t->getline; print $line;
-    print("vm set_ram $vmName $mem\n");
-    $t->print("vm set_ram $vmName $mem");
-    $line = $t->getline; print $line;
-	print("vm set_sparse_mem $vmName 1\n");
-	$t->print("vm set_sparse_mem $vmName 1");
-    $line = $t->getline; print $line;
-	print("vm set_idle_pc $vmName $HIDLEPC\n");
-	$t->print("vm set_idle_pc $vmName $HIDLEPC");
-    $line = $t->getline; print $line;
-	print("vm set_blk_direct_jump $vmName 0\n");
-	$t->print("vm set_blk_direct_jump $vmName 0");
-    $line = $t->getline; print $line;
-	print("vm slot_add_binding $vmName 0 0 NM-4E\n");
-	$t->print("vm slot_add_binding $vmName 0 0 NM-4E");
-    $line = $t->getline; print $line;
+
+    # Si hay fichero de configuracion especial se utiliza
+    if ($dynamips_ext_list->getLength == 1) {
+   		my $dynamips_ext = &text_tag($dynamips_ext_list->item(0));
+  		#my $dynamips_ext_tag = $dom->createElement('dynamips_ext');
+   		#$vm_tag->addChild($dynamips_ext_tag);
+   		#$dynamips_ext_tag->addChild($dom->createTextNode($dynamips_ext));
+   }else # Sino se utilizan los valores por defecto
+   {
+   	    print("vm create $vmName 0 c3600\n");
+	    $t->print("vm create $vmName 0 c3600");
+	    $line = $t->getline; print $line;
+	    print("vm set_con_tcp_port $vmName $consoleport\n");
+	    $t->print("vm set_con_tcp_port $vmName $consoleport");
+	    $line = $t->getline; print $line;
+	    print("c3600 set_chassis $vmName 3640\n");
+	    $t->print("c3600 set_chassis $vmName 3640");
+	    $line = $t->getline; print $line;
+	    #$t->print("vm set_ios $rname $RIOSFILE");
+	    print("vm set_ios $vmName $filesystem\n");
+	    $t->print("vm set_ios $vmName $filesystem");
+	    $line = $t->getline; print $line;
+	    print("vm set_ram $vmName $mem\n");
+	    $t->print("vm set_ram $vmName $mem");
+	    $line = $t->getline; print $line;
+		print("vm set_sparse_mem $vmName 1\n");
+		$t->print("vm set_sparse_mem $vmName 1");
+	    $line = $t->getline; print $line;
+   		print("vm set_idle_pc $vmName $HIDLEPC\n");
+		$t->print("vm set_idle_pc $vmName $HIDLEPC");
+	    $line = $t->getline; print $line;
+		print("vm set_blk_direct_jump $vmName 0\n");
+		$t->print("vm set_blk_direct_jump $vmName 0");
+	    $line = $t->getline; print $line;
+		print("vm slot_add_binding $vmName 0 0 NM-4E\n");
+		$t->print("vm slot_add_binding $vmName 0 0 NM-4E");
+	    $line = $t->getline; print $line;
+   }
+
 	#print("vm slot_add_binding $vmName 1 0 NM-4T");
 	#$t->print("vm slot_add_binding $vmName 1 0 NM-4T");
     #$line = $t->getline; print $line;
@@ -3621,5 +3632,15 @@ sub executeCMD{
 #
 #
 #1;
+sub specific_conf {
+	
+
+	my $self   = shift;
+	my $vmName = shift;
+	my $route_file = shift;
+	
+	 
+    
+}
 
 1;
