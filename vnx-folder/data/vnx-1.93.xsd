@@ -2,10 +2,21 @@
 
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
   
-  <xs:element name="dynamips">
+  <!--xs:element name="dynamips">
     <xs:complexType mixed="true" />
+  </xs:element-->
+   <xs:element name="dynamips">
+    <xs:complexType mixed="true">
+       <xs:sequence>
+    	<xs:element name="conf" type="xs:string" />
+    	<xs:element name="rip" type="xs:string" />
+      </xs:sequence>
+    </xs:complexType>
   </xs:element>
   
+  <xs:element name="dynamips_ext">
+    <xs:complexType mixed="true" />
+  </xs:element>
   <xs:element name="automac">
     <xs:complexType>
       <xs:attribute name="offset" type="xs:string" use="optional" default="0" />
@@ -117,6 +128,7 @@
         <xs:element ref="tun_device" minOccurs="0" />
         <xs:element ref="vm_defaults" minOccurs="0" />
         <xs:element ref="extension" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="dynamips_ext" minOccurs="0" />
       </xs:sequence>
     </xs:complexType>
   </xs:element>
