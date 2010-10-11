@@ -49,23 +49,6 @@ package vmAPI_dynamips;
 #@EXPORT = qw(defineVM);
   
 
-##use strict;
-#
-#use Sys::Virt;
-#use Sys::Virt::Domain;
-#
-##de vnumlparser
-#use VNX::DataHandler;
-#
-#use VNX::Execution;
-#use VNX::BinariesData;
-#use VNX::Arguments;
-#use VNX::CheckSemantics;
-#use VNX::TextManipulation;
-#use VNX::NetChecks;
-#use VNX::FileChecks;
-#use VNX::DocumentChecks;
-#use VNX::IPChecks;
 
 use Net::Telnet;
 use Net::IP;
@@ -97,9 +80,9 @@ my $M_flag;       # passed from createVM to halt
 #
 ## Global objects
 #
-#my $execution;    # the VNX::Execution object
-#my $dh;           # the VNX::DataHandler object
-#my $bd;           # the VNX::BinariesData object
+my $execution;    # the VNX::Execution object
+my $dh;           # the VNX::DataHandler object
+my $bd;           # the VNX::BinariesData object
 #
 #
 ## Name of UML whose boot process has started but not reached the init program
@@ -111,9 +94,11 @@ my $M_flag;       # passed from createVM to halt
 #
 #
 
-	$HHOST="localhost";
-	$HPORT="7300";
-	$HIDLEPC="0x604f8104";
+my $HHOST="localhost";
+my $HPORT="7300";
+my $HIDLEPC="0x604f8104";
+my $conf_file;
+
 #
 #
 #
@@ -156,6 +141,8 @@ sub defineVM {
 			next;
 		}
 	}
+	
+	my $xml = &make_specific_conf($vmName, $doc);
 	
 	my $filenameconf;
 	my $ifTagList;
@@ -3632,15 +3619,34 @@ sub executeCMD{
 #
 #
 #1;
-sub specific_conf {
-	
+sub set_config_file{
+	my $self = shift;
+	my $tempconf = shift;
+	if (-e $tempconf){
+		$conf_file = shift;
+		return 0;	
+	}else
+	{
+		return 1;
+	}
+}
 
+sub get_cards_conf {
 	my $self   = shift;
 	my $vmName = shift;
-	my $route_file = shift;
+
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+	for ( my $j = 0 ; $j < $numif ; $j++ ) {
+		my $virtualm     = $virtualmList->item($j);
+		
 	
-	 
-    
+		unless ( $name eq $vmName ) {
+			next;
+		}
+	}
 }
 
 1;
