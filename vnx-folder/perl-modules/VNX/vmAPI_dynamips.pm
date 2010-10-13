@@ -141,7 +141,7 @@ sub defineVM {
 			next;
 		}
 	}
-	
+	my $test = $dh->get_default_dynamips();
 	my $xml = &make_specific_conf($vmName, $doc);
 	
 	my $filenameconf;
@@ -3641,12 +3641,18 @@ sub get_cards_conf {
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 	for ( my $j = 0 ; $j < $numif ; $j++ ) {
 		my $virtualm     = $virtualmList->item($j);
+		my $name = $virtualm->getAttribute("name");
 		
-	
 		unless ( $name eq $vmName ) {
 			next;
 		}
 	}
+	my $hw_list = $virtualm->getElementByTagName("hw");
+	my $hw = $hw_list->item($0);
+	my $slot_list = $hw->getElementByTagName("slot");
+	
+	
+	
 }
 
 1;
