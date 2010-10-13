@@ -189,6 +189,14 @@ sub new {
    else {
  	  $global_data{'host_mapping'} = 0;             # by default, management addresses are not mapped in /etc/hosts
    }
+   # Dynamips mapping
+   my $dynamipsmapping_list = $self->{'doc'}->getElementsByTagName("dynamips_ext");
+   if ($dynamipsmapping_list->getLength == 1) {
+      $global_data{'dynamips_ext'} = $dynamipsmapping_list>item(0);
+   }
+   else {
+ 	  $global_data{'dynamips_ext'} = 0;             # by default, management addresses are not mapped in /etc/hosts
+   }
 
    # Network configuration options, if <netconfig> is present
    my $netconfig_list = $self->{'doc'}->getElementsByTagName("netconfig");
@@ -562,6 +570,15 @@ sub get_default_xterm {
    my $self = shift;
    return $self->{'global_data'}->{'default_xterm'};
 }
+# get_default_dynamips
+#
+# Return the default dynamips
+#
+sub get_default_dynamips {
+   my $self = shift;
+   return $self->{'global_data'}->{'dynamips_ext'};
+}
+
 
 # get_default_forwarding_type
 #
