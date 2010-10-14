@@ -192,7 +192,7 @@ sub new {
    # Dynamips mapping
    my $dynamipsmapping_list = $self->{'doc'}->getElementsByTagName("dynamips_ext");
    if ($dynamipsmapping_list->getLength == 1) {
-      $global_data{'dynamips_ext'} = $dynamipsmapping_list>item(0);
+      $global_data{'dynamips_ext'} =  &text_tag($dynamipsmapping_list->item(0));
    }
    else {
  	  $global_data{'dynamips_ext'} = 0;             # by default, management addresses are not mapped in /etc/hosts
@@ -472,7 +472,6 @@ sub get_default_filesystem {
    return $self->{'global_data'}->{'default_filesystem'};
 }
 
-# get_default_filesystem_type
 #
 # Returns the default filesystem type
 #
