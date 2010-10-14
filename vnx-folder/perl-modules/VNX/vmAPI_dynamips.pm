@@ -868,6 +868,8 @@ sub get_cards_conf {
  	my $numsvm = $virtualmList->getLength;
  	my $name;
  	my $virtualm;
+ 	my $default = 1;
+ 	my $global_tag = 1;
  	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
  		# We get name attribute
  		$virtualm = $virtualmList->item($j);
@@ -879,16 +881,38 @@ sub get_cards_conf {
  	}
 	if($name eq $vmName){
 		my $hw_list = $virtualm->getElementsByTagName("hw");
-		my $hw = $hw_list->item($0);
-		my $slot_list = $hw->getElementsByTagName("slot");
-	 	my $numslot = $slot_list->getLength;
-	 	for ( my $j = 0 ; $j < $numslot ; $j++ ) {
-	 		my $slotTag = $slot_list->item($j);
-			my $slot = &text_tag($slotTag);
-			push(@slotarray,$slot);
-	 	}
+		if ($hw_list->getLength gt 0){
+			my $hw = $hw_list->item($0);
+			my $slot_list = $hw->getElementsByTagName("slot");
+	 		my $numslot = $slot_list->getLength;
+	 		for ( my $j = 0 ; $j < $numslot ; $j++ ) {
+	 			my $slotTag = $slot_list->item($j);
+				my $slot = &text_tag($slotTag);
+				push(@slotarray,$slot);
+				$global_tag = 0;
+	 		}
+		}
 	}
-	else{
+	
+	if ($global eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+			if ($globalList->getLength gt 0){
+				my $hw_gl = $hw_gl_list->item($0);
+				my $slot_gl_list = $hw_gl->getElementsByTagName("slot");
+	 			my $numslotgl = $slot_gl_list->getLength;
+	 			for ( my $j = 0 ; $j < $numslotgl ; $j++ ) {
+	 				my $slotTaggl = $slot_gl_list->item($j);
+					my $slot_gl = &text_tag($slotTaggl);
+					push(@slotarray,$slot_gl);
+					$default = 0;
+	 			}
+			}
+		}	
+	}
+	if (($global_tag eq 1 )&&($default eq 1)){
 		push(@slotarray,"NM-4E");
 	}
  	return @slotarray;
