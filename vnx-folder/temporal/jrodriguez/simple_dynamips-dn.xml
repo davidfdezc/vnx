@@ -6,6 +6,7 @@
     <hw>
        <slot id="0">NM-4T</slot>
        <slot id="1">NM-4E</slot>
+       <console_base port="1000"/>
      </hw>
      <sparsemem>true</sparsemem>
      <ghostios>true</ghostios>
@@ -15,7 +16,7 @@
   <vm name="R1">
      <conf>/home/jrodriguez/R2.conf</conf>
      <hw>
-       <chasis>c3640</chasis>
+       <chassis>c3640</chassis>
        <slot id="0">NM-4E</slot>
        <slot id="1">NM-4T</slot>
        <console port="920"/>
