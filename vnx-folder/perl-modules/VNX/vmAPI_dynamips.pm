@@ -124,8 +124,9 @@ sub defineVM {
 			next;
 		}
 	}
+	# Configuramos el fichero de configuracion especial
 	&set_config_file($dh->get_default_dynamips());
-	my @cards=&get_cards_conf($vmName);
+		
 	my $filenameconf;
 	my $ifTagList;
 	
@@ -140,18 +141,22 @@ sub defineVM {
 	my $filesystem_type   = $filesystemTag->getAttribute("type");
 	my $filesystem        = $filesystemTag->getFirstChild->getData;
 	
+	# Definicion del fichero host
+	my $conf_dynamips = get_conf_file_conf($vmName);
 	
-	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("dynamips");
-	if ( $conf_dynamipsTagList->getLength gt 0){
-		my $conf_dynamipsTag     = $conf_dynamipsTagList->item($0);
-		my $conf_dynamips        = $conf_dynamipsTag->getFirstChild->getData;
+#	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("dynamips");
+#	if ( $conf_dynamipsTagList->getLength gt 0){
+#		my $conf_dynamipsTag     = $conf_dynamipsTagList->item($0);
+#		my $conf_dynamips        = $conf_dynamipsTag->getFirstChild->getData;
 	
-
- 	 #Definicion del fichero host
- 		if (-e $conf_dynamips)
+	if (!($conf_dynamips eq 0))
+	{
+	 	if (-e $conf_dynamips)
 		{ 
 			$execution->execute("cp " . $conf_dynamips . " " . $dh->get_vm_dir($vmName));
-   		 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . basename($conf_dynamips);
+	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . basename($conf_dynamips) .".conf";
+		}else{
+			$execution->smartdie("Can not open " . $conf_dynamips );
 		}
 	}
 	else{
@@ -239,9 +244,10 @@ sub defineVM {
     	print "-----------------------------\n";
     }
     
-
-	my $consoleportbase = "900";
-	my $consoleport = $consoleportbase + $counter;
+	
+	
+	#my $consoleportbase = "900";
+	#my $consoleport = $consoleportbase + $counter;
 
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
@@ -251,48 +257,79 @@ sub defineVM {
     print("hypervisor working_dir \"". $dh->get_fs_dir($vmName)."\" \n");
     $t->print("hypervisor working_dir \"". $dh->get_fs_dir($vmName). "\" ");
     $line = $t->getline; print $line;
-
-    # Si hay fichero de configuracion especial se utiliza
-    if ($dynamips_ext_list->getLength == 1) {
-   		my $dynamips_ext = &text_tag($dynamips_ext_list->item(0));
-  		#my $dynamips_ext_tag = $dom->createElement('dynamips_ext');
-   		#$vm_tag->addChild($dynamips_ext_tag);
-   		#$dynamips_ext_tag->addChild($dom->createTextNode($dynamips_ext));
-   }else # Sino se utilizan los valores por defecto
-   {
-   	    print("vm create $vmName 0 c3600\n");
-	    $t->print("vm create $vmName 0 c3600");
-	    $line = $t->getline; print $line;
-	    print("vm set_con_tcp_port $vmName $consoleport\n");
-	    $t->print("vm set_con_tcp_port $vmName $consoleport");
-	    $line = $t->getline; print $line;
-	    print("c3600 set_chassis $vmName 3640\n");
-	    $t->print("c3600 set_chassis $vmName 3640");
-	    $line = $t->getline; print $line;
-	    #$t->print("vm set_ios $rname $RIOSFILE");
-	    print("vm set_ios $vmName $filesystem\n");
-	    $t->print("vm set_ios $vmName $filesystem");
-	    $line = $t->getline; print $line;
-	    print("vm set_ram $vmName $mem\n");
-	    $t->print("vm set_ram $vmName $mem");
-	    $line = $t->getline; print $line;
-		print("vm set_sparse_mem $vmName 1\n");
-		$t->print("vm set_sparse_mem $vmName 1");
-	    $line = $t->getline; print $line;
-   		print("vm set_idle_pc $vmName $HIDLEPC\n");
-		$t->print("vm set_idle_pc $vmName $HIDLEPC");
-	    $line = $t->getline; print $line;
-		print("vm set_blk_direct_jump $vmName 0\n");
-		$t->print("vm set_blk_direct_jump $vmName 0");
-	    $line = $t->getline; print $line;
-		print("vm slot_add_binding $vmName 0 0 NM-4E\n");
-		$t->print("vm slot_add_binding $vmName 0 0 NM-4E");
-	    $line = $t->getline; print $line;
-   }
-
-	#print("vm slot_add_binding $vmName 1 0 NM-4T");
-	#$t->print("vm slot_add_binding $vmName 1 0 NM-4T");
-    #$line = $t->getline; print $line;
+	
+	
+	# Set type
+	my($trash,$model)=split(/-/,$type,2);
+#    print("vm create $vmName 0 c3600\n");
+#	$t->print("vm create $vmName 0 c3600");
+#	$line = $t->getline; print $line;
+    print("vm create $vmName 0 c$model\n");
+	$t->print("vm create $vmName 0 c$model");
+	$line = $t->getline; print $line;
+	
+	# Configuring telnet port
+	my $consoleport = &get_port_conf($vmName,$counter);
+	print("vm set_con_tcp_port $vmName $consoleport\n");
+	$t->print("vm set_con_tcp_port $vmName $consoleport");
+    $line = $t->getline; print $line;
+    
+    # Set Chassis
+    my $chassis = &get_chassis($vmName);
+    $chassis =~ s/c//;
+#    print("c3600 set_chassis $vmName $chassis\n");
+#    $t->print("c3600 set_chassis $vmName $chassis");
+#    $line = $t->getline; print $line;
+    print("c$model set_chassis $vmName $chassis\n");
+    $t->print("c$model set_chassis $vmName $chassis");
+    $line = $t->getline; print $line;
+    
+	# Set Filesystem
+    print("vm set_ios $vmName $filesystem\n");
+    $t->print("vm set_ios $vmName $filesystem");
+    $line = $t->getline; print $line;
+    
+    # Set Mem
+    print("vm set_ram $vmName $mem\n");
+    $t->print("vm set_ram $vmName $mem");
+    $line = $t->getline; print $line;
+	print("vm set_sparse_mem $vmName 1\n");
+	$t->print("vm set_sparse_mem $vmName 1");
+    $line = $t->getline; print $line;
+    
+    # Set IDLEPC
+    my $idlepc = get_idle_pc_conf($vmName);
+	print("vm set_idle_pc $vmName $idlepc\n");
+	$t->print("vm set_idle_pc $vmName $idlepc");
+    $line = $t->getline; print $line;
+    
+    #Set ios ghost
+    if (&get_ghost_ios($vmName) eq "true"){
+    	print("vm set_ghost_status $vmName 2\n");
+		$t->print("vm set_ghost_status $vmName 2");
+    	$line = $t->getline; print $line;
+    	my $temp = basename($filesystem);
+    	print("vm set_ghost_file $vmName \"$temp.image-localhost.ghost\" \n");
+		$t->print("vm set_ghost_file $vmName \"$temp.image-localhost.ghost\" ");
+    	$line = $t->getline; print $line;
+    }
+    
+    #Set Blk_direct_jump
+	print("vm set_blk_direct_jump $vmName 0\n");
+	$t->print("vm set_blk_direct_jump $vmName 0");
+    $line = $t->getline; print $line;
+    
+    # Add slot cards
+    my @cards=&get_cards_conf($vmName);
+    my $index = 0;
+    foreach $slot (@cards){
+    	print("vm slot_add_binding $vmName $index 0 $slot \n");
+		$t->print("vm slot_add_binding $vmName $index 0 $slot");
+    	$line = $t->getline; print $line;
+    	$index++;
+    }
+    
+    # Connect virtual networks to host interfaces
     $ifTagList = $virtualm->getElementsByTagName("if");
 	my $numif     = $ifTagList->getLength;
 
@@ -306,6 +343,8 @@ sub defineVM {
    		$line = $t->getline; print $line;
    		$execution->execute("ifconfig $vmName-e$temp 0.0.0.0");
 	}
+	
+	# Set config file to router
 	print("vm set_config $vmName \"$filenameconf\" \n");
     $t->print("vm set_config $vmName \"$filenameconf\" ");
     $line = $t->getline; print $line;
@@ -845,6 +884,8 @@ sub executeCMD{
 	
 }
 
+
+## INTERNAL USE ##
 sub set_config_file{
 	my $tempconf = shift;
 	if (-e $tempconf){
@@ -855,10 +896,13 @@ sub set_config_file{
 		return 1;
 	}
 }
-
-sub get_cards_conf {
+sub get_sparsemem {
 	my $vmName = shift;
-	my @slotarray;
+	my $result = "false";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
 	
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($conf_file);
@@ -868,7 +912,341 @@ sub get_cards_conf {
  	my $numsvm = $virtualmList->getLength;
  	my $name;
  	my $virtualm;
- 	my $default = 1;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+# 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+	if($name eq $vmName){
+		my $sparsemem_list = $virtualm->getElementsByTagName("sparsemem");
+		if ($sparsemem_list->getLength gt 0){
+			my $sparsemem = $sparsemem_list->item($0);
+			$result = &text_tag($sparsemem);
+ 			$global_tag = 0;
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $sparsemem_gl_list = $globaltag->getElementsByTagName("sparsemem");
+			if ($sparsemem_gl_list->getLength gt 0){
+				my $sparsemem_gl = $sparsemem_gl_list->item($0);
+				$result = &text_tag($sparsemem_gl);
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+
+sub get_ghost_ios {
+	my $vmName = shift;
+	my $result = "false";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+# 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+	if($name eq $vmName){
+		my $ghostios_list = $virtualm->getElementsByTagName("ghostios");
+		if ($ghostios_list->getLength gt 0){
+			my $ghostios = $ghostios_list->item($0);
+			$result = &text_tag($ghostios);
+ 			$global_tag = 0;
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $ghostios_gl_list = $globaltag->getElementsByTagName("ghostios");
+			if ($ghostios_gl_list->getLength gt 0){
+				my $ghostios_gl = $ghostios_gl_list->item($0);
+				$result = &text_tag($ghostios_gl);
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+
+sub get_chassis {
+	my $vmName = shift;
+	my $result = "c3640";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+	if($name eq $vmName){
+		my $hw_list = $virtualm->getElementsByTagName("hw");
+		if ($hw_list->getLength gt 0){
+			my $hw = $hw_list->item($0);
+			my $chassis_list = $hw->getElementsByTagName("chassis");
+	 		if($chassis_list->getLength gt 0){
+	 			my $chassisTag = $chassis_list->item($0);
+	 			$result = &text_tag($chassisTag);
+	 			$global_tag = 0;
+	 		}
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+			if ($hw_gl_list->getLength gt 0){
+				my $hw_gl = $hw_gl_list->item($0);
+				my $chassis_gl_list = $hw_gl->getElementsByTagName("chassis");
+	 			if($chassis_gl_list->getLength gt 0){
+	 				my $chassisTag = $chassis_gl_list->item($0);
+	 				$result = &text_tag($chassisTag);
+	 			}
+			}
+		}	
+	}
+ 	return $result;
+}
+
+sub get_conf_file_conf {
+	my $vmName = shift;
+	my $result = "0";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+	if($name eq $vmName){
+		my $conf_list = $virtualm->getElementsByTagName("conf");
+		if ($conf_list->getLength gt 0){
+			my $conftag = $conf_list->item($0);
+			$result = &text_tag($conftag);
+			$global_tag = 0;
+		}
+	}
+#	if ($global_tag eq 1){
+#		my $globalList = $globalNode->getElementsByTagName("global");
+#		if ($globalList->getLength gt 0){
+#			my $globaltag = $globalList->item($0);
+#			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+#			if ($hw_gl_list->getLength gt 0){
+#				my $hw_gl = $hw_gl_list->item($0);
+#				my $idle_pc_gl_list = $hw_gl->getElementsByTagName("idle_pc");
+#	 			if($idle_pc_gl_list->getLength gt 0){
+#	 				$result = $idle_pc_gl_Tag->getAttribute("value");
+#	 			}
+#			}
+#		}	
+#	}
+	#if (($default_tag eq 1)&&($global_tag eq 1)){
+	#	$result = "0x604f8104";
+	#}
+ 	return $result;
+}
+sub get_idle_pc_conf {
+	my $vmName = shift;
+	my $result = "0x604f8104";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+	if($name eq $vmName){
+		my $hw_list = $virtualm->getElementsByTagName("hw");
+		if ($hw_list->getLength gt 0){
+			my $hw = $hw_list->item($0);
+			my $idle_pc_list = $hw->getElementsByTagName("idle_pc");
+	 		if($idle_pc_list->getLength gt 0){
+	 			my $idle_pcTag = $idle_pc_list->item($0);
+	 			$result = $idle_pcTag->getAttribute("value");
+	 			$global_tag = 0;
+	 		}
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+			if ($hw_gl_list->getLength gt 0){
+				my $hw_gl = $hw_gl_list->item($0);
+				my $idle_pc_gl_list = $hw_gl->getElementsByTagName("idle_pc");
+	 			if($idle_pc_gl_list->getLength gt 0){
+	 				$result = $idle_pc_gl_Tag->getAttribute("value");
+	 			}
+			}
+		}	
+	}
+	#if (($default_tag eq 1)&&($global_tag eq 1)){
+	#	$result = "0x604f8104";
+	#}
+ 	return $result;
+}
+
+
+sub get_port_conf {
+	my $vmName = shift;
+	my $counter = shift;
+	my $result =  900 + $counter;
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+	if($name eq $vmName){
+		my $hw_list = $virtualm->getElementsByTagName("hw");
+		if ($hw_list->getLength gt 0){
+			my $hw = $hw_list->item($0);
+			my $console_list = $hw->getElementsByTagName("console");
+	 		if($console_list->getLength gt 0){
+	 			my $consoleTag = $console_list->item($0);
+	 			$result = $consoleTag->getAttribute("port");
+	 			$global_tag = 0;
+	 		}
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+			if ($hw_gl_list->getLength gt 0){
+				my $hw_gl = $hw_gl_list->item($0);
+				my $console_gl_list = $hw_gl->getElementsByTagName("console_base");
+	 			if($console_gl_list->getLength gt 0){
+	 				my $console_gl_Tag = $console_gl_list->item($0);
+	 				my $base = $console_gl_Tag->getAttribute("port");
+	 				$result = $base + $counter;
+	 			}
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+
+sub get_cards_conf {
+	my $vmName = shift;
+	my @slotarray;
+	
+	unless(-e $conf_file){
+		push(@slotarray,"NM-4E");
+		return @slotarray;
+	}
+	
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
  	my $global_tag = 1;
  	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
  		# We get name attribute
@@ -894,12 +1272,12 @@ sub get_cards_conf {
 		}
 	}
 	
-	if ($global eq 1){
+	if ($global_tag eq 1){
 		my $globalList = $globalNode->getElementsByTagName("global");
 		if ($globalList->getLength gt 0){
 			my $globaltag = $globalList->item($0);
 			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
-			if ($globalList->getLength gt 0){
+			if ($hw_gl_list->getLength gt 0){
 				my $hw_gl = $hw_gl_list->item($0);
 				my $slot_gl_list = $hw_gl->getElementsByTagName("slot");
 	 			my $numslotgl = $slot_gl_list->getLength;
@@ -907,12 +1285,13 @@ sub get_cards_conf {
 	 				my $slotTaggl = $slot_gl_list->item($j);
 					my $slot_gl = &text_tag($slotTaggl);
 					push(@slotarray,$slot_gl);
-					$default = 0;
+					$default_tag = 0;
 	 			}
 			}
 		}	
 	}
-	if (($global_tag eq 1 )&&($default eq 1)){
+	# Diferente al ser un array y no poder asignarle un valor por defecto al principio
+	if (($global_tag eq 1 )&&($default_tag eq 1)){
 		push(@slotarray,"NM-4E");
 	}
  	return @slotarray;
