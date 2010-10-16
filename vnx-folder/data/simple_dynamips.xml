@@ -21,28 +21,22 @@ Just one Cisco virtual machine. Use this specification for testing
   </global>
   
   <net name="Net0" mode="virtual_bridge" />
-  <net name="Net1" mode="virtual_bridge" />
     
   <!-- NODES -->
   <vm name="R1" type="dynamips" subtype="3600" os="">
 	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
-	<dynamips_conf>/home/jrodriguez/R1.txt</dynamips_conf>
 	<mem>256M</mem>
 	<if id="1" net="Net0" name="e0/0">
 		<ipv4>10.1.1.4/24</ipv4>
 		<ipv6>2001:db8::1/64</ipv6>
     </if>
-	<if id="2" net="Net1" name="e0/1">
-    </if>
-    <route type="ipv4" gw="10.1.1.1">default</route>
-    <route type="ipv4" gw="10.1.1.2">10.0.2.0/24</route>
     <exec seq="notepad" type="verbatim">notepad c:\temp1\cosa.txt</exec>
   </vm>
   <vm name="R2" type="dynamips" subtype="3600" os="">
 	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
-	<dynamips_conf>/home/jrodriguez/R2.txt</dynamips_conf>
 	<mem>256M</mem>
-	<if id="1" net="Net1">
+	<if id="1" net="Net0" name="e1/0">
+		<ipv4>10.1.1.3/24</ipv4>
     </if>
   </vm>
   <host>

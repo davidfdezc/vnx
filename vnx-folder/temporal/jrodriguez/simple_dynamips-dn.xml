@@ -9,7 +9,7 @@
        <console_base port="1000"/>
      </hw>
      <sparsemem>true</sparsemem>
-     <ghostios>true</ghostios>
+     <ghostios>false</ghostios>
   </global>
 
 

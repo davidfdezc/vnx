@@ -142,7 +142,7 @@ sub defineVM {
 	my $filesystem        = $filesystemTag->getFirstChild->getData;
 	
 	# Definicion del fichero host
-	my $conf_dynamips = get_conf_file_conf($vmName);
+	my $conf_dynamips = get_conf_file($vmName);
 	
 #	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("dynamips");
 #	if ( $conf_dynamipsTagList->getLength gt 0){
@@ -154,13 +154,13 @@ sub defineVM {
 	 	if (-e $conf_dynamips)
 		{ 
 			$execution->execute("cp " . $conf_dynamips . " " . $dh->get_vm_dir($vmName));
-	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . basename($conf_dynamips) .".conf";
+	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . basename($conf_dynamips) ;
 		}else{
 			$execution->smartdie("Can not open " . $conf_dynamips );
 		}
 	}
 	else{
-		$filenameconf = $dh->get_vm_dir($vmName) . "/" . $vmName . ".txt";
+		$filenameconf = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
 		open (CONF_CISCO, ">$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
 		print CONF_CISCO "hostname " . $vmName ."\n";
  		$ifTagList = $virtualm->getElementsByTagName("if");
@@ -269,7 +269,12 @@ sub defineVM {
 	$line = $t->getline; print $line;
 	
 	# Configuring telnet port
+
 	my $consoleport = &get_port_conf($vmName,$counter);
+	my $portfile = $dh->get_vm_dir($vmName) . "/port.txt";
+	open (PORT_CISCO, ">$portfile") || die "ERROR: No puedo abrir el fichero $portfile";;
+	print PORT_CISCO $consoleport ;	
+	close (PORT_CISCO);
 	print("vm set_con_tcp_port $vmName $consoleport\n");
 	$t->print("vm set_con_tcp_port $vmName $consoleport");
     $line = $t->getline; print $line;
@@ -293,9 +298,11 @@ sub defineVM {
     print("vm set_ram $vmName $mem\n");
     $t->print("vm set_ram $vmName $mem");
     $line = $t->getline; print $line;
-	print("vm set_sparse_mem $vmName 1\n");
-	$t->print("vm set_sparse_mem $vmName 1");
-    $line = $t->getline; print $line;
+    if (&get_sparsemem($vmName) eq "true"){
+		print("vm set_sparse_mem $vmName 1\n");
+		$t->print("vm set_sparse_mem $vmName 1");
+   		$line = $t->getline; print $line;
+    }
     
     # Set IDLEPC
     my $idlepc = get_idle_pc_conf($vmName);
@@ -346,9 +353,9 @@ sub defineVM {
 	
 	# Set config file to router
 	print("vm set_config $vmName \"$filenameconf\" \n");
-    $t->print("vm set_config $vmName \"$filenameconf\" ");
-    $line = $t->getline; print $line;
-    $t->close;
+   	$t->print("vm set_config $vmName \"$filenameconf\" ");
+   	$line = $t->getline; print $line;
+   	$t->close;
 
     print "-----------------------------\n";
     
@@ -625,8 +632,7 @@ sub startVM {
 #		}
 #    
     
-	my $consoleportbase = "900";
-	my $consoleport = $consoleportbase + $counter;
+	my $consoleport=&get_port_conf($vmName,$counter);
     
     $execution->execute("gnome-terminal -t $vmName -e 'telnet $HHOST $consoleport' >/dev/null 2>&1 &");
 }
@@ -1055,7 +1061,7 @@ sub get_chassis {
  	return $result;
 }
 
-sub get_conf_file_conf {
+sub get_conf_file {
 	my $vmName = shift;
 	my $result = "0";
 	
@@ -1089,20 +1095,6 @@ sub get_conf_file_conf {
 			$global_tag = 0;
 		}
 	}
-#	if ($global_tag eq 1){
-#		my $globalList = $globalNode->getElementsByTagName("global");
-#		if ($globalList->getLength gt 0){
-#			my $globaltag = $globalList->item($0);
-#			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
-#			if ($hw_gl_list->getLength gt 0){
-#				my $hw_gl = $hw_gl_list->item($0);
-#				my $idle_pc_gl_list = $hw_gl->getElementsByTagName("idle_pc");
-#	 			if($idle_pc_gl_list->getLength gt 0){
-#	 				$result = $idle_pc_gl_Tag->getAttribute("value");
-#	 			}
-#			}
-#		}	
-#	}
 	#if (($default_tag eq 1)&&($global_tag eq 1)){
 	#	$result = "0x604f8104";
 	#}

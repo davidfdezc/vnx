@@ -1018,8 +1018,16 @@ sub mode_start {
 				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $name, $merged_type, $name, $pts;
 			} elsif ( $vm->getAttribute("type") eq "dynamips"){
 				my $port;
-				$port = 900 + $i;
+				#$port = 900 + $i;
+				my $portfile = $dh->get_vm_dir($name) . "/port.txt";
+				if (-e $portfile ){
+				open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
+				$port= <PORT_CISCO>;
+				close (PORT_CISCO);
 				printf "%-12s  %-20s  telnet 127.0.0.1 %s\n", $name, $merged_type, $port;
+				}else {
+					printf "%-12s  %-20s  Cannot be determinated port\n", $name, $merged_type;
+				}
 			}
 			my $last = @vm_ordered - $i;
 			if ($last eq 1){
