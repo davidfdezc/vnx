@@ -80,7 +80,7 @@ my $M_flag;       # passed from createVM to halt
 my $HHOST="localhost";
 my $HPORT="7300";
 my $HIDLEPC="0x604f8104";
-my $conf_file;
+my $conf_file="";
 
 #
 #
@@ -341,12 +341,22 @@ sub defineVM {
 	my $numif     = $ifTagList->getLength;
 
 	for ( my $j = 0 ; $j < $numif ; $j++ ) {
+		my $ifTag = $ifTagList->item($j);
+		my $name   = $ifTag->getAttribute("name");
+		my ($firstpart, $secondpart)= split("/",$name,2);
+		my $firstnumber = substr $firstpart,-1,1;
 		my $temp = $j + 1;
-		print("nio create_tap nio_tap$counter$j $vmName-e$temp\n");
-		$t->print("nio create_tap nio_tap$counter$j $vmName-e$temp");
+#		print("nio create_tap nio_tap$counter$j $vmName-e$temp\n");
+#		$t->print("nio create_tap nio_tap$counter$j $vmName-e$temp");
+#   		$line = $t->getline; print $line;
+#   		print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j\n");
+#   		$t->print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j");
+#   		$line = $t->getline; print $line;
+		print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp\n");
+		$t->print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp");
    		$line = $t->getline; print $line;
-   		print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j\n");
-   		$t->print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j");
+   		print("vm slot_add_nio_binding $vmName $firstnumber $secondpart nio_tap$counter$secondpart\n");
+   		$t->print("vm slot_add_nio_binding $vmName $firstnumber $secondpart nio_tap$counter$secondpart");
    		$line = $t->getline; print $line;
    		$execution->execute("ifconfig $vmName-e$temp 0.0.0.0");
 	}
@@ -391,6 +401,8 @@ sub undefineVM{
     $t->open(Host => $HHOST, Port => $HPORT);
     $t->print("vm destroy $vmName");
     $line = $t->getline; print $line;
+    $t->print("hypervisor reset");
+   	$line = $t->getline; print $line;
     $t->close;
 }
 
@@ -562,6 +574,8 @@ sub destroyVM{
     $line = $t->getline; print $line;
     $t->print("vm delete $vmName");
     $line = $t->getline; print $line;
+    $t->print("hypervisor reset");
+   	$line = $t->getline; print $line;
     #$t->print("hypervisor reset");
     #$line = $t->getline; print $line;
     $t->close;
@@ -904,7 +918,7 @@ sub set_config_file{
 }
 sub get_sparsemem {
 	my $vmName = shift;
-	my $result = "false";
+	my $result = "true";
 	
 	unless(-e $conf_file){
 		return $result;
