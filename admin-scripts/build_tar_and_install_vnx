@@ -1,0 +1,12 @@
+#!/bin/sh
+
+cdir=$( dirname $0 )
+cd $cdir/..
+
+echo `pwd`
+
+admin-scripts/build_vnx_tar
+mkdir -p tmp
+cd tmp
+tar xfvz ../vnx-0.14b.tgz
+vnx-0.14b/install_vnx

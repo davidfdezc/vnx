@@ -1,0 +1,35 @@
+<domain type='kvm'>
+  <name>Ubuntu</name>
+  <memory>524288</memory>
+  <vcpu>1</vcpu>
+  <os>
+    <type arch="i686">hvm</type>
+    <boot dev='hd'/>
+    <boot dev='cdrom'/>
+  </os>
+  <features>
+     <pae/>
+     <acpi/>
+     <apic/>
+  </features>
+  <clock sync="localtime"/>
+  <devices>
+    <emulator>/usr/bin/kvm</emulator>
+    <disk type='file' device='disk'>
+      <source file='/usr/share/vnx/filesystems/root_fs_ubuntu'/>
+      <target dev='hda'/>
+    </disk>
+    <!--disk type='file' device='cdrom'>
+      <source file='/almacen/iso/ubuntu-10.04-server-i386.iso'/>
+      <target dev='hdb'/>
+    </disk-->
+    <interface type='network'>
+      <source network='default'/>
+    </interface>
+    <!--serial type='pty'>
+      <source path='/dev/pts/3'/>
+      <target port='0'/>
+    </serial-->
+    <graphics type='vnc'/>
+  </devices>
+</domain>

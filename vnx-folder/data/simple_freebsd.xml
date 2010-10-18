@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE vnx SYSTEM "/usr/share/xml/vnx/vnx-1.92.dtd">
+
+<!--
+
+Simple scenario
+Just one FreeBSD virtual machine. Use this specification for testing
+
+-->
+
+<vnx>
+  <global>
+    <version>1.92</version>
+    <scenario_name>simple_freebsd</scenario_name>
+    <automac offset="6"/>
+    <vm_mgmt type="none" />
+  </global>
+    
+  <net name="Net0" mode="virtual_bridge" />
+      
+  <!-- NODES -->
+  <vm name="freebsd" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_freebsd</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.6/24</ipv4>
+    </if>
+    <filetree seq="start-www" root="/usr/local/www/apache22/data">conf/txtfile</filetree>
+    <exec seq="start-www" type="verbatim" mode="system">/usr/local/etc/rc.d/apache22 onestart</exec>
+    <exec seq="stop-www" type="verbatim" mode="system">/usr/local/etc/rc.d/apache22 onestop</exec>
+  </vm>
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>
+  
+</vnx>

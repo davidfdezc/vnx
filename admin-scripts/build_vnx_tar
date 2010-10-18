@@ -1,0 +1,29 @@
+#!/bin/sh
+
+VNX_VERSION="0.14b"
+#ROOTFS_VERSION="es-v023b"
+FNAME=vnx-${VNX_VERSION}
+
+cdir=$( dirname $0 )
+cd $cdir/..
+
+echo "** "
+echo "** Creating ${FNAME}.tgz file... "
+echo "** "
+
+mkdir -p tmp
+rm -rf tmp/*
+mkdir -p tmp/${FNAME}
+
+cp -r vnx-folder/doc vnx-folder/bin vnx-folder/perl-modules vnx-folder/data tmp/${FNAME}  
+cp admin-scripts/install_vnx tmp/${FNAME}
+mv tmp/${FNAME}/doc/00-readme.txt tmp/${FNAME}
+
+cd tmp
+tar cfvz  ${FNAME}.tgz ${FNAME}
+mv ${FNAME}.tgz ..
+cd ..
+# rm -rf tmp/*
+echo "** "
+echo "** ...done"
+echo "** "
