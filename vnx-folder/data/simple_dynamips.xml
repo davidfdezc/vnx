@@ -41,7 +41,7 @@ Just one Cisco virtual machine. Use this specification for testing
   </vm>
   <host>
     <hostif net="Net0">
-       <ipv4>10.1.0.1/24</ipv4>
+       <ipv4>10.1.1.1/24</ipv4>
     </hostif>
   </host>  
 

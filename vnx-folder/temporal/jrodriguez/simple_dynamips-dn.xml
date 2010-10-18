@@ -14,7 +14,7 @@
 
 
   <vm name="R1">
-     <conf>/home/jrodriguez/R2.conf</conf>
+     <!--conf>/home/jrodriguez/R2.conf</conf-->
      <hw>
        <chassis>c3640</chassis>
        <slot id="0">NM-4E</slot>
