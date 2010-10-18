@@ -10,7 +10,7 @@ See the tutorial/index.html document for details
   <global>
     <version>1.92</version>
     <scenario_name>tutorial-r1_xp_vnx</scenario_name>
-    <automac/>
+    <automac/> 
     <vm_mgmt type="private" network="10.250.0.0" mask="24">
        <host_mapping />
     </vm_mgmt> 
