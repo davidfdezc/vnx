@@ -24,7 +24,7 @@
   </vm>
 
   <vm name="R2">
-
+	<conf>/home/jrodriguez/R2.conf</conf>
   </vm>
 
 </vnx_dynamips>
