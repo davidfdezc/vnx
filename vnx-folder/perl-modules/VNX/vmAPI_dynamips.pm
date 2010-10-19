@@ -95,6 +95,7 @@ my $conf_file="";
 #
 sub defineVM {
 	
+	
 
 	my $self   = shift;
 	my $vmName = shift;
@@ -110,9 +111,7 @@ sub defineVM {
 	my $doc2       = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
 
-	my $path;
-	my $filesystem;
-	
+	print "___ ENTRADA DEFINE ____";
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 
 		my $vm = $vm_ordered[$i];
@@ -124,6 +123,7 @@ sub defineVM {
 			next;
 		}
 	}
+	
 	# Configuramos el fichero de configuracion especial
 	&set_config_file($dh->get_default_dynamips());
 		
@@ -155,6 +155,7 @@ sub defineVM {
 		{ 
 			$execution->execute("cp " . $conf_dynamips . " " . $dh->get_vm_dir($vmName));
 	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . basename($conf_dynamips) ;
+	   	 	
 		}else{
 			$execution->smartdie("Can not open " . $conf_dynamips );
 		}
@@ -189,8 +190,9 @@ sub defineVM {
 				print CONF_CISCO " ipv6 enable\n";	
 				my $ipv6_Tag = $ipv6_list->item(0);
 				my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
-				print CONF_CISCO " ipv6 address " . $ipv6 . " ". $subnetv6 . "\n";	
-			}
+				#print CONF_CISCO " ipv6 address " . $ipv6 . " ". $subnetv6 . "\n";
+				print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
+				}
 			print CONF_CISCO " no shutdown\n";		
  		}
  		
@@ -223,8 +225,8 @@ sub defineVM {
 		my $memTag     = $memTagList->item($0);
 		$mem   = ($memTag->getFirstChild->getData)/1024;
 	} 
-   my $doc = $dh->get_doc;
-   my $dynamips_ext_list = $doc->getElementsByTagName("dynamips_ext");
+   #my $doc = $dh->get_doc;
+   my $dynamips_ext_list = $doc2->getElementsByTagName("dynamips_ext");
 
     
     # Definicion del router
@@ -369,7 +371,7 @@ sub defineVM {
 
     print "-----------------------------\n";
     
-  
+  print "___ SALIDA DEFINE ____";
     
 }
 
@@ -431,7 +433,6 @@ sub createVM{
 	my @vm_ordered = $dh->get_vm_ordered;
 
 	my $path;
-	my $filesystem;
 	
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 
