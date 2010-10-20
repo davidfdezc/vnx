@@ -111,7 +111,6 @@ sub defineVM {
 	my $doc2       = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
 
-	print "___ ENTRADA DEFINE ____";
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 
 		my $vm = $vm_ordered[$i];
@@ -153,9 +152,63 @@ sub defineVM {
 	{
 	 	if (-e $conf_dynamips)
 		{ 
-			$execution->execute("cp " . $conf_dynamips . " " . $dh->get_vm_dir($vmName));
-	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . basename($conf_dynamips) ;
-	   	 	
+			#$execution->execute("cp " . $conf_dynamips . " " . $dh->get_vm_dir($vmName));
+	   	 	#$filenameconf  = $dh->get_vm_dir($vmName) . "/" . basename($conf_dynamips);
+	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
+	   	 	$execution->execute("sed '/end/d' " . $conf_dynamips . ">" . $filenameconf);
+	   	 		   	 		   	 	
+	   	 	open (CONF_CISCO, ">>$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
+			print CONF_CISCO "hostname " . $vmName ."\n";
+	 		$ifTagList = $virtualm->getElementsByTagName("if");
+	 		my $numif = $ifTagList->getLength;
+	 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
+	 			my $ifTag = $ifTagList->item($j);
+				my $id    = $ifTag->getAttribute("id");
+				my $net   = $ifTag->getAttribute("net");
+				my $mac   = $ifTag->getAttribute("mac");
+				$mac =~ s/,//;
+				my @maclist = split(/:/,$mac);
+				$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
+				my $nameif   = $ifTag->getAttribute("name");
+				print CONF_CISCO "interface " . $nameif . "\n";	
+				print CONF_CISCO " mac-address " . $mac . "\n";
+				
+				my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
+				if ( $ipv4_list->getLength != 0 ) {
+					my $ipv4_Tag = $ipv4_list->item(0);
+					my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
+					my $subnetv4 = $ipv4_Tag->getAttribute("mask");
+					print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
+				}
+				my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
+				if ( $ipv6_list->getLength != 0 ) {
+					print CONF_CISCO " ipv6 enable\n";	
+					my $ipv6_Tag = $ipv6_list->item(0);
+					my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
+					#print CONF_CISCO " ipv6 address " . $ipv6 . " ". $subnetv6 . "\n";
+					print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
+					}
+				print CONF_CISCO " no shutdown\n";	
+	 		}	
+			my $routeTagList = $virtualm->getElementsByTagName("route");
+ 			my $numroute = $routeTagList->getLength;
+ 			for ( my $j = 0 ; $j < $numroute ; $j++ ) {
+ 				my $routeTag = 	$routeTagList->item($j);
+ 				my $gw = $routeTag->getAttribute("gw");
+ 				my $destination = $routeTag->getFirstChild->getData;
+ 				my $maskdestination = "";
+ 				if ($destination eq "default"){
+ 					$destination = "0.0.0.0";
+ 					$maskdestination = "0.0.0.0";
+ 				}else {
+ 					my $ip = new Net::IP ($destination) or die (Net::IP::Error());
+ 					$maskdestination = $ip->mask();
+ 					$destination = $ip->ip();
+ 				}
+ 				print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
+ 			}
+ 			print CONF_CISCO " end\n";
+ 			close(CONF_CISCO);		 	
 		}else{
 			$execution->smartdie("Can not open " . $conf_dynamips );
 		}
@@ -214,6 +267,7 @@ sub defineVM {
  			print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			
  		}
+ 		print CONF_CISCO " end\n";
  		close(CONF_CISCO);	
 	}
     
@@ -371,7 +425,6 @@ sub defineVM {
 
     print "-----------------------------\n";
     
-  print "___ SALIDA DEFINE ____";
     
 }
 
@@ -898,8 +951,15 @@ sub executeCMD{
 	my $vm    = shift;
 	my $name = shift;
 	
-	my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1',
-										  Port => '900');
+	my $port;
+	#$port = 900 + $i;
+	my $portfile = $dh->get_vm_dir($name) . "/port.txt";
+	if (-e $portfile ){
+	open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
+	$port= <PORT_CISCO>;
+	close (PORT_CISCO);
+	
+	my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
 	my @output = $session->cmd('show version');
 	
 	
