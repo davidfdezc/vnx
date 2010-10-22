@@ -267,6 +267,7 @@ sub defineVM {
  			print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			
  		}
+ 		print CONF_CISCO "ip http server\n";
  		print CONF_CISCO " end\n";
  		close(CONF_CISCO);	
 	}
@@ -950,19 +951,30 @@ sub executeCMD{
 	$dh        = shift;
 	my $vm    = shift;
 	my $name = shift;
-	
+	my @output = "Nothing to show";
+	my $temp;
 	my $port;
 	#$port = 900 + $i;
 	my $portfile = $dh->get_vm_dir($name) . "/port.txt";
 	if (-e $portfile ){
-	open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
-	$port= <PORT_CISCO>;
-	close (PORT_CISCO);
-	
-	my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
-	my @output = $session->cmd('show version');
-	
-	
+		open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
+		$port= <PORT_CISCO>;
+		close (PORT_CISCO);
+		
+		my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
+		#$temp = $session->prompt();
+		#$temp = $session->open();
+		$temp = $session->login();
+		$session->cmd(' show version');
+		if ($session->enable("")){
+			@output = $session->cmd(' show running-config');	
+		}else {
+			die ("Can't enable")
+		}
+		$session->close();
+		print ("Out: \n");
+		print ("@output");
+	}	
 }
 
 
