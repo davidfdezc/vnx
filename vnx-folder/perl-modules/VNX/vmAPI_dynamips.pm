@@ -957,23 +957,33 @@ sub executeCMD{
 	#$port = 900 + $i;
 	my $portfile = $dh->get_vm_dir($name) . "/port.txt";
 	if (-e $portfile ){
-		open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
-		$port= <PORT_CISCO>;
-		close (PORT_CISCO);
-		
-		my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
-		#$temp = $session->prompt();
-		#$temp = $session->open();
-		$temp = $session->login();
-		$session->cmd(' show version');
-		if ($session->enable("")){
-			@output = $session->cmd(' show running-config');	
-		}else {
-			die ("Can't enable")
-		}
-		$session->close();
-		print ("Out: \n");
-		print ("@output");
+			open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
+			$port= <PORT_CISCO>;
+			close (PORT_CISCO);
+			
+			
+			$telnet = new Net::Telnet (Timeout => 10);
+   			$telnet->open(Host => '127.0.0.1', Port => $port);
+    		$telnet->print("");
+    		$telnet->print("");
+    		$telnet->print("");
+    		$telnet->print("exit");
+    		$telnet->print("");
+    		$telnet->print("");
+    		$telnet->print("");
+    		sleep(3);
+    	#	$line = $telnet->getline; print $line;
+    		$telnet->close;
+			my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
+			$session->cmd(' show version');
+			if ($session->enable("")){
+				@output = $session->cmd(' show running-config');	
+			}else {
+				die ("Can't enable")
+			}
+			$session->close();
+			print ("Out: \n");
+			print ("@output");
 	}	
 }
 
