@@ -666,40 +666,6 @@ sub startVM {
     $t->print("vm start $vmName");
     $line = $t->getline; print $line;
     
-#    my $ifTagList = $virtualm->getElementsByTagName("if");
-#	my $numif     = $ifTagList->getLength;
-#
-#	for ( my $j = 0 ; $j < $numif ; $j++ ) {
-##			my $ifTag = $ifTagList->item($j);
-##			my $id    = $ifTag->getAttribute("id");
-#			my $net   = $ifTag->getAttribute("net");
-##			my $mac   = $ifTag->getAttribute("mac");
-##
-##			my $interface_tag = $init_xml->createElement('interface');
-##			$devices_tag->addChild($interface_tag);
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( type => 'bridge' ) );
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( name => "eth" . $id ) );
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( onboot => "yes" ) );
-##			my $source_tag = $init_xml->createElement('source');
-##			$interface_tag->addChild($source_tag);
-##			$source_tag->addChild(
-##				$init_xml->createAttribute( bridge => $net ) );
-##			my $mac_tag = $init_xml->createElement('mac');
-##			$interface_tag->addChild($mac_tag);
-##			$mac =~ s/,//;
-##			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
-#			$execution->execute("ifconfig $vmName-$j up");
-#			$execution->execute("brctl addif $net $vmName-$j");
-#			#$t->print("nio create_tap nio_tap $j $vmName-$j");
-#    		#$line = $t->getline; print $line;
-#    		#$t->print("vm slot_add_nio_binding $vmName 0 $j nio_tap $j");
-#    		#$line = $t->getline; print $line;
-#	
-#		}
-#    
     
 	my $consoleport=&get_port_conf($vmName,$counter);
     
@@ -959,31 +925,56 @@ sub executeCMD{
 	if (-e $portfile ){
 			open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
 			$port= <PORT_CISCO>;
-			close (PORT_CISCO);
+			close (PORT_CISCO);	
 			
 			
-			$telnet = new Net::Telnet (Timeout => 10);
-   			$telnet->open(Host => '127.0.0.1', Port => $port);
-    		$telnet->print("");
-    		$telnet->print("");
-    		$telnet->print("");
-    		$telnet->print("exit");
-    		$telnet->print("");
-    		$telnet->print("");
-    		$telnet->print("");
-    		sleep(3);
-    	#	$line = $telnet->getline; print $line;
-    		$telnet->close;
-			my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
-			$session->cmd(' show version');
-			if ($session->enable("")){
-				@output = $session->cmd(' show running-config');	
-			}else {
-				die ("Can't enable")
+			##############################################################
+			my $command_list = $vm->getElementsByTagName("exec");
+			my $countcommand = 0;
+			for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
+				my $command = $command_list->item($j);	
+				# To get attributes
+				my $cmd_seq = $command->getAttribute("seq");
+				if ( $cmd_seq eq $seq ) {
+					my $type = $command->getAttribute("type");
+					# Case 1. Verbatim type
+					if ( $type eq "verbatim" ) {
+						# Including command "as is"
+						my $command_tag = &text_tag($command);
+						if ($command_tag =~ m/^reload/){
+							reload_conf($command_tag,$name,$port);
+						}else{
+							my @result = exec_command($command_tag,$port);
+							print "@result";
+						}
+					}
+
+					# Case 2. File type
+					elsif ( $type eq "file" ) {
+						# We open the file and write commands line by line
+						my $include_file =  &do_path_expansion( &text_tag($command) );
+						open INCLUDE_FILE, "$include_file"
+						  or $execution->smartdie("can not open $include_file: $!");
+						while (<INCLUDE_FILE>) {
+							chomp;
+							$execution->execute(
+								#"<exec seq=\"file\" type=\"file\">" 
+								  #. $_
+								  #. "</exec>",
+								  $_,
+								*COMMAND_FILE
+							);
+							$countcommand = $countcommand + 1;
+						}
+						close INCLUDE_FILE;
+					}
+
+			 # Other case. Don't do anything (it would be and error in the XML!)
+				}
 			}
-			$session->close();
-			print ("Out: \n");
-			print ("@output");
+			###############################################################
+			
+			
 	}	
 }
 
@@ -1385,5 +1376,57 @@ sub get_cards_conf {
 	}
  	return @slotarray;
 }
+sub reload_conf {
+	my $command = shift;
+	my $vmName= shift;
+	my $port = shift;
+	my @file_conf = split('reload ',$command);
+	my $filenameconf = $file_conf[1];
+	$t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    print("vm stop $vmName \n");
+	$t->print("vm stop $vmName");
+    $line = $t->getline; print $line;
+   	print("vm set_config $vmName \"$filenameconf\" \n");
+   	$t->print("vm set_config $vmName \"$filenameconf\" ");
+   	$line = $t->getline; print $line;
+   	$t->print("vm start $vmName");
+    $line = $t->getline; print $line;
+        
+    
+    $execution->execute("gnome-terminal -t $vmName -e 'telnet $HHOST $port' >/dev/null 2>&1 &");
+   	
+	
+}
+
+
+sub exec_command {
+	my $command = shift;
+	my $port = shift;
+	$telnet = new Net::Telnet (Timeout => 10);
+   			$telnet->open(Host => '127.0.0.1', Port => $port);
+    		$telnet->print("");
+    		$telnet->print("");
+    		$telnet->print("");
+    		$telnet->print("exit");
+    		$telnet->print("");
+    		$telnet->print("");
+    		$telnet->print("");
+    		sleep(3);
+    	#	$line = $telnet->getline; print $line;
+    		$telnet->close;
+			my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
+			$session->cmd(' show version');
+			if ($session->enable("")){
+				@output = $session->cmd(" $command");
+				$session->disable();
+			}else {
+				die ("Can't enable")
+			}
+			$session->close();
+			return @output;
+	
+}
+
 
 1;

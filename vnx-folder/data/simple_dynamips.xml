@@ -30,7 +30,8 @@ Just one Cisco virtual machine. Use this specification for testing
 		<ipv4>10.1.1.4/24</ipv4>
 		<ipv6>2001:db8::1/64</ipv6>
     </if>
-    <exec seq="notepad" type="verbatim">notepad c:\temp1\cosa.txt</exec>
+    <exec seq="brief" type="verbatim">show ip interface brief</exec>
+    <exec seq="reload" type="verbatim">reload /home/jrodriguez/R1.txt</exec>
   </vm>
   <vm name="R2" type="dynamips" subtype="3600" os="">
 	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
