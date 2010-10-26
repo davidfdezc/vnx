@@ -1907,6 +1907,7 @@ sub mode_x {
 	my $seq = shift;
 	
 	my %vm_ips;
+	
 
    # If -B, block until ready
    if ($args->get('B')) {
@@ -1934,7 +1935,10 @@ sub mode_x {
 
 	# Previous checkings and warnings
 	my @vm_ordered = $dh->get_vm_ordered;
-	my %vm_hash    = $dh->get_vm_to_use(@plugins);
+	
+		my %vm_hash    = $dh->get_vm_to_use(@plugins);
+	
+	
 
 	# First loop: look for uml_mconsole exec capabilities if needed. This
 	# loop can cause exit, if capabilities are not accomplished
