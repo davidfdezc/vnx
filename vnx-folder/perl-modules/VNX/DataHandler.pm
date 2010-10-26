@@ -723,6 +723,23 @@ sub get_vm_to_use {
 	      ($self->{'mode'} eq "undefine") ||
           (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || ($plugins_vms{$name} eq "1") ) && ($self->{'mode'} eq "x") || ($plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") )  
 	  ) {
+	  	# En proceso de construccion, hay que quitar los plugins en caso de que %plugins_vms no tenga nada.
+#	     if (
+#          ($self->{'mode'} eq "t") ||
+#	      ($self->{'mode'} eq "d") ||
+#	      ($self->{'mode'} eq "P") ||
+#	      ($self->{'mode'} eq "define") ||
+#	      ($self->{'mode'} eq "start") ||
+#	      ($self->{'mode'} eq "reset") ||
+#	      ($self->{'mode'} eq "reboot") ||
+#	      ($self->{'mode'} eq "save") ||
+#	      ($self->{'mode'} eq "restore") ||
+#	      ($self->{'mode'} eq "suspend") ||
+#	      ($self->{'mode'} eq "resume") ||
+#	      ($self->{'mode'} eq "undefine") ||
+#          (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || 
+#          			((scalar(%plugins_vms) ge 0) && (($plugins_vms{$name} eq "1") && ($self->{'mode'} eq "x") || ($plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") ))  
+#	  ) {
 	  	
          # Only if list is not empty
          if ($self->{'vm_to_use'}) {
