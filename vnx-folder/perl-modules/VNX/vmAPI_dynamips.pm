@@ -668,8 +668,7 @@ sub startVM {
     
     
 	my $consoleport=&get_port_conf($vmName,$counter);
-    
-    $execution->execute("gnome-terminal -t $vmName -e 'telnet $HHOST $consoleport' >/dev/null 2>&1 &");
+    $execution->execute("xterm -title Dynamips_$vmName -e 'telnet $HHOST $consoleport' >/dev/null 2>&1 &");
 }
 
 
@@ -926,8 +925,14 @@ sub executeCMD{
 			open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
 			$port= <PORT_CISCO>;
 			close (PORT_CISCO);	
-			
-			
+			my @result;
+			my $result;
+			@result = `ps ax | grep telnet`;
+			foreach $result (@result) {
+				if ($result =~ m/telnet localhost $port/){
+					$execution->smartdie("Please, close terminal $name window");
+				}
+			}
 			##############################################################
 			my $command_list = $vm->getElementsByTagName("exec");
 			my $countcommand = 0;
@@ -942,10 +947,53 @@ sub executeCMD{
 						# Including command "as is"
 						my $command_tag = &text_tag($command);
 						if ($command_tag =~ m/^reload/){
-							reload_conf($command_tag,$name,$port);
+							#reload_conf($command_tag,$name,$port);
+							##########################
+							my @file_conf = split('reload ',$command_tag);
+							my $filenameconf = $file_conf[1];
+							$t = new Net::Telnet (Timeout => 10);
+						    $t->open(Host => $HHOST, Port => $HPORT);
+						    print("vm stop $name \n");
+							$t->print("vm stop $name");
+							sleep(2);
+						    $line = $t->getline; print $line;
+						   	print("vm set_config $name \"$filenameconf\" \n");
+						   	$t->print("vm set_config $name \"$filenameconf\" ");
+						   	$line = $t->getline; print $line;
+						   	$t->print("vm start $name");
+						    $line = $t->getline; print $line;
+						    sleep (3);
+       						$execution->execute("xterm -title Dynamips_$name -e 'telnet $HHOST $port' >/dev/null 2>&1 &");
+							############################
 						}else{
-							my @result = exec_command($command_tag,$port);
-							print "@result";
+							#my @result = exec_command($command_tag,$port);
+							##########
+							
+							##########
+							$telnet = new Net::Telnet (Timeout => 10);
+	   						$telnet->open(Host => '127.0.0.1', Port => $port);
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("exit");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					sleep(3);
+	    					#	$line = $telnet->getline; print $line;
+	    					$telnet->close;
+							my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
+							$session->cmd(' show version');
+							if ($session->enable("")){
+								@output = $session->cmd(" $command_tag");
+								$session->disable();
+							}else {
+								die ("Can't enable")
+							}
+							$session->close();
+							##########
+							print "\nOutput of command \"$command_tag\" on $name\n";
+							print "@output";
 						}
 					}
 
@@ -955,17 +1003,30 @@ sub executeCMD{
 						my $include_file =  &do_path_expansion( &text_tag($command) );
 						open INCLUDE_FILE, "$include_file"
 						  or $execution->smartdie("can not open $include_file: $!");
+						  $telnet = new Net::Telnet (Timeout => 10);
+	   						$telnet->open(Host => '127.0.0.1', Port => $port);
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("exit");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					sleep(3);
+	    					#	$line = $telnet->getline; print $line;
+	    					$telnet->close;
+							my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
+							$session->cmd(' show version');
+							print "\nExecution: Command --> Output\n";
 						while (<INCLUDE_FILE>) {
 							chomp;
-							$execution->execute(
-								#"<exec seq=\"file\" type=\"file\">" 
-								  #. $_
-								  #. "</exec>",
-								  $_,
-								*COMMAND_FILE
-							);
-							$countcommand = $countcommand + 1;
+							$command_tag = $_;
+							@output = $session->cmd(" $command_tag");
+							print "$command_tag --> @output";
 						}
+	    				$session->cmd("\cZ");
+						$session->disable();
+						$session->close();
 						close INCLUDE_FILE;
 					}
 
@@ -1394,7 +1455,7 @@ sub reload_conf {
     $line = $t->getline; print $line;
         
     
-    $execution->execute("gnome-terminal -t $vmName -e 'telnet $HHOST $port' >/dev/null 2>&1 &");
+    $execution->execute("xterm -title $vmName -e 'telnet $HHOST $port' >/dev/null 2>&1 &");
    	
 	
 }
