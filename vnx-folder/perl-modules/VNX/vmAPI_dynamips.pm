@@ -930,7 +930,9 @@ sub executeCMD{
 			@result = `ps ax | grep telnet`;
 			foreach $result (@result) {
 				if ($result =~ m/telnet localhost $port/){
-					$execution->smartdie("Please, close terminal $name window");
+					#$execution->smartdie("Please, close terminal $name window");
+					#print "Please, close terminal $name window";
+					return "\nPlease, close terminal $name window\n";
 				}
 			}
 			##############################################################
@@ -975,6 +977,7 @@ sub executeCMD{
 	    					$telnet->print("");
 	    					$telnet->print("");
 	    					$telnet->print("");
+	    					$telnet->print("exit");
 	    					$telnet->print("exit");
 	    					$telnet->print("");
 	    					$telnet->print("");
@@ -1022,9 +1025,12 @@ sub executeCMD{
 							chomp;
 							$command_tag = $_;
 							@output = $session->cmd(" $command_tag");
-							print "$command_tag --> @output";
+							print "$command_tag --> @output\n";
 						}
-	    				$session->cmd("\cZ");
+						#my $temp = $session->print(" \cZ");
+	    				#print $temp;
+	    				$session->cmd(" end");
+	    				
 						$session->disable();
 						$session->close();
 						close INCLUDE_FILE;
