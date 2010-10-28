@@ -21,6 +21,9 @@
        <slot id="1">NM-4T</slot>
        <console port="920"/>
      </hw>
+     <login_user>root</login_user>
+     <login_pass>xxxx</login_pass>
+     <enable_pass>xxxx</enable_pass>
   </vm>
 
   <vm name="R2">
