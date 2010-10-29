@@ -158,7 +158,7 @@ use VNX::DocumentChecks;
 use VNX::IPChecks;
 use VNX::vmAPI_uml;
 use VNX::vmAPI_libvirt;
-use VNX::vmAPI_dynamips;
+#use VNX::vmAPI_dynamips;
 
 use Error qw(:try);
 use Exception::Class ( "Vnx::Exception" =>
@@ -600,9 +600,13 @@ exit;
    }
    if($modeparser eq "xsd"){
    		my $schemalocation;
-		if ($input_file_string =~ /="(.*).xsd"/) {
+
+#jsf	if ($input_file_string =~ /="(.*).xsd"/) {
+	    if ($input_file_string =~ /="(\S*).xsd"/) {
         	$schemalocation = $1 .".xsd";
+
 		}else{
+			print "input_file_string = $input_file_string, $schemalocation=schemalocation\n";
 			&vnx_die("XSD not found");
 		}
 		
@@ -618,7 +622,7 @@ exit;
 		  # Validation errors
 		  &vnx_die("$input_file is not a well-formed VNX file\n");
 		}
-		
+	
 		my $parser2 = new XML::DOM::Parser;
         $doc = $parser2->parsefile($input_file);
    }
