@@ -207,6 +207,7 @@ sub defineVM {
  				}
  				print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			}
+ 			
  			print CONF_CISCO " end\n";
  			close(CONF_CISCO);		 	
 		}else{
@@ -976,7 +977,6 @@ sub executeCMD{
 	    					$telnet->print("");
 	    					$telnet->print("");
 	    					$telnet->print("");
-	    					$telnet->print("exit");
 	    					$telnet->print("exit");
 	    					$telnet->print("");
 	    					$telnet->print("");
