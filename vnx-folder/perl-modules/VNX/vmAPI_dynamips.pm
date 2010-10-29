@@ -701,8 +701,7 @@ sub shutdownVM{
     $t->print("vm stop $vmName");
     $line = $t->getline; print $line;
     $t->close;
-
-	
+	sleep(2);	
 }
 
 #
@@ -1057,6 +1056,162 @@ sub set_config_file{
 		return 1;
 	}
 }
+
+sub get_login_user {
+	my $vmName = shift;
+	my $result = "";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+# 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+	if($name eq $vmName){
+		my $login_user_list = $virtualm->getElementsByTagName("login_user");
+		if ($login_user_list->getLength gt 0){
+			my $login_user = $login_user_list->item($0);
+			$result = &text_tag($login_user);
+ 			$global_tag = 0;
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $login_user_gl_list = $globaltag->getElementsByTagName("login_user");
+			if ($login_user_gl_list->getLength gt 0){
+				my $login_user_gl = $login_user_gl_list->item($0);
+				$result = &text_tag($login_user_gl);
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+sub get_login_pass {
+	my $vmName = shift;
+	my $result = "";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+# 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+	if($name eq $vmName){
+		my $login_pass_list = $virtualm->getElementsByTagName("login_pass");
+		if ($login_pass_list->getLength gt 0){
+			my $login_pass = $login_pass_list->item($0);
+			$result = &text_tag($login_pass);
+ 			$global_tag = 0;
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $login_pass_gl_list = $globaltag->getElementsByTagName("login_pass");
+			if ($login_pass_gl_list->getLength gt 0){
+				my $login_pass_gl = $login_pass_gl_list->item($0);
+				$result = &text_tag($login_pass_gl);
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+
+sub get_enable_pass {
+	my $vmName = shift;
+	my $result = "";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+# 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+	if($name eq $vmName){
+		my $enable_pass_list = $virtualm->getElementsByTagName("enable_pass");
+		if ($enable_pass_list->getLength gt 0){
+			my $enable_passs = $enable_pass_list->item($0);
+			$result = &text_tag($enable_pass);
+ 			$global_tag = 0;
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $enable_pass_gl_list = $globaltag->getElementsByTagName("enable_pass");
+			if ($enable_pass_gl_list->getLength gt 0){
+				my $enable_pass_gl = $enable_pass_gl_list->item($0);
+				$result = &text_tag($enable_pass_gl);
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+
 sub get_sparsemem {
 	my $vmName = shift;
 	my $result = "true";
