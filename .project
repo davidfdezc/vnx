@@ -14,20 +14,5 @@
 			<type>1</type>
 			<location>/almacen/vnx/workspace/vnx/vnx-folder/bin/send_command.pl</location>
 		</link>
-		<link>
-			<name>vnx-folder/data/simple_ubuntu.xml</name>
-			<type>1</type>
-			<location>/almacen/vnx/workspace/vnx/vnx-folder/data/simple_ubuntu.xml</location>
-		</link>
-		<link>
-			<name>vnx-folder/data/simple_uml.xml</name>
-			<type>1</type>
-			<location>/almacen/vnx/workspace/vnx/vnx-folder/data/simple_uml.xml</location>
-		</link>
-		<link>
-			<name>vnx-folder/data/tutorial_root1_all.xml</name>
-			<type>1</type>
-			<location>/almacen/vnx/workspace/vnx/vnx-folder/data/tutorial_root1_all.xml</location>
-		</link>
 	</linkedResources>
 </projectDescription>
