@@ -140,6 +140,401 @@ sub defineVM {
 	my $filesystem_type   = $filesystemTag->getAttribute("type");
 	my $filesystem        = $filesystemTag->getFirstChild->getData;
 	
+	# Definicion del fichero de configuracion extendida host
+	my $conf_dynamips = get_conf_file($vmName);
+	
+	# Miro si hay definido en el XML un fichero de configuracion extendida
+	if (!($conf_dynamips eq 0))
+	{
+		# Compruebo que se puede abrir.
+	 	if (-e $conf_dynamips)
+		{
+			# Si existe, me voy al final del fichero y quito el end, ya que vamos a continuar
+			# desde el final.  
+	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
+	   	 	$execution->execute("sed '/end/d' " . $conf_dynamips . ">" . $filenameconf);
+	   	 	open (CONF_CISCO, ">>$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
+	   	 	
+	   	 	# Por defecto, los valores puestos en el XML del vnx ,
+	   	 	# prevalecen sobre los puestos en cualquier fichero de configuracion.
+	   	 	
+			print CONF_CISCO "hostname " . $vmName ."\n";
+	 		$ifTagList = $virtualm->getElementsByTagName("if");
+	 		my $numif = $ifTagList->getLength;
+	 		# Configuramos las interfaces.
+	 		# P.ej:
+	 		# 	interface e0/0
+			# 	 mac-address fefd.0003.0101
+			# 	 ip address 10.1.1.4 255.255.255.0
+			# 	 ipv6 enable
+			# 	 ipv6 address 2001:db8::1/64
+			# 	 no shutdown
+	 		
+	 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
+	 			my $ifTag = $ifTagList->item($j);
+				my $id    = $ifTag->getAttribute("id");
+				my $net   = $ifTag->getAttribute("net");
+				my $mac   = $ifTag->getAttribute("mac");
+				$mac =~ s/,//;
+				my @maclist = split(/:/,$mac);
+				$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
+				my $nameif   = $ifTag->getAttribute("name");
+				print CONF_CISCO "interface " . $nameif . "\n";	
+				print CONF_CISCO " mac-address " . $mac . "\n";
+				# Damos direccion IPv4	
+				my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
+				if ( $ipv4_list->getLength != 0 ) {
+					my $ipv4_Tag = $ipv4_list->item(0);
+					my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
+					my $subnetv4 = $ipv4_Tag->getAttribute("mask");
+					print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
+				}
+				# Damos direccion IPv6
+				my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
+				if ( $ipv6_list->getLength != 0 ) {
+					print CONF_CISCO " ipv6 enable\n";	
+					my $ipv6_Tag = $ipv6_list->item(0);
+					my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
+					print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
+					}
+				# Levantamos la interfaz
+				print CONF_CISCO " no shutdown\n";	
+	 		}
+	 		# Configura las rutas	
+			my $routeTagList = $virtualm->getElementsByTagName("route");
+ 			my $numroute = $routeTagList->getLength;
+ 			for ( my $j = 0 ; $j < $numroute ; $j++ ) {
+ 				my $routeTag = 	$routeTagList->item($j);
+ 				my $gw = $routeTag->getAttribute("gw");
+ 				my $destination = $routeTag->getFirstChild->getData;
+ 				my $maskdestination = "";
+ 				if ($destination eq "default"){
+ 					$destination = "0.0.0.0";
+ 					$maskdestination = "0.0.0.0";
+ 				}else {
+ 					my $ip = new Net::IP ($destination) or die (Net::IP::Error());
+ 					$maskdestination = $ip->mask();
+ 					$destination = $ip->ip();
+ 				}
+ 				print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
+ 			}
+ 			# Si el fichero de configuacion extendida se define una password de enable, se pone.
+ 			my $enablepass = get_enable_pass($vmName);
+ 			if (!($enablepass eq "")){
+				print CONF_CISCO " enable password " . $enablepass . "\n";
+    		}
+ 			print CONF_CISCO " end\n";
+ 			close(CONF_CISCO);		 	
+		}else{
+			$execution->smartdie("Can not open " . $conf_dynamips );
+		}
+	}
+	# Si no se ha definido ninguno, me defino el fichero de configuracion a pasar al cisco.
+	else{
+		$filenameconf = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
+		open (CONF_CISCO, ">$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
+		print CONF_CISCO "hostname " . $vmName ."\n";
+ 		$ifTagList = $virtualm->getElementsByTagName("if");
+ 		my $numif = $ifTagList->getLength;
+ 			# Configuramos las interfaces.
+	 		# P.ej:
+	 		# 	interface e0/0
+			# 	 mac-address fefd.0003.0101
+			# 	 ip address 10.1.1.4 255.255.255.0
+			# 	 ipv6 enable
+			# 	 ipv6 address 2001:db8::1/64
+			# 	 no shutdown
+ 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
+ 			my $ifTag = $ifTagList->item($j);
+			my $id    = $ifTag->getAttribute("id");
+			my $net   = $ifTag->getAttribute("net");
+			my $mac   = $ifTag->getAttribute("mac");
+			$mac =~ s/,//;
+			my @maclist = split(/:/,$mac);
+			$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
+			my $nameif   = $ifTag->getAttribute("name");
+			print CONF_CISCO "interface " . $nameif . "\n";	
+			print CONF_CISCO " mac-address " . $mac . "\n";
+			# Damos direccion IPv4		
+			my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
+			if ( $ipv4_list->getLength != 0 ) {
+				my $ipv4_Tag = $ipv4_list->item(0);
+				my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
+				my $subnetv4 = $ipv4_Tag->getAttribute("mask");
+				print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
+			}
+			# Damos direccion IPv6
+			my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
+			if ( $ipv6_list->getLength != 0 ) {
+				print CONF_CISCO " ipv6 enable\n";	
+				my $ipv6_Tag = $ipv6_list->item(0);
+				my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
+				print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
+				}
+			# Levantamos la interfaz
+			print CONF_CISCO " no shutdown\n";		
+ 		}
+ 		# Configura las rutas
+ 		my $routeTagList = $virtualm->getElementsByTagName("route");
+ 		my $numroute = $routeTagList->getLength;
+ 		for ( my $j = 0 ; $j < $numroute ; $j++ ) {
+ 			my $routeTag = 	$routeTagList->item($j);
+ 			my $gw = $routeTag->getAttribute("gw");
+ 			my $destination = $routeTag->getFirstChild->getData;
+ 			my $maskdestination = "";
+ 			if ($destination eq "default"){
+ 				$destination = "0.0.0.0";
+ 				$maskdestination = "0.0.0.0";
+ 			}else {
+ 				my $ip = new Net::IP ($destination) or die (Net::IP::Error());
+ 				$maskdestination = $ip->mask();
+ 				$destination = $ip->ip();
+ 			}
+ 			print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
+ 			
+ 		}
+ 		# Si el fichero de configuacion extendida se define una password de enable, se pone.
+ 		my $enablepass = get_enable_pass($vmName);
+ 		if (!($enablepass eq "")){
+			print CONF_CISCO " enable password " . $enablepass . "\n";
+    	}
+    	# Se habilita el ip http server ya que si no se hace, el acceso por telnet se bloquea.
+ 		print CONF_CISCO "ip http server\n";
+ 		print CONF_CISCO " end\n";
+ 		close(CONF_CISCO);	
+	}
+    
+    # Preparar las variables
+    my $memTagList = $virtualm->getElementsByTagName("mem");
+    my $mem = "96";
+
+	if ( $memTagList->getLength != 0 ) {
+		my $memTag     = $memTagList->item($0);
+		$mem   = ($memTag->getFirstChild->getData)/1024;
+	} 
+   #my $doc = $dh->get_doc;
+   my $dynamips_ext_list = $doc2->getElementsByTagName("dynamips_ext");
+
+    
+    # Definicion del router
+
+
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    # Si es la primera vez que se ejecuta el escenario, se borra todo el hypervisor
+    # Precacion, tambien se borra otros escenarios que este corriendo paralelamente
+    if ($counter == 0)
+    {
+    	print "-----------------------------\n";
+    	print "Reset hypervisor:\n";
+    	$t->print("hypervisor reset");
+   		$line = $t->getline; print $line;
+    	$t->close;
+    	print "-----------------------------\n";
+    }
+    
+	
+	
+	#my $consoleportbase = "900";
+	#my $consoleport = $consoleportbase + $counter;
+
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    print("hypervisor version\n");
+    $t->print("hypervisor version");
+    $line = $t->getline; print $line;
+    print("hypervisor working_dir \"". $dh->get_fs_dir($vmName)."\" \n");
+    $t->print("hypervisor working_dir \"". $dh->get_fs_dir($vmName). "\" ");
+    $line = $t->getline; print $line;
+	
+	
+	# Set type
+	my($trash,$model)=split(/-/,$type,2);
+    print("vm create $vmName 0 c$model\n");
+	$t->print("vm create $vmName 0 c$model");
+	$line = $t->getline; print $line;
+	
+	# Configuring telnet port
+
+	my $consoleport = &get_port_conf($vmName,$counter);
+	my $portfile = $dh->get_vm_dir($vmName) . "/port.txt";
+	open (PORT_CISCO, ">$portfile") || die "ERROR: No puedo abrir el fichero $portfile";;
+	print PORT_CISCO $consoleport ;	
+	close (PORT_CISCO);
+	print("vm set_con_tcp_port $vmName $consoleport\n");
+	$t->print("vm set_con_tcp_port $vmName $consoleport");
+    $line = $t->getline; print $line;
+    
+    # Set Chassis
+    my $chassis = &get_chassis($vmName);
+    $chassis =~ s/c//;
+    print("c$model set_chassis $vmName $chassis\n");
+    $t->print("c$model set_chassis $vmName $chassis");
+    $line = $t->getline; print $line;
+    
+	# Set Filesystem
+    print("vm set_ios $vmName $filesystem\n");
+    $t->print("vm set_ios $vmName $filesystem");
+    $line = $t->getline; print $line;
+    
+    # Set Mem
+    print("vm set_ram $vmName $mem\n");
+    $t->print("vm set_ram $vmName $mem");
+    $line = $t->getline; print $line;
+    if (&get_sparsemem($vmName) eq "true"){
+		print("vm set_sparse_mem $vmName 1\n");
+		$t->print("vm set_sparse_mem $vmName 1");
+   		$line = $t->getline; print $line;
+    }
+    
+    # Set IDLEPC
+    my $idlepc = get_idle_pc_conf($vmName);
+	print("vm set_idle_pc $vmName $idlepc\n");
+	$t->print("vm set_idle_pc $vmName $idlepc");
+    $line = $t->getline; print $line;
+    
+    #Set ios ghost
+    if (&get_ghost_ios($vmName) eq "true"){
+    	print("vm set_ghost_status $vmName 2\n");
+		$t->print("vm set_ghost_status $vmName 2");
+    	$line = $t->getline; print $line;
+    	my $temp = basename($filesystem);
+    	print("vm set_ghost_file $vmName \"$temp.image-localhost.ghost\" \n");
+		$t->print("vm set_ghost_file $vmName \"$temp.image-localhost.ghost\" ");
+    	$line = $t->getline; print $line;
+    }
+    
+    #Set Blk_direct_jump
+	print("vm set_blk_direct_jump $vmName 0\n");
+	$t->print("vm set_blk_direct_jump $vmName 0");
+    $line = $t->getline; print $line;
+    
+    # Add slot cards
+    my @cards=&get_cards_conf($vmName);
+    my $index = 0;
+    foreach $slot (@cards){
+    	print("vm slot_add_binding $vmName $index 0 $slot \n");
+		$t->print("vm slot_add_binding $vmName $index 0 $slot");
+    	$line = $t->getline; print $line;
+    	$index++;
+    }
+    
+    # Connect virtual networks to host interfaces
+    $ifTagList = $virtualm->getElementsByTagName("if");
+	my $numif     = $ifTagList->getLength;
+
+	for ( my $j = 0 ; $j < $numif ; $j++ ) {
+		my $ifTag = $ifTagList->item($j);
+		my $name   = $ifTag->getAttribute("name");
+		my ($firstpart, $secondpart)= split("/",$name,2);
+		my $firstnumber = substr $firstpart,-1,1;
+		my $temp = $j + 1;
+		print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp\n");
+		$t->print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp");
+   		$line = $t->getline; print $line;
+   		print("vm slot_add_nio_binding $vmName $firstnumber $secondpart nio_tap$counter$secondpart\n");
+   		$t->print("vm slot_add_nio_binding $vmName $firstnumber $secondpart nio_tap$counter$secondpart");
+   		$line = $t->getline; print $line;
+   		$execution->execute("ifconfig $vmName-e$temp 0.0.0.0");
+	}
+	
+	# Set config file to router
+	print("vm set_config $vmName \"$filenameconf\" \n");
+   	$t->print("vm set_config $vmName \"$filenameconf\" ");
+   	$line = $t->getline; print $line;
+   	$t->close;
+
+    print "-----------------------------\n";
+    
+    
+}
+
+#
+#
+####################################################################
+##                                                                 #
+##   undefineVM                                                    #
+##                                                                 #
+##                                                                 #
+##                                                                 #
+####################################################################
+#
+sub undefineVM{
+		my $self   = shift;
+	my $vmName = shift;
+	my $type   = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	$F_flag    = shift;
+		print "-----------------------------\n";
+    print "Shutdowning router: $vmName\n";
+	
+
+	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
+    
+    $t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    $t->print("vm destroy $vmName");
+    $line = $t->getline; print $line;
+    $t->print("hypervisor reset");
+   	$line = $t->getline; print $line;
+    $t->close;
+}
+
+#
+####################################################################
+##                                                                 #
+##   createVM                                                      #
+##                                                                 #
+##                                                                 #
+##                                                                 #
+####################################################################
+#
+sub createVM{
+	my $self   = shift;
+	my $vmName = shift;
+	my $type   = shift;
+	my $doc    = shift;
+	$execution = shift;
+	$bd        = shift;
+	$dh        = shift;
+	my $sock    = shift;
+	my $counter = shift;
+	$curr_uml = $vmName;
+	
+	my $doc2       = $dh->get_doc;
+	my @vm_ordered = $dh->get_vm_ordered;
+
+	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+
+		my $vm = $vm_ordered[$i];
+
+		# We get name attribute
+		my $name = $vm->getAttribute("name");
+
+		unless ( $name eq $vmName ) {
+			next;
+		}
+	}
+	
+	# Configuramos el fichero de configuracion especial
+	&set_config_file($dh->get_default_dynamips());
+		
+	my $filenameconf;
+	my $ifTagList;
+	
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parse($doc);
+	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+	my $virtualm     = $virtualmList->item($0);
+	
+	my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
+	my $filesystemTag     = $filesystemTagList->item($0);
+	my $filesystem_type   = $filesystemTag->getAttribute("type");
+	my $filesystem        = $filesystemTag->getFirstChild->getData;
+	
 	# Definicion del fichero host
 	my $conf_dynamips = get_conf_file($vmName);
 	
@@ -207,7 +602,10 @@ sub defineVM {
  				}
  				print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			}
- 			
+ 			my $enablepass = get_enable_pass($vmName);
+ 			if (!($enablepass eq "")){
+				print CONF_CISCO " enable password " . $enablepass . "\n";
+    		}
  			print CONF_CISCO " end\n";
  			close(CONF_CISCO);		 	
 		}else{
@@ -268,6 +666,10 @@ sub defineVM {
  			print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			
  		}
+ 		my $enablepass = get_enable_pass($vmName);
+ 		if (!($enablepass eq "")){
+			print CONF_CISCO " enable password " . $enablepass . "\n";
+    	}
  		print CONF_CISCO "ip http server\n";
  		print CONF_CISCO " end\n";
  		close(CONF_CISCO);	
@@ -426,175 +828,6 @@ sub defineVM {
    	$t->close;
 
     print "-----------------------------\n";
-    
-    
-}
-
-#
-#
-####################################################################
-##                                                                 #
-##   undefineVM                                                    #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
-#
-sub undefineVM{
-		my $self   = shift;
-	my $vmName = shift;
-	my $type   = shift;
-	$execution = shift;
-	$bd        = shift;
-	$dh        = shift;
-	$F_flag    = shift;
-		print "-----------------------------\n";
-    print "Shutdowning router: $vmName\n";
-	
-
-	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
-    
-    $t = new Net::Telnet (Timeout => 10);
-    $t->open(Host => $HHOST, Port => $HPORT);
-    $t->print("vm destroy $vmName");
-    $line = $t->getline; print $line;
-    $t->print("hypervisor reset");
-   	$line = $t->getline; print $line;
-    $t->close;
-}
-
-#
-####################################################################
-##                                                                 #
-##   createVM                                                      #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
-#
-sub createVM{
-	my $self   = shift;
-	my $vmName = shift;
-	my $type   = shift;
-	my $doc    = shift;
-	$execution = shift;
-	$bd        = shift;
-	$dh        = shift;
-	my $sock    = shift;
-	my $counter = shift;
-	$curr_uml = $vmName;
-	
-	my $doc2       = $dh->get_doc;
-	my @vm_ordered = $dh->get_vm_ordered;
-
-	my $path;
-	
-	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-
-		my $vm = $vm_ordered[$i];
-
-		# We get name attribute
-		my $name = $vm->getAttribute("name");
-
-		unless ( $name eq $vmName ) {
-			next;
-		}
-	}
-
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parse($doc);
-	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-	my $virtualmList = $globalNode->getElementsByTagName("vm");
-	my $virtualm     = $virtualmList->item($0);
-	
-	my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-	my $filesystemTag     = $filesystemTagList->item($0);
-	my $filesystem_type   = $filesystemTag->getAttribute("type");
-	my $filesystem        = $filesystemTag->getFirstChild->getData;
-	
-	
-	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("conf_dynamips");
-	my $conf_dynamipsTag     = $conf_dynamipsTagList->item($0);
-	my $conf_dynamips        = $conf_dynamipsTag->getFirstChild->getData;
-		
-		
-	$HIDLEPC="0x604f8104";
-	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
-    print "-----------------------------\n";
-    print "Reset hypervisor:\n";
-    $t = new Net::Telnet (Timeout => 10);
-    $t->open(Host => $HHOST, Port => $HPORT);
-    if ($counter == 0)
-    {
-    	$t->print("hypervisor reset");
-   		$line = $t->getline; print $line;
-    	$t->close;
-    	print "-----------------------------\n";
-    }
-    
-
-	my $consoleportbase = "900";
-	my $consoleport = $consoleportbase + $counter;
-	$ram = "96";
-
-    $t = new Net::Telnet (Timeout => 10);
-    $t->open(Host => $HHOST, Port => $HPORT);
-    print("hypervisor version\n");
-    $t->print("hypervisor version");
-    $line = $t->getline; print $line;
-    print("hypervisor working_dir \"". $dh->get_fs_dir($vmName)."\" \n");
-    $t->print("hypervisor working_dir \"". $dh->get_fs_dir($vmName). "\" ");
-    $line = $t->getline; print $line;
-    print("vm create $vmName 0 c3600\n");
-    $t->print("vm create $vmName 0 c3600");
-    $line = $t->getline; print $line;
-    print("vm set_con_tcp_port $vmName $consoleport\n");
-    $t->print("vm set_con_tcp_port $vmName $consoleport");
-    $line = $t->getline; print $line;
-    print("c3600 set_chassis $vmName 3640\n");
-    $t->print("c3600 set_chassis $vmName 3640");
-    $line = $t->getline; print $line;
-    #$t->print("vm set_ios $rname $RIOSFILE");
-    print("vm set_ios $vmName $filesystem\n");
-    $t->print("vm set_ios $vmName $filesystem");
-    $line = $t->getline; print $line;
-    print("vm set_ram $vmName $ram\n");
-    $t->print("vm set_ram $vmName $ram");
-    $line = $t->getline; print $line;
-	print("vm set_sparse_mem $vmName 1\n");
-	$t->print("vm set_sparse_mem $vmName 1");
-    $line = $t->getline; print $line;
-	print("vm set_idle_pc $vmName $HIDLEPC\n");
-	$t->print("vm set_idle_pc $vmName $HIDLEPC");
-    $line = $t->getline; print $line;
-	print("vm set_blk_direct_jump $vmName 0\n");
-	$t->print("vm set_blk_direct_jump $vmName 0");
-    $line = $t->getline; print $line;
-	print("vm slot_add_binding $vmName 0 0 NM-4E\n");
-	$t->print("vm slot_add_binding $vmName 0 0 NM-4E");
-    $line = $t->getline; print $line;
-	#print("vm slot_add_binding $vmName 1 0 NM-4T");
-	#$t->print("vm slot_add_binding $vmName 1 0 NM-4T");
-    #$line = $t->getline; print $line;
-    my $ifTagList = $virtualm->getElementsByTagName("if");
-	my $numif     = $ifTagList->getLength;
-
-	for ( my $j = 0 ; $j < $numif ; $j++ ) {
-		my $temp = $j + 1;
-		print("nio create_tap nio_tap$counter$j $vmName-e$temp\n");
-		$t->print("nio create_tap nio_tap$counter$j $vmName-e$temp");
-   		$line = $t->getline; print $line;
-   		print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j\n");
-   		$t->print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j");
-   		$line = $t->getline; print $line;
-   		$execution->execute("ifconfig $vmName-e$temp 0.0.0.0");
-	}
-	print("vm set_config $vmName \"$conf_dynamips\" \n");
-    $t->print("vm set_config $vmName \"$conf_dynamips\" ");
-    $line = $t->getline; print $line;
-
-
-    print "-----------------------------\n";
     print "-----------------------------\n";
     print "Starting router: $vmName\n";
     $t->print("vm start $vmName");
@@ -665,7 +898,8 @@ sub startVM {
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
     $t->print("vm start $vmName");
-    $line = $t->getline; print $line;
+    $line = $t->getline; 
+    print $line;
     
     
 	my $consoleport=&get_port_conf($vmName,$counter);
@@ -756,15 +990,16 @@ sub restoreVM{
 	$dh        = shift;
 	$F_flag    = shift;
 		print "-----------------------------\n";
-    print "Shutdowning router: $vmName\n";
+    print "Rebooting router: $vmName\n";
 	
 
 	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
-    
+    sleep(2);
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
     $t->print("vm stop $vmName");
     $line = $t->getline; print $line;
+    sleep(2);
     $t->print("vm start $vmName");
     $line = $t->getline; print $line;
     $t->close;
@@ -855,11 +1090,12 @@ sub rebootVM{
 	
 
 	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
-    
+        sleep(2);
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
     $t->print("vm stop $vmName");
     $line = $t->getline; print $line;
+        sleep(2);
     $t->print("vm start $vmName");
     $line = $t->getline; print $line;
     $t->close;
@@ -888,11 +1124,12 @@ sub resetVM{
 	
 
 	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
-    
+        sleep(2);
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
     $t->print("vm stop $vmName");
     $line = $t->getline; print $line;
+        sleep(2);
     $t->print("vm start $vmName");
     $line = $t->getline; print $line;
     $t->close;
@@ -919,38 +1156,47 @@ sub executeCMD{
 	my @output = "Nothing to show";
 	my $temp;
 	my $port;
-	#$port = 900 + $i;
+	# Recupero el puerto telnet de acceso al router
 	my $portfile = $dh->get_vm_dir($name) . "/port.txt";
+	# Configuro el fichero de configuracion extendida
+	&set_config_file($dh->get_default_dynamips());
+	# Si no existe el fichero del puerto, se sale.
 	if (-e $portfile ){
 			open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
 			$port= <PORT_CISCO>;
 			close (PORT_CISCO);	
 			my @result;
 			my $result;
+			# Compruebo si alguna ventana con telnet a ese puerto se está ejecutando
 			@result = `ps ax | grep telnet`;
 			foreach $result (@result) {
 				if ($result =~ m/telnet localhost $port/){
-					#$execution->smartdie("Please, close terminal $name window");
-					#print "Please, close terminal $name window";
+					# Si se esta ejecutando, es que el puerto está ocupado, por lo que se sale
+					# y avisa al usuario de que cierre ese puerto.
 					return "\nPlease, close terminal $name window\n";
 				}
 			}
-			##############################################################
+			# Recuperamos las sentencias de ejecucion
 			my $command_list = $vm->getElementsByTagName("exec");
 			my $countcommand = 0;
 			for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
+				# Por cada sentencia.
 				my $command = $command_list->item($j);	
 				# To get attributes
 				my $cmd_seq = $command->getAttribute("seq");
+				# Se comprueba si la seq es la misma que la que te pasan a ejecutar
 				if ( $cmd_seq eq $seq ) {
 					my $type = $command->getAttribute("type");
 					# Case 1. Verbatim type
 					if ( $type eq "verbatim" ) {
 						# Including command "as is"
 						my $command_tag = &text_tag($command);
+						# Si el primer elemento a ejecutar es un reload, no se ejecuta en el router
+						# sino que:
+						# 1º Se para el router
+						# 2º Se introduce el nuevo fichero de configuracion (que estará como parametro de la funcion reload)
+						# 3º Se vuelve a encender.
 						if ($command_tag =~ m/^reload/){
-							#reload_conf($command_tag,$name,$port);
-							##########################
 							my @file_conf = split('reload ',$command_tag);
 							my $filenameconf = $file_conf[1];
 							$t = new Net::Telnet (Timeout => 10);
@@ -966,12 +1212,10 @@ sub executeCMD{
 						    $line = $t->getline; print $line;
 						    sleep (3);
        						$execution->execute("xterm -title Dynamips_$name -e 'telnet $HHOST $port' >/dev/null 2>&1 &");
-							############################
 						}else{
-							#my @result = exec_command($command_tag,$port);
-							##########
-							
-							##########
+							# Si no es un reload, se ejecutara el comando que se haya especificado
+							# Para que funcione correctamente se ha de hacer siempre primero esta secuencia
+							# en telnet para dejarle preparado aunque esté en situacion desconocida.
 							$telnet = new Net::Telnet (Timeout => 10);
 	   						$telnet->open(Host => '127.0.0.1', Port => $port);
 	    					$telnet->print("");
@@ -982,30 +1226,41 @@ sub executeCMD{
 	    					$telnet->print("");
 	    					$telnet->print("");
 	    					sleep(3);
-	    					#	$line = $telnet->getline; print $line;
 	    					$telnet->close;
-							my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
+	    					# Hasta aqui es la secuencia.
+	    					# Se conecta a traves de un nuevo modulo perl al cisco a traves del puerto leido anterior mente
+							my $session = Net::Telnet::Cisco->new(Host => $HHOST, Port => $port);
+							# Siempre se ejecuta este comando para que estemos en una situacion conocida.
 							$session->cmd(' show version');
-							if ($session->enable("")){
+							# Se adquiere en pass de enable.
+							# Si no tiene, esta funcion devolvera un "" que significa que no tiene pass
+							# y que es admitida por el cisco si el enable no tienen password
+							my $enablepass = get_enable_pass($name);
+							if ($session->enable($enablepass)){
+								# Se ejecuta el comando.
 								@output = $session->cmd(" $command_tag");
+								# Se sale del enable para seguridad de no poder ejecutar otro comando sin permiso
 								$session->disable();
 							}else {
 								die ("Can't enable")
 							}
 							$session->close();
-							##########
+							# Saca por pantalla el resulŧado del comando anterior
 							print "\nOutput of command \"$command_tag\" on $name\n";
 							print "@output";
 						}
 					}
-
 					# Case 2. File type
+					# En caso de que sea un fichero, simplemente se lee el fichero
+					# y se va ejecutando linea por linea.
+					# En el caso de que se requiera un enable, este se tiene que poner en el fichero.
 					elsif ( $type eq "file" ) {
 						# We open the file and write commands line by line
 						my $include_file =  &do_path_expansion( &text_tag($command) );
 						open INCLUDE_FILE, "$include_file"
 						  or $execution->smartdie("can not open $include_file: $!");
-						  $telnet = new Net::Telnet (Timeout => 10);
+						  	# Secuencia para dejar el router en un estado conocido
+						  	$telnet = new Net::Telnet (Timeout => 10);
 	   						$telnet->open(Host => '127.0.0.1', Port => $port);
 	    					$telnet->print("");
 	    					$telnet->print("");
@@ -1015,24 +1270,24 @@ sub executeCMD{
 	    					$telnet->print("");
 	    					$telnet->print("");
 	    					sleep(3);
-	    					#	$line = $telnet->getline; print $line;
 	    					$telnet->close;
-							my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
+	    					# Fin de la secuencia
+							my $session = Net::Telnet::Cisco->new(Host => $HHOST, Port => $port);
+							# Comando para dejartlo en estado conocido.
 							$session->cmd(' show version');
 							print "\nExecution: Command --> Output\n";
-						while (<INCLUDE_FILE>) {
-							chomp;
-							$command_tag = $_;
-							@output = $session->cmd(" $command_tag");
-							print "$command_tag --> @output\n";
-						}
-						#my $temp = $session->print(" \cZ");
-	    				#print $temp;
-	    				$session->cmd(" end");
-	    				
-						$session->disable();
-						$session->close();
-						close INCLUDE_FILE;
+							while (<INCLUDE_FILE>) {
+								# Se van ejecutando linea por linea
+								chomp;
+								$command_tag = $_;
+								@output = $session->cmd(" $command_tag");
+								print "$command_tag --> @output\n";
+							}
+	    					$session->cmd(" end");
+	    					# Cuando se acaba, se hace un disable para mayor seguridad.
+							$session->disable();
+							$session->close();
+							close INCLUDE_FILE;
 					}
 
 			 # Other case. Don't do anything (it would be and error in the XML!)
@@ -1190,7 +1445,7 @@ sub get_enable_pass {
 	if($name eq $vmName){
 		my $enable_pass_list = $virtualm->getElementsByTagName("enable_pass");
 		if ($enable_pass_list->getLength gt 0){
-			my $enable_passs = $enable_pass_list->item($0);
+			my $enable_pass = $enable_pass_list->item($0);
 			$result = &text_tag($enable_pass);
  			$global_tag = 0;
 		}
@@ -1622,33 +1877,33 @@ sub reload_conf {
 }
 
 
-sub exec_command {
-	my $command = shift;
-	my $port = shift;
-	$telnet = new Net::Telnet (Timeout => 10);
-   			$telnet->open(Host => '127.0.0.1', Port => $port);
-    		$telnet->print("");
-    		$telnet->print("");
-    		$telnet->print("");
-    		$telnet->print("exit");
-    		$telnet->print("");
-    		$telnet->print("");
-    		$telnet->print("");
-    		sleep(3);
-    	#	$line = $telnet->getline; print $line;
-    		$telnet->close;
-			my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
-			$session->cmd(' show version');
-			if ($session->enable("")){
-				@output = $session->cmd(" $command");
-				$session->disable();
-			}else {
-				die ("Can't enable")
-			}
-			$session->close();
-			return @output;
-	
-}
+#sub exec_command {
+#	my $command = shift;
+#	my $port = shift;
+#	$telnet = new Net::Telnet (Timeout => 10);
+#   			$telnet->open(Host => '127.0.0.1', Port => $port);
+#    		$telnet->print("");
+#    		$telnet->print("");
+#    		$telnet->print("");
+#    		$telnet->print("exit");
+#    		$telnet->print("");
+#    		$telnet->print("");
+#    		$telnet->print("");
+#    		sleep(3);
+#    	#	$line = $telnet->getline; print $line;
+#    		$telnet->close;
+#			my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
+#			$session->cmd(' show version');
+#			if ($session->enable("")){
+#				@output = $session->cmd(" $command");
+#				$session->disable();
+#			}else {
+#				die ("Can't enable")
+#			}
+#			$session->close();
+#			return @output;
+#	
+#}
 
 
 1;

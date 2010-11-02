@@ -1117,8 +1117,7 @@ sub mode_restore {
       }
       
       $filename = $dh->get_vm_dir($name) . "/" . $name . "_savefile";
-      # 
-      call the corresponding vmAPI
+      #     call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->restoreVM($name, $merged_type, $filename, $dh,$bd,$execution);
       if (!($error eq 0)){print $error}

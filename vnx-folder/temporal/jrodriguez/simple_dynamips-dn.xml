@@ -4,8 +4,8 @@
 
   <global>
     <hw>
-       <slot id="0">NM-4T</slot>
-       <slot id="1">NM-4E</slot>
+       <slot id="0">NM-4E</slot>
+       <slot id="1">NM-4T</slot>
        <console_base port="1000"/>
      </hw>
      <sparsemem>true</sparsemem>
@@ -14,8 +14,8 @@
 
 
   <vm name="R1">
-     <!--conf>/home/jrodriguez/R2.conf</conf-->
-     <hw>
+     <conf>/home/jrodriguez/R1.txt</conf>
+     <!--hw>
        <chassis>c3640</chassis>
        <slot id="0">NM-4E</slot>
        <slot id="1">NM-4T</slot>
@@ -23,7 +23,7 @@
      </hw>
      <login_user>root</login_user>
      <login_pass>xxxx</login_pass>
-     <enable_pass>xxxx</enable_pass>
+     <enable_pass>xxxx</enable_pass-->
   </vm>
 
   <vm name="R2">
