@@ -1,0 +1,24 @@
+$ttl 38400
+168.192.in-addr.arpa.	IN	SOA	dns.s21seclabsvirtual.com. root.s21seclabsvirtual.com. (
+			1227931269
+			10800
+			3600
+			604800
+			38400 )
+168.192.in-addr.arpa.	IN	NS	dns.s21seclabsvirtual.com.
+
+; Internet
+81.1.1.10.in-addr.arpa.       IN      PTR     r2-inet.s21seclabsvirtual.com.
+83.1.1.10.in-addr.arpa.       IN      PTR     h1-ext.s21seclabsvirtual.com.
+
+; Extnet
+1.0.168.192.in-addr.arpa.       IN      PTR     fw1-ext.s21seclabsvirtual.com.
+2.0.168.192.in-addr.arpa.       IN      PTR     r2-ext.s21seclabsvirtual.com.
+11.0.168.192.in-addr.arpa.      IN      PTR     ext-1.s21seclabsvirtual.com.
+12.0.168.192.in-addr.arpa.      IN      PTR     ext-2.s21seclabsvirtual.com.
+13.0.168.192.in-addr.arpa.      IN      PTR     ext-3.s21seclabsvirtual.com.
+14.0.168.192.in-addr.arpa.      IN      PTR     ext-4.s21seclabsvirtual.com.
+15.0.168.192.in-addr.arpa.      IN      PTR     ext-5.s21seclabsvirtual.com.
+16.0.168.192.in-addr.arpa.      IN      PTR     ext-6.s21seclabsvirtual.com.
+17.0.168.192.in-addr.arpa.      IN      PTR     ext-7.s21seclabsvirtual.com.
+18.0.168.192.in-addr.arpa.      IN      PTR     ext-8.s21seclabsvirtual.com.
