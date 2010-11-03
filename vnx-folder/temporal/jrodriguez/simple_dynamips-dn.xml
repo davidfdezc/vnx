@@ -14,20 +14,21 @@
 
 
   <vm name="R1">
-     <conf>/home/jrodriguez/R1.txt</conf>
-     <!--hw>
+     <!--conf>/home/jrodriguez/R1.txt</conf-->
+     <hw>
        <chassis>c3640</chassis>
        <slot id="0">NM-4E</slot>
        <slot id="1">NM-4T</slot>
        <console port="920"/>
      </hw>
-     <login_user>root</login_user>
-     <login_pass>xxxx</login_pass>
-     <enable_pass>xxxx</enable_pass-->
+     <login user="rusty" password="fontaneda"/>
+     <!--login password="cosas"/-->
+     <enable password="xxxx"/>
   </vm>
 
   <vm name="R2">
-	<conf>/home/jrodriguez/R2.conf</conf>
+	<!--conf>/home/jrodriguez/R2.conf</conf-->
+	<login password="cosas"/>
   </vm>
 
 </vnx_dynamips>
