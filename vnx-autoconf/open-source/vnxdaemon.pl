@@ -38,7 +38,6 @@ sub main{
 		print LOG "#########################################################################\n";
 		print LOG "#### vnxdaemon log sequence started at $now  ####\n";
 		print LOG "#########################################################################\n";
-		print LOG "\n";
 		close LOG;
 	}
 
@@ -65,6 +64,7 @@ sub main{
 sub daemonize {
 		
 	open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+	print LOG "\n";	
 	print LOG "## Daemonizing process ##\n";
 
 	# Fork
