@@ -1642,7 +1642,8 @@ sub get_chassis {
 	 		}
 		}
 	}
-
+	# Si no hay tarjetas definidas en la seccion del router virtual.
+	# se utilizan el que está definido en la parte global.
 	if ($global_tag eq 1){
 		my $globalList = $globalNode->getElementsByTagName("global");
 		if ($globalList->getLength gt 0){
@@ -1659,10 +1660,20 @@ sub get_chassis {
 		}	
 	}
 	# Si no hay chassis definido en la seccion del router virtual.
-	# se utiliza el de por defecto.
+	# se utiliza el de por defecto "c3640".
  	return $result;
 }
-
+#################################################################
+# get_conf_file													#
+# 																#
+# Saca del fichero de configuración extendida, el fichero		#
+# 
+# Entrada:														#
+# 	Nombre del router virtual									#
+# Salida:														#
+# 	Nombre del chasis a utilizar, si no está definido se utiliza#
+#   el de por defecto, que es "c3640"							# 
+#################################################################
 sub get_conf_file {
 	my $vmName = shift;
 	my $result = "0";
@@ -1760,9 +1771,6 @@ sub get_idle_pc_conf {
 			}
 		}	
 	}
-	#if (($default_tag eq 1)&&($global_tag eq 1)){
-	#	$result = "0x604f8104";
-	#}
  	return $result;
 }
 
