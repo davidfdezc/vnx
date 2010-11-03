@@ -312,8 +312,8 @@ sub defineVM {
 		my $memTag     = $memTagList->item($0);
 		$mem   = ($memTag->getFirstChild->getData)/1024;
 	} 
-   #my $doc = $dh->get_doc;
-   my $dynamips_ext_list = $doc2->getElementsByTagName("dynamips_ext");
+	
+   # my $dynamips_ext_list = $doc2->getElementsByTagName("dynamips_ext");
 
     
     # Definicion del router
@@ -535,27 +535,36 @@ sub createVM{
 	my $filesystem_type   = $filesystemTag->getAttribute("type");
 	my $filesystem        = $filesystemTag->getFirstChild->getData;
 	
-	# Definicion del fichero host
+	# Definicion del fichero de configuracion extendida host
 	my $conf_dynamips = get_conf_file($vmName);
 	
-#	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("dynamips");
-#	if ( $conf_dynamipsTagList->getLength gt 0){
-#		my $conf_dynamipsTag     = $conf_dynamipsTagList->item($0);
-#		my $conf_dynamips        = $conf_dynamipsTag->getFirstChild->getData;
-	
+	# Miro si hay definido en el XML un fichero de configuracion extendida
 	if (!($conf_dynamips eq 0))
 	{
+		# Compruebo que se puede abrir.
 	 	if (-e $conf_dynamips)
-		{ 
-			#$execution->execute("cp " . $conf_dynamips . " " . $dh->get_vm_dir($vmName));
-	   	 	#$filenameconf  = $dh->get_vm_dir($vmName) . "/" . basename($conf_dynamips);
+		{
+			# Si existe, me voy al final del fichero y quito el end, ya que vamos a continuar
+			# desde el final.  
 	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
 	   	 	$execution->execute("sed '/end/d' " . $conf_dynamips . ">" . $filenameconf);
-	   	 		   	 		   	 	
 	   	 	open (CONF_CISCO, ">>$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
+	   	 	
+	   	 	# Por defecto, los valores puestos en el XML del vnx ,
+	   	 	# prevalecen sobre los puestos en cualquier fichero de configuracion.
+	   	 	
 			print CONF_CISCO "hostname " . $vmName ."\n";
 	 		$ifTagList = $virtualm->getElementsByTagName("if");
 	 		my $numif = $ifTagList->getLength;
+	 		# Configuramos las interfaces.
+	 		# P.ej:
+	 		# 	interface e0/0
+			# 	 mac-address fefd.0003.0101
+			# 	 ip address 10.1.1.4 255.255.255.0
+			# 	 ipv6 enable
+			# 	 ipv6 address 2001:db8::1/64
+			# 	 no shutdown
+	 		
 	 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
 	 			my $ifTag = $ifTagList->item($j);
 				my $id    = $ifTag->getAttribute("id");
@@ -567,7 +576,7 @@ sub createVM{
 				my $nameif   = $ifTag->getAttribute("name");
 				print CONF_CISCO "interface " . $nameif . "\n";	
 				print CONF_CISCO " mac-address " . $mac . "\n";
-				
+				# Damos direccion IPv4	
 				my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
 				if ( $ipv4_list->getLength != 0 ) {
 					my $ipv4_Tag = $ipv4_list->item(0);
@@ -575,16 +584,18 @@ sub createVM{
 					my $subnetv4 = $ipv4_Tag->getAttribute("mask");
 					print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
 				}
+				# Damos direccion IPv6
 				my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
 				if ( $ipv6_list->getLength != 0 ) {
 					print CONF_CISCO " ipv6 enable\n";	
 					my $ipv6_Tag = $ipv6_list->item(0);
 					my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
-					#print CONF_CISCO " ipv6 address " . $ipv6 . " ". $subnetv6 . "\n";
 					print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
 					}
+				# Levantamos la interfaz
 				print CONF_CISCO " no shutdown\n";	
-	 		}	
+	 		}
+	 		# Configura las rutas	
 			my $routeTagList = $virtualm->getElementsByTagName("route");
  			my $numroute = $routeTagList->getLength;
  			for ( my $j = 0 ; $j < $numroute ; $j++ ) {
@@ -602,6 +613,7 @@ sub createVM{
  				}
  				print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			}
+ 			# Si el fichero de configuacion extendida se define una password de enable, se pone.
  			my $enablepass = get_enable_pass($vmName);
  			if (!($enablepass eq "")){
 				print CONF_CISCO " enable password " . $enablepass . "\n";
@@ -612,12 +624,21 @@ sub createVM{
 			$execution->smartdie("Can not open " . $conf_dynamips );
 		}
 	}
+	# Si no se ha definido ninguno, me defino el fichero de configuracion a pasar al cisco.
 	else{
 		$filenameconf = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
 		open (CONF_CISCO, ">$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
 		print CONF_CISCO "hostname " . $vmName ."\n";
  		$ifTagList = $virtualm->getElementsByTagName("if");
  		my $numif = $ifTagList->getLength;
+ 			# Configuramos las interfaces.
+	 		# P.ej:
+	 		# 	interface e0/0
+			# 	 mac-address fefd.0003.0101
+			# 	 ip address 10.1.1.4 255.255.255.0
+			# 	 ipv6 enable
+			# 	 ipv6 address 2001:db8::1/64
+			# 	 no shutdown
  		for ( my $j = 0 ; $j < $numif ; $j++ ) {
  			my $ifTag = $ifTagList->item($j);
 			my $id    = $ifTag->getAttribute("id");
@@ -629,7 +650,7 @@ sub createVM{
 			my $nameif   = $ifTag->getAttribute("name");
 			print CONF_CISCO "interface " . $nameif . "\n";	
 			print CONF_CISCO " mac-address " . $mac . "\n";
-			
+			# Damos direccion IPv4		
 			my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
 			if ( $ipv4_list->getLength != 0 ) {
 				my $ipv4_Tag = $ipv4_list->item(0);
@@ -637,17 +658,18 @@ sub createVM{
 				my $subnetv4 = $ipv4_Tag->getAttribute("mask");
 				print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
 			}
+			# Damos direccion IPv6
 			my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
 			if ( $ipv6_list->getLength != 0 ) {
 				print CONF_CISCO " ipv6 enable\n";	
 				my $ipv6_Tag = $ipv6_list->item(0);
 				my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
-				#print CONF_CISCO " ipv6 address " . $ipv6 . " ". $subnetv6 . "\n";
 				print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
 				}
+			# Levantamos la interfaz
 			print CONF_CISCO " no shutdown\n";		
  		}
- 		
+ 		# Configura las rutas
  		my $routeTagList = $virtualm->getElementsByTagName("route");
  		my $numroute = $routeTagList->getLength;
  		for ( my $j = 0 ; $j < $numroute ; $j++ ) {
@@ -666,10 +688,12 @@ sub createVM{
  			print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			
  		}
+ 		# Si el fichero de configuacion extendida se define una password de enable, se pone.
  		my $enablepass = get_enable_pass($vmName);
  		if (!($enablepass eq "")){
 			print CONF_CISCO " enable password " . $enablepass . "\n";
     	}
+    	# Se habilita el ip http server ya que si no se hace, el acceso por telnet se bloquea.
  		print CONF_CISCO "ip http server\n";
  		print CONF_CISCO " end\n";
  		close(CONF_CISCO);	
@@ -683,8 +707,8 @@ sub createVM{
 		my $memTag     = $memTagList->item($0);
 		$mem   = ($memTag->getFirstChild->getData)/1024;
 	} 
-   #my $doc = $dh->get_doc;
-   my $dynamips_ext_list = $doc2->getElementsByTagName("dynamips_ext");
+	
+   # my $dynamips_ext_list = $doc2->getElementsByTagName("dynamips_ext");
 
     
     # Definicion del router
@@ -721,9 +745,6 @@ sub createVM{
 	
 	# Set type
 	my($trash,$model)=split(/-/,$type,2);
-#    print("vm create $vmName 0 c3600\n");
-#	$t->print("vm create $vmName 0 c3600");
-#	$line = $t->getline; print $line;
     print("vm create $vmName 0 c$model\n");
 	$t->print("vm create $vmName 0 c$model");
 	$line = $t->getline; print $line;
@@ -742,9 +763,6 @@ sub createVM{
     # Set Chassis
     my $chassis = &get_chassis($vmName);
     $chassis =~ s/c//;
-#    print("c3600 set_chassis $vmName $chassis\n");
-#    $t->print("c3600 set_chassis $vmName $chassis");
-#    $line = $t->getline; print $line;
     print("c$model set_chassis $vmName $chassis\n");
     $t->print("c$model set_chassis $vmName $chassis");
     $line = $t->getline; print $line;
@@ -806,12 +824,6 @@ sub createVM{
 		my ($firstpart, $secondpart)= split("/",$name,2);
 		my $firstnumber = substr $firstpart,-1,1;
 		my $temp = $j + 1;
-#		print("nio create_tap nio_tap$counter$j $vmName-e$temp\n");
-#		$t->print("nio create_tap nio_tap$counter$j $vmName-e$temp");
-#   		$line = $t->getline; print $line;
-#   		print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j\n");
-#   		$t->print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j");
-#   		$line = $t->getline; print $line;
 		print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp\n");
 		$t->print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp");
    		$line = $t->getline; print $line;
@@ -1319,7 +1331,7 @@ sub get_login_user {
 	unless(-e $conf_file){
 		return $result;
 	}
-	
+	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($conf_file);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
@@ -1330,6 +1342,7 @@ sub get_login_user {
  	my $virtualm;
  	my $default_tag = 1;
  	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
 # 		# We get name attribute
  		$virtualm = $virtualmList->item($j);
@@ -1339,6 +1352,7 @@ sub get_login_user {
 			last;
 		}
  	}
+ 	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
 		my $login_user_list = $virtualm->getElementsByTagName("login_user");
 		if ($login_user_list->getLength gt 0){
@@ -1370,7 +1384,7 @@ sub get_login_pass {
 	unless(-e $conf_file){
 		return $result;
 	}
-	
+	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($conf_file);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
@@ -1381,6 +1395,7 @@ sub get_login_pass {
  	my $virtualm;
  	my $default_tag = 1;
  	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
 # 		# We get name attribute
  		$virtualm = $virtualmList->item($j);
@@ -1390,6 +1405,7 @@ sub get_login_pass {
 			last;
 		}
  	}
+ 	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
 		my $login_pass_list = $virtualm->getElementsByTagName("login_pass");
 		if ($login_pass_list->getLength gt 0){
@@ -1418,11 +1434,11 @@ sub get_login_pass {
 sub get_enable_pass {
 	my $vmName = shift;
 	my $result = "";
-	
+
 	unless(-e $conf_file){
 		return $result;
 	}
-	
+	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($conf_file);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
@@ -1433,6 +1449,7 @@ sub get_enable_pass {
  	my $virtualm;
  	my $default_tag = 1;
  	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
 # 		# We get name attribute
  		$virtualm = $virtualmList->item($j);
@@ -1442,6 +1459,7 @@ sub get_enable_pass {
 			last;
 		}
  	}
+ 	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
 		my $enable_pass_list = $virtualm->getElementsByTagName("enable_pass");
 		if ($enable_pass_list->getLength gt 0){
@@ -1474,7 +1492,7 @@ sub get_sparsemem {
 	unless(-e $conf_file){
 		return $result;
 	}
-	
+	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($conf_file);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
@@ -1485,6 +1503,7 @@ sub get_sparsemem {
  	my $virtualm;
  	my $default_tag = 1;
  	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
 # 		# We get name attribute
  		$virtualm = $virtualmList->item($j);
@@ -1494,6 +1513,7 @@ sub get_sparsemem {
 			last;
 		}
  	}
+ 	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
 		my $sparsemem_list = $virtualm->getElementsByTagName("sparsemem");
 		if ($sparsemem_list->getLength gt 0){
@@ -1526,7 +1546,7 @@ sub get_ghost_ios {
 	unless(-e $conf_file){
 		return $result;
 	}
-	
+	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($conf_file);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
@@ -1537,6 +1557,7 @@ sub get_ghost_ios {
  	my $virtualm;
  	my $default_tag = 1;
  	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
 # 		# We get name attribute
  		$virtualm = $virtualmList->item($j);
@@ -1546,6 +1567,7 @@ sub get_ghost_ios {
 			last;
 		}
  	}
+ 	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
 		my $ghostios_list = $virtualm->getElementsByTagName("ghostios");
 		if ($ghostios_list->getLength gt 0){
@@ -1565,19 +1587,29 @@ sub get_ghost_ios {
 			}
 		}	
 	}
-#	if (($default_tag eq 1)&&($global_tag eq 1)){
-#		$result = 900 + $counter; 
-#	}
  	return $result;
 }
-
+#################################################################
+# get_chassis 													#
+# 																#
+# Saca del fichero de configuración extendida, el chassis 		#
+# que este definido												#
+# Entrada:														#
+# 	Nombre del router virtual									#
+# Salida:														#
+# 	Nombre del chasis a utilizar, si no está definido se utiliza#
+#   el de por defecto, que es "c3640"							# 
+#################################################################
 sub get_chassis {
 	my $vmName = shift;
+	# Valor por defecto en caso de no encontrarse definicion en el fichero de configuarcion
+	# extendida
 	my $result = "c3640";
 	
 	unless(-e $conf_file){
 		return $result;
 	}
+	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($conf_file);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
@@ -1588,6 +1620,7 @@ sub get_chassis {
  	my $virtualm;
  	my $default_tag = 1;
  	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
  	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
  		$virtualm = $virtualmList->item($j);
 		$name = $virtualm->getAttribute("name");
@@ -1596,6 +1629,7 @@ sub get_chassis {
 			last;
 		}
  	}
+ 	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
 		my $hw_list = $virtualm->getElementsByTagName("hw");
 		if ($hw_list->getLength gt 0){
@@ -1608,6 +1642,7 @@ sub get_chassis {
 	 		}
 		}
 	}
+
 	if ($global_tag eq 1){
 		my $globalList = $globalNode->getElementsByTagName("global");
 		if ($globalList->getLength gt 0){
@@ -1623,6 +1658,8 @@ sub get_chassis {
 			}
 		}	
 	}
+	# Si no hay chassis definido en la seccion del router virtual.
+	# se utiliza el de por defecto.
  	return $result;
 }
 
@@ -1633,6 +1670,7 @@ sub get_conf_file {
 	unless(-e $conf_file){
 		return $result;
 	}
+	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($conf_file);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
@@ -1643,6 +1681,7 @@ sub get_conf_file {
  	my $virtualm;
  	my $default_tag = 1;
  	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
  	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
  		# We get name attribute
  		$virtualm = $virtualmList->item($j);
@@ -1652,6 +1691,7 @@ sub get_conf_file {
 			last;
 		}
  	}
+ 	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
 		my $conf_list = $virtualm->getElementsByTagName("conf");
 		if ($conf_list->getLength gt 0){
@@ -1672,6 +1712,7 @@ sub get_idle_pc_conf {
 	unless(-e $conf_file){
 		return $result;
 	}
+	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($conf_file);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
@@ -1682,6 +1723,7 @@ sub get_idle_pc_conf {
  	my $virtualm;
  	my $default_tag = 1;
  	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
  	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
  		# We get name attribute
  		$virtualm = $virtualmList->item($j);
@@ -1691,6 +1733,7 @@ sub get_idle_pc_conf {
 			last;
 		}
  	}
+ 	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
 		my $hw_list = $virtualm->getElementsByTagName("hw");
 		if ($hw_list->getLength gt 0){
@@ -1712,7 +1755,7 @@ sub get_idle_pc_conf {
 				my $hw_gl = $hw_gl_list->item($0);
 				my $idle_pc_gl_list = $hw_gl->getElementsByTagName("idle_pc");
 	 			if($idle_pc_gl_list->getLength gt 0){
-	 				$result = $idle_pc_gl_Tag->getAttribute("value");
+	 				$result = $idle_pc_gl_list->getAttribute("value");
 	 			}
 			}
 		}	
@@ -1732,7 +1775,7 @@ sub get_port_conf {
 	unless(-e $conf_file){
 		return $result;
 	}
-	
+	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($conf_file);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
@@ -1743,6 +1786,7 @@ sub get_port_conf {
  	my $virtualm;
  	my $default_tag = 1;
  	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
  	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
  		# We get name attribute
  		$virtualm = $virtualmList->item($j);
@@ -1752,6 +1796,7 @@ sub get_port_conf {
 			last;
 		}
  	}
+ 	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
 		my $hw_list = $virtualm->getElementsByTagName("hw");
 		if ($hw_list->getLength gt 0){
@@ -1786,15 +1831,30 @@ sub get_port_conf {
  	return $result;
 }
 
+#################################################################
+# get_card_conf													#
+# 																#
+# Saca del fichero de configuración extendida, las tarjetas que #
+# se tienen que conectar al router								#
+# Entrada:														#
+# 	Nombre del router virtual									#
+# Salida:														#
+# 	Array de los nombres de las tarjetas que tienen que ser 	#
+#	agregadas al router, en caso de que no haya o etiqueta o 	#
+#	no exista el fichero, por defecto se inserta una placa		#
+# 	NM-4E														# 
+#################################################################
+
 sub get_cards_conf {
 	my $vmName = shift;
 	my @slotarray;
 	
+	# Si no hay fichero, se pone el valor por defecto de "NM-4E"
 	unless(-e $conf_file){
 		push(@slotarray,"NM-4E");
 		return @slotarray;
 	}
-	
+	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($conf_file);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
@@ -1805,6 +1865,7 @@ sub get_cards_conf {
  	my $virtualm;
  	my $default_tag = 1;
  	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
  	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
  		# We get name attribute
  		$virtualm = $virtualmList->item($j);
@@ -1814,21 +1875,25 @@ sub get_cards_conf {
 			last;
 		}
  	}
+ 	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
 		my $hw_list = $virtualm->getElementsByTagName("hw");
 		if ($hw_list->getLength gt 0){
 			my $hw = $hw_list->item($0);
 			my $slot_list = $hw->getElementsByTagName("slot");
 	 		my $numslot = $slot_list->getLength;
+	 		# Añadimos las tarjetas que haya en el fichero.
 	 		for ( my $j = 0 ; $j < $numslot ; $j++ ) {
 	 			my $slotTag = $slot_list->item($j);
 				my $slot = &text_tag($slotTag);
 				push(@slotarray,$slot);
+				# Como ya tenemos tarjetas no vemos las globales.
 				$global_tag = 0;
 	 		}
 		}
 	}
-	
+	# Si no hay tarjetas definidas en la seccion del router virtual.
+	# se utilizan el que está definido en la parte global.
 	if ($global_tag eq 1){
 		my $globalList = $globalNode->getElementsByTagName("global");
 		if ($globalList->getLength gt 0){
@@ -1842,11 +1907,15 @@ sub get_cards_conf {
 	 				my $slotTaggl = $slot_gl_list->item($j);
 					my $slot_gl = &text_tag($slotTaggl);
 					push(@slotarray,$slot_gl);
+					# Como ya tenemos tarjetas definidas, no utilizamos la configurada por defecto.
 					$default_tag = 0;
 	 			}
 			}
 		}	
 	}
+	# Si no tenemos definidas ninguna tarjeta en la definicion del router virtual o el la seccion global
+	# utilizamos el valor por defecto "NM-4E"
+	
 	# Diferente al ser un array y no poder asignarle un valor por defecto al principio
 	if (($global_tag eq 1 )&&($default_tag eq 1)){
 		push(@slotarray,"NM-4E");
