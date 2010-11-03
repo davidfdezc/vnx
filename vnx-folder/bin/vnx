@@ -1025,10 +1025,10 @@ sub mode_start {
 				#$port = 900 + $i;
 				my $portfile = $dh->get_vm_dir($name) . "/port.txt";
 				if (-e $portfile ){
-				open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
-				$port= <PORT_CISCO>;
-				close (PORT_CISCO);
-				printf "%-12s  %-20s  telnet 127.0.0.1 %s\n", $name, $merged_type, $port;
+					open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
+					$port= <PORT_CISCO>;
+					close (PORT_CISCO);
+					printf "%-12s  %-20s  telnet 127.0.0.1 %s\n", $name, $merged_type, $port;
 				}else {
 					printf "%-12s  %-20s  Cannot be determinated port\n", $name, $merged_type;
 				}
@@ -3764,21 +3764,22 @@ sub make_vm_API_doc {
    ## conf for dynamips
    
    #my $dynamips = $dh->get_default_mem;      
-   my $conf_dynamips_list = $vm->getElementsByTagName("dynamips_conf");
-   if ($conf_dynamips_list->getLength == 1) {
-   		my $conf_dynamips = &text_tag($conf_dynamips_list->item(0));
-  		my $conf_dynamips_tag = $dom->createElement('dynamips_conf');
-   		$vm_tag->addChild($conf_dynamips_tag);
-   		$conf_dynamips_tag->addChild($dom->createTextNode($conf_dynamips));
-   }
+#   my $conf_dynamips_list = $vm->getElementsByTagName("dynamips_conf");
+#   if ($conf_dynamips_list->getLength == 1) {
+#   		my $conf_dynamips = &text_tag($conf_dynamips_list->item(0));
+#  		my $conf_dynamips_tag = $dom->createElement('dynamips_conf');
+#   		$vm_tag->addChild($conf_dynamips_tag);
+#   		$conf_dynamips_tag->addChild($dom->createTextNode($conf_dynamips));
+#   }
   
-   my $ext_dynamips_list = $vm->getElementsByTagName("dynamips_ext");
-   if ($ext_dynamips_list->getLength == 1) {
-   		my $ext_dynamips = &text_tag($ext_dynamips_list->item(0));
-  		my $ext_dynamips_tag = $dom->createElement('dynamips_ext');
-   		$vm_tag->addChild($ext_dynamips_tag);
-   		$ext_dynamips_tag->addChild($dom->createTextNode($ext_dynamips));
-   }
+#   my $ext_dynamips = $dh->get_default_dynamips();
+#  #  my $ext_dynamips_list = $vm->getElementsByTagName("dynamips_ext");
+#   if (!($ext_dynamips eq "")) {
+#   		#my $ext_dynamips = &text_tag($ext_dynamips_list->item(0));
+#  		my $ext_dynamips_tag = $dom->createElement('dynamips_ext');
+#   		$vm_tag->addChild($ext_dynamips_tag);
+#   		$ext_dynamips_tag->addChild($dom->createTextNode($ext_dynamips));
+#   }
 
    # kernel to be booted
    my $kernel;

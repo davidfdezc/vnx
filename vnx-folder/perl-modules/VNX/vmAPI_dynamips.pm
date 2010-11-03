@@ -218,8 +218,26 @@ sub defineVM {
  				}
  				print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			}
+ 			# Si en el fichero de configuracion extendida se define un usuario y password.
+ 			my @login_users = &get_login_user($vmName);
+ 			my $login_user;
+ 			foreach $login_user(@login_users){
+				print CONF_CISCO " username $login_user[0] password 0 $login_user[1]\n"
+    		}
+# 			if (!($login_user eq "")){
+# 				my $user_pass = &get_login_pass($vmName);
+# 				
+# 				print CONF_CISCO " username $login_user password 0 $user_pass\n";
+# 				print CONF_CISCO " line con 0 \n";
+# 				
+# 			}else{
+# 				my $login_pass = &get_login_pass($vmName);
+# 				if (!($login_pass eq "")){
+# 					
+# 				}
+# 			}
  			# Si el fichero de configuacion extendida se define una password de enable, se pone.
- 			my $enablepass = get_enable_pass($vmName);
+ 			my $enablepass = &get_enable_pass($vmName);
  			if (!($enablepass eq "")){
 				print CONF_CISCO " enable password " . $enablepass . "\n";
     		}
@@ -293,6 +311,27 @@ sub defineVM {
  			print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			
  		}
+ 		# Si en el fichero de configuracion extendida se define un usuario y password.
+ 			my @login_users = &get_login_user($vmName);
+ 			my $login_user;
+ 			my $check_login_user = 0;
+ 			foreach $login_user(@login_users){
+ 				my $user=$login_user->[0];
+ 				my $pass=$login_user->[1];
+ 				if (($user eq "")&&(!($pass eq ""))){
+ 					print CONF_CISCO " line con 0 \n";
+ 					print CONF_CISCO " password $pass\n";
+ 					print CONF_CISCO " login\n";
+ 				}elsif((!($user eq ""))&&(!($pass eq ""))){
+					print CONF_CISCO " username $user password 0 $pass\n";
+					$check_login_user= 1;
+ 				}
+    		}
+    		if ($check_login_user eq 1){
+    			print CONF_CISCO " line con 0 \n";
+ 				print CONF_CISCO " login local\n";
+    		}
+    		
  		# Si el fichero de configuacion extendida se define una password de enable, se pone.
  		my $enablepass = get_enable_pass($vmName);
  		if (!($enablepass eq "")){
@@ -1326,10 +1365,12 @@ sub set_config_file{
 
 sub get_login_user {
 	my $vmName = shift;
-	my $result = "";
+	my @users;
 	
+	# Si no hay fichero, se pone el valor por defecto de ""
 	unless(-e $conf_file){
-		return $result;
+		push(@users,["",""]);
+		return @users;
 	}
 	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
@@ -1354,82 +1395,91 @@ sub get_login_user {
  	}
  	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
-		my $login_user_list = $virtualm->getElementsByTagName("login_user");
-		if ($login_user_list->getLength gt 0){
-			my $login_user = $login_user_list->item($0);
-			$result = &text_tag($login_user);
- 			$global_tag = 0;
+		my $login_user_list = $virtualm->getElementsByTagName("login");
+		if ((my $length_user = $login_user_list->getLength) gt 0){
+			for ( my $j = 0 ; $j < $length_user ; $j++ ) {
+				my $login_user = $login_user_list->item($j);
+				my $user = $login_user->getAttribute("user");
+				my $pass = $login_user->getAttribute("password");
+				push(@users,[$user,$pass]);
+	 			$global_tag = 0;
+			}
 		}
 	}
 	if ($global_tag eq 1){
 		my $globalList = $globalNode->getElementsByTagName("global");
 		if ($globalList->getLength gt 0){
 			my $globaltag = $globalList->item($0);
-			my $login_user_gl_list = $globaltag->getElementsByTagName("login_user");
-			if ($login_user_gl_list->getLength gt 0){
-				my $login_user_gl = $login_user_gl_list->item($0);
-				$result = &text_tag($login_user_gl);
+			my $login_user_gl_list = $globaltag->getElementsByTagName("login");
+			if ((my $length_user = $login_user_gl_list->getLength) gt 0){
+				for ( my $j = 0 ; $j < $length_user ; $j++ ) {
+					my $login_user_gl = $login_user_gl_list->item($j);
+					my $user_gl = $login_user_gl->getAttribute("user");
+					my $pass_gl = $login_user_gl->getAttribute("password");
+					push(@users,[$user_gl,$pass_gl]);
+		 			$global_tag = 0;
+				}
 			}
 		}	
 	}
-#	if (($default_tag eq 1)&&($global_tag eq 1)){
-#		$result = 900 + $counter; 
-#	}
- 	return $result;
+	if (($global_tag eq 1 )&&($default_tag eq 1)){
+		push(@users,["",""]);
+	}
+ 	return @users;
 }
-sub get_login_pass {
-	my $vmName = shift;
-	my $result = "";
-	
-	unless(-e $conf_file){
-		return $result;
-	}
-	# Parseamos el fichero.
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($conf_file);
-	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
-	my $virtualmList = $globalNode->getElementsByTagName("vm");
-		
- 	my $numsvm = $virtualmList->getLength;
- 	my $name;
- 	my $virtualm;
- 	my $default_tag = 1;
- 	my $global_tag = 1;
- 	# Buscamos la seccion de la maquina virtual
-	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
-# 		# We get name attribute
- 		$virtualm = $virtualmList->item($j);
-		$name = $virtualm->getAttribute("name");
-
-		if ( $name eq $vmName ) {
-			last;
-		}
- 	}
- 	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
-		my $login_pass_list = $virtualm->getElementsByTagName("login_pass");
-		if ($login_pass_list->getLength gt 0){
-			my $login_pass = $login_pass_list->item($0);
-			$result = &text_tag($login_pass);
- 			$global_tag = 0;
-		}
-	}
-	if ($global_tag eq 1){
-		my $globalList = $globalNode->getElementsByTagName("global");
-		if ($globalList->getLength gt 0){
-			my $globaltag = $globalList->item($0);
-			my $login_pass_gl_list = $globaltag->getElementsByTagName("login_pass");
-			if ($login_pass_gl_list->getLength gt 0){
-				my $login_pass_gl = $login_pass_gl_list->item($0);
-				$result = &text_tag($login_pass_gl);
-			}
-		}	
-	}
-#	if (($default_tag eq 1)&&($global_tag eq 1)){
-#		$result = 900 + $counter; 
+##sub get_login_pass {
+#	my $vmName = shift;
+#	my $result = "";
+#	
+#	unless(-e $conf_file){
+#		return $result;
 #	}
- 	return $result;
-}
+#	# Parseamos el fichero.
+#	my $parser       = new XML::DOM::Parser;
+#	my $dom          = $parser->parsefile($conf_file);
+#	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+#	my $virtualmList = $globalNode->getElementsByTagName("vm");
+#		
+# 	my $numsvm = $virtualmList->getLength;
+# 	my $name;
+# 	my $virtualm;
+# 	my $default_tag = 1;
+# 	my $global_tag = 1;
+# 	# Buscamos la seccion de la maquina virtual
+#	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+## 		# We get name attribute
+# 		$virtualm = $virtualmList->item($j);
+#		$name = $virtualm->getAttribute("name");
+#
+#		if ( $name eq $vmName ) {
+#			last;
+#		}
+# 	}
+# 	# Comprobamos que la maquina es la correcta
+#	if($name eq $vmName){
+#		my $login_pass_list = $virtualm->getElementsByTagName("login_pass");
+#		if ($login_pass_list->getLength gt 0){
+#			my $login_pass = $login_pass_list->item($0);
+#			$result = &text_tag($login_pass);
+# 			$global_tag = 0;
+#		}
+#	}
+#	if ($global_tag eq 1){
+#		my $globalList = $globalNode->getElementsByTagName("global");
+#		if ($globalList->getLength gt 0){
+#			my $globaltag = $globalList->item($0);
+#			my $login_pass_gl_list = $globaltag->getElementsByTagName("login_pass");
+#			if ($login_pass_gl_list->getLength gt 0){
+#				my $login_pass_gl = $login_pass_gl_list->item($0);
+#				$result = &text_tag($login_pass_gl);
+#			}
+#		}	
+#	}
+##	if (($default_tag eq 1)&&($global_tag eq 1)){
+##		$result = 900 + $counter; 
+##	}
+# 	return $result;
+#}
 
 sub get_enable_pass {
 	my $vmName = shift;
@@ -1461,10 +1511,10 @@ sub get_enable_pass {
  	}
  	# Comprobamos que la maquina es la correcta
 	if($name eq $vmName){
-		my $enable_pass_list = $virtualm->getElementsByTagName("enable_pass");
+		my $enable_pass_list = $virtualm->getElementsByTagName("enable");
 		if ($enable_pass_list->getLength gt 0){
 			my $enable_pass = $enable_pass_list->item($0);
-			$result = &text_tag($enable_pass);
+			$result = $enable_pass->getAttribute("password");
  			$global_tag = 0;
 		}
 	}
@@ -1472,10 +1522,10 @@ sub get_enable_pass {
 		my $globalList = $globalNode->getElementsByTagName("global");
 		if ($globalList->getLength gt 0){
 			my $globaltag = $globalList->item($0);
-			my $enable_pass_gl_list = $globaltag->getElementsByTagName("enable_pass");
+			my $enable_pass_gl_list = $globaltag->getElementsByTagName("enable");
 			if ($enable_pass_gl_list->getLength gt 0){
 				my $enable_pass_gl = $enable_pass_gl_list->item($0);
-				$result = &text_tag($enable_pass_gl);
+				$result = $enable_pass->getAttribute("password");
 			}
 		}	
 	}
