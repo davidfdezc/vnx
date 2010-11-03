@@ -189,6 +189,14 @@ sub new {
    else {
  	  $global_data{'host_mapping'} = 0;             # by default, management addresses are not mapped in /etc/hosts
    }
+   # Dynamips mapping
+   my $dynamipsmapping_list = $self->{'doc'}->getElementsByTagName("dynamips_ext");
+   if ($dynamipsmapping_list->getLength == 1) {
+      $global_data{'dynamips_ext'} =  &text_tag($dynamipsmapping_list->item(0));
+   }
+   else {
+ 	  $global_data{'dynamips_ext'} = 0;             # by default, management addresses are not mapped in /etc/hosts
+   }
 
    # Network configuration options, if <netconfig> is present
    my $netconfig_list = $self->{'doc'}->getElementsByTagName("netconfig");
@@ -464,7 +472,6 @@ sub get_default_filesystem {
    return $self->{'global_data'}->{'default_filesystem'};
 }
 
-# get_default_filesystem_type
 #
 # Returns the default filesystem type
 #
@@ -562,6 +569,15 @@ sub get_default_xterm {
    my $self = shift;
    return $self->{'global_data'}->{'default_xterm'};
 }
+# get_default_dynamips
+#
+# Return the default dynamips
+#
+sub get_default_dynamips {
+   my $self = shift;
+   return $self->{'global_data'}->{'dynamips_ext'};
+}
+
 
 # get_default_forwarding_type
 #
@@ -707,6 +723,23 @@ sub get_vm_to_use {
 	      ($self->{'mode'} eq "undefine") ||
           (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || ($plugins_vms{$name} eq "1") ) && ($self->{'mode'} eq "x") || ($plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") )  
 	  ) {
+	  	# En proceso de construccion, hay que quitar los plugins en caso de que %plugins_vms no tenga nada.
+#	     if (
+#          ($self->{'mode'} eq "t") ||
+#	      ($self->{'mode'} eq "d") ||
+#	      ($self->{'mode'} eq "P") ||
+#	      ($self->{'mode'} eq "define") ||
+#	      ($self->{'mode'} eq "start") ||
+#	      ($self->{'mode'} eq "reset") ||
+#	      ($self->{'mode'} eq "reboot") ||
+#	      ($self->{'mode'} eq "save") ||
+#	      ($self->{'mode'} eq "restore") ||
+#	      ($self->{'mode'} eq "suspend") ||
+#	      ($self->{'mode'} eq "resume") ||
+#	      ($self->{'mode'} eq "undefine") ||
+#          (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || 
+#          			((scalar(%plugins_vms) ge 0) && (($plugins_vms{$name} eq "1") && ($self->{'mode'} eq "x") || ($plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") ))  
+#	  ) {
 	  	
          # Only if list is not empty
          if ($self->{'vm_to_use'}) {
