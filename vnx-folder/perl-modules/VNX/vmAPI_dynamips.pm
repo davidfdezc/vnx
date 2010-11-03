@@ -49,24 +49,15 @@ package vmAPI_dynamips;
 #@EXPORT = qw(defineVM);
   
 
-##use strict;
-#
-#use Sys::Virt;
-#use Sys::Virt::Domain;
-#
-##de vnumlparser
-#use VNX::DataHandler;
-#
-#use VNX::Execution;
-#use VNX::BinariesData;
-#use VNX::Arguments;
-#use VNX::CheckSemantics;
-#use VNX::TextManipulation;
-#use VNX::NetChecks;
-#use VNX::FileChecks;
-#use VNX::DocumentChecks;
-#use VNX::IPChecks;
-
+use VNX::Execution;
+use VNX::BinariesData;
+use VNX::Arguments;
+use VNX::CheckSemantics;
+use VNX::TextManipulation;
+use VNX::NetChecks;
+use VNX::FileChecks;
+use VNX::DocumentChecks;
+use VNX::IPChecks;
 use Net::Telnet;
 use Net::IP;
 use Net::Telnet::Cisco;
@@ -84,36 +75,13 @@ my $curr_uml;
 my $F_flag;       # passed from createVM to halt
 my $M_flag;       # passed from createVM to halt
 #
-##needed for UML_bootfile
-#use File::Basename;
-#
-#use XML::DOM;
-#
-##use XML::LibXML;
-##use XML::DOM::ValParser;
-#
-#
-#use IO::Socket::UNIX qw( SOCK_STREAM );
-#
-## Global objects
-#
-#my $execution;    # the VNX::Execution object
-#my $dh;           # the VNX::DataHandler object
-#my $bd;           # the VNX::BinariesData object
-#
-#
-## Name of UML whose boot process has started but not reached the init program
-## (for emergency cleanup).  If the mconsole socket has successfully been initialized
-## on the UML then '#' is appended.
-#my $curr_uml;
-#my $F_flag;       # passed from createVM to halt
-#my $M_flag;       # passed from createVM to halt
-#
-#
 
-	$HHOST="localhost";
-	$HPORT="7300";
-	$HIDLEPC="0x604f8104";
+
+my $HHOST="localhost";
+my $HPORT="7300";
+my $HIDLEPC="0x604f8104";
+my $conf_file="";
+
 #
 #
 #
@@ -126,6 +94,7 @@ my $M_flag;       # passed from createVM to halt
 ####################################################################
 #
 sub defineVM {
+	
 	
 
 	my $self   = shift;
@@ -142,9 +111,6 @@ sub defineVM {
 	my $doc2       = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
 
-	my $path;
-	my $filesystem;
-	
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 
 		my $vm = $vm_ordered[$i];
@@ -157,6 +123,9 @@ sub defineVM {
 		}
 	}
 	
+	# Configuramos el fichero de configuracion especial
+	&set_config_file($dh->get_default_dynamips());
+		
 	my $filenameconf;
 	my $ifTagList;
 	
@@ -171,26 +140,110 @@ sub defineVM {
 	my $filesystem_type   = $filesystemTag->getAttribute("type");
 	my $filesystem        = $filesystemTag->getFirstChild->getData;
 	
+	# Definicion del fichero de configuracion extendida host
+	my $conf_dynamips = get_conf_file($vmName);
 	
-	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("dynamips");
-	if ( $conf_dynamipsTagList->getLength gt 0){
-		my $conf_dynamipsTag     = $conf_dynamipsTagList->item($0);
-		my $conf_dynamips        = $conf_dynamipsTag->getFirstChild->getData;
-	
-
- 	 #Definicion del fichero host
- 		if (-e $conf_dynamips)
-		{ 
-			$execution->execute("cp " . $conf_dynamips . " " . $dh->get_vm_dir($vmName));
-   		 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . basename($conf_dynamips);
+	# Miro si hay definido en el XML un fichero de configuracion extendida
+	if (!($conf_dynamips eq 0))
+	{
+		# Compruebo que se puede abrir.
+	 	if (-e $conf_dynamips)
+		{
+			# Si existe, me voy al final del fichero y quito el end, ya que vamos a continuar
+			# desde el final.  
+	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
+	   	 	$execution->execute("sed '/end/d' " . $conf_dynamips . ">" . $filenameconf);
+	   	 	open (CONF_CISCO, ">>$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
+	   	 	
+	   	 	# Por defecto, los valores puestos en el XML del vnx ,
+	   	 	# prevalecen sobre los puestos en cualquier fichero de configuracion.
+	   	 	
+			print CONF_CISCO "hostname " . $vmName ."\n";
+	 		$ifTagList = $virtualm->getElementsByTagName("if");
+	 		my $numif = $ifTagList->getLength;
+	 		# Configuramos las interfaces.
+	 		# P.ej:
+	 		# 	interface e0/0
+			# 	 mac-address fefd.0003.0101
+			# 	 ip address 10.1.1.4 255.255.255.0
+			# 	 ipv6 enable
+			# 	 ipv6 address 2001:db8::1/64
+			# 	 no shutdown
+	 		
+	 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
+	 			my $ifTag = $ifTagList->item($j);
+				my $id    = $ifTag->getAttribute("id");
+				my $net   = $ifTag->getAttribute("net");
+				my $mac   = $ifTag->getAttribute("mac");
+				$mac =~ s/,//;
+				my @maclist = split(/:/,$mac);
+				$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
+				my $nameif   = $ifTag->getAttribute("name");
+				print CONF_CISCO "interface " . $nameif . "\n";	
+				print CONF_CISCO " mac-address " . $mac . "\n";
+				# Damos direccion IPv4	
+				my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
+				if ( $ipv4_list->getLength != 0 ) {
+					my $ipv4_Tag = $ipv4_list->item(0);
+					my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
+					my $subnetv4 = $ipv4_Tag->getAttribute("mask");
+					print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
+				}
+				# Damos direccion IPv6
+				my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
+				if ( $ipv6_list->getLength != 0 ) {
+					print CONF_CISCO " ipv6 enable\n";	
+					my $ipv6_Tag = $ipv6_list->item(0);
+					my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
+					print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
+					}
+				# Levantamos la interfaz
+				print CONF_CISCO " no shutdown\n";	
+	 		}
+	 		# Configura las rutas	
+			my $routeTagList = $virtualm->getElementsByTagName("route");
+ 			my $numroute = $routeTagList->getLength;
+ 			for ( my $j = 0 ; $j < $numroute ; $j++ ) {
+ 				my $routeTag = 	$routeTagList->item($j);
+ 				my $gw = $routeTag->getAttribute("gw");
+ 				my $destination = $routeTag->getFirstChild->getData;
+ 				my $maskdestination = "";
+ 				if ($destination eq "default"){
+ 					$destination = "0.0.0.0";
+ 					$maskdestination = "0.0.0.0";
+ 				}else {
+ 					my $ip = new Net::IP ($destination) or die (Net::IP::Error());
+ 					$maskdestination = $ip->mask();
+ 					$destination = $ip->ip();
+ 				}
+ 				print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
+ 			}
+ 			# Si el fichero de configuacion extendida se define una password de enable, se pone.
+ 			my $enablepass = get_enable_pass($vmName);
+ 			if (!($enablepass eq "")){
+				print CONF_CISCO " enable password " . $enablepass . "\n";
+    		}
+ 			print CONF_CISCO " end\n";
+ 			close(CONF_CISCO);		 	
+		}else{
+			$execution->smartdie("Can not open " . $conf_dynamips );
 		}
 	}
+	# Si no se ha definido ninguno, me defino el fichero de configuracion a pasar al cisco.
 	else{
-		$filenameconf = $dh->get_vm_dir($vmName) . "/" . $vmName . ".txt";
+		$filenameconf = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
 		open (CONF_CISCO, ">$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
 		print CONF_CISCO "hostname " . $vmName ."\n";
  		$ifTagList = $virtualm->getElementsByTagName("if");
  		my $numif = $ifTagList->getLength;
+ 			# Configuramos las interfaces.
+	 		# P.ej:
+	 		# 	interface e0/0
+			# 	 mac-address fefd.0003.0101
+			# 	 ip address 10.1.1.4 255.255.255.0
+			# 	 ipv6 enable
+			# 	 ipv6 address 2001:db8::1/64
+			# 	 no shutdown
  		for ( my $j = 0 ; $j < $numif ; $j++ ) {
  			my $ifTag = $ifTagList->item($j);
 			my $id    = $ifTag->getAttribute("id");
@@ -202,7 +255,7 @@ sub defineVM {
 			my $nameif   = $ifTag->getAttribute("name");
 			print CONF_CISCO "interface " . $nameif . "\n";	
 			print CONF_CISCO " mac-address " . $mac . "\n";
-			
+			# Damos direccion IPv4		
 			my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
 			if ( $ipv4_list->getLength != 0 ) {
 				my $ipv4_Tag = $ipv4_list->item(0);
@@ -210,16 +263,18 @@ sub defineVM {
 				my $subnetv4 = $ipv4_Tag->getAttribute("mask");
 				print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
 			}
+			# Damos direccion IPv6
 			my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
 			if ( $ipv6_list->getLength != 0 ) {
 				print CONF_CISCO " ipv6 enable\n";	
 				my $ipv6_Tag = $ipv6_list->item(0);
 				my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
-				print CONF_CISCO " ipv6 address " . $ipv6 . " ". $subnetv6 . "\n";	
-			}
+				print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
+				}
+			# Levantamos la interfaz
 			print CONF_CISCO " no shutdown\n";		
  		}
- 		
+ 		# Configura las rutas
  		my $routeTagList = $virtualm->getElementsByTagName("route");
  		my $numroute = $routeTagList->getLength;
  		for ( my $j = 0 ; $j < $numroute ; $j++ ) {
@@ -238,6 +293,14 @@ sub defineVM {
  			print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			
  		}
+ 		# Si el fichero de configuacion extendida se define una password de enable, se pone.
+ 		my $enablepass = get_enable_pass($vmName);
+ 		if (!($enablepass eq "")){
+			print CONF_CISCO " enable password " . $enablepass . "\n";
+    	}
+    	# Se habilita el ip http server ya que si no se hace, el acceso por telnet se bloquea.
+ 		print CONF_CISCO "ip http server\n";
+ 		print CONF_CISCO " end\n";
  		close(CONF_CISCO);	
 	}
     
@@ -249,8 +312,8 @@ sub defineVM {
 		my $memTag     = $memTagList->item($0);
 		$mem   = ($memTag->getFirstChild->getData)/1024;
 	} 
-   my $doc = $dh->get_doc;
-   my $dynamips_ext_list = $doc->getElementsByTagName("dynamips_ext");
+	
+   # my $dynamips_ext_list = $doc2->getElementsByTagName("dynamips_ext");
 
     
     # Definicion del router
@@ -270,9 +333,10 @@ sub defineVM {
     	print "-----------------------------\n";
     }
     
-
-	my $consoleportbase = "900";
-	my $consoleport = $consoleportbase + $counter;
+	
+	
+	#my $consoleportbase = "900";
+	#my $consoleport = $consoleportbase + $counter;
 
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
@@ -282,663 +346,109 @@ sub defineVM {
     print("hypervisor working_dir \"". $dh->get_fs_dir($vmName)."\" \n");
     $t->print("hypervisor working_dir \"". $dh->get_fs_dir($vmName). "\" ");
     $line = $t->getline; print $line;
+	
+	
+	# Set type
+	my($trash,$model)=split(/-/,$type,2);
+    print("vm create $vmName 0 c$model\n");
+	$t->print("vm create $vmName 0 c$model");
+	$line = $t->getline; print $line;
+	
+	# Configuring telnet port
 
-    # Si hay fichero de configuracion especial se utiliza
-    if ($dynamips_ext_list->getLength == 1) {
-   		my $dynamips_ext = &text_tag($dynamips_ext_list->item(0));
-  		#my $dynamips_ext_tag = $dom->createElement('dynamips_ext');
-   		#$vm_tag->addChild($dynamips_ext_tag);
-   		#$dynamips_ext_tag->addChild($dom->createTextNode($dynamips_ext));
-   }else # Sino se utilizan los valores por defecto
-   {
-   	    print("vm create $vmName 0 c3600\n");
-	    $t->print("vm create $vmName 0 c3600");
-	    $line = $t->getline; print $line;
-	    print("vm set_con_tcp_port $vmName $consoleport\n");
-	    $t->print("vm set_con_tcp_port $vmName $consoleport");
-	    $line = $t->getline; print $line;
-	    print("c3600 set_chassis $vmName 3640\n");
-	    $t->print("c3600 set_chassis $vmName 3640");
-	    $line = $t->getline; print $line;
-	    #$t->print("vm set_ios $rname $RIOSFILE");
-	    print("vm set_ios $vmName $filesystem\n");
-	    $t->print("vm set_ios $vmName $filesystem");
-	    $line = $t->getline; print $line;
-	    print("vm set_ram $vmName $mem\n");
-	    $t->print("vm set_ram $vmName $mem");
-	    $line = $t->getline; print $line;
+	my $consoleport = &get_port_conf($vmName,$counter);
+	my $portfile = $dh->get_vm_dir($vmName) . "/port.txt";
+	open (PORT_CISCO, ">$portfile") || die "ERROR: No puedo abrir el fichero $portfile";;
+	print PORT_CISCO $consoleport ;	
+	close (PORT_CISCO);
+	print("vm set_con_tcp_port $vmName $consoleport\n");
+	$t->print("vm set_con_tcp_port $vmName $consoleport");
+    $line = $t->getline; print $line;
+    
+    # Set Chassis
+    my $chassis = &get_chassis($vmName);
+    $chassis =~ s/c//;
+    print("c$model set_chassis $vmName $chassis\n");
+    $t->print("c$model set_chassis $vmName $chassis");
+    $line = $t->getline; print $line;
+    
+	# Set Filesystem
+    print("vm set_ios $vmName $filesystem\n");
+    $t->print("vm set_ios $vmName $filesystem");
+    $line = $t->getline; print $line;
+    
+    # Set Mem
+    print("vm set_ram $vmName $mem\n");
+    $t->print("vm set_ram $vmName $mem");
+    $line = $t->getline; print $line;
+    if (&get_sparsemem($vmName) eq "true"){
 		print("vm set_sparse_mem $vmName 1\n");
 		$t->print("vm set_sparse_mem $vmName 1");
-	    $line = $t->getline; print $line;
-   		print("vm set_idle_pc $vmName $HIDLEPC\n");
-		$t->print("vm set_idle_pc $vmName $HIDLEPC");
-	    $line = $t->getline; print $line;
-		print("vm set_blk_direct_jump $vmName 0\n");
-		$t->print("vm set_blk_direct_jump $vmName 0");
-	    $line = $t->getline; print $line;
-		print("vm slot_add_binding $vmName 0 0 NM-4E\n");
-		$t->print("vm slot_add_binding $vmName 0 0 NM-4E");
-	    $line = $t->getline; print $line;
-   }
-
-	#print("vm slot_add_binding $vmName 1 0 NM-4T");
-	#$t->print("vm slot_add_binding $vmName 1 0 NM-4T");
-    #$line = $t->getline; print $line;
+   		$line = $t->getline; print $line;
+    }
+    
+    # Set IDLEPC
+    my $idlepc = get_idle_pc_conf($vmName);
+	print("vm set_idle_pc $vmName $idlepc\n");
+	$t->print("vm set_idle_pc $vmName $idlepc");
+    $line = $t->getline; print $line;
+    
+    #Set ios ghost
+    if (&get_ghost_ios($vmName) eq "true"){
+    	print("vm set_ghost_status $vmName 2\n");
+		$t->print("vm set_ghost_status $vmName 2");
+    	$line = $t->getline; print $line;
+    	my $temp = basename($filesystem);
+    	print("vm set_ghost_file $vmName \"$temp.image-localhost.ghost\" \n");
+		$t->print("vm set_ghost_file $vmName \"$temp.image-localhost.ghost\" ");
+    	$line = $t->getline; print $line;
+    }
+    
+    #Set Blk_direct_jump
+	print("vm set_blk_direct_jump $vmName 0\n");
+	$t->print("vm set_blk_direct_jump $vmName 0");
+    $line = $t->getline; print $line;
+    
+    # Add slot cards
+    my @cards=&get_cards_conf($vmName);
+    my $index = 0;
+    foreach $slot (@cards){
+    	print("vm slot_add_binding $vmName $index 0 $slot \n");
+		$t->print("vm slot_add_binding $vmName $index 0 $slot");
+    	$line = $t->getline; print $line;
+    	$index++;
+    }
+    
+    # Connect virtual networks to host interfaces
     $ifTagList = $virtualm->getElementsByTagName("if");
 	my $numif     = $ifTagList->getLength;
 
 	for ( my $j = 0 ; $j < $numif ; $j++ ) {
+		my $ifTag = $ifTagList->item($j);
+		my $name   = $ifTag->getAttribute("name");
+		my ($firstpart, $secondpart)= split("/",$name,2);
+		my $firstnumber = substr $firstpart,-1,1;
 		my $temp = $j + 1;
-		print("nio create_tap nio_tap$counter$j $vmName-e$temp\n");
-		$t->print("nio create_tap nio_tap$counter$j $vmName-e$temp");
+		print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp\n");
+		$t->print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp");
    		$line = $t->getline; print $line;
-   		print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j\n");
-   		$t->print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j");
+   		print("vm slot_add_nio_binding $vmName $firstnumber $secondpart nio_tap$counter$secondpart\n");
+   		$t->print("vm slot_add_nio_binding $vmName $firstnumber $secondpart nio_tap$counter$secondpart");
    		$line = $t->getline; print $line;
    		$execution->execute("ifconfig $vmName-e$temp 0.0.0.0");
 	}
+	
+	# Set config file to router
 	print("vm set_config $vmName \"$filenameconf\" \n");
-    $t->print("vm set_config $vmName \"$filenameconf\" ");
-    $line = $t->getline; print $line;
-    $t->close;
+   	$t->print("vm set_config $vmName \"$filenameconf\" ");
+   	$line = $t->getline; print $line;
+   	$t->close;
 
     print "-----------------------------\n";
     
-  
     
 }
-#sub defineVM {
-#
-##	my $self   = shift;
-##	my $vmName = shift;
-##	my $type   = shift;
-##	my $doc    = shift;
-##	$execution = shift;
-##	$bd        = shift;
-##	$dh        = shift;
-##	my $sock    = shift;
-##	my $counter = shift;
-##	$curr_uml = $vmName;
-##
-##	my $error = 0;
-##
-##	my $doc2       = $dh->get_doc;
-##	my @vm_ordered = $dh->get_vm_ordered;
-##
-##	my $path;
-##	my $filesystem;
-##
-##	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-##
-##		my $vm = $vm_ordered[$i];
-##
-##		# We get name attribute
-##		my $name = $vm->getAttribute("name");
-##
-##		unless ( $name eq $vmName ) {
-##			next;
-##		}
-##
-##		# To get filesystem and type
-##		my $filesystem_type;
-##		my $filesystem_list = $vm->getElementsByTagName("filesystem");
-##		if ( $filesystem_list->getLength == 1 ) {
-##			$filesystem =
-##			  &do_path_expansion(
-##				&text_tag( $vm->getElementsByTagName("filesystem")->item(0) ) );
-##			$filesystem_type =
-##			  $vm->getElementsByTagName("filesystem")->item(0)
-##			  ->getAttribute("type");
-##		}
-##		else {
-##			$filesystem      = $dh->get_default_filesystem;
-##			$filesystem_type = $dh->get_default_filesystem_type;
-##		}
-##
-##
-##		if ( $execution->get_exe_mode() != EXE_DEBUG ) {
-##			my $command =
-##			    $bd->get_binaries_path_ref->{"mktemp"}
-##			  . " -d -p "
-##			  . $dh->get_tmp_dir
-##			  . " vnx_opt_fs.XXXXXX";
-##			chomp( $path = `$command` );
-##		}
-##		else {
-##			$path = $dh->get_tmp_dir . "/vnx_opt_fs.XXXXXX";
-##		}
-##		$path .= "/";
-##
-##		$filesystem = $dh->get_fs_dir($name) . "/opt_fs";
-##
-##		# Install global public ssh keys in the UML
-##		my $global_list = $doc2->getElementsByTagName("global");
-##		my $key_list = $global_list->item(0)->getElementsByTagName("ssh_key");
-##
-##		# If tag present, add the key
-##		for ( my $j = 0 ; $j < $key_list->getLength ; $j++ ) {
-##			my $keyfile =
-##			  &do_path_expansion( &text_tag( $key_list->item($j) ) );
-##			$execution->execute( $bd->get_binaries_path_ref->{"cat"}
-##				  . " $keyfile >> $path"
-##				  . "keyring_root" );
-##		}
-##
-##		# Next install vm-specific keys and add users and groups
-##		my @user_list = $dh->merge_user($vm);
-##		foreach my $user (@user_list) {
-##			my $username      = $user->getAttribute("username");
-##			my $initial_group = $user->getAttribute("group");
-##			$execution->execute( $bd->get_binaries_path_ref->{"touch"} 
-##				  . " $path"
-##				  . "group_$username" );
-##			my $group_list = $user->getElementsByTagName("group");
-##			for ( my $k = 0 ; $k < $group_list->getLength ; $k++ ) {
-##				my $group = &text_tag( $group_list->item($k) );
-##				if ( $group eq $initial_group ) {
-##					$group = "*$group";
-##				}
-##				$execution->execute( $bd->get_binaries_path_ref->{"echo"}
-##					  . " $group >> $path"
-##					  . "group_$username" );
-##			}
-##			my $key_list = $user->getElementsByTagName("ssh_key");
-##			for ( my $k = 0 ; $k < $key_list->getLength ; $k++ ) {
-##				my $keyfile =
-##				  &do_path_expansion( &text_tag( $key_list->item($k) ) );
-##				$execution->execute( $bd->get_binaries_path_ref->{"cat"}
-##					  . " $keyfile >> $path"
-##					  . "keyring_$username" );
-##			}
-##		}
-##	}
-##
-##
-##	###################################################################
-##	#                  defineVM for libvirt-kvm-windows               #
-##	###################################################################
-##	if ( $type eq "libvirt-kvm-windows" ) {
-##
-##		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
-##		open CONFILE, ">$path" . "vnxboot"
-##		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-##		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-##
-##		#$execution->execute($doc ,*CONFILE);
-##		print CONFILE "$doc\n";
-##
-##		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-##		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"} . " -l -R -quiet -o $filesystem_small $path" );
-##		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
-##
-##		my $parser       = new XML::DOM::Parser;
-##		my $dom          = $parser->parse($doc);
-##		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-##		my $virtualmList = $globalNode->getElementsByTagName("vm");
-##		my $virtualm     = $virtualmList->item($0);
-##
-##		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-##		my $filesystemTag     = $filesystemTagList->item($0);
-##		my $filesystem_type   = $filesystemTag->getAttribute("type");
-##		my $filesystem        = $filesystemTag->getFirstChild->getData;
-##
-##		if ( $filesystem_type eq "cow" ) {
-##
-##			# DFC If cow file does not exist, we create it
-##			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
-##				$execution->execute( "qemu-img"
-##					  . " create -b $filesystem -f qcow2 "
-##					  . $dh->get_fs_dir($vmName)
-##					  . "/root_cow_fs" );
-##			}
-##			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
-##		}
-##
-##		# memory
-##		my $memTagList = $virtualm->getElementsByTagName("mem");
-##		my $memTag     = $memTagList->item($0);
-##		my $mem        = $memTag->getFirstChild->getData;
-##
-##		# create XML for libvirt
-##		my $init_xml;
-##		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
-##		my $domain_tag = $init_xml->createElement('domain');
-##		$init_xml->addChild($domain_tag);
-##		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-##
-##		my $name_tag = $init_xml->createElement('name');
-##		$domain_tag->addChild($name_tag);
-##
-##		#name
-##		$name_tag->addChild( $init_xml->createTextNode($vmName) );
-##
-##		my $memory_tag = $init_xml->createElement('memory');
-##		$domain_tag->addChild($memory_tag);
-##
-##		#memory
-##		$memory_tag->addChild( $init_xml->createTextNode($mem) );
-##
-##		my $vcpu_tag = $init_xml->createElement('vcpu');
-##		$domain_tag->addChild($vcpu_tag);
-##
-##		#vcpu
-##		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
-##
-##		my $os_tag = $init_xml->createElement('os');
-##		$domain_tag->addChild($os_tag);
-##		my $type_tag = $init_xml->createElement('type');
-##		$os_tag->addChild($type_tag);
-##		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
-##		$type_tag->addChild( $init_xml->createTextNode("hvm") );
-##		my $boot1_tag = $init_xml->createElement('boot');
-##		$os_tag->addChild($boot1_tag);
-##		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
-##		my $boot2_tag = $init_xml->createElement('boot');
-##		$os_tag->addChild($boot2_tag);
-##		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
-##
-##		my $features_tag = $init_xml->createElement('features');
-##		$domain_tag->addChild($features_tag);
-##		my $pae_tag = $init_xml->createElement('pae');
-##		$features_tag->addChild($pae_tag);
-##		my $acpi_tag = $init_xml->createElement('acpi');
-##		$features_tag->addChild($acpi_tag);
-##		my $apic_tag = $init_xml->createElement('apic');
-##		$features_tag->addChild($apic_tag);
-##
-##		my $clock_tag = $init_xml->createElement('clock');
-##		$domain_tag->addChild($clock_tag);
-##		$clock_tag->addChild(
-##			$init_xml->createAttribute( sync => "localtime" ) );
-##
-##		my $devices_tag = $init_xml->createElement('devices');
-##		$domain_tag->addChild($devices_tag);
-##
-##		my $emulator_tag = $init_xml->createElement('emulator');
-##		$devices_tag->addChild($emulator_tag);
-##		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
-##
-##		my $disk1_tag = $init_xml->createElement('disk');
-##		$devices_tag->addChild($disk1_tag);
-##		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-##		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
-##		my $source1_tag = $init_xml->createElement('source');
-##		$disk1_tag->addChild($source1_tag);
-##		$source1_tag->addChild(
-##			$init_xml->createAttribute( file => $filesystem ) );
-##		my $target1_tag = $init_xml->createElement('target');
-##		$disk1_tag->addChild($target1_tag);
-##		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
-##
-##		my $disk2_tag = $init_xml->createElement('disk');
-##		$devices_tag->addChild($disk2_tag);
-##		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-##		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
-##		my $source2_tag = $init_xml->createElement('source');
-##		$disk2_tag->addChild($source2_tag);
-##		$source2_tag->addChild(
-##			$init_xml->createAttribute( file => $filesystem_small ) );
-##		my $target2_tag = $init_xml->createElement('target');
-##		$disk2_tag->addChild($target2_tag);
-##		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
-##
-##		my $ifTagList = $virtualm->getElementsByTagName("if");
-##		my $numif     = $ifTagList->getLength;
-##
-##		for ( my $j = 0 ; $j < $numif ; $j++ ) {
-##			my $ifTag = $ifTagList->item($j);
-##			my $id    = $ifTag->getAttribute("id");
-##			my $net   = $ifTag->getAttribute("net");
-##			my $mac   = $ifTag->getAttribute("mac");
-##
-##			my $interface_tag = $init_xml->createElement('interface');
-##			$devices_tag->addChild($interface_tag);
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( type => 'bridge' ) );
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( name => "eth" . $id ) );
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( onboot => "yes" ) );
-##			my $source_tag = $init_xml->createElement('source');
-##			$interface_tag->addChild($source_tag);
-##			$source_tag->addChild(
-##				$init_xml->createAttribute( bridge => $net ) );
-##			my $mac_tag = $init_xml->createElement('mac');
-##			$interface_tag->addChild($mac_tag);
-##			$mac =~ s/,//;
-##			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
-##
-##		}
-##
-##		my $graphics_tag = $init_xml->createElement('graphics');
-##		$devices_tag->addChild($graphics_tag);
-##		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-### DFC		my $vnc_port;
-###		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-###			my $vm = $vm_ordered[$i];
-###
-###			# To get name attribute
-###			my $name = $vm->getAttribute("name");
-###			if ( $vmName eq $name ) {
-###				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-###			}
-###		}
-###		$graphics_tag->addChild(
-###			$init_xml->createAttribute( port => $vnc_port ) );
-##
-##		#[JSF] host ip left
-##		$graphics_tag->addChild(
-##			$init_xml->createAttribute( listen => $ip_host ) );
-##
-##		my $serial_tag = $init_xml->createElement('serial');
-##		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
-##		$devices_tag->addChild($serial_tag);
-##
-##		# $devices_tag->addChild($disk2_tag);
-##		my $source3_tag = $init_xml->createElement('source');
-##		$serial_tag->addChild($source3_tag);
-##		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-##		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName). '/' . $vmName . '_socket' ) );
-##		my $target_tag = $init_xml->createElement('target');
-##		$serial_tag->addChild($target_tag);
-##		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
-##
-###   ############<graphics type='sdl' display=':0.0'/>
-###      my $graphics_tag2 = $init_xml->createElement('graphics');
-###      $devices_tag->addChild($graphics_tag2);
-###      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
-###      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
-###      $disp = $ENV{'DISPLAY'};
-###      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
-###
-###
-###   ############
-##
-##		my $addr = "qemu:///system";
-##		print "Connecting to $addr...";
-##		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-##		print "OK\n";
-##		my $format    = 1;
-##		my $xmlstring = $init_xml->toString($format);
-##
-##		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
-##		  or $execution->smartdie(
-##			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml' )
-##		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-##		print XML_FILE "$xmlstring\n";
-##		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-##
-##		# check that the domain is not already defined or started
-##        my @doms = $con->list_defined_domains();
-##		foreach my $listDom (@doms) {
-##			my $dom_name = $listDom->get_name();
-##			if ( $dom_name eq $vmName ) {
-##				$error = "Domain $vmName already defined\n";
-##				return $error;
-##			}
-##		}
-##		@doms = $con->list_domains();
-##		foreach my $listDom (@doms) {
-##			my $dom_name = $listDom->get_name();
-##			if ( $dom_name eq $vmName ) {
-##				$error = "Domain $vmName already defined and started\n";
-##				return $error;
-##			}
-##		}
-##		
-##		my $domain = $con->define_domain($xmlstring);
-##
-##		return $error;
-##
-##	}
-##	
-##	###################################################################
-##	#                  defineVM for libvirt-kvm-linux/freebsd         #
-##	###################################################################
-##	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
-##
-##		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
-##		open CONFILE, ">$path" . "vnxboot"
-##		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-##		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-##
-##		#$execution->execute($doc ,*CONFILE);
-##		print CONFILE "$doc\n";
-##
-##		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-##		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
-##			  . " -l -R -quiet -o $filesystem_small $path" );
-##		$execution->execute(
-##			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
-##
-##		my $parser       = new XML::DOM::Parser;
-##		my $dom          = $parser->parse($doc);
-##		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-##		my $virtualmList = $globalNode->getElementsByTagName("vm");
-##		my $virtualm     = $virtualmList->item($0);
-##
-##		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-##		my $filesystemTag     = $filesystemTagList->item($0);
-##		my $filesystem_type   = $filesystemTag->getAttribute("type");
-##		my $filesystem        = $filesystemTag->getFirstChild->getData;
-##
-##		if ( $filesystem_type eq "cow" ) {
-##
-##			# DFC If cow file does not exist, we create it
-##			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
-##
-##				$execution->execute( "qemu-img"
-##					  . " create -b $filesystem -f qcow2 "
-##					  . $dh->get_fs_dir($vmName)
-##					  . "/root_cow_fs" );
-##			}
-##			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
-##		}
-##
-##		# memory
-##		my $memTagList = $virtualm->getElementsByTagName("mem");
-##		my $memTag     = $memTagList->item($0);
-##		my $mem        = $memTag->getFirstChild->getData;
-##
-##		# create XML for libvirt
-##		my $init_xml;
-##		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
-##		my $domain_tag = $init_xml->createElement('domain');
-##		$init_xml->addChild($domain_tag);
-##		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-##
-##		my $name_tag = $init_xml->createElement('name');
-##		$domain_tag->addChild($name_tag);
-##
-##		#name
-##		$name_tag->addChild( $init_xml->createTextNode($vmName) );
-##
-##		my $memory_tag = $init_xml->createElement('memory');
-##		$domain_tag->addChild($memory_tag);
-##
-##		#memory
-##		$memory_tag->addChild( $init_xml->createTextNode($mem) );
-##
-##		my $vcpu_tag = $init_xml->createElement('vcpu');
-##		$domain_tag->addChild($vcpu_tag);
-##
-##		#vcpu
-##		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
-##
-##		my $os_tag = $init_xml->createElement('os');
-##		$domain_tag->addChild($os_tag);
-##		my $type_tag = $init_xml->createElement('type');
-##		$os_tag->addChild($type_tag);
-##		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
-##		$type_tag->addChild( $init_xml->createTextNode("hvm") );
-##		my $boot1_tag = $init_xml->createElement('boot');
-##		$os_tag->addChild($boot1_tag);
-##		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
-##		my $boot2_tag = $init_xml->createElement('boot');
-##		$os_tag->addChild($boot2_tag);
-##		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
-##
-##		my $features_tag = $init_xml->createElement('features');
-##		$domain_tag->addChild($features_tag);
-##		my $pae_tag = $init_xml->createElement('pae');
-##		$features_tag->addChild($pae_tag);
-##		my $acpi_tag = $init_xml->createElement('acpi');
-##		$features_tag->addChild($acpi_tag);
-##		my $apic_tag = $init_xml->createElement('apic');
-##		$features_tag->addChild($apic_tag);
-##
-##		my $clock_tag = $init_xml->createElement('clock');
-##		$domain_tag->addChild($clock_tag);
-##		$clock_tag->addChild(
-##			$init_xml->createAttribute( sync => "localtime" ) );
-##
-##		my $devices_tag = $init_xml->createElement('devices');
-##		$domain_tag->addChild($devices_tag);
-##
-##		my $emulator_tag = $init_xml->createElement('emulator');
-##		$devices_tag->addChild($emulator_tag);
-##		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
-##
-##		my $disk1_tag = $init_xml->createElement('disk');
-##		$devices_tag->addChild($disk1_tag);
-##		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-##		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
-##		my $source1_tag = $init_xml->createElement('source');
-##		$disk1_tag->addChild($source1_tag);
-##		$source1_tag->addChild(
-##			$init_xml->createAttribute( file => $filesystem ) );
-##		my $target1_tag = $init_xml->createElement('target');
-##		$disk1_tag->addChild($target1_tag);
-##		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
-##
-##		my $disk2_tag = $init_xml->createElement('disk');
-##		$devices_tag->addChild($disk2_tag);
-##		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-##		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
-##		my $source2_tag = $init_xml->createElement('source');
-##		$disk2_tag->addChild($source2_tag);
-##		$source2_tag->addChild(
-##			$init_xml->createAttribute( file => $filesystem_small ) );
-##		my $target2_tag = $init_xml->createElement('target');
-##		$disk2_tag->addChild($target2_tag);
-##		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
-##
-##		my $ifTagList = $virtualm->getElementsByTagName("if");
-##		my $numif     = $ifTagList->getLength;
-##
-##		for ( my $j = 0 ; $j < $numif ; $j++ ) {
-##			my $ifTag = $ifTagList->item($j);
-##			my $id    = $ifTag->getAttribute("id");
-##			my $net   = $ifTag->getAttribute("net");
-##			my $mac   = $ifTag->getAttribute("mac");
-##
-##			my $interface_tag = $init_xml->createElement('interface');
-##			$devices_tag->addChild($interface_tag);
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( type => 'bridge' ) );
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( name => "eth" . $id ) );
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( onboot => "yes" ) );
-##			my $source_tag = $init_xml->createElement('source');
-##			$interface_tag->addChild($source_tag);
-##			$source_tag->addChild(
-##				$init_xml->createAttribute( bridge => $net ) );
-##			my $mac_tag = $init_xml->createElement('mac');
-##			$interface_tag->addChild($mac_tag);
-##			$mac =~ s/,//;
-##			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
-##
-##		}
-##
-##		my $graphics_tag = $init_xml->createElement('graphics');
-##		$devices_tag->addChild($graphics_tag);
-##		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-### DFC		my $vnc_port;
-###		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-###			my $vm = $vm_ordered[$i];
-###
-###			# To get name attribute
-###			my $name = $vm->getAttribute("name");
-###			if ( $vmName eq $name ) {
-###				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-###			}
-###		}
-###		$graphics_tag->addChild(
-###			$init_xml->createAttribute( port => $vnc_port ) );
-##
-##		#[JSF] host ip left
-##		$graphics_tag->addChild(
-##			$init_xml->createAttribute( listen => $ip_host ) );
-##
-##		my $serial_tag = $init_xml->createElement('serial');
-##		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
-##		$devices_tag->addChild($serial_tag);
-##
-##		# $devices_tag->addChild($disk2_tag);
-##		my $source3_tag = $init_xml->createElement('source');
-##		$serial_tag->addChild($source3_tag);
-##		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-##		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName). '/' . $vmName . '_socket' ) );
-##		my $target_tag = $init_xml->createElement('target');
-##		$serial_tag->addChild($target_tag);
-##		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
-##
-###   ############<graphics type='sdl' display=':0.0'/>
-###      my $graphics_tag2 = $init_xml->createElement('graphics');
-###      $devices_tag->addChild($graphics_tag2);
-###      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
-###      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
-###      $disp = $ENV{'DISPLAY'};
-###      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
-###
-###
-###   ############
-##
-##		my $addr = "qemu:///system";
-##		print "Connecting to $addr...";
-##		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-##		print "OK\n";
-##		my $format    = 1;
-##		my $xmlstring = $init_xml->toString($format);
-##
-##		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
-##		  or $execution->smartdie(
-##			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml' )
-##		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-##		print XML_FILE "$xmlstring\n";
-##		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-##
-##        # check that the domain is not already defined or started
-##        my @doms = $con->list_defined_domains();
-##		foreach my $listDom (@doms) {
-##			my $dom_name = $listDom->get_name();
-##			if ( $dom_name eq $vmName ) {
-##				$error = "Domain $vmName already defined\n";
-##				return $error;
-##			}
-##		}
-##		@doms = $con->list_domains();
-##		foreach my $listDom (@doms) {
-##			my $dom_name = $listDom->get_name();
-##			if ( $dom_name eq $vmName ) {
-##				$error = "Domain $vmName already defined and started\n";
-##				return $error;
-##			}
-##		}
-##		
-##		my $domain = $con->define_domain($xmlstring);
-##
-##		return $error;
-##
-##	}
-##
-##	else {
-##		$error = "Define for type $type not implemented yet.\n";
-##		return $error;
-##	}
-#}
-#
+
 #
 #
 ####################################################################
@@ -967,50 +477,11 @@ sub undefineVM{
     $t->open(Host => $HHOST, Port => $HPORT);
     $t->print("vm destroy $vmName");
     $line = $t->getline; print $line;
+    $t->print("hypervisor reset");
+   	$line = $t->getline; print $line;
     $t->close;
 }
-#sub undefineVM {
-#
-#	my $self   = shift;
-#	my $vmName = shift;
-#	my $type   = shift;
-#
-#	my $error;
-#
-#
-#	###################################################################
-#	#                  defineVM for libvirt-kvm-windows/linux/freebsd #
-#	###################################################################
-#	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
-#		my $addr = "qemu:///system";
-#
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my @doms = $con->list_defined_domains();
-#
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$listDom->undefine();
-#				print "Domain undefined.\n";
-#				$error = 0;
-#				return $error;
-#			}
-#		}
-#		$error = "Domain $vmName does not exist.\n";
-#		return $error;
-#
-#	}
-#
-#	else {
-#		$error = "undefineVM for type $type not implemented yet.\n";
-#		return $error;
-#	}
-#}
-#
-#
+
 #
 ####################################################################
 ##                                                                 #
@@ -1035,9 +506,6 @@ sub createVM{
 	my $doc2       = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
 
-	my $path;
-	my $filesystem;
-	
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 
 		my $vm = $vm_ordered[$i];
@@ -1049,7 +517,13 @@ sub createVM{
 			next;
 		}
 	}
-
+	
+	# Configuramos el fichero de configuracion especial
+	&set_config_file($dh->get_default_dynamips());
+		
+	my $filenameconf;
+	my $ifTagList;
+	
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parse($doc);
 	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
@@ -1061,30 +535,203 @@ sub createVM{
 	my $filesystem_type   = $filesystemTag->getAttribute("type");
 	my $filesystem        = $filesystemTag->getFirstChild->getData;
 	
+	# Definicion del fichero de configuracion extendida host
+	my $conf_dynamips = get_conf_file($vmName);
 	
-	my $conf_dynamipsTagList = $virtualm->getElementsByTagName("conf_dynamips");
-	my $conf_dynamipsTag     = $conf_dynamipsTagList->item($0);
-	my $conf_dynamips        = $conf_dynamipsTag->getFirstChild->getData;
-		
-		
-	$HIDLEPC="0x604f8104";
-	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
-    print "-----------------------------\n";
-    print "Reset hypervisor:\n";
+	# Miro si hay definido en el XML un fichero de configuracion extendida
+	if (!($conf_dynamips eq 0))
+	{
+		# Compruebo que se puede abrir.
+	 	if (-e $conf_dynamips)
+		{
+			# Si existe, me voy al final del fichero y quito el end, ya que vamos a continuar
+			# desde el final.  
+	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
+	   	 	$execution->execute("sed '/end/d' " . $conf_dynamips . ">" . $filenameconf);
+	   	 	open (CONF_CISCO, ">>$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
+	   	 	
+	   	 	# Por defecto, los valores puestos en el XML del vnx ,
+	   	 	# prevalecen sobre los puestos en cualquier fichero de configuracion.
+	   	 	
+			print CONF_CISCO "hostname " . $vmName ."\n";
+	 		$ifTagList = $virtualm->getElementsByTagName("if");
+	 		my $numif = $ifTagList->getLength;
+	 		# Configuramos las interfaces.
+	 		# P.ej:
+	 		# 	interface e0/0
+			# 	 mac-address fefd.0003.0101
+			# 	 ip address 10.1.1.4 255.255.255.0
+			# 	 ipv6 enable
+			# 	 ipv6 address 2001:db8::1/64
+			# 	 no shutdown
+	 		
+	 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
+	 			my $ifTag = $ifTagList->item($j);
+				my $id    = $ifTag->getAttribute("id");
+				my $net   = $ifTag->getAttribute("net");
+				my $mac   = $ifTag->getAttribute("mac");
+				$mac =~ s/,//;
+				my @maclist = split(/:/,$mac);
+				$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
+				my $nameif   = $ifTag->getAttribute("name");
+				print CONF_CISCO "interface " . $nameif . "\n";	
+				print CONF_CISCO " mac-address " . $mac . "\n";
+				# Damos direccion IPv4	
+				my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
+				if ( $ipv4_list->getLength != 0 ) {
+					my $ipv4_Tag = $ipv4_list->item(0);
+					my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
+					my $subnetv4 = $ipv4_Tag->getAttribute("mask");
+					print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
+				}
+				# Damos direccion IPv6
+				my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
+				if ( $ipv6_list->getLength != 0 ) {
+					print CONF_CISCO " ipv6 enable\n";	
+					my $ipv6_Tag = $ipv6_list->item(0);
+					my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
+					print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
+					}
+				# Levantamos la interfaz
+				print CONF_CISCO " no shutdown\n";	
+	 		}
+	 		# Configura las rutas	
+			my $routeTagList = $virtualm->getElementsByTagName("route");
+ 			my $numroute = $routeTagList->getLength;
+ 			for ( my $j = 0 ; $j < $numroute ; $j++ ) {
+ 				my $routeTag = 	$routeTagList->item($j);
+ 				my $gw = $routeTag->getAttribute("gw");
+ 				my $destination = $routeTag->getFirstChild->getData;
+ 				my $maskdestination = "";
+ 				if ($destination eq "default"){
+ 					$destination = "0.0.0.0";
+ 					$maskdestination = "0.0.0.0";
+ 				}else {
+ 					my $ip = new Net::IP ($destination) or die (Net::IP::Error());
+ 					$maskdestination = $ip->mask();
+ 					$destination = $ip->ip();
+ 				}
+ 				print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
+ 			}
+ 			# Si el fichero de configuacion extendida se define una password de enable, se pone.
+ 			my $enablepass = get_enable_pass($vmName);
+ 			if (!($enablepass eq "")){
+				print CONF_CISCO " enable password " . $enablepass . "\n";
+    		}
+ 			print CONF_CISCO " end\n";
+ 			close(CONF_CISCO);		 	
+		}else{
+			$execution->smartdie("Can not open " . $conf_dynamips );
+		}
+	}
+	# Si no se ha definido ninguno, me defino el fichero de configuracion a pasar al cisco.
+	else{
+		$filenameconf = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
+		open (CONF_CISCO, ">$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
+		print CONF_CISCO "hostname " . $vmName ."\n";
+ 		$ifTagList = $virtualm->getElementsByTagName("if");
+ 		my $numif = $ifTagList->getLength;
+ 			# Configuramos las interfaces.
+	 		# P.ej:
+	 		# 	interface e0/0
+			# 	 mac-address fefd.0003.0101
+			# 	 ip address 10.1.1.4 255.255.255.0
+			# 	 ipv6 enable
+			# 	 ipv6 address 2001:db8::1/64
+			# 	 no shutdown
+ 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
+ 			my $ifTag = $ifTagList->item($j);
+			my $id    = $ifTag->getAttribute("id");
+			my $net   = $ifTag->getAttribute("net");
+			my $mac   = $ifTag->getAttribute("mac");
+			$mac =~ s/,//;
+			my @maclist = split(/:/,$mac);
+			$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
+			my $nameif   = $ifTag->getAttribute("name");
+			print CONF_CISCO "interface " . $nameif . "\n";	
+			print CONF_CISCO " mac-address " . $mac . "\n";
+			# Damos direccion IPv4		
+			my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
+			if ( $ipv4_list->getLength != 0 ) {
+				my $ipv4_Tag = $ipv4_list->item(0);
+				my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
+				my $subnetv4 = $ipv4_Tag->getAttribute("mask");
+				print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
+			}
+			# Damos direccion IPv6
+			my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
+			if ( $ipv6_list->getLength != 0 ) {
+				print CONF_CISCO " ipv6 enable\n";	
+				my $ipv6_Tag = $ipv6_list->item(0);
+				my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
+				print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
+				}
+			# Levantamos la interfaz
+			print CONF_CISCO " no shutdown\n";		
+ 		}
+ 		# Configura las rutas
+ 		my $routeTagList = $virtualm->getElementsByTagName("route");
+ 		my $numroute = $routeTagList->getLength;
+ 		for ( my $j = 0 ; $j < $numroute ; $j++ ) {
+ 			my $routeTag = 	$routeTagList->item($j);
+ 			my $gw = $routeTag->getAttribute("gw");
+ 			my $destination = $routeTag->getFirstChild->getData;
+ 			my $maskdestination = "";
+ 			if ($destination eq "default"){
+ 				$destination = "0.0.0.0";
+ 				$maskdestination = "0.0.0.0";
+ 			}else {
+ 				my $ip = new Net::IP ($destination) or die (Net::IP::Error());
+ 				$maskdestination = $ip->mask();
+ 				$destination = $ip->ip();
+ 			}
+ 			print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
+ 			
+ 		}
+ 		# Si el fichero de configuacion extendida se define una password de enable, se pone.
+ 		my $enablepass = get_enable_pass($vmName);
+ 		if (!($enablepass eq "")){
+			print CONF_CISCO " enable password " . $enablepass . "\n";
+    	}
+    	# Se habilita el ip http server ya que si no se hace, el acceso por telnet se bloquea.
+ 		print CONF_CISCO "ip http server\n";
+ 		print CONF_CISCO " end\n";
+ 		close(CONF_CISCO);	
+	}
+    
+    # Preparar las variables
+    my $memTagList = $virtualm->getElementsByTagName("mem");
+    my $mem = "96";
+
+	if ( $memTagList->getLength != 0 ) {
+		my $memTag     = $memTagList->item($0);
+		$mem   = ($memTag->getFirstChild->getData)/1024;
+	} 
+	
+   # my $dynamips_ext_list = $doc2->getElementsByTagName("dynamips_ext");
+
+    
+    # Definicion del router
+
+
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
+    # Si es la primera vez que se ejecuta el escenario, se borra todo el hypervisor
+    # Precacion, tambien se borra otros escenarios que este corriendo paralelamente
     if ($counter == 0)
     {
+    	print "-----------------------------\n";
+    	print "Reset hypervisor:\n";
     	$t->print("hypervisor reset");
    		$line = $t->getline; print $line;
     	$t->close;
     	print "-----------------------------\n";
     }
     
-
-	my $consoleportbase = "900";
-	my $consoleport = $consoleportbase + $counter;
-	$ram = "96";
+	
+	
+	#my $consoleportbase = "900";
+	#my $consoleport = $consoleportbase + $counter;
 
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
@@ -1094,54 +741,103 @@ sub createVM{
     print("hypervisor working_dir \"". $dh->get_fs_dir($vmName)."\" \n");
     $t->print("hypervisor working_dir \"". $dh->get_fs_dir($vmName). "\" ");
     $line = $t->getline; print $line;
-    print("vm create $vmName 0 c3600\n");
-    $t->print("vm create $vmName 0 c3600");
+	
+	
+	# Set type
+	my($trash,$model)=split(/-/,$type,2);
+    print("vm create $vmName 0 c$model\n");
+	$t->print("vm create $vmName 0 c$model");
+	$line = $t->getline; print $line;
+	
+	# Configuring telnet port
+
+	my $consoleport = &get_port_conf($vmName,$counter);
+	my $portfile = $dh->get_vm_dir($vmName) . "/port.txt";
+	open (PORT_CISCO, ">$portfile") || die "ERROR: No puedo abrir el fichero $portfile";;
+	print PORT_CISCO $consoleport ;	
+	close (PORT_CISCO);
+	print("vm set_con_tcp_port $vmName $consoleport\n");
+	$t->print("vm set_con_tcp_port $vmName $consoleport");
     $line = $t->getline; print $line;
-    print("vm set_con_tcp_port $vmName $consoleport\n");
-    $t->print("vm set_con_tcp_port $vmName $consoleport");
+    
+    # Set Chassis
+    my $chassis = &get_chassis($vmName);
+    $chassis =~ s/c//;
+    print("c$model set_chassis $vmName $chassis\n");
+    $t->print("c$model set_chassis $vmName $chassis");
     $line = $t->getline; print $line;
-    print("c3600 set_chassis $vmName 3640\n");
-    $t->print("c3600 set_chassis $vmName 3640");
-    $line = $t->getline; print $line;
-    #$t->print("vm set_ios $rname $RIOSFILE");
+    
+	# Set Filesystem
     print("vm set_ios $vmName $filesystem\n");
     $t->print("vm set_ios $vmName $filesystem");
     $line = $t->getline; print $line;
-    print("vm set_ram $vmName $ram\n");
-    $t->print("vm set_ram $vmName $ram");
+    
+    # Set Mem
+    print("vm set_ram $vmName $mem\n");
+    $t->print("vm set_ram $vmName $mem");
     $line = $t->getline; print $line;
-	print("vm set_sparse_mem $vmName 1\n");
-	$t->print("vm set_sparse_mem $vmName 1");
+    if (&get_sparsemem($vmName) eq "true"){
+		print("vm set_sparse_mem $vmName 1\n");
+		$t->print("vm set_sparse_mem $vmName 1");
+   		$line = $t->getline; print $line;
+    }
+    
+    # Set IDLEPC
+    my $idlepc = get_idle_pc_conf($vmName);
+	print("vm set_idle_pc $vmName $idlepc\n");
+	$t->print("vm set_idle_pc $vmName $idlepc");
     $line = $t->getline; print $line;
-	print("vm set_idle_pc $vmName $HIDLEPC\n");
-	$t->print("vm set_idle_pc $vmName $HIDLEPC");
-    $line = $t->getline; print $line;
+    
+    #Set ios ghost
+    if (&get_ghost_ios($vmName) eq "true"){
+    	print("vm set_ghost_status $vmName 2\n");
+		$t->print("vm set_ghost_status $vmName 2");
+    	$line = $t->getline; print $line;
+    	my $temp = basename($filesystem);
+    	print("vm set_ghost_file $vmName \"$temp.image-localhost.ghost\" \n");
+		$t->print("vm set_ghost_file $vmName \"$temp.image-localhost.ghost\" ");
+    	$line = $t->getline; print $line;
+    }
+    
+    #Set Blk_direct_jump
 	print("vm set_blk_direct_jump $vmName 0\n");
 	$t->print("vm set_blk_direct_jump $vmName 0");
     $line = $t->getline; print $line;
-	print("vm slot_add_binding $vmName 0 0 NM-4E\n");
-	$t->print("vm slot_add_binding $vmName 0 0 NM-4E");
-    $line = $t->getline; print $line;
-	#print("vm slot_add_binding $vmName 1 0 NM-4T");
-	#$t->print("vm slot_add_binding $vmName 1 0 NM-4T");
-    #$line = $t->getline; print $line;
-    my $ifTagList = $virtualm->getElementsByTagName("if");
+    
+    # Add slot cards
+    my @cards=&get_cards_conf($vmName);
+    my $index = 0;
+    foreach $slot (@cards){
+    	print("vm slot_add_binding $vmName $index 0 $slot \n");
+		$t->print("vm slot_add_binding $vmName $index 0 $slot");
+    	$line = $t->getline; print $line;
+    	$index++;
+    }
+    
+    # Connect virtual networks to host interfaces
+    $ifTagList = $virtualm->getElementsByTagName("if");
 	my $numif     = $ifTagList->getLength;
 
 	for ( my $j = 0 ; $j < $numif ; $j++ ) {
+		my $ifTag = $ifTagList->item($j);
+		my $name   = $ifTag->getAttribute("name");
+		my ($firstpart, $secondpart)= split("/",$name,2);
+		my $firstnumber = substr $firstpart,-1,1;
 		my $temp = $j + 1;
-		print("nio create_tap nio_tap$counter$j $vmName-e$temp\n");
-		$t->print("nio create_tap nio_tap$counter$j $vmName-e$temp");
+		print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp\n");
+		$t->print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp");
    		$line = $t->getline; print $line;
-   		print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j\n");
-   		$t->print("vm slot_add_nio_binding $vmName 0 $j nio_tap$counter$j");
+   		print("vm slot_add_nio_binding $vmName $firstnumber $secondpart nio_tap$counter$secondpart\n");
+   		$t->print("vm slot_add_nio_binding $vmName $firstnumber $secondpart nio_tap$counter$secondpart");
    		$line = $t->getline; print $line;
    		$execution->execute("ifconfig $vmName-e$temp 0.0.0.0");
 	}
-	print("vm set_config $vmName \"$conf_dynamips\" \n");
-    $t->print("vm set_config $vmName \"$conf_dynamips\" ");
-    $line = $t->getline; print $line;
-
+	
+	# Set config file to router
+	print("vm set_config $vmName \"$filenameconf\" \n");
+   	$t->print("vm set_config $vmName \"$filenameconf\" ");
+   	$line = $t->getline; print $line;
+   	$t->close;
 
     print "-----------------------------\n";
     print "-----------------------------\n";
@@ -1150,623 +846,7 @@ sub createVM{
     $line = $t->getline; print $line;
 	
 }
-#sub createVM {
-#
-#	my $self   = shift;
-#	my $vmName = shift;
-#	my $type   = shift;
-#	my $doc    = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
-#	my $sock    = shift;
-#	my $counter = shift;
-#	$curr_uml = $vmName;
-#
-#	my $error = 0;
-#
-#	my $doc2       = $dh->get_doc;
-#	my @vm_ordered = $dh->get_vm_ordered;
-#
-#	#my $vm;
-#	my $path;
-#	my $filesystem;
-#
-#	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-#
-#		my $vm = $vm_ordered[$i];
-#
-#		# We get name attribute
-#		my $name = $vm->getAttribute("name");
-#
-#		unless ( $name eq $vmName ) {
-#			next;
-#		}
-#
-#		# To get filesystem and type
-#		my $filesystem_type;
-#		my $filesystem_list = $vm->getElementsByTagName("filesystem");
-#		if ( $filesystem_list->getLength == 1 ) {
-#			$filesystem =
-#			  &do_path_expansion(
-#				&text_tag( $vm->getElementsByTagName("filesystem")->item(0) ) );
-#			$filesystem_type =
-#			  $vm->getElementsByTagName("filesystem")->item(0)
-#			  ->getAttribute("type");
-#		}
-#		else {
-#			$filesystem      = $dh->get_default_filesystem;
-#			$filesystem_type = $dh->get_default_filesystem_type;
-#		}
-#
-#		if ( $execution->get_exe_mode() != EXE_DEBUG ) {
-#			my $command =
-#			    $bd->get_binaries_path_ref->{"mktemp"}
-#			  . " -d -p "
-#			  . $dh->get_tmp_dir
-#			  . " vnx_opt_fs.XXXXXX";
-#			chomp( $path = `$command` );
-#		}
-#		else {
-#			$path = $dh->get_tmp_dir . "/vnx_opt_fs.XXXXXX";
-#		}
-#		$path .= "/";
-#
-#		$filesystem = $dh->get_fs_dir($name) . "/opt_fs";
-#
-#		# Install global public ssh keys in the UML
-#		my $global_list = $doc2->getElementsByTagName("global");
-#		my $key_list = $global_list->item(0)->getElementsByTagName("ssh_key");
-#
-#		# If tag present, add the key
-#		for ( my $j = 0 ; $j < $key_list->getLength ; $j++ ) {
-#			my $keyfile =
-#			  &do_path_expansion( &text_tag( $key_list->item($j) ) );
-#			$execution->execute( $bd->get_binaries_path_ref->{"cat"}
-#				  . " $keyfile >> $path"
-#				  . "keyring_root" );
-#		}
-#
-#		# Next install vm-specific keys and add users and groups
-#		my @user_list = $dh->merge_user($vm);
-#		foreach my $user (@user_list) {
-#			my $username      = $user->getAttribute("username");
-#			my $initial_group = $user->getAttribute("group");
-#			$execution->execute( $bd->get_binaries_path_ref->{"touch"} 
-#				  . " $path"
-#				  . "group_$username" );
-#			my $group_list = $user->getElementsByTagName("group");
-#			for ( my $k = 0 ; $k < $group_list->getLength ; $k++ ) {
-#				my $group = &text_tag( $group_list->item($k) );
-#				if ( $group eq $initial_group ) {
-#					$group = "*$group";
-#				}
-#				$execution->execute( $bd->get_binaries_path_ref->{"echo"}
-#					  . " $group >> $path"
-#					  . "group_$username" );
-#			}
-#			my $key_list = $user->getElementsByTagName("ssh_key");
-#			for ( my $k = 0 ; $k < $key_list->getLength ; $k++ ) {
-#				my $keyfile =
-#				  &do_path_expansion( &text_tag( $key_list->item($k) ) );
-#				$execution->execute( $bd->get_binaries_path_ref->{"cat"}
-#					  . " $keyfile >> $path"
-#					  . "keyring_$username" );
-#			}
-#		}
-#	}
-#
-#	###################################################################
-#	#                  createVM for libvirt-kvm-windows               #
-#	###################################################################
-#	if ( $type eq "libvirt-kvm-windows" ) {
-#
-#		#Save xml received in vnxboot, for the autoconfiguration
-#		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
-#		open CONFILE, ">$path" . "vnxboot"
-#		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#
-#		#$execution->execute($doc ,*CONFILE);
-#		print CONFILE "$doc\n";
-#
-#		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
-#			  . " -l -R -quiet -o $filesystem_small $path" );
-#		$execution->execute(
-#			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
-#
-#		my $parser       = new XML::DOM::Parser;
-#		my $dom          = $parser->parse($doc);
-#		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-#		my $virtualmList = $globalNode->getElementsByTagName("vm");
-#		my $virtualm     = $virtualmList->item($0);
-#
-#		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-#		my $filesystemTag     = $filesystemTagList->item($0);
-#		my $filesystem_type   = $filesystemTag->getAttribute("type");
-#		my $filesystem        = $filesystemTag->getFirstChild->getData;
-#
-#		if ( $filesystem_type eq "cow" ) {
-#
-#			# If cow file does not exist, we create it
-#			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
-#
-#				$execution->execute( "qemu-img"
-#					  . " create -b $filesystem -f qcow2 "
-#					  . $dh->get_fs_dir($vmName)
-#					  . "/root_cow_fs" );
-#			}
-#			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
-#		}
-#
-#		# memory
-#		my $memTagList = $virtualm->getElementsByTagName("mem");
-#		my $memTag     = $memTagList->item($0);
-#		my $mem        = $memTag->getFirstChild->getData;
-#
-#		# create XML for libvirt
-#		my $init_xml;
-#		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
-#		my $domain_tag = $init_xml->createElement('domain');
-#		$init_xml->addChild($domain_tag);
-#		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-#
-#		my $name_tag = $init_xml->createElement('name');
-#		$domain_tag->addChild($name_tag);
-#
-#		#name
-#		$name_tag->addChild( $init_xml->createTextNode($vmName) );
-#
-#		my $memory_tag = $init_xml->createElement('memory');
-#		$domain_tag->addChild($memory_tag);
-#
-#		#memory
-#		$memory_tag->addChild( $init_xml->createTextNode($mem) );
-#
-#		my $vcpu_tag = $init_xml->createElement('vcpu');
-#		$domain_tag->addChild($vcpu_tag);
-#
-#		#vcpu
-#		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
-#
-#		my $os_tag = $init_xml->createElement('os');
-#		$domain_tag->addChild($os_tag);
-#		my $type_tag = $init_xml->createElement('type');
-#		$os_tag->addChild($type_tag);
-#		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
-#		$type_tag->addChild( $init_xml->createTextNode("hvm") );
-#		my $boot1_tag = $init_xml->createElement('boot');
-#		$os_tag->addChild($boot1_tag);
-#		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
-#		my $boot2_tag = $init_xml->createElement('boot');
-#		$os_tag->addChild($boot2_tag);
-#		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
-#
-#		my $features_tag = $init_xml->createElement('features');
-#		$domain_tag->addChild($features_tag);
-#		my $pae_tag = $init_xml->createElement('pae');
-#		$features_tag->addChild($pae_tag);
-#		my $acpi_tag = $init_xml->createElement('acpi');
-#		$features_tag->addChild($acpi_tag);
-#		my $apic_tag = $init_xml->createElement('apic');
-#		$features_tag->addChild($apic_tag);
-#
-#		my $clock_tag = $init_xml->createElement('clock');
-#		$domain_tag->addChild($clock_tag);
-#		$clock_tag->addChild(
-#			$init_xml->createAttribute( sync => "localtime" ) );
-#
-#		my $devices_tag = $init_xml->createElement('devices');
-#		$domain_tag->addChild($devices_tag);
-#
-#		my $emulator_tag = $init_xml->createElement('emulator');
-#		$devices_tag->addChild($emulator_tag);
-#		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
-#
-#		my $disk1_tag = $init_xml->createElement('disk');
-#		$devices_tag->addChild($disk1_tag);
-#		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-#		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
-#		my $source1_tag = $init_xml->createElement('source');
-#		$disk1_tag->addChild($source1_tag);
-#		$source1_tag->addChild(
-#			$init_xml->createAttribute( file => $filesystem ) );
-#		my $target1_tag = $init_xml->createElement('target');
-#		$disk1_tag->addChild($target1_tag);
-#		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
-#
-#		my $disk2_tag = $init_xml->createElement('disk');
-#		$devices_tag->addChild($disk2_tag);
-#		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-#		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
-#		my $source2_tag = $init_xml->createElement('source');
-#		$disk2_tag->addChild($source2_tag);
-#		$source2_tag->addChild(
-#			$init_xml->createAttribute( file => $filesystem_small ) );
-#		my $target2_tag = $init_xml->createElement('target');
-#		$disk2_tag->addChild($target2_tag);
-#		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
-#
-#		my $ifTagList = $virtualm->getElementsByTagName("if");
-#		my $numif     = $ifTagList->getLength;
-#
-#		for ( my $j = 0 ; $j < $numif ; $j++ ) {
-#			my $ifTag = $ifTagList->item($j);
-#			my $id    = $ifTag->getAttribute("id");
-#			my $net   = $ifTag->getAttribute("net");
-#			my $mac   = $ifTag->getAttribute("mac");
-#
-#			my $interface_tag = $init_xml->createElement('interface');
-#			$devices_tag->addChild($interface_tag);
-#			$interface_tag->addChild(
-#				$init_xml->createAttribute( type => 'bridge' ) );
-#			$interface_tag->addChild(
-#				$init_xml->createAttribute( name => "eth" . $id ) );
-#			$interface_tag->addChild(
-#				$init_xml->createAttribute( onboot => "yes" ) );
-#			my $source_tag = $init_xml->createElement('source');
-#			$interface_tag->addChild($source_tag);
-#			$source_tag->addChild(
-#				$init_xml->createAttribute( bridge => $net ) );
-#			my $mac_tag = $init_xml->createElement('mac');
-#			$interface_tag->addChild($mac_tag);
-#			$mac =~ s/,//;
-#			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
-#
-#		}
-#
-#		my $graphics_tag = $init_xml->createElement('graphics');
-#		$devices_tag->addChild($graphics_tag);
-#		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-## DFC		my $vnc_port;
-##		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-##			my $vm = $vm_ordered[$i];
-##
-##			# To get name attribute
-##			my $name = $vm->getAttribute("name");
-##			if ( $vmName eq $name ) {
-##				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-##			}
-##		}
-##		$graphics_tag->addChild(
-##			$init_xml->createAttribute( port => $vnc_port ) );
-#
-#		#[JSF] host ip left
-#		$graphics_tag->addChild(
-#			$init_xml->createAttribute( listen => $ip_host ) );
-#
-#		my $serial_tag = $init_xml->createElement('serial');
-#		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
-#		$devices_tag->addChild($serial_tag);
-#
-#		my $source3_tag = $init_xml->createElement('source');
-#		$serial_tag->addChild($source3_tag);
-#		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-#		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
-#		my $target_tag = $init_xml->createElement('target');
-#		$serial_tag->addChild($target_tag);
-#		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
-#
-##   ############<graphics type='sdl' display=':0.0'/>
-##      my $graphics_tag2 = $init_xml->createElement('graphics');
-##      $devices_tag->addChild($graphics_tag2);
-##      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
-##      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
-##      $disp = $ENV{'DISPLAY'};
-##      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
-##
-##
-##   ############
-#
-#		my $addr = "qemu:///system";
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#		my $format    = 1;
-#		my $xmlstring = $init_xml->toString($format);
-#
-#		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
-#		  or $execution->smartdie(
-#			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml')
-#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#		print XML_FILE "$xmlstring\n";
-#		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#
-#
-#        # check that the domain is not already defined or started
-#        my @doms = $con->list_defined_domains();
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$error = "Domain $vmName already defined\n";
-#				return $error;
-#			}
-#		}
-#		@doms = $con->list_domains();
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$error = "Domain $vmName already defined and started\n";
-#				return $error;
-#			}
-#		}
-#
-#		my $domain = $con->create_domain($xmlstring);
-#
-#		# save pid in run dir
-#		my $uuid = $domain->get_uuid_string();
-#		$execution->execute( "ps aux | grep kvm | grep " 
-#			  . $uuid
-#			  . " | grep -v grep | awk '{print \$2}' > "
-#			  . $dh->get_run_dir($vmName)
-#			  . "/pid" );
-#
-#		$execution->execute("virt-viewer $vmName &");
-#		
-#        return $error;
-#	}
-#	
-#	###################################################################
-#	#                  createVM for libvirt-kvm-linux/freebsd         #
-#	###################################################################
-#	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
-#
-#		#Save xml received in vnxboot, for the autoconfiguration
-#		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
-#		open CONFILE, ">$path" . "vnxboot"
-#		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#
-#		#$execution->execute($doc ,*CONFILE);
-#		print CONFILE "$doc\n";
-#
-#		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
-#			  . " -l -R -quiet -o $filesystem_small $path" );
-#		$execution->execute(
-#			$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
-#
-#		my $parser       = new XML::DOM::Parser;
-#		my $dom          = $parser->parse($doc);
-#		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-#		my $virtualmList = $globalNode->getElementsByTagName("vm");
-#		my $virtualm     = $virtualmList->item($0);
-#
-#		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-#		my $filesystemTag     = $filesystemTagList->item($0);
-#		my $filesystem_type   = $filesystemTag->getAttribute("type");
-#		my $filesystem        = $filesystemTag->getFirstChild->getData;
-#
-#		if ( $filesystem_type eq "cow" ) {
-#
-#			# If cow file does not exist, we create it
-#			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
-#
-#				$execution->execute( "qemu-img"
-#					  . " create -b $filesystem -f qcow2 "
-#					  . $dh->get_fs_dir($vmName)
-#					  . "/root_cow_fs" );
-#
-#			}
-#			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
-#		}
-#
-#		# memory
-#		my $memTagList = $virtualm->getElementsByTagName("mem");
-#		my $memTag     = $memTagList->item($0);
-#		my $mem        = $memTag->getFirstChild->getData;
-#
-#		# create XML for libvirt
-#		my $init_xml;
-#		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
-#		my $domain_tag = $init_xml->createElement('domain');
-#		$init_xml->addChild($domain_tag);
-#		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-#
-#		my $name_tag = $init_xml->createElement('name');
-#		$domain_tag->addChild($name_tag);
-#
-#		#name
-#		$name_tag->addChild( $init_xml->createTextNode($vmName) );
-#
-#		my $memory_tag = $init_xml->createElement('memory');
-#		$domain_tag->addChild($memory_tag);
-#
-#		#memory
-#		$memory_tag->addChild( $init_xml->createTextNode($mem) );
-#
-#		my $vcpu_tag = $init_xml->createElement('vcpu');
-#		$domain_tag->addChild($vcpu_tag);
-#
-#		#vcpu
-#		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
-#
-#		my $os_tag = $init_xml->createElement('os');
-#		$domain_tag->addChild($os_tag);
-#		my $type_tag = $init_xml->createElement('type');
-#		$os_tag->addChild($type_tag);
-#		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
-#		$type_tag->addChild( $init_xml->createTextNode("hvm") );
-#		my $boot1_tag = $init_xml->createElement('boot');
-#		$os_tag->addChild($boot1_tag);
-#		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
-#		my $boot2_tag = $init_xml->createElement('boot');
-#		$os_tag->addChild($boot2_tag);
-#		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
-#
-#		my $features_tag = $init_xml->createElement('features');
-#		$domain_tag->addChild($features_tag);
-#		my $pae_tag = $init_xml->createElement('pae');
-#		$features_tag->addChild($pae_tag);
-#		my $acpi_tag = $init_xml->createElement('acpi');
-#		$features_tag->addChild($acpi_tag);
-#		my $apic_tag = $init_xml->createElement('apic');
-#		$features_tag->addChild($apic_tag);
-#
-#		my $clock_tag = $init_xml->createElement('clock');
-#		$domain_tag->addChild($clock_tag);
-#		$clock_tag->addChild(
-#			$init_xml->createAttribute( sync => "localtime" ) );
-#
-#		my $devices_tag = $init_xml->createElement('devices');
-#		$domain_tag->addChild($devices_tag);
-#
-#		my $emulator_tag = $init_xml->createElement('emulator');
-#		$devices_tag->addChild($emulator_tag);
-#		$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
-#
-#		my $disk1_tag = $init_xml->createElement('disk');
-#		$devices_tag->addChild($disk1_tag);
-#		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-#		$disk1_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
-#		my $source1_tag = $init_xml->createElement('source');
-#		$disk1_tag->addChild($source1_tag);
-#		$source1_tag->addChild(
-#			$init_xml->createAttribute( file => $filesystem ) );
-#		my $target1_tag = $init_xml->createElement('target');
-#		$disk1_tag->addChild($target1_tag);
-#		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
-#
-#		my $disk2_tag = $init_xml->createElement('disk');
-#		$devices_tag->addChild($disk2_tag);
-#		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-#		$disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
-#		my $source2_tag = $init_xml->createElement('source');
-#		$disk2_tag->addChild($source2_tag);
-#		$source2_tag->addChild(
-#			$init_xml->createAttribute( file => $filesystem_small ) );
-#		my $target2_tag = $init_xml->createElement('target');
-#		$disk2_tag->addChild($target2_tag);
-#		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
-#
-#		my $ifTagList = $virtualm->getElementsByTagName("if");
-#		my $numif     = $ifTagList->getLength;
-#
-#		for ( my $j = 0 ; $j < $numif ; $j++ ) {
-#			my $ifTag = $ifTagList->item($j);
-#			my $id    = $ifTag->getAttribute("id");
-#			my $net   = $ifTag->getAttribute("net");
-#			my $mac   = $ifTag->getAttribute("mac");
-#
-#			my $interface_tag = $init_xml->createElement('interface');
-#			$devices_tag->addChild($interface_tag);
-#			$interface_tag->addChild(
-#				$init_xml->createAttribute( type => 'bridge' ) );
-#			$interface_tag->addChild(
-#				$init_xml->createAttribute( name => "eth" . $id ) );
-#			$interface_tag->addChild(
-#				$init_xml->createAttribute( onboot => "yes" ) );
-#			my $source_tag = $init_xml->createElement('source');
-#			$interface_tag->addChild($source_tag);
-#			$source_tag->addChild(
-#				$init_xml->createAttribute( bridge => $net ) );
-#			my $mac_tag = $init_xml->createElement('mac');
-#			$interface_tag->addChild($mac_tag);
-#			$mac =~ s/,//;
-#			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
-#
-#		}
-#
-#		my $graphics_tag = $init_xml->createElement('graphics');
-#		$devices_tag->addChild($graphics_tag);
-#		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-## DFC		my $vnc_port;
-##		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-##			my $vm = $vm_ordered[$i];
-##
-##			# To get name attribute
-##			my $name = $vm->getAttribute("name");
-##			if ( $vmName eq $name ) {
-##				$vnc_port = $vm_vnc_port{$name} = 6900 + $i;
-##			}
-##		}
-##		$graphics_tag->addChild(
-##			$init_xml->createAttribute( port => $vnc_port ) );
-#
-#		#[JSF] falta sacar la ip host
-#		$graphics_tag->addChild(
-#			$init_xml->createAttribute( listen => $ip_host ) );
-#
-#		my $serial_tag = $init_xml->createElement('serial');
-#		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
-#		$devices_tag->addChild($serial_tag);
-#
-#		# $devices_tag->addChild($disk2_tag);
-#		my $source3_tag = $init_xml->createElement('source');
-#		$serial_tag->addChild($source3_tag);
-#		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-#		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
-#		my $target_tag = $init_xml->createElement('target');
-#		$serial_tag->addChild($target_tag);
-#		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
-#
-##   ############<graphics type='sdl' display=':0.0'/>
-##      my $graphics_tag2 = $init_xml->createElement('graphics');
-##      $devices_tag->addChild($graphics_tag2);
-##      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
-##      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
-##      $disp = $ENV{'DISPLAY'};
-##      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
-##
-##
-##   ############
-#
-#		my $addr = "qemu:///system";
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#		my $format    = 1;
-#		my $xmlstring = $init_xml->toString($format);
-#
-#		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
-#		  or $execution->smartdie(
-#			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml')
-#		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#		print XML_FILE "$xmlstring\n";
-#		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#
-#
-#        # check that the domain is not already defined or started
-#        my @doms = $con->list_defined_domains();
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$error = "Domain $vmName already defined\n";
-#				return $error;
-#			}
-#		}
-#		@doms = $con->list_domains();
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$error = "Domain $vmName already defined and started\n";
-#				return $error;
-#			}
-#		}
-#
-#		my $domain = $con->create_domain($xmlstring);
-#
-#		# save pid in run dir
-#		my $uuid = $domain->get_uuid_string();
-#		$execution->execute( "ps aux | grep kvm | grep " 
-#			  . $uuid
-#			  . " | grep -v grep | awk '{print \$2}' > "
-#			  . $dh->get_run_dir($vmName)
-#			  . "/pid" );
-#
-#		$execution->execute("virt-viewer $vmName &");
-#		
-#        return $error;
-#        
-#	}
-#	else {
-#		$error = "createVM for type $type not implemented yet.\n";
-#		return $error;
-#	}
-#}
-#
-#
+
 #
 ####################################################################
 ##                                                                 #
@@ -1795,60 +875,14 @@ sub destroyVM{
     $line = $t->getline; print $line;
     $t->print("vm delete $vmName");
     $line = $t->getline; print $line;
+    $t->print("hypervisor reset");
+   	$line = $t->getline; print $line;
     #$t->print("hypervisor reset");
     #$line = $t->getline; print $line;
     $t->close;
 
 }
-#sub destroyVM {
-#
-#	my $self   = shift;
-#	my $vmName = shift;
-#	my $type   = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
-#
-#	my $error = 0;
-#	
-#	###################################################################
-#	#                  destroyVM for libvirt-kvm-windows/linux/freebsd#
-#	###################################################################
-#	if ( ( $type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
-#
-#		my $addr = "qemu:///system";
-#
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my @doms = $con->list_domains();
-#
-#		$error = "Domain does not exist\n";
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$listDom->destroy();
-#				print "Domain destroyed\n";
-#
-#				# Delete vm directory (DFC 21/01/2010)
-#				$error = 0;
-#				last;
-#
-#			}
-#		}
-#
-#		# Remove vm fs directory (cow and iso filesystems)
-#		$execution->execute( "rm " . $dh->get_fs_dir($vmName) . "/*" );
-#		return $error;
-#
-#	}
-#	else {
-#		$error = "Tipo aun no soportado...\n";
-#		return $error;
-#	}
-#}
-#
+
 #
 #
 ####################################################################
@@ -1876,172 +910,15 @@ sub startVM {
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
     $t->print("vm start $vmName");
-    $line = $t->getline; print $line;
+    $line = $t->getline; 
+    print $line;
     
-#    my $ifTagList = $virtualm->getElementsByTagName("if");
-#	my $numif     = $ifTagList->getLength;
-#
-#	for ( my $j = 0 ; $j < $numif ; $j++ ) {
-##			my $ifTag = $ifTagList->item($j);
-##			my $id    = $ifTag->getAttribute("id");
-#			my $net   = $ifTag->getAttribute("net");
-##			my $mac   = $ifTag->getAttribute("mac");
-##
-##			my $interface_tag = $init_xml->createElement('interface');
-##			$devices_tag->addChild($interface_tag);
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( type => 'bridge' ) );
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( name => "eth" . $id ) );
-##			$interface_tag->addChild(
-##				$init_xml->createAttribute( onboot => "yes" ) );
-##			my $source_tag = $init_xml->createElement('source');
-##			$interface_tag->addChild($source_tag);
-##			$source_tag->addChild(
-##				$init_xml->createAttribute( bridge => $net ) );
-##			my $mac_tag = $init_xml->createElement('mac');
-##			$interface_tag->addChild($mac_tag);
-##			$mac =~ s/,//;
-##			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
-#			$execution->execute("ifconfig $vmName-$j up");
-#			$execution->execute("brctl addif $net $vmName-$j");
-#			#$t->print("nio create_tap nio_tap $j $vmName-$j");
-#    		#$line = $t->getline; print $line;
-#    		#$t->print("vm slot_add_nio_binding $vmName 0 $j nio_tap $j");
-#    		#$line = $t->getline; print $line;
-#	
-#		}
-#    
     
-	my $consoleportbase = "900";
-	my $consoleport = $consoleportbase + $counter;
-    
-    $execution->execute("gnome-terminal -t $vmName -e 'telnet $HHOST $consoleport' >/dev/null 2>&1 &");
+	my $consoleport=&get_port_conf($vmName,$counter);
+    $execution->execute("xterm -title Dynamips_$vmName -e 'telnet $HHOST $consoleport' >/dev/null 2>&1 &");
 }
 
-#sub startVM {
-#
-#	my $self   = shift;
-#	my $vmName = shift;
-#	my $type   = shift;
-#	my $doc    = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	my $dh           = shift;
-#	my $sock         = shift;
-#	my $manipcounter = shift;
-#
-#	my $error;
-#
-#	###################################################################
-#	#                  startVM for libvirt-kvm-windows                #
-#	###################################################################
-#	if ( $type eq "libvirt-kvm-windows" ) {
-#		my $addr = "qemu:///system";
-#
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my @doms = $con->list_defined_domains();
-#
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$listDom->create();
-#				print "Domain started\n";
-#
-#				# save pid in run dir
-#				my $uuid = $listDom->get_uuid_string();
-#				$execution->execute( "ps aux | grep kvm | grep " 
-#					  . $uuid
-#					  . " | grep -v grep | awk '{print \$2}' > "
-#					  . $dh->get_run_dir($vmName)
-#					  . "/pid" );
-#
-#				$execution->execute("virt-viewer $vmName &");
-#
-#		my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type,$dh->get_vmmgmt_net,$dh->get_vmmgmt_mask,$dh->get_vmmgmt_offset,$dh->get_vmmgmt_hostip, 2 );
-#
-#		# If host_mapping is in use, append trailer to /etc/hosts config file
-#
-#		if ( $dh->get_host_mapping ) {
-#
-#			#@host_lines = ( @host_lines, $net->addr() . " $vm_name" );
-#			#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
-#			open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
-#				or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
-#				unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			print HOSTLINES $net->addr() . " $vmName\n";
-#			close HOSTLINES;
-#		}
-#
-#				$error = 0;
-#				return $error;
-#			}
-#		}
-#		$error = "Domain does not exist\n";
-#		return $error;
-#
-#	}
-#	###################################################################
-#	#                  startVM for libvirt-kvm-linux/freebsd          #
-#	###################################################################
-#	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
-#		my $addr = "qemu:///system";
-#
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my @doms = $con->list_defined_domains();
-#
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$listDom->create();
-#				print "Domain started\n";
-#
-#				# save pid in run dir
-#				my $uuid = $listDom->get_uuid_string();
-#				$execution->execute( "ps aux | grep kvm | grep " 
-#					  . $uuid
-#					  . " | grep -v grep | awk '{print \$2}' > "
-#					  . $dh->get_run_dir($vmName)
-#					  . "/pid" );
-#
-#				$execution->execute("virt-viewer $vmName &");
-#
-#
-#		my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type,$dh->get_vmmgmt_net,$dh->get_vmmgmt_mask,$dh->get_vmmgmt_offset,$dh->get_vmmgmt_hostip, 2 );
-#
-#		# If host_mapping is in use, append trailer to /etc/hosts config file
-#
-#		if ( $dh->get_host_mapping ) {
-#
-#			#@host_lines = ( @host_lines, $net->addr() . " $vm_name" );
-#			#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
-#			open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
-#				or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
-#				unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			print HOSTLINES $net->addr() . " $vmName\n";
-#			close HOSTLINES;
-#		}
-#
-#				$error = 0;
-#				return $error;
-#			}
-#		}
-#		$error = "Domain does not exist\n";
-#		return $error;
-#
-#	}
-#	else {
-#		$error = "Type is not yet supported\n";
-#		return $error;
-#	}
-#}
-#
+
 #
 #
 ####################################################################
@@ -2071,60 +948,9 @@ sub shutdownVM{
     $t->print("vm stop $vmName");
     $line = $t->getline; print $line;
     $t->close;
-
-	
+	sleep(2);	
 }
-#sub shutdownVM {
-#
-#	my $self   = shift;
-#	my $vmName = shift;
-#	my $type   = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
-#	$F_flag    = shift;
-#
-#	my $error = 0;
-#
-#	# Sample code
-#	print "Shutting down vm $vmName of type $type\n";
-#
-#   	###################################################################
-#	#                 shutdownVM for libvirt-kvm-windows/linux/freebsd#
-#	###################################################################
-#	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
-#		my $addr = "qemu:///system";
-#
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my @doms = $con->list_domains();
-#
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#
-#				$listDom->shutdown();
-#				&change_vm_status( $dh, $vmName, "REMOVE" );
-#
-#				# remove run directory (de momento no se puede porque necesitamos saber a que pid esperar)
-##				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) );
-#
-#				print "Domain shut down\n";
-#				return $error;
-#			}
-#		}
-#		$error = "Domain does not exist..\n";
-#		return $error;
-#
-#	}
-#	else {
-#		$error = "Type is not yet supported\n";
-#		return $error;
-#	}
-#}
-#
+
 #
 #
 ####################################################################
@@ -2156,75 +982,6 @@ sub saveVM{
     $t->close;
 	
 }
-#sub saveVM {
-#
-#	my $self     = shift;
-#	my $vmName   = shift;
-#	my $type     = shift;
-#	my $filename = shift;
-#	$dh        = shift;
-#	$bd        = shift;
-#	$execution = shift;
-#	
-#
-#	my $error = 0;
-#
-#	# Sample code
-#	print "dummy plugin: saving vm $vmName of type $type\n";
-#
-#	if ( $type eq "libvirt-kvm" ) {
-#		my $addr = "qemu:///system";
-#
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my @doms = $con->list_domains();
-#
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$listDom->save($filename);
-#				print "Domain saved to file $filename\n";
-#				&change_vm_status( $dh, $vmName, "paused" );
-#				return $error;
-#			}
-#		}
-#		$error = "Domain does not exist..\n";
-#		return $error;
-#
-#	}
-#	###################################################################
-#	#                  saveVM for libvirt-kvm-windows/linux/freebsd   #
-#	###################################################################
-#	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
-#		my $addr = "qemu:///system";
-#
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my @doms = $con->list_domains();
-#
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$listDom->save($filename);
-#				print "Domain saved to file $filename\n";
-#				&change_vm_status( $dh, $vmName, "paused" );
-#				return $error;
-#			}
-#		}
-#		$error = "Domain does not exist...\n";
-#		return $error;
-#
-#	}
-#	else {
-#		$error = "Type $type is not yet supported\n";
-#		return $error;
-#	}
-#}
-#
 #
 #
 ####################################################################
@@ -2245,53 +1002,22 @@ sub restoreVM{
 	$dh        = shift;
 	$F_flag    = shift;
 		print "-----------------------------\n";
-    print "Shutdowning router: $vmName\n";
+    print "Rebooting router: $vmName\n";
 	
 
 	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
-    
+    sleep(2);
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
     $t->print("vm stop $vmName");
     $line = $t->getline; print $line;
+    sleep(2);
     $t->print("vm start $vmName");
     $line = $t->getline; print $line;
     $t->close;
 	
 }
-#sub restoreVM {
-#
-#	my $self     = shift;
-#	my $vmName   = shift;
-#	my $type     = shift;
-#	my $filename = shift;
-#
-#	my $error = 0;
-#
-#	print
-#	  "dummy plugin: restoring vm $vmName of type $type from file $filename\n";
-#
-# 	###################################################################
-#	#                  restoreVM for libvirt-kvm-windows/linux/freebsd#
-#	###################################################################
-#	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
-#		my $addr = "qemu:///system";
-#		print "Connecting to $addr...\n";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my $dom = $con->restore_domain($filename);
-#		print("Domain restored from file $filename\n");
-#		&change_vm_status( $dh, $vmName, "running" );
-#		return $error;
-#
-#	}
-#	else {
-#		$error = "Type is not yet supported\n";
-#		return $error;
-#	}
-#}
-#
+
 #
 #
 ####################################################################
@@ -2323,45 +1049,7 @@ sub suspendVM{
     $t->close;
 	
 }
-#sub suspendVM {
-#
-#	my $self   = shift;
-#	my $vmName = shift;
-#	my $type   = shift;
-#
-#	my $error = 0;
-#
-#	###################################################################
-#	#                  suspendVM for libvirt-kvm-windows/linux/freebsd#
-#	###################################################################
-#    if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
-#		my $addr = "qemu:///system";
-#
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my @doms = $con->list_domains();
-#
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$listDom->suspend();
-#				print "Domain suspended\n";
-#				return $error;
-#			}
-#		}
-#		$error = "Domain does not exist.\n";
-#		return $error;
-#
-#	}
-#	else {
-#		$error = "Type is not yet supported\n";
-#		return $error;
-#	}
-#}
-#
-#
+
 #
 ####################################################################
 ##                                                                 #
@@ -2392,49 +1080,7 @@ sub resumeVM{
     $t->close;
 	
 }
-#sub resumeVM {
-#
-#	my $self   = shift;
-#	my $vmName = shift;
-#	my $type   = shift;
-#
-#	my $error = 0;
-#
-#	# Sample code
-#	print "dummy plugin: resuming vm $vmName\n";
-#
-#	###################################################################
-#	#                  resumeVM for libvirt-kvm-windows/linux/freebsd #
-#	###################################################################
-#	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
-#		my $addr = "qemu:///system";
-#
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my @doms = $con->list_domains();
-#
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$listDom->resume();
-#				print "Domain resumed\n";
-#				return $error;
-#			}
-#		}
-#		$error = "Domain does not exist.\n";
-#		return $error;
-#
-#	}
-#	else {
-#		$error = "Type is not yet supported\n";
-#		return $error;
-#	}
-#}
-#
-#
-#
+
 ####################################################################
 ##                                                                 #
 ##   rebootVM                                                      #
@@ -2456,58 +1102,19 @@ sub rebootVM{
 	
 
 	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
-    
+        sleep(2);
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
     $t->print("vm stop $vmName");
     $line = $t->getline; print $line;
+        sleep(2);
     $t->print("vm start $vmName");
     $line = $t->getline; print $line;
     $t->close;
 
 	
 }
-#sub rebootVM {
-#
-#	my $self   = shift;
-#	my $vmName = shift;
-#	my $type   = shift;
-#
-#	my $error = 0;
-#
-#	###################################################################
-#	#                  rebootVM for libvirt-kvm-windows/linux/freebsd #
-#	###################################################################
-#	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
-#		my $addr = "qemu:///system";
-#
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my @doms = $con->list_domains();
-#
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$listDom->reboot($Sys::Virt::Domain::REBOOT_RESTART);
-#				print "Domain rebooting\n";
-#				return $error;
-#			}
-#		}
-#		$error = "Domain does not exist\n";
-#		return $error;
-#
-#	}
-#	else {
-#		$error = "Type is not yet supported\n";
-#		return $error;
-#	}
-#
-#}
-#
-#
-#
+
 ####################################################################
 ##                                                                 #
 ##   resetVM                                                       #
@@ -2529,59 +1136,18 @@ sub resetVM{
 	
 
 	$RIOSFILE="/usr/share/vnx/filesystems/c3640";
-    
+        sleep(2);
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $HHOST, Port => $HPORT);
     $t->print("vm stop $vmName");
     $line = $t->getline; print $line;
+        sleep(2);
     $t->print("vm start $vmName");
     $line = $t->getline; print $line;
     $t->close;
 	
 }
-#sub resetVM {
-#
-#	my $self   = shift;
-#	my $vmName = shift;
-#	my $type   = shift;
-#
-#	my $error;
-#
-#	# Sample code
-#	print "dummy plugin: reseting vm $vmName\n";
-#
-#	###################################################################
-#	#                  resetVM for libvirt-kvm-windows/linux/freebsd  #
-#	###################################################################
-#	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
-#		my $addr = "qemu:///system";
-#
-#		print "Connecting to $addr...";
-#		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
-#		print "OK\n";
-#
-#		my @doms = $con->list_domains();
-#
-#		foreach my $listDom (@doms) {
-#			my $dom_name = $listDom->get_name();
-#			if ( $dom_name eq $vmName ) {
-#				$listDom->reboot(&Sys::Virt::Domain::REBOOT_DESTROY);
-#				print "Domain reset";
-#				$error = 0;
-#				return $error;
-#			}
-#		}
-#		$error = "Domain does not exist\n";
-#		return $error;
-#
-#	}else {
-#		$error = "Type is not yet supported\n";
-#		return $error;
-#	}
-#}
-#
-#
-#
+
 ####################################################################
 ##                                                                 #
 ##   executeCMD                                                    #
@@ -2599,1048 +1165,822 @@ sub executeCMD{
 	$dh        = shift;
 	my $vm    = shift;
 	my $name = shift;
-	
-	my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1',
-										  Port => '900');
-	my @output = $session->cmd('show version');
-	
-	
-}
-#sub executeCMD {
-#
-#	my $self = shift;
-#	my $merged_type = shift;
-#	my $seq  = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
-#	my $vm    = shift;
-#	my $name = shift;
-#
-#	#Commands sequence (start, stop or whatever).
-#
-#	# Previous checkings and warnings
-##	my @vm_ordered = $dh->get_vm_ordered;
-##	my %vm_hash    = $dh->get_vm_to_use(@plugins);
-#
-#	# First loop: look for uml_mconsole exec capabilities if needed. This
-#	# loop can cause exit, if capabilities are not accomplished
-#my $random_id  = &generate_random_string(6);
-#
-#		if ( $merged_type eq "libvirt-kvm-windows" ) {
-#			############ WINDOWS ##############
-#			############ FILETREE ##############
-#			my @filetree_list = $dh->merge_filetree($vm);
-#			my $user   = &get_user_in_seq( $vm, $seq );
-#			my $mode   = &get_vm_exec_mode($vm);
-#			my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name)  . " filetree.XXXXXX";
-#			open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			my $verb_prompt_bk = $execution->get_verb_prompt();
-#			# FIXME: consider to use a different new VNX::Execution object to perform this
-#			# actions (avoiding this nasty verb_prompt backup)
-#			$execution->set_verb_prompt("$name> ");
-#			my $shell      = $dh->get_default_shell;
-#			my $shell_list = $vm->getElementsByTagName("shell");
-#			if ( $shell_list->getLength == 1 ) {
-#				$shell = &text_tag( $shell_list->item(0) );
-#			}
-#			my $date_command = $bd->get_binaries_path_ref->{"date"};
-#			chomp( my $now = `$date_command` );
-#			my $basename = basename $0;
-#			$execution->execute( "<filetrees>", *COMMAND_FILE );
-#			# Insert random id number for the command file
-#			my $fileid = $name . "-" . &generate_random_string(6);
-#			$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
-#			my $countfiletree = 0;
-#			chomp( my $filetree_host = `$command` );
-#			$filetree_host =~ /filetree\.(\w+)$/;
-#			$execution->execute("mkdir " . $filetree_host ."/destination");
-#			foreach my $filetree (@filetree_list) {
-#				# To get momment
-#				my $filetree_seq = $filetree->getAttribute("seq");
-#				# To install subtree (only in the right momment)
-#				# FIXME: think again the "always issue"; by the moment deactivated
-#				if ( $filetree_seq eq $seq ) {
-#					$countfiletree++;
-#					my $src;
-#					my $filetree_value = &text_tag($filetree);
-#					if ( $filetree_value =~ /^\// ) {
-#					# Absolute pathname
-#					$src = &do_path_expansion($filetree_value);
-#					}
-#					else {
-#						# Relative pahtname
-#						if ( $basedir eq "" ) {
-#						# Relative to xml_dir
-#							$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
-#						}
-#						else {
-#						# Relative to basedir
-#							$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
-#						}
-#					}
-#					$src = &chompslash($src);
-#					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
-#					
-#					$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
-#					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
-#					my %file_perms = &save_dir_permissions($filetree_host);
-#					my $dest = $filetree->getAttribute("root");
-#					my $filetreetxt = $filetree->toString(1);
-#					$execution->execute( "$filetreetxt", *COMMAND_FILE );
-#				}
-#			}
-#			$execution->execute( "</filetrees>", *COMMAND_FILE );
-#			close COMMAND_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			
-#			open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |") || die "Failed: $!\n";
-#			my $dimension = <DU>;
-#			$dimension = $dimension + 20;
-#			my $dimensiondisk = $dimension + 30;
-#			close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var3 = substr(var,length(var),length(var)+1); print var3} ' |") || die "Failed: $!\n";
-#			my $unit = <DU>;
-#			close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			if ($countfiletree > 0){
-#				if (   ( $unit eq "K\n" || $unit eq "B\n" )|| ( ( $unit eq "M\n" ) && ( $dimension <= 32 ) ) ){
-#					$unit          = 'M';
-#					$dimension     = 32;
-#					$dimensiondisk = 50;
-#				}
-#				$execution->execute("mkdir /tmp/disk.$random_id");
-#				$execution->execute("mkdir  /tmp/disk.$random_id/destination");
-#				$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "$filetree_host" );
-#				#$execution->execute( "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/destination" );
-#				$execution->execute("mkisofs -R -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
-#				
-#								
-#				my $disk_filetree_windows_xml;
-#				$disk_filetree_windows_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
-#				
-#				my $disk_filetree_windows_tag = $disk_filetree_windows_xml->createElement('disk');
-#				$disk_filetree_windows_xml->addChild($disk_filetree_windows_tag);
-#				$disk_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( type => "file" ) );
-#				$disk_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( device => "cdrom" ) );
-#				
-#				my $driver_filetree_windows_tag =$disk_filetree_windows_xml->createElement('driver');
-#				$disk_filetree_windows_tag->addChild($driver_filetree_windows_tag);
-#				$driver_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( name => "qemu" ) );
-#				$driver_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( cache => "default" ) );
-#				
-#				my $source_filetree_windows_tag =$disk_filetree_windows_xml->createElement('source');
-#				$disk_filetree_windows_tag->addChild($source_filetree_windows_tag);
-#				$source_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( file => "/tmp/disk.$random_id.iso" ) );
-#				
-#				my $target_filetree_windows_tag =$disk_filetree_windows_xml->createElement('target');
-#				$disk_filetree_windows_tag->addChild($target_filetree_windows_tag);
-#				$target_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( dev => "hdb" ) );
-#				
-#				my $readonly_filetree_windows_tag =$disk_filetree_windows_xml->createElement('readonly');
-#				$disk_filetree_windows_tag->addChild($readonly_filetree_windows_tag);
-#				my $format_filetree_windows   = 1;
-#				my $xmlstring_filetree_windows = $disk_filetree_windows_xml->toString($format_filetree_windows );
-#				
-#				$execution->execute("rm ". $dh->get_hostfs_dir($name) . "/filetree_libvirt.xml"); 
-#				open XML_FILETREE_WINDOWS_FILE, ">" . $dh->get_hostfs_dir($name) . '/' . 'filetree_libvirt.xml'
-#		 			 or $execution->smartdie("can not open " . $dh->get_hostfs_dir . '/' . 'filetree_libvirt.xml' )
-#		  		unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#				print XML_FILETREE_WINDOWS_FILE "$xmlstring_filetree_windows\n";
-#				close XML_FILETREE_WINDOWS_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#				
-#				
-#				
-#				#$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
-#				$execution->execute("virsh -c qemu:///system 'attach-device \"$name\" ". $dh->get_hostfs_dir($name) . "/filetree_libvirt.xml'");
-#				print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
-#				waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
-#				sleep(4);
-#				# 3d. Cleaning
-#				$execution->execute("rm /tmp/disk.$random_id.iso");
-#				$execution->execute("rm -r /tmp/disk.$random_id");
-#				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" );
-#				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -r " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" );
-#				$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf $filetree_host" );
-#				$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id" );
-#				$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree.xml" );
-#				$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id.end" );
-#			}
-#			############ COMMAND_FILE ########################
-#			# We open file
-#			open COMMAND_FILE,">" . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" or $execution->smartdie("can not open " . $dh->get_tmp_dir . "/vnx.$name.$seq: $!" )
-#			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#
-#			# FIXME: consider to use a different new VNX::Execution object to perform this
-#			# actions (avoiding this nasty verb_prompt backup)
-#			$execution->set_verb_prompt("$name> ");
-#			my $command = $bd->get_binaries_path_ref->{"date"};
-#			chomp( my $now = `$command` );
-#
-#			# To process exec tags of matching commands sequence
-#			my $command_list = $vm->getElementsByTagName("exec");
-#
-#			# To process list, dumping commands to file
-#			$execution->execute( "<command>", *COMMAND_FILE );
-#			
-#			# Insert random id number for the command file
-#			my $fileid = $name . "-" . &generate_random_string(6);
-#			$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
-#			my $countcommand = 0;
-#			for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
-#				my $command = $command_list->item($j);	
-#				# To get attributes
-#				my $cmd_seq = $command->getAttribute("seq");
-#				if ( $cmd_seq eq $seq ) {
-#					my $type = $command->getAttribute("type");
-#					# Case 1. Verbatim type
-#					if ( $type eq "verbatim" ) {
-#						# Including command "as is"
-#						my $comando = $command->toString(1);
-#						$execution->execute( $comando, *COMMAND_FILE );
-#						$countcommand = $countcommand + 1;
-#					}
-#
-#					# Case 2. File type
-#					elsif ( $type eq "file" ) {
-#						# We open the file and write commands line by line
-#						my $include_file =  &do_path_expansion( &text_tag($command) );
-#						open INCLUDE_FILE, "$include_file"
-#						  or $execution->smartdie("can not open $include_file: $!");
-#						while (<INCLUDE_FILE>) {
-#							chomp;
-#							$execution->execute(
-#								#"<exec seq=\"file\" type=\"file\">" 
-#								  #. $_
-#								  #. "</exec>",
-#								  $_,
-#								*COMMAND_FILE
-#							);
-#							$countcommand = $countcommand + 1;
-#						}
-#						close INCLUDE_FILE;
-#					}
-#
-#			 # Other case. Don't do anything (it would be and error in the XML!)
-#				}
-#			}
-#			$execution->execute( "</command>", *COMMAND_FILE );
-#			# We close file and mark it executable
-#			close COMMAND_FILE
-#			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			$execution->set_verb_prompt($verb_prompt_bk);
-#			$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_tmp_dir  . "/vnx.$name.$seq.$random_id" );
-#			############# INSTALL COMMAND FILES #############
-#			# Nothing to do in ibvirt mode
-#			############# EXEC_COMMAND_FILE #################
-#			
-#			if ( $countcommand != 0 ) {
-#				$execution->execute("mkdir /tmp/diskc.$seq.$random_id");
-#				$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
-#				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
-#				
-#				my $disk_command_windows_xml;
-#				$disk_command_windows_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
-#				
-#				my $disk_command_windows_tag = $disk_command_windows_xml->createElement('disk');
-#				$disk_command_windows_xml->addChild($disk_command_windows_tag);
-#				$disk_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( type => "file" ) );
-#				$disk_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( device => "cdrom" ) );
-#				
-#				my $driver_command_windows_tag =$disk_command_windows_xml->createElement('driver');
-#				$disk_command_windows_tag->addChild($driver_command_windows_tag);
-#				$driver_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( name => "qemu" ) );
-#				$driver_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( cache => "default" ) );
-#				
-#				my $source_command_windows_tag =$disk_command_windows_xml->createElement('source');
-#				$disk_command_windows_tag->addChild($source_command_windows_tag);
-#				$source_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( file => "/tmp/diskc.$seq.$random_id.iso" ) );
-#				
-#				my $target_command_windows_tag =$disk_command_windows_xml->createElement('target');
-#				$disk_command_windows_tag->addChild($target_command_windows_tag);
-#				$target_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( dev => "hdb" ) );
-#				
-#				my $readonly_command_windows_tag =$disk_command_windows_xml->createElement('readonly');
-#				$disk_command_windows_tag->addChild($readonly_command_windows_tag);
-#				my $format_command_windows   = 1;
-#				my $xmlstring_command_windows = $disk_command_windows_xml->toString($format_command_windows );
-#				
-#				$execution->execute("rm ". $dh->get_hostfs_dir($name) . "/command_libvirt.xml"); 
-#				
-#				open XML_COMMAND_WINDOWS_FILE, ">" . $dh->get_hostfs_dir($name) . '/' . 'command_libvirt.xml'
-#		 			 or $execution->smartdie("can not open " . $dh->get_hostfs_dir . '/' . 'command_libvirt.xml' )
-#		  		unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#				print XML_COMMAND_WINDOWS_FILE "$xmlstring_command_windows\n";
-#				close XML_COMMAND_WINDOWS_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#				$execution->execute("virsh -c qemu:///system 'attach-device \"$name\" ". $dh->get_hostfs_dir($name) . "/command_libvirt.xml'");
-#				#$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
-#				print "Sending command to client... \n";
-#				waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
-#				$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
-#				$execution->execute("rm -r /tmp/diskc.$seq.$random_id");
-#				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" );
-#			    sleep(2);
-#			}
-#			
-#
-#		}elsif (($merged_type eq "libvirt-kvm-linux")||($merged_type eq "libvirt-kvm-freebsd")){
-#			############### LINUX ####################
-#			############### FILETREE #################
-#			my @filetree_list = $dh->merge_filetree($vm);
-#			my $user   = &get_user_in_seq( $vm, $seq );
-#			my $mode   = &get_vm_exec_mode($vm);
-#			my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name)  . " filetree.XXXXXX";
-#			open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			my $verb_prompt_bk = $execution->get_verb_prompt();
-#			# FIXME: consider to use a different new VNX::Execution object to perform this
-#			# actions (avoiding this nasty verb_prompt backup)
-#			$execution->set_verb_prompt("$name> ");
-#			my $shell      = $dh->get_default_shell;
-#			my $shell_list = $vm->getElementsByTagName("shell");
-#			if ( $shell_list->getLength == 1 ) {
-#				$shell = &text_tag( $shell_list->item(0) );
-#			}
-#			my $date_command = $bd->get_binaries_path_ref->{"date"};
-#			chomp( my $now = `$date_command` );
-#			my $basename = basename $0;
-#			$execution->execute( "<filetrees>", *COMMAND_FILE );
-#			# Insert random id number for the command file
-#			my $fileid = $name . "-" . &generate_random_string(6);
-#			$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
-#			my $countfiletree = 0;
-#			chomp( my $filetree_host = `$command` );
-#			$filetree_host =~ /filetree\.(\w+)$/;
-#			$execution->execute("mkdir " . $filetree_host ."/destination");
-#			foreach my $filetree (@filetree_list) {
-#				# To get momment
-#				my $filetree_seq = $filetree->getAttribute("seq");
-#				# To install subtree (only in the right momment)
-#				# FIXME: think again the "always issue"; by the moment deactivated
-#				if ( $filetree_seq eq $seq ) {
-#					$countfiletree++;
-#					my $src;
-#					my $filetree_value = &text_tag($filetree);
-#					if ( $filetree_value =~ /^\// ) {
-#					# Absolute pathname
-#					$src = &do_path_expansion($filetree_value);
-#					}
-#					else {
-#						# Relative pahtname
-#						if ( $basedir eq "" ) {
-#						# Relative to xml_dir
-#							$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
-#						}
-#						else {
-#						# Relative to basedir
-#							$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
-#						}
-#					}
-#					$src = &chompslash($src);
-#					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
-#					
-#					$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
-#					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
-#					my %file_perms = &save_dir_permissions($filetree_host);
-#					my $dest = $filetree->getAttribute("root");
-#					my $filetreetxt = $filetree->toString(1);
-#					$execution->execute( "$filetreetxt", *COMMAND_FILE );
-#				}
-#			}
-#			$execution->execute( "</filetrees>", *COMMAND_FILE );
-#			close COMMAND_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			
-#			open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |") || die "Failed: $!\n";
-#			my $dimension = <DU>;
-#			$dimension = $dimension + 20;
-#			my $dimensiondisk = $dimension + 30;
-#			close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var3 = substr(var,length(var),length(var)+1); print var3} ' |") || die "Failed: $!\n";
-#			my $unit = <DU>;
-#			close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			if ($countfiletree > 0){
-#				if (   ( $unit eq "K\n" || $unit eq "B\n" )|| ( ( $unit eq "M\n" ) && ( $dimension <= 32 ) ) ){
-#					$unit          = 'M';
-#					$dimension     = 32;
-#					$dimensiondisk = 50;
-#				}
-#				$execution->execute("mkdir /tmp/disk.$random_id");
-#				$execution->execute("mkdir  /tmp/disk.$random_id/destination");
-#				$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "$filetree_host" );
-#				#$execution->execute( "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/destination" );
-#				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
-#				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
-#				print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket';
-#				waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
-#				# mount empty iso, while waiting for new command	
-#				$execution->execute("touch /tmp/empty.iso");
-#				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/empty.iso hdb --mode readonly --driver file --type cdrom'");
-#				sleep 1;
-#			   	# 3d. Cleaning
-#				$execution->execute("rm /tmp/empty.iso");
-#				$execution->execute("rm /tmp/disk.$random_id.iso");
-#				$execution->execute("rm -r /tmp/disk.$random_id");
-#				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" );
-#				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -r " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" );
-#				$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf $filetree_host" );
-#				$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id" );
-#				$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree.xml" );
-#				$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id.end" );
-#			}
-#			############ COMMAND_FILE ########################
-#
-#			# We open file
-#			open COMMAND_FILE,">" . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" or $execution->smartdie("can not open " . $dh->get_tmp_dir . "/vnx.$name.$seq: $!" )
-#			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			# FIXME: consider to use a different new VNX::Execution object to perform this
-#			# actions (avoiding this nasty verb_prompt backup)
-#			$execution->set_verb_prompt("$name> ");
-#			my $command = $bd->get_binaries_path_ref->{"date"};
-#			chomp( my $now = `$command` );
-#
-#			# $execution->execute("#!" . $shell,*COMMAND_FILE);
-#			# $execution->execute("#commands sequence: $seq",*COMMAND_FILE);
-#			# $execution->execute("#file generated by $basename $version$branch at $now",*COMMAND_FILE);
-#
-#			# To process exec tags of matching commands sequence
-#			my $command_list = $vm->getElementsByTagName("exec");
-#
-#			# To process list, dumping commands to file
-#			$execution->execute( "<command>", *COMMAND_FILE );
-#			
-#			# Insert random id number for the command file
-#			$fileid = $name . "-" . &generate_random_string(6);
-#			$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
-#			
-#			my $countcommand = 0;
-#			for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
-#				my $command = $command_list->item($j);
-#
-#				# To get attributes
-#				my $cmd_seq = $command->getAttribute("seq");
-#				my $type    = $command->getAttribute("type");
-#                my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
-#
-#				if ( $cmd_seq eq $seq ) {
-#
-#					# Case 1. Verbatim type
-#					if ( $type eq "verbatim" ) {
-#
-#						# Including command "as is"
-#
-#						#$execution->execute("<comando>",*COMMAND_FILE);
-#						my $comando = $command->toString(1);
-#						$execution->execute( $comando, *COMMAND_FILE );
-#
-#						#$execution->execute("</comando>",*COMMAND_FILE);
-#						$countcommand = $countcommand + 1;
-#
-#					}
-#
-#					# Case 2. File type
-#					elsif ( $type eq "file" ) {
-#
-#						# We open the file and write commands line by line
-#						my $include_file = &do_path_expansion( &text_tag($command) );
-#						open INCLUDE_FILE, "$include_file" or $execution->smartdie("can not open $include_file: $!");
-#						while (<INCLUDE_FILE>) {
-#							chomp;
-#							$execution->execute(
-#								#"<exec seq=\"file\" type=\"file\">" 
-#								  #. $_
-#								  #. "</exec>",
-#								  $_,
-#								*COMMAND_FILE
-#							);
-#							$countcommand = $countcommand + 1;
-#						}
-#						close INCLUDE_FILE;
-#					}
-#
-#			 # Other case. Don't do anything (it would be and error in the XML!)
-#				}
-#			}
-#			$execution->execute( "</command>", *COMMAND_FILE );
-#			# We close file and mark it executable
-#			close COMMAND_FILE
-#			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#			$execution->set_verb_prompt($verb_prompt_bk);
-#			$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_tmp_dir  . "/vnx.$name.$seq.$random_id" );
-#			############# INSTALL COMMAND FILES #############
-#			# Nothing to do in ibvirt mode
-#			############# EXEC_COMMAND_FILE #################
-#			if ( $countcommand != 0 ) {
-#				$execution->execute("mkdir /tmp/diskc.$seq.$random_id");
-#				$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
-#				$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
-#				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
-#				print "Sending command to client... \n";			
-#				waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
-#				# mount empty iso, while waiting for new command	
-#				$execution->execute("touch /tmp/empty.iso");
-#				$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/empty.iso hdb --mode readonly --driver file --type cdrom'"	);
-#				sleep 1;
-#				$execution->execute("rm /tmp/empty.iso");		
-#				$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
-#				$execution->execute("rm -r /tmp/diskc.$seq.$random_id");
-#				$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir  . "/vnx.$name.$seq.$random_id" );
-#				sleep(2);
-#			}
-#				
-#				################## EXEC_COMMAND_HOST ########################3
-#
-#				my $doc = $dh->get_doc;
-#			
-#				# If host <host> is not present, there is nothing to do
-#				return if ( $doc->getElementsByTagName("host")->getLength eq 0 );
-#			
-#				# To get <host> tag
-#				my $host = $doc->getElementsByTagName("host")->item(0);
-#			
-#				# To process exec tags of matching commands sequence
-#				my $command_list_host = $host->getElementsByTagName("exec");
-#			
-#				# To process list, dumping commands to file
-#				for ( my $j = 0 ; $j < $command_list_host->getLength ; $j++ ) {
-#					my $command = $command_list_host->item($j);
-#			
-#					# To get attributes
-#					my $cmd_seq = $command->getAttribute("seq");
-#					my $type    = $command->getAttribute("type");
-#			
-#					if ( $cmd_seq eq $seq ) {
-#			
-#						# Case 1. Verbatim type
-#						if ( $type eq "verbatim" ) {
-#			
-#							# To include the command "as is"
-#							$execution->execute( &text_tag_multiline($command) );
-#						}
-#			
-#						# Case 2. File type
-#						elsif ( $type eq "file" ) {
-#			
-#							# We open file and write commands line by line
-#							my $include_file = &do_path_expansion( &text_tag($command) );
-#							open INCLUDE_FILE, "$include_file"
-#							  or $execution->smartdie("can not open $include_file: $!");
-#							while (<INCLUDE_FILE>) {
-#								chomp;
-#								$execution->execute($_);
-#							}
-#							close INCLUDE_FILE;
-#						}
-#			
-#						# Other case. Don't do anything (it would be an error in the XML!)
-#					}
-#				}
-#		}
-#}
-#
-#
-#
-####################################################################
-##                                                                 
-#sub change_vm_status {
-#
-#	my $dh     = shift;
-#	my $vm     = shift;
-#	my $status = shift;
-#
-#	my $status_file = $dh->get_vm_dir($vm) . "/status";
-#
-#	if ( $status eq "REMOVE" ) {
-#		$execution->execute(
-#			$bd->get_binaries_path_ref->{"rm"} . " -f $status_file" );
-#	}
-#	else {
-#		$execution->execute(
-#			$bd->get_binaries_path_ref->{"echo"} . " $status > $status_file" );
-#	}
-#}
-#
-#
-#
-#
-####################################################################
-## get_admin_address
-##
-## Returns a four elements list:
-##
-## - network address
-## - network mask
-## - IPv4 address of one peer
-## - IPv4 address of the other peer
-##
-## This functions takes a single argument, an integer which acts as counter
-## for UML'. It uses NetAddr::IP objects to calculate addresses for TWO hosts,
-## whose addresses and mask returns.
-##
-## Private addresses of 192.168. prefix are used. For now, this is
-## hardcoded in this function. It could, and should, i think, become
-## part of the VNUML dtd.
-##
-## In VIRTUAL SWITCH MODE (net_sw) this function ...
-## which returns UML ip undefined. Or, if one needs UML ip, function 
-## takes two arguments: $vm object and interface id. Interface id zero 
-## is reserved for management interface, and is default is none is supplied
-#sub get_admin_address {
-#
-#   my $seed = shift;
-#   my $vmmgmt_type = shift;
-#   my $vmmgmt_net = shift;
-#   my $vmmgmt_mask = shift;
-#   my $vmmgmt_offset = shift;
-#   my $vmmgmt_hostip = shift;
-#   my $hostnum = shift;
-#   my $ip;
-#
-#   my $net = NetAddr::IP->new($vmmgmt_net."/".$vmmgmt_mask);
-#   if ($vmmgmt_type eq 'private') {
-#	   # check to make sure that the address space won't wrap
-#	   if ($vmmgmt_offset + ($seed << 2) > (1 << (32 - $vmmgmt_mask)) - 3) {
-#		   $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-#	   }
-#
-#	   # create a private subnet from the seed
-#	   $net += $vmmgmt_offset + ($seed << 2);
-#	   $ip = NetAddr::IP->new($net->addr()."/30") + $hostnum;
-#   } else {
-#	   # vmmgmt type is 'net'
-#
-#	   # don't assign the hostip
-#	   my $hostip = NetAddr::IP->new($vmmgmt_hostip."/".$vmmgmt_mask);
-#	   if ($hostip > $net + $vmmgmt_offset &&
-#		   $hostip <= $net + $vmmgmt_offset + $seed + 1) {
-#		   $seed++;
-#	   }
-#
-#	   # check to make sure that the address space won't wrap
-#	   if ($vmmgmt_offset + $seed > (1 << (32 - $vmmgmt_mask)) - 3) {
-#		   $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-#	   }
-#
-#	   # return an address in the vmmgmt subnet
-#	   $ip = $net + $vmmgmt_offset + $seed + 1;
-#   }
-#   return $ip;
-#}
-#
-#
-#
-#
-####################################################################
-##
-#sub UML_plugins_conf {
-#
-#	my $path   = shift;
-#	my $vm     = shift;
-#	my $number = shift;
-#
-#	my $basename = basename $0;
-#
-#	my $name = $vm->getAttribute("name");
-#
-#	open CONFILE, ">$path" . "plugins_conf.sh"
-#	  or $execution->smartdie("can not open ${path}plugins_conf.sh: $!")
-#	  unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#	my $verb_prompt_bk = $execution->get_verb_prompt();
-#
-## FIXME: consider to use a different new VNX::Execution object to perform this
-## actions (avoiding this nasty verb_prompt backup)
-#	$execution->set_verb_prompt("$name> ");
-#
-#	# We begin plugin configuration script
-#	my $shell      = $dh->get_default_shell;
-#	my $shell_list = $vm->getElementsByTagName("shell");
-#	if ( $shell_list->getLength == 1 ) {
-#		$shell = &text_tag( $shell_list->item(0) );
-#	}
-#	my $command = $bd->get_binaries_path_ref->{"date"};
-#	chomp( my $now = `$command` );
-#	$execution->execute( "#!" . $shell, *CONFILE );
-#	$execution->execute(
-#		"# plugin configuration script generated by $basename at $now",
-#		*CONFILE );
-#	$execution->execute( "UTILDIR=/mnt/vnx", *CONFILE );
-#
-#	my $at_least_one_file = "0";
-#	foreach my $plugin (@plugins) {
-#		my %files = $plugin->bootingCreateFiles($name);
-#
-#		if ( defined( $files{"ERROR"} ) && $files{"ERROR"} ne "" ) {
-#			$execution->smartdie(
-#				"plugin $plugin bootingCreateFiles($name) error: "
-#				  . $files{"ERROR"} );
-#		}
-#
-#		foreach my $key ( keys %files ) {
-#
-#			# Create the directory to hold de file (idempotent operation)
-#			my $dir = dirname($key);
-#			mkpath( "$path/plugins_root/$dir", { verbose => 0 } );
-#			$execution->set_verb_prompt($verb_prompt_bk);
-#			$execution->execute( $bd->get_binaries_path_ref->{"cp"}
-#				  . " $files{$key} $path/plugins_root/$key" );
-#			$execution->set_verb_prompt("$name(plugins)> ");
-#
-#			# Remove the file in the host (this is part of the plugin API)
-#			$execution->execute(
-#				$bd->get_binaries_path_ref->{"rm"} . " $files{$key}" );
-#
-#			$at_least_one_file = 1;
-#
-#		}
-#
-#		my @commands = $plugin->bootingCommands($name);
-#
-#		my $error = shift(@commands);
-#		if ( $error ne "" ) {
-#			$execution->smartdie(
-#				"plugin $plugin bootingCommands($name) error: $error");
-#		}
-#
-#		foreach my $cmd (@commands) {
-#			$execution->execute( $cmd, *CONFILE );
-#		}
-#	}
-#
-#	if ($at_least_one_file) {
-#
-#		# The last commands in plugins_conf.sh is to push plugin_root/ to vm /
-#		$execution->execute(
-#			"# Generated by $basename to push files generated by plugins",
-#			*CONFILE );
-#		$execution->execute( "cp -r \$UTILDIR/plugins_root/* /", *CONFILE );
-#	}
-#
-#	# Close file and restore prompting method
-#	$execution->set_verb_prompt($verb_prompt_bk);
-#	close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
-#
-#	# Configuration file must be executable
-#	$execution->execute( $bd->get_binaries_path_ref->{"chmod"}
-#		  . " a+x $path"
-#		  . "plugins_conf.sh" );
-#
-#}
-#
-#
-#
-####################################################################
-## get_net_by_type
-##
-## Returns a network whose name is the first argument and whose type is second
-## argument (may be "*" if the type doesn't matter). If there is no net with
-## the given constrictions, 0 value is returned
-##
-## Note the default type is "lan"
-##
-#sub get_net_by_type {
-#
-#	my $name_target = shift;
-#	my $type_target = shift;
-#
-#	my $doc = $dh->get_doc;
-#
-#	# To get list of defined <net>
-#	my $net_list = $doc->getElementsByTagName("net");
-#
-#	# To process list
-#	for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
-#		my $net  = $net_list->item($i);
-#		my $name = $net->getAttribute("name");
-#		my $type = $net->getAttribute("type");
-#
-#		if (   ( $name_target eq $name )
-#			&& ( ( $type_target eq "*" ) || ( $type_target eq $type ) ) )
-#		{
-#			return $net;
-#		}
-#
-#		# Special case (implicit lan)
-#		if (   ( $name_target eq $name )
-#			&& ( $type_target eq "lan" )
-#			&& ( $type eq "" ) )
-#		{
-#			return $net;
-#		}
-#	}
-#
-#	return 0;
-#}
-#
-#
-#
-####################################################################
-## get_ip_hostname
-##
-## Return a suitable IP address to being added to the /etc/hosts file of the
-## virtual machine passed as first argument (as node)
-##
-## In the current implementation, the first IP address for no management if is used.
-## Only works for IPv4 addresses
-##
-## If no valid IP address if found or IPv4 has been disabled (with -6), returns 0.
-##
-#sub get_ip_hostname {
-#
-#	return 0 unless ( $dh->is_ipv4_enabled );
-#
-#	my $vm = shift;
-#
-#	# To check <mng_if>
-#	my $mng_if_value = &mng_if_value( $dh, $vm );
-#
-#	my $if_list = $vm->getElementsByTagName("if");
-#	for ( my $i = 0 ; $i < $if_list->getLength ; $i++ ) {
-#		my $id = $if_list->item($i)->getAttribute("id");
-#		if (   ( $id == 0 )
-#			&& $dh->get_vmmgmt_type ne 'none'
-#			&& ( $mng_if_value ne "no" ) )
-#		{
-#
-#			# Skip the management interface
-#			# Actually is a redundant checking, because check_semantics doesn't
-#			# allow a id=0 <if> if managemente interface hasn't been disabled
-#			next;
-#		}
-#		my $ipv4_list = $if_list->item($i)->getElementsByTagName("ipv4");
-#		if ( $ipv4_list->getLength != 0 ) {
-#			my $ip = &text_tag( $ipv4_list->item(0) );
-#			if ( &valid_ipv4_with_mask($ip) ) {
-#				$ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
-#				$ip = "$1.$2.$3.$4";
-#			}
-#			return $ip;
-#		}
-#	}
-#
-#	# No valid IPv4 found
-#	return 0;
-#}
-#
-#
-#
-####################################################################
-##
-#sub waitfiletree {
-#
-#	my $socket_path = shift;
-#	
-#	my $socket = IO::Socket::UNIX->new(
-#	   Type => SOCK_STREAM,
-#	   Peer => $socket_path,
-#	)
-#	   or die("Can't connect to server: $!\n");
-#	
-#	chomp( my $line = <$socket> );
-#	print qq{Done. \n};
-#	sleep(2);
-#	$socket->close();
-#
-#}
-#
-#
-#
-####################################################################
-##
-#sub waitexecute {
-#
-#	my $socket_path = shift;
-#	my $numprocess = shift;
-#	my $i;
-#	my $socket = IO::Socket::UNIX->new(
-#		   Type => SOCK_STREAM,
-#		   Peer => $socket_path,
-#			)
-#   			or die("Can't connect to server: $!\n");
-#	chomp( my $line = <$socket> );
-#	print qq{Done. \n};
-#	sleep(2);
-#	$socket->close();
-#
-#}
-#
-#
-#
-####################################################################
-##
-#sub get_user_in_seq {
-#
-#	my $vm  = shift;
-#	my $seq = shift;
-#
-#	my $username = "";
-#
-#	# Looking for in <exec>
-#	my $exec_list = $vm->getElementsByTagName("exec");
-#	for ( my $i = 0 ; $i < $exec_list->getLength ; $i++ ) {
-#		if ( $exec_list->item($i)->getAttribute("seq") eq $seq ) {
-#			if ( $exec_list->item($i)->getAttribute("user") ne "" ) {
-#				$username = $exec_list->item($i)->getAttribute("user");
-#				last;
-#			}
-#		}
-#	}
-#
-#	# If not found in <exec>, try with <filetree>
-#	if ( $username eq "" ) {
-#		my $filetree_list = $vm->getElementsByTagName("filetree");
-#		for ( my $i = 0 ; $i < $filetree_list->getLength ; $i++ ) {
-#			if ( $filetree_list->item($i)->getAttribute("seq") eq $seq ) {
-#				if ( $filetree_list->item($i)->getAttribute("user") ne "" ) {
-#					$username = $filetree_list->item($i)->getAttribute("user");
-#					last;
-#				}
-#			}
-#		}
-#	}
-#
-#	# If no mode was found in <exec> or <filetree>, use default
-#	if ( $username eq "" ) {
-#		$username = "root";
-#	}
-#
-#	return $username;
-#
-#}
-#
-#
-#
-####################################################################
-## get_vm_exec_mode
-##
-## Arguments:
-## - a virtual machine node
-##
-## Returns the corresponding mode for the command executions in the virtual
-## machine issued as argument. If no exec_mode is found (note that exec_mode attribute in
-## <vm> is optional), the default is retrieved from the DataHandler object
-##
-#sub get_vm_exec_mode {
-#
-#	my $vm = shift;
-#
-#	if ( $vm->getAttribute("mode") ne "" ) {
-#		return $vm->getAttribute("mode");
-#	}
-#	else {
-#		return $dh->get_default_exec_mode;
-#	}
-#
-#}
-#
-#
-#
-#
-####################################################################
-## save_dir_permissions
-##
-## Argument:
-## - a directory in the host enviroment in which the permissions
-##   of the files will be saved
-##
-## Returns:
-## - a hash with the permissions (a 3-character string with an octal
-##   representation). The key of the hash is the file name
-##
-#sub save_dir_permissions {
-#
-#	my $dir = shift;
-#
-#	my @files = &get_directory_files($dir);
-#	my %file_perms;
-#
-#	foreach (@files) {
-#
-#		# The directory itself is ignored
-#		unless ( $_ eq $dir ) {
-#
-## Tip from: http://open.itworld.com/5040/nls_unix_fileattributes_060309/page_1.html
-#			my $mode = ( stat($_) )[2];
-#			$file_perms{$_} = sprintf( "%04o", $mode & 07777 );
-#
-#			#print "DEBUG: save_dir_permissions $_: " . $file_perms{$_} . "\n";
-#		}
-#	}
-#
-#	return %file_perms;
-#}
-#
-#
-#
-####################################################################
-## get_directory_files
-##
-## Argument:
-## - a directory in the host enviroment
-##
-## Returns:
-## - a list with all files in the given directory
-##
-#sub get_directory_files {
-#
-#	my $dir = shift;
-#
-#	# FIXME: the current implementation is based on invoking find shell
-#	# command. Maybe there are smarter ways of doing the same
-#	# just with Perl commands. This would remove the need of "find"
-#	# in @binaries_mandatory in BinariesData.pm
-#
-#	my $command = $bd->get_binaries_path_ref->{"find"} . " $dir";
-#	my $out     = `$command`;
-#	my @files   = split( /\n/, $out );
-#
-#	return @files;
-#}
-#
-#
-#
-####################################################################
-## Wait for a filetree end file (see conf_files function)
-#sub filetree_wait {
-#	my $file = shift;
-#
-#	do {
-#		if ( -f $file ) {
-#			return 1;
-#		}
-#		sleep 1;
-#	} while (1);
-#	return 0;
-#}
-#
-#
-#
-####################################################################
-##
-#sub merge_vm_type {
-#	my $type = shift;
-#	my $subtype = shift;
-#	my $os = shift;
-#	my $merged_type = $type;
-#	
-#	if (!($subtype eq "")){
-#		$merged_type = $merged_type . "-" . $subtype;
-#		if (!($os eq "")){
-#			$merged_type = $merged_type . "-" . $os;
-#		}
-#	}
-#	return $merged_type;
-#	
-#}
-#
-#
-#
-#
-#1;
-sub specific_conf {
-	
+	my @output = "Nothing to show";
+	my $temp;
+	my $port;
+	# Recupero el puerto telnet de acceso al router
+	my $portfile = $dh->get_vm_dir($name) . "/port.txt";
+	# Configuro el fichero de configuracion extendida
+	&set_config_file($dh->get_default_dynamips());
+	# Si no existe el fichero del puerto, se sale.
+	if (-e $portfile ){
+			open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
+			$port= <PORT_CISCO>;
+			close (PORT_CISCO);	
+			my @result;
+			my $result;
+			# Compruebo si alguna ventana con telnet a ese puerto se está ejecutando
+			@result = `ps ax | grep telnet`;
+			foreach $result (@result) {
+				if ($result =~ m/telnet localhost $port/){
+					# Si se esta ejecutando, es que el puerto está ocupado, por lo que se sale
+					# y avisa al usuario de que cierre ese puerto.
+					return "\nPlease, close terminal $name window\n";
+				}
+			}
+			# Recuperamos las sentencias de ejecucion
+			my $command_list = $vm->getElementsByTagName("exec");
+			my $countcommand = 0;
+			for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
+				# Por cada sentencia.
+				my $command = $command_list->item($j);	
+				# To get attributes
+				my $cmd_seq = $command->getAttribute("seq");
+				# Se comprueba si la seq es la misma que la que te pasan a ejecutar
+				if ( $cmd_seq eq $seq ) {
+					my $type = $command->getAttribute("type");
+					# Case 1. Verbatim type
+					if ( $type eq "verbatim" ) {
+						# Including command "as is"
+						my $command_tag = &text_tag($command);
+						# Si el primer elemento a ejecutar es un reload, no se ejecuta en el router
+						# sino que:
+						# 1º Se para el router
+						# 2º Se introduce el nuevo fichero de configuracion (que estará como parametro de la funcion reload)
+						# 3º Se vuelve a encender.
+						if ($command_tag =~ m/^reload/){
+							my @file_conf = split('reload ',$command_tag);
+							my $filenameconf = $file_conf[1];
+							$t = new Net::Telnet (Timeout => 10);
+						    $t->open(Host => $HHOST, Port => $HPORT);
+						    print("vm stop $name \n");
+							$t->print("vm stop $name");
+							sleep(2);
+						    $line = $t->getline; print $line;
+						   	print("vm set_config $name \"$filenameconf\" \n");
+						   	$t->print("vm set_config $name \"$filenameconf\" ");
+						   	$line = $t->getline; print $line;
+						   	$t->print("vm start $name");
+						    $line = $t->getline; print $line;
+						    sleep (3);
+       						$execution->execute("xterm -title Dynamips_$name -e 'telnet $HHOST $port' >/dev/null 2>&1 &");
+						}else{
+							# Si no es un reload, se ejecutara el comando que se haya especificado
+							# Para que funcione correctamente se ha de hacer siempre primero esta secuencia
+							# en telnet para dejarle preparado aunque esté en situacion desconocida.
+							$telnet = new Net::Telnet (Timeout => 10);
+	   						$telnet->open(Host => '127.0.0.1', Port => $port);
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("exit");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					sleep(3);
+	    					$telnet->close;
+	    					# Hasta aqui es la secuencia.
+	    					# Se conecta a traves de un nuevo modulo perl al cisco a traves del puerto leido anterior mente
+							my $session = Net::Telnet::Cisco->new(Host => $HHOST, Port => $port);
+							# Siempre se ejecuta este comando para que estemos en una situacion conocida.
+							$session->cmd(' show version');
+							# Se adquiere en pass de enable.
+							# Si no tiene, esta funcion devolvera un "" que significa que no tiene pass
+							# y que es admitida por el cisco si el enable no tienen password
+							my $enablepass = get_enable_pass($name);
+							if ($session->enable($enablepass)){
+								# Se ejecuta el comando.
+								@output = $session->cmd(" $command_tag");
+								# Se sale del enable para seguridad de no poder ejecutar otro comando sin permiso
+								$session->disable();
+							}else {
+								die ("Can't enable")
+							}
+							$session->close();
+							# Saca por pantalla el resulŧado del comando anterior
+							print "\nOutput of command \"$command_tag\" on $name\n";
+							print "@output";
+						}
+					}
+					# Case 2. File type
+					# En caso de que sea un fichero, simplemente se lee el fichero
+					# y se va ejecutando linea por linea.
+					# En el caso de que se requiera un enable, este se tiene que poner en el fichero.
+					elsif ( $type eq "file" ) {
+						# We open the file and write commands line by line
+						my $include_file =  &do_path_expansion( &text_tag($command) );
+						open INCLUDE_FILE, "$include_file"
+						  or $execution->smartdie("can not open $include_file: $!");
+						  	# Secuencia para dejar el router en un estado conocido
+						  	$telnet = new Net::Telnet (Timeout => 10);
+	   						$telnet->open(Host => '127.0.0.1', Port => $port);
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("exit");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					$telnet->print("");
+	    					sleep(3);
+	    					$telnet->close;
+	    					# Fin de la secuencia
+							my $session = Net::Telnet::Cisco->new(Host => $HHOST, Port => $port);
+							# Comando para dejartlo en estado conocido.
+							$session->cmd(' show version');
+							print "\nExecution: Command --> Output\n";
+							while (<INCLUDE_FILE>) {
+								# Se van ejecutando linea por linea
+								chomp;
+								$command_tag = $_;
+								@output = $session->cmd(" $command_tag");
+								print "$command_tag --> @output\n";
+							}
+	    					$session->cmd(" end");
+	    					# Cuando se acaba, se hace un disable para mayor seguridad.
+							$session->disable();
+							$session->close();
+							close INCLUDE_FILE;
+					}
 
-	my $self   = shift;
-	my $vmName = shift;
-	my $route_file = shift;
-	
-	 
-    
+			 # Other case. Don't do anything (it would be and error in the XML!)
+				}
+			}
+			###############################################################
+			
+			
+	}	
 }
+
+
+## INTERNAL USE ##
+sub set_config_file{
+	my $tempconf = shift;
+	if (-e $tempconf){
+		$conf_file = $tempconf;
+		return 0;	
+	}else
+	{
+		return 1;
+	}
+}
+
+sub get_login_user {
+	my $vmName = shift;
+	my $result = "";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+# 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $login_user_list = $virtualm->getElementsByTagName("login_user");
+		if ($login_user_list->getLength gt 0){
+			my $login_user = $login_user_list->item($0);
+			$result = &text_tag($login_user);
+ 			$global_tag = 0;
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $login_user_gl_list = $globaltag->getElementsByTagName("login_user");
+			if ($login_user_gl_list->getLength gt 0){
+				my $login_user_gl = $login_user_gl_list->item($0);
+				$result = &text_tag($login_user_gl);
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+sub get_login_pass {
+	my $vmName = shift;
+	my $result = "";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+# 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $login_pass_list = $virtualm->getElementsByTagName("login_pass");
+		if ($login_pass_list->getLength gt 0){
+			my $login_pass = $login_pass_list->item($0);
+			$result = &text_tag($login_pass);
+ 			$global_tag = 0;
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $login_pass_gl_list = $globaltag->getElementsByTagName("login_pass");
+			if ($login_pass_gl_list->getLength gt 0){
+				my $login_pass_gl = $login_pass_gl_list->item($0);
+				$result = &text_tag($login_pass_gl);
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+
+sub get_enable_pass {
+	my $vmName = shift;
+	my $result = "";
+
+	unless(-e $conf_file){
+		return $result;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+# 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $enable_pass_list = $virtualm->getElementsByTagName("enable_pass");
+		if ($enable_pass_list->getLength gt 0){
+			my $enable_pass = $enable_pass_list->item($0);
+			$result = &text_tag($enable_pass);
+ 			$global_tag = 0;
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $enable_pass_gl_list = $globaltag->getElementsByTagName("enable_pass");
+			if ($enable_pass_gl_list->getLength gt 0){
+				my $enable_pass_gl = $enable_pass_gl_list->item($0);
+				$result = &text_tag($enable_pass_gl);
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+
+sub get_sparsemem {
+	my $vmName = shift;
+	my $result = "true";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+# 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $sparsemem_list = $virtualm->getElementsByTagName("sparsemem");
+		if ($sparsemem_list->getLength gt 0){
+			my $sparsemem = $sparsemem_list->item($0);
+			$result = &text_tag($sparsemem);
+ 			$global_tag = 0;
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $sparsemem_gl_list = $globaltag->getElementsByTagName("sparsemem");
+			if ($sparsemem_gl_list->getLength gt 0){
+				my $sparsemem_gl = $sparsemem_gl_list->item($0);
+				$result = &text_tag($sparsemem_gl);
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+
+sub get_ghost_ios {
+	my $vmName = shift;
+	my $result = "false";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+# 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $ghostios_list = $virtualm->getElementsByTagName("ghostios");
+		if ($ghostios_list->getLength gt 0){
+			my $ghostios = $ghostios_list->item($0);
+			$result = &text_tag($ghostios);
+ 			$global_tag = 0;
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $ghostios_gl_list = $globaltag->getElementsByTagName("ghostios");
+			if ($ghostios_gl_list->getLength gt 0){
+				my $ghostios_gl = $ghostios_gl_list->item($0);
+				$result = &text_tag($ghostios_gl);
+			}
+		}	
+	}
+ 	return $result;
+}
+#################################################################
+# get_chassis 													#
+# 																#
+# Saca del fichero de configuración extendida, el chassis 		#
+# que este definido												#
+# Entrada:														#
+# 	Nombre del router virtual									#
+# Salida:														#
+# 	Nombre del chasis a utilizar, si no está definido se utiliza#
+#   el de por defecto, que es "c3640"							# 
+#################################################################
+sub get_chassis {
+	my $vmName = shift;
+	# Valor por defecto en caso de no encontrarse definicion en el fichero de configuarcion
+	# extendida
+	my $result = "c3640";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $hw_list = $virtualm->getElementsByTagName("hw");
+		if ($hw_list->getLength gt 0){
+			my $hw = $hw_list->item($0);
+			my $chassis_list = $hw->getElementsByTagName("chassis");
+	 		if($chassis_list->getLength gt 0){
+	 			my $chassisTag = $chassis_list->item($0);
+	 			$result = &text_tag($chassisTag);
+	 			$global_tag = 0;
+	 		}
+		}
+	}
+	# Si no hay tarjetas definidas en la seccion del router virtual.
+	# se utilizan el que está definido en la parte global.
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+			if ($hw_gl_list->getLength gt 0){
+				my $hw_gl = $hw_gl_list->item($0);
+				my $chassis_gl_list = $hw_gl->getElementsByTagName("chassis");
+	 			if($chassis_gl_list->getLength gt 0){
+	 				my $chassisTag = $chassis_gl_list->item($0);
+	 				$result = &text_tag($chassisTag);
+	 			}
+			}
+		}	
+	}
+	# Si no hay chassis definido en la seccion del router virtual.
+	# se utiliza el de por defecto "c3640".
+ 	return $result;
+}
+#################################################################
+# get_conf_file													#
+# 																#
+# Saca del fichero de configuración extendida, el fichero		#
+# 
+# Entrada:														#
+# 	Nombre del router virtual									#
+# Salida:														#
+# 	Nombre del chasis a utilizar, si no está definido se utiliza#
+#   el de por defecto, que es "c3640"							# 
+#################################################################
+sub get_conf_file {
+	my $vmName = shift;
+	my $result = "0";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $conf_list = $virtualm->getElementsByTagName("conf");
+		if ($conf_list->getLength gt 0){
+			my $conftag = $conf_list->item($0);
+			$result = &text_tag($conftag);
+			$global_tag = 0;
+		}
+	}
+	#if (($default_tag eq 1)&&($global_tag eq 1)){
+	#	$result = "0x604f8104";
+	#}
+ 	return $result;
+}
+sub get_idle_pc_conf {
+	my $vmName = shift;
+	my $result = "0x604f8104";
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $hw_list = $virtualm->getElementsByTagName("hw");
+		if ($hw_list->getLength gt 0){
+			my $hw = $hw_list->item($0);
+			my $idle_pc_list = $hw->getElementsByTagName("idle_pc");
+	 		if($idle_pc_list->getLength gt 0){
+	 			my $idle_pcTag = $idle_pc_list->item($0);
+	 			$result = $idle_pcTag->getAttribute("value");
+	 			$global_tag = 0;
+	 		}
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+			if ($hw_gl_list->getLength gt 0){
+				my $hw_gl = $hw_gl_list->item($0);
+				my $idle_pc_gl_list = $hw_gl->getElementsByTagName("idle_pc");
+	 			if($idle_pc_gl_list->getLength gt 0){
+	 				$result = $idle_pc_gl_list->getAttribute("value");
+	 			}
+			}
+		}	
+	}
+ 	return $result;
+}
+
+
+sub get_port_conf {
+	my $vmName = shift;
+	my $counter = shift;
+	my $result =  900 + $counter;
+	
+	unless(-e $conf_file){
+		return $result;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $hw_list = $virtualm->getElementsByTagName("hw");
+		if ($hw_list->getLength gt 0){
+			my $hw = $hw_list->item($0);
+			my $console_list = $hw->getElementsByTagName("console");
+	 		if($console_list->getLength gt 0){
+	 			my $consoleTag = $console_list->item($0);
+	 			$result = $consoleTag->getAttribute("port");
+	 			$global_tag = 0;
+	 		}
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+			if ($hw_gl_list->getLength gt 0){
+				my $hw_gl = $hw_gl_list->item($0);
+				my $console_gl_list = $hw_gl->getElementsByTagName("console_base");
+	 			if($console_gl_list->getLength gt 0){
+	 				my $console_gl_Tag = $console_gl_list->item($0);
+	 				my $base = $console_gl_Tag->getAttribute("port");
+	 				$result = $base + $counter;
+	 			}
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+
+#################################################################
+# get_card_conf													#
+# 																#
+# Saca del fichero de configuración extendida, las tarjetas que #
+# se tienen que conectar al router								#
+# Entrada:														#
+# 	Nombre del router virtual									#
+# Salida:														#
+# 	Array de los nombres de las tarjetas que tienen que ser 	#
+#	agregadas al router, en caso de que no haya o etiqueta o 	#
+#	no exista el fichero, por defecto se inserta una placa		#
+# 	NM-4E														# 
+#################################################################
+
+sub get_cards_conf {
+	my $vmName = shift;
+	my @slotarray;
+	
+	# Si no hay fichero, se pone el valor por defecto de "NM-4E"
+	unless(-e $conf_file){
+		push(@slotarray,"NM-4E");
+		return @slotarray;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($conf_file);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $hw_list = $virtualm->getElementsByTagName("hw");
+		if ($hw_list->getLength gt 0){
+			my $hw = $hw_list->item($0);
+			my $slot_list = $hw->getElementsByTagName("slot");
+	 		my $numslot = $slot_list->getLength;
+	 		# Añadimos las tarjetas que haya en el fichero.
+	 		for ( my $j = 0 ; $j < $numslot ; $j++ ) {
+	 			my $slotTag = $slot_list->item($j);
+				my $slot = &text_tag($slotTag);
+				push(@slotarray,$slot);
+				# Como ya tenemos tarjetas no vemos las globales.
+				$global_tag = 0;
+	 		}
+		}
+	}
+	# Si no hay tarjetas definidas en la seccion del router virtual.
+	# se utilizan el que está definido en la parte global.
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item($0);
+			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+			if ($hw_gl_list->getLength gt 0){
+				my $hw_gl = $hw_gl_list->item($0);
+				my $slot_gl_list = $hw_gl->getElementsByTagName("slot");
+	 			my $numslotgl = $slot_gl_list->getLength;
+	 			for ( my $j = 0 ; $j < $numslotgl ; $j++ ) {
+	 				my $slotTaggl = $slot_gl_list->item($j);
+					my $slot_gl = &text_tag($slotTaggl);
+					push(@slotarray,$slot_gl);
+					# Como ya tenemos tarjetas definidas, no utilizamos la configurada por defecto.
+					$default_tag = 0;
+	 			}
+			}
+		}	
+	}
+	# Si no tenemos definidas ninguna tarjeta en la definicion del router virtual o el la seccion global
+	# utilizamos el valor por defecto "NM-4E"
+	
+	# Diferente al ser un array y no poder asignarle un valor por defecto al principio
+	if (($global_tag eq 1 )&&($default_tag eq 1)){
+		push(@slotarray,"NM-4E");
+	}
+ 	return @slotarray;
+}
+sub reload_conf {
+	my $command = shift;
+	my $vmName= shift;
+	my $port = shift;
+	my @file_conf = split('reload ',$command);
+	my $filenameconf = $file_conf[1];
+	$t = new Net::Telnet (Timeout => 10);
+    $t->open(Host => $HHOST, Port => $HPORT);
+    print("vm stop $vmName \n");
+	$t->print("vm stop $vmName");
+    $line = $t->getline; print $line;
+   	print("vm set_config $vmName \"$filenameconf\" \n");
+   	$t->print("vm set_config $vmName \"$filenameconf\" ");
+   	$line = $t->getline; print $line;
+   	$t->print("vm start $vmName");
+    $line = $t->getline; print $line;
+        
+    
+    $execution->execute("xterm -title $vmName -e 'telnet $HHOST $port' >/dev/null 2>&1 &");
+   	
+	
+}
+
+
+#sub exec_command {
+#	my $command = shift;
+#	my $port = shift;
+#	$telnet = new Net::Telnet (Timeout => 10);
+#   			$telnet->open(Host => '127.0.0.1', Port => $port);
+#    		$telnet->print("");
+#    		$telnet->print("");
+#    		$telnet->print("");
+#    		$telnet->print("exit");
+#    		$telnet->print("");
+#    		$telnet->print("");
+#    		$telnet->print("");
+#    		sleep(3);
+#    	#	$line = $telnet->getline; print $line;
+#    		$telnet->close;
+#			my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
+#			$session->cmd(' show version');
+#			if ($session->enable("")){
+#				@output = $session->cmd(" $command");
+#				$session->disable();
+#			}else {
+#				die ("Can't enable")
+#			}
+#			$session->close();
+#			return @output;
+#	
+#}
+
 
 1;
