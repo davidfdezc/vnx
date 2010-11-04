@@ -1,4 +1,4 @@
-# vmAPI_libvirt.pm
+# vmAPI_dynamips.pm
 #
 # This file is a module part of VNX package.
 #
@@ -128,15 +128,15 @@ sub defineVM {
 	}
 	print "####################2########################## \n";
 	# Configuramos el fichero de configuracion especial
-#	my $dynamipsconf = $dh->get_default_dynamips();
-#	if (!($dynamipsconf eq "")){
-#		my $result = &set_config_file($dh->get_default_dynamips());
-#		print "####################10########################## \n";
-#		if (!($result eq 0)){
-#			print "####################11########################## \n";
-#			return $result;
-#		}	
-#	}
+	my $dynamipsconf = $dh->get_default_dynamips();
+	if (!($dynamipsconf eq "0")){
+		my $result = &set_config_file($dh->get_default_dynamips());
+		print "####################10########################## \n";
+		if (!($result eq 0)){
+			print "####################11########################## \n";
+			return $result;
+		}	
+	}
 
 		
 	my $filenameconf;
