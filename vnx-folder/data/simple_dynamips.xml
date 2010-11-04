@@ -17,7 +17,7 @@ Just one Cisco virtual machine. Use this specification for testing
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
     </vm_defaults>
-    <!--dynamips_ext>/home/jrodriguez/workspace/vnx/vnx-folder/temporal/jrodriguez/simple_dynamips-dn.xml</dynamips_ext-->
+    <dynamips_ext>simple_dynamips-dn.xml</dynamips_ext>
   </global>
   
   <net name="Net0" mode="virtual_bridge" />

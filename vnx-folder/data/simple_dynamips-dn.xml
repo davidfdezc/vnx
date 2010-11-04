@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-
 <vnx_dynamips xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/dynamips.xsd> 
+     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/dynamips.xsd"> 
 
   <global>
+    <sparsemem>true</sparsemem>
+    <ghostios>false</ghostios>
     <hw>
        <slot id="0">NM-4E</slot>
        <slot id="1">NM-4T</slot>
        <console_base port="1000"/>
      </hw>
-     <sparsemem>true</sparsemem>
-     <ghostios>false</ghostios>
+
   </global>
 
 

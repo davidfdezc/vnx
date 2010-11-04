@@ -49,6 +49,10 @@ package vmAPI_dynamips;
 #@EXPORT = qw(defineVM);
   
 
+use XML::LibXML;
+use XML::DOM;
+use XML::DOM::ValParser;
+
 use VNX::Execution;
 use VNX::BinariesData;
 use VNX::Arguments;
@@ -124,7 +128,10 @@ sub defineVM {
 	}
 	
 	# Configuramos el fichero de configuracion especial
-	&set_config_file($dh->get_default_dynamips());
+	my $result = &set_config_file($dh->get_default_dynamips());
+	if (!($result eq 0)){
+		return $result;
+	}
 		
 	my $filenameconf;
 	my $ifTagList;
@@ -219,23 +226,25 @@ sub defineVM {
  				print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  			}
  			# Si en el fichero de configuracion extendida se define un usuario y password.
- 			my @login_users = &get_login_user($vmName);
+			my @login_users = &get_login_user($vmName);
  			my $login_user;
+ 			my $check_login_user = 0;
  			foreach $login_user(@login_users){
-				print CONF_CISCO " username $login_user[0] password 0 $login_user[1]\n"
+ 				my $user=$login_user->[0];
+ 				my $pass=$login_user->[1];
+ 				if (($user eq "")&&(!($pass eq ""))){
+ 					print CONF_CISCO " line con 0 \n";
+ 					print CONF_CISCO " password $pass\n";
+ 					print CONF_CISCO " login\n";
+ 				}elsif((!($user eq ""))&&(!($pass eq ""))){
+					print CONF_CISCO " username $user password 0 $pass\n";
+					$check_login_user= 1;
+ 				}
     		}
-# 			if (!($login_user eq "")){
-# 				my $user_pass = &get_login_pass($vmName);
-# 				
-# 				print CONF_CISCO " username $login_user password 0 $user_pass\n";
-# 				print CONF_CISCO " line con 0 \n";
-# 				
-# 			}else{
-# 				my $login_pass = &get_login_pass($vmName);
-# 				if (!($login_pass eq "")){
-# 					
-# 				}
-# 			}
+    		if ($check_login_user eq 1){
+    			print CONF_CISCO " line con 0 \n";
+ 				print CONF_CISCO " login local\n";
+    		}
  			# Si el fichero de configuacion extendida se define una password de enable, se pone.
  			my $enablepass = &get_enable_pass($vmName);
  			if (!($enablepass eq "")){
@@ -1354,8 +1363,49 @@ sub executeCMD{
 ## INTERNAL USE ##
 sub set_config_file{
 	my $tempconf = shift;
+	$tempconf = $dh->get_xml_dir() . $tempconf;
 	if (-e $tempconf){
 		$conf_file = $tempconf;
+		#####################################################
+		open CONF_EXT_FILE, "$conf_file";
+   			my @conf_file_array = <CONF_EXT_FILE>;
+   			my $conf_file_string = join("",@conf_file_array);
+   		close CONF_EXT_FILE;
+		my $schemalocation;
+
+#jsf	if ($input_file_string =~ /="(.*).xsd"/) {
+	    if ($conf_file_string =~ /="(\S*).xsd"/) {
+        	$schemalocation = $1 .".xsd";
+
+		}else{
+			print "input_file_string = $conf_file_string, $schemalocation=schemalocation\n";
+			$execution->smartdie("XSD not found");
+		}
+		
+#		eval {my $schema = XML::LibXML::Schema->new(location => $schemalocation) };
+#		
+#		
+#		if ($@) {
+#		  # Validation errors
+#		  $execution->smartdie("$schemalocation not found");
+#		}
+		if (!(-e $schemalocation)){
+			$execution->smartdie("$schemalocation not found");
+		}
+        my $schema = XML::LibXML::Schema->new(location => $schemalocation);
+		
+		
+		my $parser = XML::LibXML->new;
+		#$doc    = $parser->parse_file($document);
+		my $doc = $parser->parse_file($conf_file);
+		
+		eval { $schema->validate($doc) };
+	
+		if ($@) {
+		  # Validation errors
+		  $execution->smartdie("$conf_file is not a well-formed VNX file");
+		}
+        #######################################################
 		return 0;	
 	}else
 	{
