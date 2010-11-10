@@ -99,7 +99,6 @@ my $conf_file="";
 #
 sub defineVM {
 	
-	print "####################DEFINEVM########################## \n";
 
 	my $self   = shift;
 	my $vmName = shift;
@@ -111,7 +110,6 @@ sub defineVM {
 	my $sock    = shift;
 	my $counter = shift;
 	$curr_uml = $vmName;
-	print "####################1########################## \n";
 	my $doc2       = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
 
@@ -126,14 +124,11 @@ sub defineVM {
 			next;
 		}
 	}
-	print "####################2########################## \n";
 	# Configuramos el fichero de configuracion especial
 	my $dynamipsconf = $dh->get_default_dynamips();
 	if (!($dynamipsconf eq "0")){
 		my $result = &set_config_file($dh->get_default_dynamips());
-		print "####################10########################## \n";
 		if (!($result eq 0)){
-			print "####################11########################## \n";
 			return $result;
 		}	
 	}
@@ -159,11 +154,9 @@ sub defineVM {
 	# Miro si hay definido en el XML un fichero de configuracion extendida
 	if (!($conf_dynamips eq 0))
 	{
-		print "####################6########################## \n";
 		# Compruebo que se puede abrir.
 	 	if (-e $conf_dynamips)
 		{
-			print "####################5########################## \n";
 			# Si existe, me voy al final del fichero y quito el end, ya que vamos a continuar
 			# desde el final.  
 	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
@@ -266,7 +259,6 @@ sub defineVM {
 	}
 	# Si no se ha definido ninguno, me defino el fichero de configuracion a pasar al cisco.
 	else{
-		print "####################4########################## \n";
 		$filenameconf = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
 		open (CONF_CISCO, ">$filenameconf") || die "ERROR: No puedo abrir el fichero $filenameconf";;
 		print CONF_CISCO "hostname " . $vmName ."\n";
@@ -360,7 +352,6 @@ sub defineVM {
  		print CONF_CISCO " end\n";
  		close(CONF_CISCO);	
 	}
-    print "####################3########################## \n";
     # Preparar las variables
     my $memTagList = $virtualm->getElementsByTagName("mem");
     my $mem = "96";
@@ -992,8 +983,7 @@ sub destroyVM{
 ####################################################################
 #
 sub startVM {
-	#$rname = "r11";
-	my $self   = shift;
+		my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
 	my $doc    = shift;
@@ -1401,12 +1391,9 @@ sub executeCMD{
 ## INTERNAL USE ##
 sub set_config_file{
 	my $tempconf = shift;
-	print "###################temp conf = $tempconf########################## \n";
 	$tempconf = $dh->get_xml_dir() . $tempconf;
-	print "####################get_xml_dir $tempconf ########################## \n";
 	if (-e $tempconf){
-		$conf_file = $tempconf;
-		print "####################SET_CONFIG########################## \n";
+		$conf_file = $tempconf;;
 		#####################################################
 		open CONF_EXT_FILE, "$conf_file";
    			my @conf_file_array = <CONF_EXT_FILE>;
