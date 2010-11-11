@@ -127,10 +127,7 @@ sub defineVM {
 	# Configuramos el fichero de configuracion especial
 	my $dynamipsconf = $dh->get_default_dynamips();
 	if (!($dynamipsconf eq "0")){
-		my $result = &set_config_file($dh->get_default_dynamips());
-		if (!($result eq 0)){
-			return $result;
-		}	
+		my $result = &set_config_file($dh->get_default_dynamips());	
 	}
 
 		
@@ -1247,7 +1244,10 @@ sub executeCMD{
 	# Recupero el puerto telnet de acceso al router
 	my $portfile = $dh->get_vm_dir($name) . "/port.txt";
 	# Configuro el fichero de configuracion extendida
-	&set_config_file($dh->get_default_dynamips());
+	my $dynamipsconf = $dh->get_default_dynamips();
+	if (!($dynamipsconf eq "0")){
+		&set_config_file($dh->get_default_dynamips());
+	}
 	# Si no existe el fichero del puerto, se sale.
 	if (-e $portfile ){
 			open (PORT_CISCO, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
@@ -1381,20 +1381,22 @@ sub executeCMD{
 			 # Other case. Don't do anything (it would be and error in the XML!)
 				}
 			}
-			###############################################################
-			
-			
 	}	
 }
 
 
 ## INTERNAL USE ##
+
+# Configura el fichero dynamips_ext en la variable global
 sub set_config_file{
 	my $tempconf = shift;
-	$tempconf = $dh->get_xml_dir() . $tempconf;
+	# Comprueba si es una variable global o no
+	if (!($tempconf =~ m/^\/((\w|\.|-)+\/)*(\w|\.|-)+$/)){
+		$tempconf = $dh->get_xml_dir() . $tempconf;
+	}
+	# Comprueba que exista el fichero
 	if (-e $tempconf){
 		$conf_file = $tempconf;;
-		#####################################################
 		open CONF_EXT_FILE, "$conf_file";
    			my @conf_file_array = <CONF_EXT_FILE>;
    			my $conf_file_string = join("",@conf_file_array);
@@ -1408,17 +1410,10 @@ sub set_config_file{
 			print "input_file_string = $conf_file_string, $schemalocation=schemalocation\n";
 			$execution->smartdie("XSD not found");
 		}
-		
-#		eval {my $schema = XML::LibXML::Schema->new(location => $schemalocation) };
-#		
-#		
-#		if ($@) {
-#		  # Validation errors
-#		  $execution->smartdie("$schemalocation not found");
-#		}
 		if (!(-e $schemalocation)){
 			$execution->smartdie("$schemalocation not found");
 		}
+		# Valida el XML contra el Schema
         my $schema = XML::LibXML::Schema->new(location => $schemalocation);
 		
 		
@@ -1432,14 +1427,15 @@ sub set_config_file{
 		  # Validation errors
 		  $execution->smartdie("$conf_file is not a well-formed VNX file");
 		}
-        #######################################################
 		return 0;	
 	}else
 	{
-		return 1;
+		$execution->smartdie("$conf_file not found");
 	}
 }
 
+# Devuelve en un array de dos columnas, los valores dados en la etiqueta login del XML
+# Por defecto (su no existe) no devuelve usuarios.
 sub get_login_user {
 	my $vmName = shift;
 	my @users;
@@ -1483,6 +1479,7 @@ sub get_login_user {
 			}
 		}
 	}
+	# Si en anteriores comprobaciones no existe, se pasa a la global
 	if ($global_tag eq 1){
 		my $globalList = $globalNode->getElementsByTagName("global");
 		if ($globalList->getLength gt 0){
@@ -1499,65 +1496,14 @@ sub get_login_user {
 			}
 		}	
 	}
+	# Devuelve el valor por defecto
 	if (($global_tag eq 1 )&&($default_tag eq 1)){
 		push(@users,["",""]);
 	}
  	return @users;
 }
-##sub get_login_pass {
-#	my $vmName = shift;
-#	my $result = "";
-#	
-#	unless(-e $conf_file){
-#		return $result;
-#	}
-#	# Parseamos el fichero.
-#	my $parser       = new XML::DOM::Parser;
-#	my $dom          = $parser->parsefile($conf_file);
-#	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
-#	my $virtualmList = $globalNode->getElementsByTagName("vm");
-#		
-# 	my $numsvm = $virtualmList->getLength;
-# 	my $name;
-# 	my $virtualm;
-# 	my $default_tag = 1;
-# 	my $global_tag = 1;
-# 	# Buscamos la seccion de la maquina virtual
-#	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
-## 		# We get name attribute
-# 		$virtualm = $virtualmList->item($j);
-#		$name = $virtualm->getAttribute("name");
-#
-#		if ( $name eq $vmName ) {
-#			last;
-#		}
-# 	}
-# 	# Comprobamos que la maquina es la correcta
-#	if($name eq $vmName){
-#		my $login_pass_list = $virtualm->getElementsByTagName("login_pass");
-#		if ($login_pass_list->getLength gt 0){
-#			my $login_pass = $login_pass_list->item($0);
-#			$result = &text_tag($login_pass);
-# 			$global_tag = 0;
-#		}
-#	}
-#	if ($global_tag eq 1){
-#		my $globalList = $globalNode->getElementsByTagName("global");
-#		if ($globalList->getLength gt 0){
-#			my $globaltag = $globalList->item($0);
-#			my $login_pass_gl_list = $globaltag->getElementsByTagName("login_pass");
-#			if ($login_pass_gl_list->getLength gt 0){
-#				my $login_pass_gl = $login_pass_gl_list->item($0);
-#				$result = &text_tag($login_pass_gl);
-#			}
-#		}	
-#	}
-##	if (($default_tag eq 1)&&($global_tag eq 1)){
-##		$result = 900 + $counter; 
-##	}
-# 	return $result;
-#}
-
+# Devuelve el valor del password del modo enable
+# Si no se define, devuelve un valor vacio.
 sub get_enable_pass {
 	my $vmName = shift;
 	my $result = "";
@@ -1595,6 +1541,7 @@ sub get_enable_pass {
  			$global_tag = 0;
 		}
 	}
+	# Si en anteriores comprobaciones no existe, se pasa a la global
 	if ($global_tag eq 1){
 		my $globalList = $globalNode->getElementsByTagName("global");
 		if ($globalList->getLength gt 0){
@@ -1606,12 +1553,11 @@ sub get_enable_pass {
 			}
 		}	
 	}
-#	if (($default_tag eq 1)&&($global_tag eq 1)){
-#		$result = 900 + $counter; 
-#	}
  	return $result;
 }
 
+# Devuelve el valor de la etiqueta sparsemem
+# Si no se define, devuelve un valor true.
 sub get_sparsemem {
 	my $vmName = shift;
 	my $result = "true";
@@ -1660,12 +1606,11 @@ sub get_sparsemem {
 			}
 		}	
 	}
-#	if (($default_tag eq 1)&&($global_tag eq 1)){
-#		$result = 900 + $counter; 
-#	}
  	return $result;
 }
 
+# Devuelve el valor de la etiqueta ghost_ios
+# Si no se define, devuelve un valor false.
 sub get_ghost_ios {
 	my $vmName = shift;
 	my $result = "false";
@@ -1843,6 +1788,9 @@ sub get_conf_file {
 	#}
  	return $result;
 }
+
+# Devuelve el valor de la etiqueta idle_pc
+# Si no se define, devuelve un valor 0x604f8104.
 sub get_idle_pc_conf {
 	my $vmName = shift;
 	my $result = "0x604f8104";
@@ -2079,35 +2027,6 @@ sub reload_conf {
    	
 	
 }
-
-
-#sub exec_command {
-#	my $command = shift;
-#	my $port = shift;
-#	$telnet = new Net::Telnet (Timeout => 10);
-#   			$telnet->open(Host => '127.0.0.1', Port => $port);
-#    		$telnet->print("");
-#    		$telnet->print("");
-#    		$telnet->print("");
-#    		$telnet->print("exit");
-#    		$telnet->print("");
-#    		$telnet->print("");
-#    		$telnet->print("");
-#    		sleep(3);
-#    	#	$line = $telnet->getline; print $line;
-#    		$telnet->close;
-#			my $session = Net::Telnet::Cisco->new(Host => '127.0.0.1', Port => $port);
-#			$session->cmd(' show version');
-#			if ($session->enable("")){
-#				@output = $session->cmd(" $command");
-#				$session->disable();
-#			}else {
-#				die ("Can't enable")
-#			}
-#			$session->close();
-#			return @output;
-#	
-#}
 
 
 1;
