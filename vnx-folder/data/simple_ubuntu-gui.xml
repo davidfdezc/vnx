@@ -20,7 +20,7 @@ Just one Ubuntu virtual machine. Use this specification for testing
   
   <!-- NODES -->
   <vm name="ubuntu-gui" type="libvirt" subtype="kvm" os="linux">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_linux</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu-gui</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.5/24</ipv4>

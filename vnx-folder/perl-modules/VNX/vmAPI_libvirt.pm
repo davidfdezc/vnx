@@ -321,6 +321,13 @@ sub defineVM {
 		my $target1_tag = $init_xml->createElement('target');
 		$disk1_tag->addChild($target1_tag);
 		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
+		
+		# DFC: Added '<driver name='qemu' type='qcow2'/>' to work with libvirt 0.8.x 
+        my $driver1_tag = $init_xml->createElement('driver');
+        $disk1_tag->addChild($driver1_tag);
+        $driver1_tag->addChild( $init_xml->createAttribute( name => 'qemu' ) );
+        $driver1_tag->addChild( $init_xml->createAttribute( type => 'qcow2' ) );
+        # End of DFC
 
 		my $disk2_tag = $init_xml->createElement('disk');
 		$devices_tag->addChild($disk2_tag);
@@ -447,7 +454,8 @@ sub defineVM {
 	###################################################################
 	#                  defineVM for libvirt-kvm-linux/freebsd         #
 	###################################################################
-	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
+	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")||
+	        ($type eq "libvirt-kvm-olive") ) {
 
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "vnxboot"
@@ -517,6 +525,13 @@ sub defineVM {
 		#vcpu
 		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
 
+        # DFC: Add <biosfile> tag for Olive routers 
+        if ($type eq "libvirt-kvm-olive") {
+			my $biosfile_tag = $init_xml->createElement('biosfile');
+			$domain_tag->addChild($biosfile_tag);
+			#biosfile
+			$biosfile_tag->addChild( $init_xml->createTextNode("bios-0.10.6.bin") );
+        }
 		my $os_tag = $init_xml->createElement('os');
 		$domain_tag->addChild($os_tag);
 		my $type_tag = $init_xml->createElement('type');
@@ -563,6 +578,13 @@ sub defineVM {
 		$disk1_tag->addChild($target1_tag);
 		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
 
+		# DFC: Added '<driver name='qemu' type='qcow2'/>' to work with libvirt 0.8.x 
+        my $driver1_tag = $init_xml->createElement('driver');
+        $disk1_tag->addChild($driver1_tag);
+        $driver1_tag->addChild( $init_xml->createAttribute( name => 'qemu' ) );
+        $driver1_tag->addChild( $init_xml->createAttribute( type => 'qcow2' ) );
+        # End of DFC
+
 		my $disk2_tag = $init_xml->createElement('disk');
 		$devices_tag->addChild($disk2_tag);
 		$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
@@ -601,11 +623,25 @@ sub defineVM {
 			$mac =~ s/,//;
 			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
 
+			# DFC: set interface model to 'e1000' in olive router interfaces
+	        if ($type eq "libvirt-kvm-olive") {
+	        	# <model type='e1000'/>
+			    my $model_tag = $init_xml->createElement('model');
+			    $interface_tag->addChild($model_tag);
+				$model_tag->addChild( $init_xml->createAttribute( type => 'e1000') );
+	        }
+			
 		}
 
-		my $graphics_tag = $init_xml->createElement('graphics');
-		$devices_tag->addChild($graphics_tag);
-		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
+        if ($type ne "libvirt-kvm-olive") {
+			my $graphics_tag = $init_xml->createElement('graphics');
+			$devices_tag->addChild($graphics_tag);
+			$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
+			#[JSF] host ip left
+			$graphics_tag->addChild(
+				$init_xml->createAttribute( listen => $ip_host ) );
+        }
+        
 # DFC		my $vnc_port;
 #		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 #			my $vm = $vm_ordered[$i];
@@ -619,23 +655,49 @@ sub defineVM {
 #		$graphics_tag->addChild(
 #			$init_xml->createAttribute( port => $vnc_port ) );
 
-		#[JSF] host ip left
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( listen => $ip_host ) );
+        
+        if ($type ne "libvirt-kvm-olive") {
+			my $serial_tag = $init_xml->createElement('serial');
+			$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
+			$devices_tag->addChild($serial_tag);
 
-		my $serial_tag = $init_xml->createElement('serial');
-		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
-		$devices_tag->addChild($serial_tag);
-
-		# $devices_tag->addChild($disk2_tag);
-		my $source3_tag = $init_xml->createElement('source');
-		$serial_tag->addChild($source3_tag);
-		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName). '/' . $vmName . '_socket' ) );
-		my $target_tag = $init_xml->createElement('target');
-		$serial_tag->addChild($target_tag);
-		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
-
+			# $devices_tag->addChild($disk2_tag);
+			my $source3_tag = $init_xml->createElement('source');
+			$serial_tag->addChild($source3_tag);
+			$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
+			$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
+			my $target_tag = $init_xml->createElement('target');
+			$serial_tag->addChild($target_tag);
+			$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
+        }
+		
+        # DFC: console definition for Olive routers 
+		# <serial type="tcp">
+      	#	<source mode="bind" host="0.0.0.0" service="2001"/>
+      	#	<protocol type="telnet"/>
+      	#	<target port="1"/>
+    	# </serial>
+        if ($type eq "libvirt-kvm-olive") {
+			# <serial type="tcp">
+			my $serial2_tag = $init_xml->createElement('serial');
+			$devices_tag->addChild($serial2_tag);
+			$serial2_tag->addChild( $init_xml->createAttribute( type => 'tcp' ) );
+      		#	<source mode="bind" host="0.0.0.0" service="2001"/>
+			my $source4_tag = $init_xml->createElement('source');
+			$serial2_tag->addChild($source4_tag);
+			$source4_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
+			$source4_tag->addChild(	$init_xml->createAttribute( host => '0.0.0.0' ) );
+			$source4_tag->addChild(	$init_xml->createAttribute( service => '2001' ) );
+      		#	<protocol type="telnet"/>
+			my $protocol_tag = $init_xml->createElement('protocol');
+			$serial2_tag->addChild($protocol_tag);
+			$protocol_tag->addChild( $init_xml->createAttribute( type => 'telnet' ) );
+	      	#	<target port="1"/>
+			my $target2_tag = $init_xml->createElement('target');
+			$serial2_tag->addChild($target2_tag);
+			$target2_tag->addChild( $init_xml->createAttribute( port => '1' ) );
+        }
+     
 #   ############<graphics type='sdl' display=':0.0'/>
 #      my $graphics_tag2 = $init_xml->createElement('graphics');
 #      $devices_tag->addChild($graphics_tag2);
@@ -713,7 +775,9 @@ sub undefineVM {
 	###################################################################
 	#                  defineVM for libvirt-kvm-windows/linux/freebsd #
 	###################################################################
-	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
+    if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
+
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -977,6 +1041,13 @@ sub createVM {
 		my $target1_tag = $init_xml->createElement('target');
 		$disk1_tag->addChild($target1_tag);
 		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
+		
+		# DFC: Added '<driver name='qemu' type='qcow2'/>' to work with libvirt 0.8.x 
+        my $driver1_tag = $init_xml->createElement('driver');
+        $disk1_tag->addChild($driver1_tag);
+        $driver1_tag->addChild( $init_xml->createAttribute( name => 'qemu' ) );
+        $driver1_tag->addChild( $init_xml->createAttribute( type => 'qcow2' ) );
+        # End of DFC
 
 		my $disk2_tag = $init_xml->createElement('disk');
 		$devices_tag->addChild($disk2_tag);
@@ -1112,8 +1183,9 @@ sub createVM {
 	###################################################################
 	#                  createVM for libvirt-kvm-linux/freebsd         #
 	###################################################################
-	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
-
+	elsif ( ($type eq "libvirt-kvm-linux") || ($type eq "libvirt-kvm-freebsd") ||
+		    ($type eq "libvirt-kvm-olive") ) {
+	
 		#Save xml received in vnxboot, for the autoconfiguration
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "vnxboot"
@@ -1184,6 +1256,14 @@ sub createVM {
 		#vcpu
 		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
 
+        # DFC: Add <biosfile> tag for Olive routers 
+        if ($type eq "libvirt-kvm-olive") {
+			my $biosfile_tag = $init_xml->createElement('biosfile');
+			$domain_tag->addChild($biosfile_tag);
+			#biosfile
+			$biosfile_tag->addChild( $init_xml->createTextNode("bios-0.10.6.bin") );
+        }
+
 		my $os_tag = $init_xml->createElement('os');
 		$domain_tag->addChild($os_tag);
 		my $type_tag = $init_xml->createElement('type');
@@ -1229,6 +1309,13 @@ sub createVM {
 		my $target1_tag = $init_xml->createElement('target');
 		$disk1_tag->addChild($target1_tag);
 		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
+		
+		# DFC: Added '<driver name='qemu' type='qcow2'/>' to work with libvirt 0.8.x 
+        my $driver1_tag = $init_xml->createElement('driver');
+        $disk1_tag->addChild($driver1_tag);
+        $driver1_tag->addChild( $init_xml->createAttribute( name => 'qemu' ) );
+        $driver1_tag->addChild( $init_xml->createAttribute( type => 'qcow2' ) );
+        # End of DFC
 
 		my $disk2_tag = $init_xml->createElement('disk');
 		$devices_tag->addChild($disk2_tag);
@@ -1268,11 +1355,25 @@ sub createVM {
 			$mac =~ s/,//;
 			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
 
+			# DFC: set interface model to 'e1000' in olive router interfaces
+	        if ($type eq "libvirt-kvm-olive") {
+	        	# <model type='e1000'/>
+			    my $model_tag = $init_xml->createElement('model');
+			    $interface_tag->addChild($model_tag);
+				$model_tag->addChild( $init_xml->createAttribute( type => 'e1000') );
+	        }
+
 		}
 
-		my $graphics_tag = $init_xml->createElement('graphics');
-		$devices_tag->addChild($graphics_tag);
-		$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
+        if ($type ne "libvirt-kvm-olive") {
+			my $graphics_tag = $init_xml->createElement('graphics');
+			$devices_tag->addChild($graphics_tag);
+			$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
+			#[JSF] falta sacar la ip host
+			$graphics_tag->addChild(
+				$init_xml->createAttribute( listen => $ip_host ) );
+        }
+        
 # DFC		my $vnc_port;
 #		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 #			my $vm = $vm_ordered[$i];
@@ -1286,23 +1387,48 @@ sub createVM {
 #		$graphics_tag->addChild(
 #			$init_xml->createAttribute( port => $vnc_port ) );
 
-		#[JSF] falta sacar la ip host
-		$graphics_tag->addChild(
-			$init_xml->createAttribute( listen => $ip_host ) );
+        if ($type ne "libvirt-kvm-olive") {
+			my $serial_tag = $init_xml->createElement('serial');
+			$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
+			$devices_tag->addChild($serial_tag);
 
-		my $serial_tag = $init_xml->createElement('serial');
-		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
-		$devices_tag->addChild($serial_tag);
+			# $devices_tag->addChild($disk2_tag);
+			my $source3_tag = $init_xml->createElement('source');
+			$serial_tag->addChild($source3_tag);
+			$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
+			$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
+			my $target_tag = $init_xml->createElement('target');
+			$serial_tag->addChild($target_tag);
+			$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
+        }
+        # DFC: console definition for Olive routers 
+		# <serial type="tcp">
+      	#	<source mode="bind" host="0.0.0.0" service="2001"/>
+      	#	<protocol type="telnet"/>
+      	#	<target port="1"/>
+    	# </serial>
+        if ($type eq "libvirt-kvm-olive") {
+			# <serial type="tcp">
+			my $serial2_tag = $init_xml->createElement('serial');
+			$devices_tag->addChild($serial2_tag);
+			$serial2_tag->addChild( $init_xml->createAttribute( type => 'tcp' ) );
+      		#	<source mode="bind" host="0.0.0.0" service="2001"/>
+			my $source4_tag = $init_xml->createElement('source');
+			$serial2_tag->addChild($source4_tag);
+			$source4_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
+			$source4_tag->addChild(	$init_xml->createAttribute( host => '0.0.0.0' ) );
+			$source4_tag->addChild(	$init_xml->createAttribute( service => '2001' ) );
+      		#	<protocol type="telnet"/>
+			my $protocol_tag = $init_xml->createElement('protocol');
+			$serial2_tag->addChild($protocol_tag);
+			$protocol_tag->addChild( $init_xml->createAttribute( type => 'telnet' ) );
+	      	#	<target port="1"/>
+			my $target2_tag = $init_xml->createElement('target');
+			$serial2_tag->addChild($target2_tag);
+			$target2_tag->addChild( $init_xml->createAttribute( port => '1' ) );
+        }
 
-		# $devices_tag->addChild($disk2_tag);
-		my $source3_tag = $init_xml->createElement('source');
-		$serial_tag->addChild($source3_tag);
-		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
-		my $target_tag = $init_xml->createElement('target');
-		$serial_tag->addChild($target_tag);
-		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
-
+	
 #   ############<graphics type='sdl' display=':0.0'/>
 #      my $graphics_tag2 = $init_xml->createElement('graphics');
 #      $devices_tag->addChild($graphics_tag2);
@@ -1392,7 +1518,8 @@ sub destroyVM {
 	###################################################################
 	#                  destroyVM for libvirt-kvm-windows/linux/freebsd#
 	###################################################################
-	if ( ( $type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
+    if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
 		my $addr = "qemu:///system";
 
@@ -1505,7 +1632,9 @@ sub startVM {
 	###################################################################
 	#                  startVM for libvirt-kvm-linux/freebsd          #
 	###################################################################
-	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
+	elsif ( ($type eq "libvirt-kvm-linux") ||($type eq "libvirt-kvm-freebsd") ||
+	        ($type eq "libvirt-kvm-olive") ) {
+
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1588,7 +1717,9 @@ sub shutdownVM {
    	###################################################################
 	#                 shutdownVM for libvirt-kvm-windows/linux/freebsd#
 	###################################################################
-	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd") ) {
+    if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
+
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1672,7 +1803,10 @@ sub saveVM {
 	###################################################################
 	#                  saveVM for libvirt-kvm-windows/linux/freebsd   #
 	###################################################################
-	elsif ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
+    elsif ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
+             ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) 
+        {
+
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1725,7 +1859,10 @@ sub restoreVM {
  	###################################################################
 	#                  restoreVM for libvirt-kvm-windows/linux/freebsd#
 	###################################################################
-	if ( ($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
+    if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) 
+    {
+	    
 		my $addr = "qemu:///system";
 		print "Connecting to $addr...\n";
 		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
@@ -1764,7 +1901,9 @@ sub suspendVM {
 	###################################################################
 	#                  suspendVM for libvirt-kvm-windows/linux/freebsd#
 	###################################################################
-    if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
+    if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
+
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1815,7 +1954,9 @@ sub resumeVM {
 	###################################################################
 	#                  resumeVM for libvirt-kvm-windows/linux/freebsd #
 	###################################################################
-	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
+    if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
+
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1863,7 +2004,9 @@ sub rebootVM {
 	###################################################################
 	#                  rebootVM for libvirt-kvm-windows/linux/freebsd #
 	###################################################################
-	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
+    if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
+
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -1915,7 +2058,9 @@ sub resetVM {
 	###################################################################
 	#                  resetVM for libvirt-kvm-windows/linux/freebsd  #
 	###################################################################
-	if (($type eq "libvirt-kvm-windows")||($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")) {
+    if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
+
 		my $addr = "qemu:///system";
 
 		print "Connecting to $addr...";
@@ -2227,7 +2372,9 @@ my $random_id  = &generate_random_string(6);
 			}
 			
 
-		}elsif (($merged_type eq "libvirt-kvm-linux")||($merged_type eq "libvirt-kvm-freebsd")){
+		}elsif (($merged_type eq "libvirt-kvm-linux") || ($merged_type eq "libvirt-kvm-freebsd") 
+		          || ($merged_type eq "libvirt-kvm-olive") ) {
+		          	          	
 			############### LINUX ####################
 			############### FILETREE #################
 			my @filetree_list = $dh->merge_filetree($vm);
