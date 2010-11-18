@@ -148,7 +148,8 @@ sub defineVM {
 		}
 
 
-		if ( $execution->get_exe_mode() != EXE_DEBUG ) {
+		#if ( $execution->get_exe_mode() != EXE_DEBUG ) { JSF 16/11: error"EXE_DEBUG no es numerico" 
+		if ( $execution->get_exe_mode() ne EXE_DEBUG ) {
 			my $command =
 			    $bd->get_binaries_path_ref->{"mktemp"}
 			  . " -d -p "
@@ -385,7 +386,8 @@ sub defineVM {
 #		$graphics_tag->addChild(
 #			$init_xml->createAttribute( port => $vnc_port ) );
 
-		#[JSF] host ip left
+		#falta ip host
+		my $ip_host = "";
 		$graphics_tag->addChild(
 			$init_xml->createAttribute( listen => $ip_host ) );
 
@@ -423,9 +425,11 @@ sub defineVM {
 		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
 		  or $execution->smartdie(
 			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml' )
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		  #unless ( $execution->get_exe_mode() == EXE_DEBUG ); JSF 16/11: error"EXE_DEBUG no es numerico"
+		  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 		print XML_FILE "$xmlstring\n";
-		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		#close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG ); JSF 16/11: error"EXE_DEBUG no es numerico"
+		close CONFILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 		# check that the domain is not already defined or started
         my @doms = $con->list_defined_domains();
@@ -497,7 +501,7 @@ sub defineVM {
 
 		# memory
 		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
+		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 
 		# create XML for libvirt
@@ -624,20 +628,21 @@ sub defineVM {
 			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
 
 			# DFC: set interface model to 'e1000' in olive router interfaces
-	        if ($type eq "libvirt-kvm-olive") {
-	        	# <model type='e1000'/>
-			    my $model_tag = $init_xml->createElement('model');
-			    $interface_tag->addChild($model_tag);
+			if ($type eq "libvirt-kvm-olive") {
+				# <model type='e1000'/>
+				my $model_tag = $init_xml->createElement('model');
+				$interface_tag->addChild($model_tag);
 				$model_tag->addChild( $init_xml->createAttribute( type => 'e1000') );
-	        }
+			}
 			
 		}
 
-        if ($type ne "libvirt-kvm-olive") {
+		if ($type ne "libvirt-kvm-olive") {
 			my $graphics_tag = $init_xml->createElement('graphics');
 			$devices_tag->addChild($graphics_tag);
 			$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-			#[JSF] host ip left
+			#falta ip host
+			my $ip_host = "";
 			$graphics_tag->addChild(
 				$init_xml->createAttribute( listen => $ip_host ) );
         }
@@ -719,9 +724,11 @@ sub defineVM {
 		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
 		  or $execution->smartdie(
 			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml' )
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		#  unless ( $execution->get_exe_mode() == EXE_DEBUG ); JSF 16/11: error "EXE_DEBUG no es numerico"
+		    unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 		print XML_FILE "$xmlstring\n";
-		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		# close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG ); JSF 16/11: error "EXE_DEBUG no es numerico"
+		close XML_FILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
         # check that the domain is not already defined or started
         my @doms = $con->list_defined_domains();
@@ -931,12 +938,15 @@ sub createVM {
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "vnxboot"
 		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		  #unless ( $execution->get_exe_mode() == EXE_DEBUG ); JSF: error "no numerico"
+		  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 		#$execution->execute($doc ,*CONFILE);
 		print CONFILE "$doc\n";
 
-		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		#close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG ); JSF: error "no numerico"
+		close CONFILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
+
 		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
 			  . " -l -R -quiet -o $filesystem_small $path" );
 		$execution->execute(
@@ -946,10 +956,10 @@ sub createVM {
 		my $dom          = $parser->parse($doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
+		my $virtualm     = $virtualmList->item(0);
 
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
+		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
 
@@ -1105,7 +1115,8 @@ sub createVM {
 #		$graphics_tag->addChild(
 #			$init_xml->createAttribute( port => $vnc_port ) );
 
-		#[JSF] host ip left
+		#falta ip host
+		my $ip_host = "";
 		$graphics_tag->addChild(
 			$init_xml->createAttribute( listen => $ip_host ) );
 
@@ -1205,10 +1216,10 @@ sub createVM {
 		my $dom          = $parser->parse($doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
+		my $virtualm     = $virtualmList->item(0);
 
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
+		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
 
@@ -1228,7 +1239,7 @@ sub createVM {
 
 		# memory
 		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
+		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 
 		# create XML for libvirt
@@ -1370,8 +1381,8 @@ sub createVM {
 			$devices_tag->addChild($graphics_tag);
 			$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
 			#[JSF] falta sacar la ip host
-			$graphics_tag->addChild(
-				$init_xml->createAttribute( listen => $ip_host ) );
+			my $ip_host = "";
+			$graphics_tag->addChild($init_xml->createAttribute( listen => $ip_host ) );
         }
         
 # DFC		my $vnc_port;

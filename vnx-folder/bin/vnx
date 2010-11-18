@@ -620,7 +620,7 @@ exit;
 	
 		if ($@) {
 		  # Validation errors
-		  &vnx_die("$input_file is not a well-formed VNX file\n");
+		  &vnx_die("$input_file is not a well-formed VNX file:\n$@\n");
 		}
 	
 		my $parser2 = new XML::DOM::Parser;
@@ -2971,13 +2971,18 @@ sub automac {
       }
 
            # Assuming offset is in the 0-65535 range
-      my $upper_offset = dec2hex(int($dh->get_automac_offset / 256));
-      my $lower_offset = dec2hex($dh->get_automac_offset % 256);
+      #my $upper_offset = dec2hex(int($dh->get_automac_offset / 256));
+      #my $lower_offset = dec2hex($dh->get_automac_offset % 256);
+      
+      # JSF 16/11
+      my $upper_offset = sprintf("%x",int($dh->get_automac_offset / 256));
+      my $lower_offset = sprintf("%x",$dh->get_automac_offset % 256);
 
       return ",fe:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
 
 }
 
+# JSF 16/11: no necesaria
 # From: http://www.dreamincode.net/code/snippet60.htm
 #
 sub dec2hex {
@@ -3981,28 +3986,48 @@ sub make_vm_API_doc {
 
       # flag 'o' tag in dom tree 
       my $o_flag_tag = $dom->createElement('o_flag');
-      $vm_tag->addChild($o_flag_tag);
-      $o_flag_tag->addChild($dom->createTextNode($args->get('o')));
+      $vm_tag->addChild($o_flag_tag);      
+      my $o_flag = "";
+      if ($args->get('o')) {
+      	$o_flag = $args->get('o');
+      }     
+      $o_flag_tag->addChild($dom->createTextNode($o_flag));
 
       # flag 'e' tag in dom tree 
       my $e_flag_tag = $dom->createElement('e_flag');
       $vm_tag->addChild($e_flag_tag);
-      $e_flag_tag->addChild($dom->createTextNode($args->get('e')));
+      my $e_flag = "";
+      if ($args->get('e')) {
+      	$e_flag = $args->get('e');
+      }     
+      $e_flag_tag->addChild($dom->createTextNode($e_flag));
 
       # flag 'Z' tag in dom tree
       my $Z_flag_tag = $dom->createElement('Z_flag');
       $vm_tag->addChild($Z_flag_tag);
-      $Z_flag_tag->addChild($dom->createTextNode($args->get('Z')));
+      my $Z_flag;
+      if ($args->get('Z')) {
+      	$Z_flag = 1;
+      }else{
+      	$Z_flag = 0;
+      }      
+      $Z_flag_tag->addChild($dom->createTextNode($Z_flag));
 
       # flag 'F' tag in dom tree
       my $F_flag_tag = $dom->createElement('F_flag');
       $vm_tag->addChild($F_flag_tag);
-      $F_flag_tag->addChild($dom->createTextNode($args->get('F')));
+      my $F_flag;
+      if ($args->get('F')) {
+      	$F_flag = 1;
+      }else{
+      	$F_flag = 0;
+      }      
+      $F_flag_tag->addChild($dom->createTextNode($F_flag));
 
       # 'group2' tag in dom tree (luego se usa $group[2])
-      my $group2_tag = $dom->createElement('group2');
-      $vm_tag->addChild($group2_tag);
-      $group2_tag->addChild($dom->createTextNode($args->get('group2')));
+      #my $group2_tag = $dom->createElement('group2');
+      #$vm_tag->addChild($group2_tag);
+      #$group2_tag->addChild($dom->createTextNode($args->get('group2')));
 
       # 'notify_ctl' tag in dom tree
       my $notify_ctl_tag = $dom->createElement('notify_ctl');
