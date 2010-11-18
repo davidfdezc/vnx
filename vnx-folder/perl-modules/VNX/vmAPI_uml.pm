@@ -701,7 +701,8 @@ sub createVM {
 		}
 
 		# Console pts and xterm processing
-		if ( $execution->get_exe_mode() != EXE_DEBUG ) {
+		#if ( $execution->get_exe_mode() != EXE_DEBUG ) { JSF 16/11: error "EXE_DEBUG no numerico"
+		if ( $execution->get_exe_mode() ne EXE_DEBUG ) {
 			my @console_list = $dh->merge_console($virtualm);
 			my $get_screen_pts;
 			foreach my $console (@console_list) {
@@ -748,7 +749,8 @@ sub createVM {
 					while ( $xterm_pts =~ /^$/ )
 					{ # I'm sure that this loop could be smarter, but it works :)
 						print "Trying to get console $console_id pts...\n"
-						  if ( $execution->get_exe_mode() == EXE_VERBOSE );
+						  # if ( $execution->get_exe_mode() == EXE_VERBOSE ); #JSF 16/11:error "EXE_VERBOSE no numerico"
+						  if ( $execution->get_exe_mode() eq EXE_VERBOSE );
 						sleep 1;    # Needed to avoid  syncronization problems
 						my $command =
 						    $bd->get_binaries_path_ref->{"uml_mconsole"} . " "
@@ -758,7 +760,8 @@ sub createVM {
 						if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
 							$xterm_pts = $1;
 							print "...xterm pts is $xterm_pts\n"
-							  if ( $execution->get_exe_mode() == EXE_VERBOSE );
+							  #if ( $execution->get_exe_mode() == EXE_VERBOSE ); JSF 16/11: error "EXE_VERBOSE" no numerico
+							  if ( $execution->get_exe_mode() eq EXE_VERBOSE );
 							$execution->execute(
 								    $bd->get_binaries_path_ref->{"echo"}
 								  . " $xterm_pts > "
@@ -1624,7 +1627,8 @@ sub UML_init_wait {
 					{
 						my ($uml) = $curr_uml =~ /(.+)#/;
 						print "Virtual machine $uml sucessfully booted.\n"
-						  if ( $execution->get_exe_mode() == EXE_VERBOSE );
+						  #if ( $execution->get_exe_mode() == EXE_VERBOSE ); JSF: error "EXE_VERBOSE no numerico" 
+						   if ( $execution->get_exe_mode() eq EXE_VERBOSE );
 						alarm 0;
 						return;
 					}
