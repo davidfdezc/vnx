@@ -1802,9 +1802,10 @@ sub get_idle_pc_conf {
 	open FILE, "<$vnxconf" or $execution->smartdie("$vnxconf not found");
 	my @lines = <FILE>;
 	foreach my $line (@lines){
-	    if (($line =~ /idle_pc/) && !($line =~ /#/)){ 
-			my @config = split(/=/, $line);
-			$result = $config[1];
+	    if (($line =~ /idle_pc/) && !($line =~ /^#/)){ 
+			my @config1 = split(/=/, $line);
+			my @config2 = split(/#/,$config1[1]);
+			$result = $config2[0];
 	    }
 	}
  	return $result;
