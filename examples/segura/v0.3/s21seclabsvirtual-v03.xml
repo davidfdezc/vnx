@@ -10,7 +10,7 @@ S21SecLabs scenario v0.3
 ]>
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.92.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.93.xsd">
 
 	<global>
 		<version>1.92</version>
