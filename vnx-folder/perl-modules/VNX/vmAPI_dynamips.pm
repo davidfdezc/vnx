@@ -85,6 +85,7 @@ my $HHOST="localhost";
 my $HPORT="7300";
 my $HIDLEPC="0x604f8104";
 my $conf_file="";
+my $vnxconf = "/etc/vnx.conf";
 
 #
 #
@@ -1795,58 +1796,76 @@ sub get_idle_pc_conf {
 	my $vmName = shift;
 	my $result = "0x604f8104";
 	
-	unless(-e $conf_file){
+	unless(-e $vnxconf){
 		return $result;
 	}
-	# Parseamos el fichero.
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($conf_file);
-	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
-	my $virtualmList = $globalNode->getElementsByTagName("vm");
-		
- 	my $numsvm = $virtualmList->getLength;
- 	my $name;
- 	my $virtualm;
- 	my $default_tag = 1;
- 	my $global_tag = 1;
- 	# Buscamos la seccion de la maquina virtual
- 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
- 		# We get name attribute
- 		$virtualm = $virtualmList->item($j);
-		$name = $virtualm->getAttribute("name");
-
-		if ( $name eq $vmName ) {
-			last;
-		}
- 	}
- 	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
-		my $hw_list = $virtualm->getElementsByTagName("hw");
-		if ($hw_list->getLength gt 0){
-			my $hw = $hw_list->item($0);
-			my $idle_pc_list = $hw->getElementsByTagName("idle_pc");
-	 		if($idle_pc_list->getLength gt 0){
-	 			my $idle_pcTag = $idle_pc_list->item($0);
-	 			$result = $idle_pcTag->getAttribute("value");
-	 			$global_tag = 0;
-	 		}
-		}
-	}
-	if ($global_tag eq 1){
-		my $globalList = $globalNode->getElementsByTagName("global");
-		if ($globalList->getLength gt 0){
-			my $globaltag = $globalList->item($0);
-			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
-			if ($hw_gl_list->getLength gt 0){
-				my $hw_gl = $hw_gl_list->item($0);
-				my $idle_pc_gl_list = $hw_gl->getElementsByTagName("idle_pc");
-	 			if($idle_pc_gl_list->getLength gt 0){
-	 				$result = $idle_pc_gl_list->getAttribute("value");
-	 			}
-			}
-		}	
+	open FILE, "<$vnxconf" or $execution->smartdie("$vnxconf not found");
+	my @lines = <FILE>;
+	foreach my $line (@lines){
+	    if (($line =~ /idle_pc/) && !($line =~ /#/)){ 
+			my @config = split(/=/, $line);
+			$result = $config[1];
+	    }
 	}
  	return $result;
+	
+	
+	
+#	my $vmName = shift;
+#	my $result = "0x604f8104";
+#	
+#	unless(-e $conf_file){
+#		return $result;
+#	}
+#	# Parseamos el fichero.
+#	my $parser       = new XML::DOM::Parser;
+#	my $dom          = $parser->parsefile($conf_file);
+#	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+#	my $virtualmList = $globalNode->getElementsByTagName("vm");
+#		
+# 	my $numsvm = $virtualmList->getLength;
+# 	my $name;
+# 	my $virtualm;
+# 	my $default_tag = 1;
+# 	my $global_tag = 1;
+# 	# Buscamos la seccion de la maquina virtual
+# 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+# 		# We get name attribute
+# 		$virtualm = $virtualmList->item($j);
+#		$name = $virtualm->getAttribute("name");
+#
+#		if ( $name eq $vmName ) {
+#			last;
+#		}
+# 	}
+# 	# Comprobamos que la maquina es la correcta
+#	if($name eq $vmName){
+#		my $hw_list = $virtualm->getElementsByTagName("hw");
+#		if ($hw_list->getLength gt 0){
+#			my $hw = $hw_list->item($0);
+#			my $idle_pc_list = $hw->getElementsByTagName("idle_pc");
+#	 		if($idle_pc_list->getLength gt 0){
+#	 			my $idle_pcTag = $idle_pc_list->item($0);
+#	 			$result = $idle_pcTag->getAttribute("value");
+#	 			$global_tag = 0;
+#	 		}
+#		}
+#	}
+#	if ($global_tag eq 1){
+#		my $globalList = $globalNode->getElementsByTagName("global");
+#		if ($globalList->getLength gt 0){
+#			my $globaltag = $globalList->item($0);
+#			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+#			if ($hw_gl_list->getLength gt 0){
+#				my $hw_gl = $hw_gl_list->item($0);
+#				my $idle_pc_gl_list = $hw_gl->getElementsByTagName("idle_pc");
+#	 			if($idle_pc_gl_list->getLength gt 0){
+#	 				$result = $idle_pc_gl_list->getAttribute("value");
+#	 			}
+#			}
+#		}	
+#	}
+# 	return $result;
 }
 
 
