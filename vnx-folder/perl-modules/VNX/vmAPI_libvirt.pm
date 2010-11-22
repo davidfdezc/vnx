@@ -87,7 +87,8 @@ my $curr_uml;
 my $F_flag;       # passed from createVM to halt
 my $M_flag;       # passed from createVM to halt
 
-
+# Consoles port
+my $CON_PORT = 20000;  # DFC: base port for consoles. The code looks for a free port starting from this value
 
 
 
@@ -627,12 +628,12 @@ sub defineVM {
 			$mac =~ s/,//;
 			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
 
-			# DFC: set interface model to 'e1000' in olive router interfaces
+			# DFC: set interface model to 'i82559er' in olive router interfaces
 			if ($type eq "libvirt-kvm-olive") {
-				# <model type='e1000'/>
+				# <model type='i82559er'/>
 				my $model_tag = $init_xml->createElement('model');
 				$interface_tag->addChild($model_tag);
-				$model_tag->addChild( $init_xml->createAttribute( type => 'e1000') );
+				$model_tag->addChild( $init_xml->createAttribute( type => 'i82559er') );
 			}
 			
 		}
@@ -692,7 +693,17 @@ sub defineVM {
 			$serial2_tag->addChild($source4_tag);
 			$source4_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
 			$source4_tag->addChild(	$init_xml->createAttribute( host => '0.0.0.0' ) );
-			$source4_tag->addChild(	$init_xml->createAttribute( service => '2001' ) );
+			# DFC: Look for a free port starting from $CON_PORT
+			while ( !system("fuser -s -v -n tcp $CON_PORT") ) {
+ 				$CON_PORT++;
+			}
+			$source4_tag->addChild(	$init_xml->createAttribute( service => "$CON_PORT" ) );
+			print "console file = $portfile; CON_PORT = $CON_PORT\n";
+			my $portfile = $dh->get_vm_dir($vmName) . "/console_port";
+			open (CONPORT, ">$portfile") || die "ERROR: Cannot open file $portfile";;
+			print CONPORT $CON_PORT;	
+			close (CONPORT); 
+			$CON_PORT++;
       		#	<protocol type="telnet"/>
 			my $protocol_tag = $init_xml->createElement('protocol');
 			$serial2_tag->addChild($protocol_tag);
@@ -1192,7 +1203,7 @@ sub createVM {
 	}
 	
 	###################################################################
-	#                  createVM for libvirt-kvm-linux/freebsd         #
+	#                  createVM for libvirt-kvm-linux/freebsd/olive   #
 	###################################################################
 	elsif ( ($type eq "libvirt-kvm-linux") || ($type eq "libvirt-kvm-freebsd") ||
 		    ($type eq "libvirt-kvm-olive") ) {
@@ -1366,12 +1377,12 @@ sub createVM {
 			$mac =~ s/,//;
 			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
 
-			# DFC: set interface model to 'e1000' in olive router interfaces
+			# DFC: set interface model to 'i82559er' in olive router interfaces
 	        if ($type eq "libvirt-kvm-olive") {
-	        	# <model type='e1000'/>
+	        	# <model type='i82559er'/>
 			    my $model_tag = $init_xml->createElement('model');
 			    $interface_tag->addChild($model_tag);
-				$model_tag->addChild( $init_xml->createAttribute( type => 'e1000') );
+				$model_tag->addChild( $init_xml->createAttribute( type => 'i82559er') );
 	        }
 
 		}
@@ -1428,7 +1439,17 @@ sub createVM {
 			$serial2_tag->addChild($source4_tag);
 			$source4_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
 			$source4_tag->addChild(	$init_xml->createAttribute( host => '0.0.0.0' ) );
-			$source4_tag->addChild(	$init_xml->createAttribute( service => '2001' ) );
+			# DFC: Look for a free port starting from $CON_PORT
+			while ( !system("fuser -s -v -n tcp $CON_PORT") ) {
+ 				$CON_PORT++;
+			}
+			$source4_tag->addChild(	$init_xml->createAttribute( service => "$CON_PORT" ) );
+			print "console file = $portfile; CON_PORT = $CON_PORT\n";
+			my $portfile = $dh->get_vm_dir($vmName) . "/console_port";
+			open (CONPORT, ">$portfile") || die "ERROR: Cannot open file $portfile";;
+			print CONPORT $CON_PORT;	
+			close (CONPORT); 
+			$CON_PORT++;
       		#	<protocol type="telnet"/>
 			my $protocol_tag = $init_xml->createElement('protocol');
 			$serial2_tag->addChild($protocol_tag);
@@ -1494,7 +1515,21 @@ sub createVM {
 			  . $dh->get_run_dir($vmName)
 			  . "/pid" );
 
-		$execution->execute("virt-viewer $vmName &");
+        if ($type eq "libvirt-kvm-olive") {
+        	my $consport;
+			my $portfile = $dh->get_vm_dir($vmName) . "/console_port";
+			if (-e $portfile ){
+				open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
+				$consport= <CONPORT>;
+				close (CONPORT);
+			} else {
+				printf "ERROR: file $portfile does not exist\n";
+			}
+    		$execution->execute("xterm -title '$vmName (Olive)' -e 'telnet localhost $consport' >/dev/null 2>&1 &");
+        }
+        else {
+			$execution->execute("virt-viewer $vmName &");
+		}
 		
         return $error;
         
@@ -1641,7 +1676,7 @@ sub startVM {
 
 	}
 	###################################################################
-	#                  startVM for libvirt-kvm-linux/freebsd          #
+	#                  startVM for libvirt-kvm-linux/freebsd/olive    #
 	###################################################################
 	elsif ( ($type eq "libvirt-kvm-linux") ||($type eq "libvirt-kvm-freebsd") ||
 	        ($type eq "libvirt-kvm-olive") ) {
@@ -1668,23 +1703,36 @@ sub startVM {
 					  . $dh->get_run_dir($vmName)
 					  . "/pid" );
 
-				$execution->execute("virt-viewer $vmName &");
+        		if ($type eq "libvirt-kvm-olive") {
+        			my $consport;
+					my $portfile = $dh->get_vm_dir($vmName) . "/console_port";
+					if (-e $portfile ){
+						open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
+						$consport= <CONPORT>;
+						close (CONPORT);
+					} else {
+						printf "ERROR: file $portfile does not exist\n";
+					}
+		    		$execution->execute("xterm -title '$vmName (Olive)' -e 'telnet localhost $consport' >/dev/null 2>&1 &");
+        		}
+        		else {
+					$execution->execute("virt-viewer $vmName &");
+				}
 
+				my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type,$dh->get_vmmgmt_net,$dh->get_vmmgmt_mask,$dh->get_vmmgmt_offset,$dh->get_vmmgmt_hostip, 2 );
 
-		my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type,$dh->get_vmmgmt_net,$dh->get_vmmgmt_mask,$dh->get_vmmgmt_offset,$dh->get_vmmgmt_hostip, 2 );
+				# If host_mapping is in use, append trailer to /etc/hosts config file
 
-		# If host_mapping is in use, append trailer to /etc/hosts config file
+				if ( $dh->get_host_mapping ) {
 
-		if ( $dh->get_host_mapping ) {
-
-			#@host_lines = ( @host_lines, $net->addr() . " $vm_name" );
-			#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
-			open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
-				or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
-				unless ( $execution->get_exe_mode() == EXE_DEBUG );
-			print HOSTLINES $net->addr() . " $vmName\n";
-			close HOSTLINES;
-		}
+					#@host_lines = ( @host_lines, $net->addr() . " $vm_name" );
+					#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
+					open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
+						or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
+						unless ( $execution->get_exe_mode() == EXE_DEBUG );
+					print HOSTLINES $net->addr() . " $vmName\n";
+					close HOSTLINES;
+				}
 
 				$error = 0;
 				return $error;
