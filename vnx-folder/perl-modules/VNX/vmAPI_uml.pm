@@ -145,7 +145,7 @@ sub defineVM {
 		}
 
 
-		if ( $execution->get_exe_mode() != EXE_DEBUG ) {
+		if ( $execution->get_exe_mode() ne EXE_DEBUG ) {
 			my $command =
 			    $bd->get_binaries_path_ref->{"mktemp"}
 			  . " -d -p "
@@ -302,7 +302,7 @@ sub createVM {
 		}
 
 		# my $path;lo defino fuera del for para que esté disponible
-		if ( $execution->get_exe_mode() != EXE_DEBUG ) {
+		if ( $execution->get_exe_mode() ne EXE_DEBUG ) {
 			my $command =
 			    $bd->get_binaries_path_ref->{"mktemp"}
 			  . " -d -p "
@@ -398,13 +398,13 @@ sub createVM {
 		my $globalNode = $dom->getElementsByTagName("create_conf")->item(0);
 
 		my $virtualmList  = $globalNode->getElementsByTagName("vm");
-		my $virtualm      = $virtualmList->item($0);
+		my $virtualm      = $virtualmList->item(0);
 		my $virtualm_name = $virtualm->getAttribute("name");
 
 		my $kernelTagList = $virtualm->getElementsByTagName("kernel");
-#		my $kernelTag     = $kernelTagList->item($0);
+#		my $kernelTag     = $kernelTagList->item(0);
 #		my $kernel_item   = $kernelTag->getFirstChild->getData;
-        my $kernel_item   = $kernelTagList->item($0);
+        my $kernel_item   = $kernelTagList->item(0);
         my $kernelTag     = $kernel_item->getFirstChild->getData;
 		my $kernel;
 
@@ -460,7 +460,7 @@ sub createVM {
 
 
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
+		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
 
@@ -496,8 +496,9 @@ sub createVM {
 
 		# VNUML-ize filesystem
 		my $Z_flagTagList = $virtualm->getElementsByTagName("Z_flag");
-		my $Z_flagTag     = $Z_flagTagList->item($0);
+		my $Z_flagTag     = $Z_flagTagList->item(0);
 		my $Z_flag        = $Z_flagTag->getFirstChild->getData;
+
 		if ( ( !-f $dh->get_fs_dir($vmName) . "/build-stamp" ) && ( !$Z_flag ) )
 		{
 
@@ -528,7 +529,7 @@ sub createVM {
 
 		# Memory assignment
 		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
+		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 		# DFC: memory comes in Kbytes; convert it to Mbytes and add and "M"
 		$mem = $mem / 1024;
@@ -559,7 +560,7 @@ sub createVM {
 		# Management interface
 
 		my $mng_ifTagList = $virtualm->getElementsByTagName("mng_if");
-		my $mng_ifTag     = $mng_ifTagList->item($0);
+		my $mng_ifTag     = $mng_ifTagList->item(0);
 		my $mng_if_value  = $mng_ifTag->getAttribute("value");
 		my $mac           = $mng_ifTag->getAttribute("mac");
 
@@ -598,7 +599,7 @@ sub createVM {
 
 		#get tag notify_ctl
 		my $notify_ctlTagList = $virtualm->getElementsByTagName("notify_ctl");
-		my $notify_ctlTag     = $notify_ctlTagList->item($0);
+		my $notify_ctlTag     = $notify_ctlTagList->item(0);
 		my $notify_ctl        = $notify_ctlTag->getFirstChild->getData;
 
 		# Add mconsole option to command line
@@ -624,13 +625,13 @@ sub createVM {
 
 		#get tag group2_flag (output)
 		my $group2TagList = $virtualm->getElementsByTagName("group2");
-		my $group2Tag     = $group2TagList->item($0);
+		my $group2Tag     = $group2TagList->item(0);
 		my $group2        = "";
 		eval { $group2 = $group2Tag->getFirstChild->getData; };
 
 		#get tag F_flag
 		my $F_flagTagList = $virtualm->getElementsByTagName("F_flag");
-		my $F_flagTag     = $F_flagTagList->item($0);
+		my $F_flagTag     = $F_flagTagList->item(0);
 		my $F_flag        = "";
 		eval { $F_flag = $F_flagTag->getFirstChild->getData; };
 
@@ -684,7 +685,7 @@ sub createVM {
 		$execution->execute_bg( "$kernel @params",
 			$output, &vm_tun_access($virtualm) ? $group2 : '' );
 
-		if ( $execution->get_exe_mode() != EXE_DEBUG ) {
+		if ( $execution->get_exe_mode() ne EXE_DEBUG ) {
 
 			my $boot_status = &UML_init_wait( $sock, $dh->get_boot_timeout );
 
@@ -713,7 +714,8 @@ sub createVM {
 					while ( $pts =~ /^$/ )
 					{ # I'm sure that this loop could be smarter, but it works :)
 						print "Trying to get console $console_id pts...\n"
-						  if ( $execution->get_exe_mode() == EXE_VERBOSE );
+						  #if ( $execution->get_exe_mode() == EXE_VERBOSE );
+						  if ( $execution->get_exe_mode() eq EXE_VERBOSE );
 						sleep 1;    # Needed to avoid  syncronization problems
 						my $command =
 						    $bd->get_binaries_path_ref->{"uml_mconsole"} . " "
@@ -723,7 +725,8 @@ sub createVM {
 						if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
 							$pts = $1;
 							print "...pts is $pts\n"
-							  if ( $execution->get_exe_mode() == EXE_VERBOSE );
+							  #if ( $execution->get_exe_mode() == EXE_VERBOSE );
+							  if ( $execution->get_exe_mode() eq EXE_VERBOSE );
 							$execution->execute(
 								    $bd->get_binaries_path_ref->{"echo"}
 								  . " $pts > "
@@ -811,7 +814,7 @@ sub createVM {
 		# &change_vm_status( $dh, $vmName, "running" );
 
 		# Close screen configuration file
-		if ( ($e_flag) && ( $execution->get_exe_mode() != EXE_DEBUG ) ) {
+		if ( ($e_flag) && ( $execution->get_exe_mode() ne EXE_DEBUG ) ) {
 			close SCREEN_CONF;
 		}
 
@@ -860,9 +863,11 @@ sub destroyVM {
 			$execution->execute( $bd->get_binaries_path_ref->{"kill"}
 				  . " -SIGTERM $pids_string" );
 			print "Waiting UMLs to term gracefully...\n"
-			  unless ( $execution->get_exe_mode() == EXE_NORMAL );
+			  #unless ( $execution->get_exe_mode() == EXE_NORMAL );
+			  unless ( $execution->get_exe_mode() eq EXE_NORMAL );
 			sleep( $dh->get_delay )
-			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  #unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 		}
 
 		# 2. Kill all remaining Linux processes, by brute force
@@ -872,9 +877,11 @@ sub destroyVM {
 			$execution->execute( $bd->get_binaries_path_ref->{"kill"}
 				  . " -SIGKILL $pids_string" );
 			print "Waiting remaining UMLs to term forcely...\n"
-			  unless ( $execution->get_exe_mode() == EXE_NORMAL );
+			  #unless ( $execution->get_exe_mode() == EXE_NORMAL );
+			  unless ( $execution->get_exe_mode() eq EXE_NORMAL );
 			sleep( $dh->get_delay )
-			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  #unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 		}
 
 		# Remove vm fs directory (cow and iso filesystems)
@@ -1362,7 +1369,8 @@ my $random_id  = &generate_random_string(6);
 							# FIXME: the procedure is quite similar to the one in commands_file function. Maybe
 							# it could be generalized in a external function, to avoid duplication
 							open COMMAND_FILE,">" . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id" or $execution->smartdie( "can not open " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id: $!" )
-							 unless ($execution->get_exe_mode() == EXE_DEBUG );
+							 #unless ($execution->get_exe_mode() == EXE_DEBUG );
+							 unless ($execution->get_exe_mode() eq EXE_DEBUG );
 							my $verb_prompt_bk = $execution->get_verb_prompt();
 	
 							# FIXME: consider to use a different new VNX::Execution object to perform this
@@ -1385,7 +1393,8 @@ my $random_id  = &generate_random_string(6);
 							$execution->execute("echo 1 > /mnt/hostfs/filetree_cp.$random_id.end",*COMMAND_FILE);
 	
 							close COMMAND_FILE
-							  unless ($execution->get_exe_mode() == EXE_DEBUG );
+							  #unless ($execution->get_exe_mode() == EXE_DEBUG );
+							  unless ($execution->get_exe_mode() eq EXE_DEBUG );
 							$execution->set_verb_prompt($verb_prompt_bk);
 							$execution->execute($bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id" );
 	
@@ -1395,12 +1404,14 @@ my $random_id  = &generate_random_string(6);
 							# 3c. Actively wait for the copying end
 							chomp( my $init = `$date_command` );
 							print  "Waiting filetree $src->$dest filetree copy... "
-							  if ( $execution->get_exe_mode() == EXE_VERBOSE );
+							  #if ( $execution->get_exe_mode() == EXE_VERBOSE );
+							  if ( $execution->get_exe_mode() eq EXE_VERBOSE );
 							&filetree_wait( $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id.end" );
 							chomp( my $end = `$date_command` );
 							my $time = $init - $end;
 							print "(" . $time . "s)\n"
-							  if ( $execution->get_exe_mode() == EXE_VERBOSE );
+							  #if ( $execution->get_exe_mode() == EXE_VERBOSE );
+							  if ( $execution->get_exe_mode() eq EXE_VERBOSE );
 	
 							# 3d. Cleaning
 							$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf $filetree_host" );
@@ -1435,7 +1446,8 @@ my $random_id  = &generate_random_string(6);
 			  ">" . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id"
 			  or $execution->smartdie(
 				"can not open " . $dh->get_tmp_dir . "/vnx.$name.$seq: $!" )
-			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  #unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 			my $verb_prompt_bk = $execution->get_verb_prompt();
 
@@ -1516,7 +1528,8 @@ my $random_id  = &generate_random_string(6);
 
 			# We close file and mark it executable
 			close COMMAND_FILE
-			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  #unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			$execution->set_verb_prompt($verb_prompt_bk);
 			$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x "
 				  . $dh->get_tmp_dir
@@ -2293,7 +2306,8 @@ sub UML_bootfile {
 	# We open boot file, taking S$boot_prio and $runlevel
 	open CONFILE, ">$path" . "umlboot"
 	  or $execution->smartdie("can not open ${path}umlboot: $!")
-	  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+	  #unless ( $execution->get_exe_mode() == EXE_DEBUG );
+	  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 	my $verb_prompt_bk = $execution->get_verb_prompt();
 
 # FIXME: consider to use a different new VNX::Execution object to perform this
@@ -2335,7 +2349,7 @@ sub UML_bootfile {
 			#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
 			open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
 				or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
-				unless ( $execution->get_exe_mode() == EXE_DEBUG );
+				unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			print HOSTLINES $net->addr() . " $vm_name\n";
 			close HOSTLINES;
 		}
@@ -2650,7 +2664,7 @@ sub UML_bootfile {
 
 	# Close file and restore prompting method
 	$execution->set_verb_prompt($verb_prompt_bk);
-	close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+	close CONFILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 	# To configure management device (id 0), if needed
 	if ( $dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no" ) {
@@ -2685,7 +2699,7 @@ sub UML_plugins_conf {
 
 	open CONFILE, ">$path" . "plugins_conf.sh"
 	  or $execution->smartdie("can not open ${path}plugins_conf.sh: $!")
-	  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+	  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 	my $verb_prompt_bk = $execution->get_verb_prompt();
 
 # FIXME: consider to use a different new VNX::Execution object to perform this
@@ -2758,7 +2772,7 @@ sub UML_plugins_conf {
 
 	# Close file and restore prompting method
 	$execution->set_verb_prompt($verb_prompt_bk);
-	close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+	close CONFILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 	# Configuration file must be executable
 	$execution->execute( $bd->get_binaries_path_ref->{"chmod"}
