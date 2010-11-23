@@ -12,7 +12,7 @@ Just one Juniper olive virtual machine. Use this specification for testing
   <global>
     <version>1.92</version>
     <scenario_name>simple_juniper</scenario_name>
-    <automac offset="6"/>
+    <automac offset="11"/>
     <vm_mgmt type="none" />
   </global>
     
@@ -20,7 +20,7 @@ Just one Juniper olive virtual machine. Use this specification for testing
       
   <!-- NODES -->
   <vm name="juniper" type="libvirt" subtype="kvm" os="olive">
-    <filesystem type="cow">/root/juniper/root_fs_juniper</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_juniper</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.11/24</ipv4>

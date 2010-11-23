@@ -13,7 +13,7 @@ Just one Cisco virtual machine. Use this specification for testing
   <global>
     <version>1.92</version>
     <scenario_name>simple_dynamips</scenario_name>
-    <automac offset="3"/>
+    <automac offset="10"/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
     </vm_defaults>
