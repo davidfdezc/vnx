@@ -15,25 +15,17 @@
   </global>
 
 
-  <vm name="R1">
-     <!--conf>/home/jrodriguez/R1.txt</conf-->
+  <vm name="cisco">
+     <conf>conf/cisco.conf</conf>
      <hw>
        <chassis>c3640</chassis>
        <slot id="0">NM-4E</slot>
        <slot id="1">NM-4T</slot>
        <console port="920"/>
      </hw>
-     <login password="cosas"/>
-     <login user="jack_sparrow" password="perla_negra"/>
-     <login user="caribe" password="piratas"/>
+     <login password="xxxx"/>
+     <login user="root" password="xxxx"/>
      <enable password="xxxx"/>
   </vm>
-
-  <vm name="R2">
-	<conf>/home/jrodriguez/R2.conf</conf>
-	<login password="cosas"/>
-  </vm>
-    <vm name="R3">
-  	</vm>
 
 </vnx_dynamips>

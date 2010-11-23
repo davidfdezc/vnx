@@ -1,0 +1,12 @@
+[localhost]
+workingdir = /tmp
+
+[[3640]]
+        image = /usr/share/vnx/filesystems/c3640
+        ram = 96
+    
+[[ROUTER R]]
+        model = 3640
+        slot0 = NM-4E
+        slot1 = NM-4T
+        console = 901
