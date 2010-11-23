@@ -809,11 +809,14 @@ sub check_doc {
    	   my %console_ids;
    	   for (my $j = 0; $j < $console_list->getLength; $j++) {
    	   	   my $id = $console_list->item($j)->getAttribute("id");
+
+   	   	   eval {
    	   	   if ($console_ids{$id} == 1) {
    	   	      return "console id $id duplicated in virtual machine $name";
    	   	   }
    	   	   else {
    	   	      $console_ids{$id} = 1;
+   	   	   }
    	   	   }
    	   }
    }
