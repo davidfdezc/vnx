@@ -263,7 +263,7 @@ open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
 	my $globalNode   = $dom->getElementsByTagName($type)->item(0);
 
 	my $idTagList = $globalNode->getElementsByTagName("id");
-	my $idTag     = $idTagList->item($0);
+	my $idTag     = $idTagList->item(0);
 	my $newid    = $idTag->getFirstChild->getData;
 	chomp($newid);
 #	print LOG "sleep 60\n";
@@ -464,7 +464,7 @@ sub autoconfigure {
 		my $dom          = $parser->parsefile($vnxboot_file);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmTagList = $globalNode->getElementsByTagName("vm");
-		my $virtualmTag     = $virtualmTagList->item($0);
+		my $virtualmTag     = $virtualmTagList->item(0);
 		my $vmName       = $virtualmTag->getAttribute("name");
 
 		my $hostname_vm = `hostname`;
@@ -596,7 +596,7 @@ sub autoconfigure {
 		my $dom          = $parser->parsefile($vnxboot_file);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmTagList = $globalNode->getElementsByTagName("vm");
-		my $virtualmTag     = $virtualmTagList->item($0);
+		my $virtualmTag     = $virtualmTagList->item(0);
 		my $vmName       = $virtualmTag->getAttribute("name");
 
 		my $hostname_vm = `hostname -s`;
@@ -738,7 +738,7 @@ sub filetree {
 	my $filetreeTagList = $globalNode->getElementsByTagName("filetree");
 	my $numfiletree        = $filetreeTagList->getLength;
 	for (my $j = 0 ; $j < $numfiletree ; $j++){
-		my $filetreeTag     = $filetreeTagList->item($0);
+		my $filetreeTag     = $filetreeTagList->item(0);
 		my $seq       = $filetreeTag->getAttribute("seq");
 		my $root       = $filetreeTag->getAttribute("root");
 		my $folder = $j + 1;
