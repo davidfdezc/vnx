@@ -6,6 +6,15 @@
 Simple scenario
 Just one Juniper olive virtual machine. Use this specification for testing
 
+Configuration to load in the router:
+
+cli
+edit 
+set system root-authentication plain-text-password 
+set system services ssh 
+set interfaces fxp0 unit 0 family inet address 10.0.0.11/24
+commit
+
 -->
 
 <vnx>
