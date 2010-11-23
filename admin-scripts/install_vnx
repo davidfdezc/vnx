@@ -42,6 +42,12 @@ chmod 644 /usr/share/vnx/examples/*
 mkdir -vp /usr/share/vnx/filesystems
 mkdir -vp /usr/share/vnx/kernels
 
+# config file
+if [ -e /etc/vnx.conf ]; then
+	mv /etc/vnx.conf /etc/vnx.conf.bak
+fi
+cp -v data/vnx.conf /etc
+
 echo "** "
 echo "** ...done"
 echo "** "

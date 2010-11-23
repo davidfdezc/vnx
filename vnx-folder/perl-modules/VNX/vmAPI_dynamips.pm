@@ -82,7 +82,7 @@ my $M_flag;       # passed from createVM to halt
 
 
 my $HHOST="localhost";
-my $HPORT="7300";
+my $HPORT=get_dynamips_port_conf();
 my $HIDLEPC="0x604f8104";
 my $conf_file="";
 my $vnxconf = "/etc/vnx.conf";
@@ -1787,6 +1787,28 @@ sub get_conf_file {
 	#if (($default_tag eq 1)&&($global_tag eq 1)){
 	#	$result = "0x604f8104";
 	#}
+ 	return $result;
+}
+
+
+# Returns dynamips port from /etc/vnx.conf file
+# If not defined, 7200 is used by default
+sub get_dynamips_port_conf {
+
+	my $result = "7200";
+	
+	unless(-e $vnxconf){
+		return $result;
+	}
+	open FILE, "<$vnxconf" or $execution->smartdie("$vnxconf not found");
+	my @lines = <FILE>;
+	foreach my $line (@lines){
+	    if (($line =~ /port/) && !($line =~ /^#/)){ 
+			my @config1 = split(/=/, $line);
+			my @config2 = split(/#/,$config1[1]);
+			$result = $config2[0];
+	    }
+	}
  	return $result;
 }
 

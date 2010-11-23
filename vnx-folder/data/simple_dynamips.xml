@@ -17,48 +17,26 @@ Just one Cisco virtual machine. Use this specification for testing
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
     </vm_defaults>
-    <!--dynamips_ext>simple_dynamips-dn.xml</dynamips_ext-->
+    <dynamips_ext>simple_dynamips-dn.xml</dynamips_ext>
   </global>
   
   <net name="Net0" mode="virtual_bridge" />
     
   <!-- NODES -->
-  <vm name="R1" type="dynamips" subtype="3600" os="">
+  <vm name="cisco" type="dynamips" subtype="3600" os="">
 	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
-	<mem>256M</mem>
+	<mem>96M</mem>
 	<if id="1" net="Net0" name="e0/0">
-		<ipv4>10.1.1.4/24</ipv4>
-		<ipv6>2001:db8::1/64</ipv6>
+		<ipv4>10.0.0.10/24</ipv4>
+		<ipv6>2001:db8::10/64</ipv6>
     </if>
     <exec seq="brief" type="verbatim">show ip interface brief</exec>
     <exec seq="reload" type="verbatim">reload /home/jrodriguez/R1.txt</exec>
   </vm>
-  <vm name="R2" type="dynamips" subtype="3600" os="">
-	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
-	<mem>256M</mem>
-	<if id="1" net="Net0" name="e0/0">
-		<ipv4>10.1.1.3/24</ipv4>
-    </if>
-    <exec seq="brief" type="verbatim">show ip interface brief</exec>
-    <exec seq="file" type="file">/home/jrodriguez/fichero.cmd</exec>
-  </vm>
-    <!--vm name="R3" type="dynamips" subtype="3600" os="">
-	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
-	<mem>256M</mem>
-	<if id="1" net="Net0" name="e1/0">
-		<ipv4>10.1.1.3/24</ipv4>
-    </if>
-  </vm>
-    <vm name="R4" type="dynamips" subtype="3600" os="">
-	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
-	<mem>256M</mem>
-	<if id="1" net="Net0" name="e1/0">
-		<ipv4>10.1.1.3/24</ipv4>
-    </if>
-  </vm-->
+
   <host>
     <hostif net="Net0">
-       <ipv4>10.1.1.1/24</ipv4>
+       <ipv4>10.0.0.1/24</ipv4>
     </hostif>
   </host>  
 

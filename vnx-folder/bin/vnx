@@ -1020,7 +1020,7 @@ sub mode_start {
 				}
 			
 			}
-			elsif ( ($vm->getAttribute("type") eq "libvirt") || ( $merged_type ne "libvirt-kvm-olive" ) ) {
+			elsif ( ($vm->getAttribute("type") eq "libvirt") && ( $merged_type ne "libvirt-kvm-olive" ) ) {
 # DFC			my $vnc_port = 6900 + $i;
 # DFC			print $name . ": " . $vnc_port . "\n";
                 my $display=`virsh -c qemu:///system vncdisplay $name`;
