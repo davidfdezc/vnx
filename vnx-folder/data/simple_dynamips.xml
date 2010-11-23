@@ -31,7 +31,7 @@ Just one Cisco virtual machine. Use this specification for testing
 		<ipv6>2001:db8::10/64</ipv6>
     </if>
     <exec seq="brief" type="verbatim">show ip interface brief</exec>
-    <exec seq="reload" type="verbatim">reload /home/jrodriguez/R1.txt</exec>
+    <exec seq="reload" type="verbatim">reload conf/cisco.conf</exec>
   </vm>
 
   <host>

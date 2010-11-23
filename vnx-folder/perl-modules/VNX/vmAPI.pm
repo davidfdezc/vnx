@@ -212,10 +212,10 @@ sub defineVM {
 		my $dom          = $parser->parse($doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
+		my $virtualm     = $virtualmList->item(0);
 
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
+		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
 
@@ -235,7 +235,7 @@ sub defineVM {
 
 		# memory
 		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
+		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 
 		# create XML for libvirt
@@ -440,10 +440,10 @@ sub defineVM {
 		my $dom          = $parser->parse($doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
+		my $virtualm     = $virtualmList->item(0);
 
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
+		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
 
@@ -466,7 +466,7 @@ sub defineVM {
 
 		# memory
 		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
+		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 
 		# create XML for libvirt
@@ -873,10 +873,10 @@ sub createVM {
 		my $dom          = $parser->parse($doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
+		my $virtualm     = $virtualmList->item(0);
 
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
+		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
 
@@ -899,7 +899,7 @@ sub createVM {
 
 		# memory
 		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
+		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 
 		# create XML for libvirt
@@ -1108,10 +1108,10 @@ sub createVM {
 		my $dom          = $parser->parse($doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
+		my $virtualm     = $virtualmList->item(0);
 
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
+		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
 
@@ -1134,7 +1134,7 @@ sub createVM {
 
 		# memory
 		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
+		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 
 		# create XML for libvirt
@@ -1359,14 +1359,14 @@ sub createVM {
 
 		my $globalNode = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList  = $globalNode->getElementsByTagName("vm");
-		my $virtualm      = $virtualmList->item($0);
+		my $virtualm      = $virtualmList->item(0);
 		my $virtualm_name = $virtualm->getAttribute("name");
 		print "$virtualm_name xml specification:\n" . $dom->toString . "\n";
 
 		my $kernelTagList = $virtualm->getElementsByTagName("kernel");
-#		my $kernelTag     = $kernelTagList->item($0);
+#		my $kernelTag     = $kernelTagList->item(0);
 #		my $kernel_item   = $kernelTag->getFirstChild->getData;
-		my $kernel_item   = $kernelTagList->item($0);
+		my $kernel_item   = $kernelTagList->item(0);
 		my $kernelTag   = $kernel_item->getFirstChild->getData;
 		my $kernel;
 		
@@ -1423,7 +1423,7 @@ sub createVM {
 
 
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
+		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
 
@@ -1459,7 +1459,7 @@ sub createVM {
 
 		# VNUML-ize filesystem
 		my $Z_flagTagList = $virtualm->getElementsByTagName("Z_flag");
-		my $Z_flagTag     = $Z_flagTagList->item($0);
+		my $Z_flagTag     = $Z_flagTagList->item(0);
 		my $Z_flag        = $Z_flagTag->getFirstChild->getData;
 		if ( ( !-f $dh->get_fs_dir($vmName) . "/build-stamp" ) && ( !$Z_flag ) )
 		{
@@ -1491,7 +1491,7 @@ sub createVM {
 
 		# Memory assignment
 		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
+		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 		push( @params, "mem=" . $mem );
 
@@ -1519,7 +1519,7 @@ sub createVM {
 		# Management interface
 
 		my $mng_ifTagList = $virtualm->getElementsByTagName("mng_if");
-		my $mng_ifTag     = $mng_ifTagList->item($0);
+		my $mng_ifTag     = $mng_ifTagList->item(0);
 		my $mng_if_value  = $mng_ifTag->getAttribute("value");
 		my $mac           = $mng_ifTag->getAttribute("mac");
 
@@ -1557,7 +1557,7 @@ sub createVM {
 
 		#get tag notify_ctl
 		my $notify_ctlTagList = $virtualm->getElementsByTagName("notify_ctl");
-		my $notify_ctlTag     = $notify_ctlTagList->item($0);
+		my $notify_ctlTag     = $notify_ctlTagList->item(0);
 		my $notify_ctl        = $notify_ctlTag->getFirstChild->getData;
 
 		# Add mconsole option to command line
@@ -1583,13 +1583,13 @@ sub createVM {
 
 		#get tag group2_flag (output)
 		my $group2TagList = $virtualm->getElementsByTagName("group2");
-		my $group2Tag     = $group2TagList->item($0);
+		my $group2Tag     = $group2TagList->item(0);
 		my $group2        = "";
 		eval { $group2 = $group2Tag->getFirstChild->getData; };
 
 		#get tag F_flag
 		my $F_flagTagList = $virtualm->getElementsByTagName("F_flag");
-		my $F_flagTag     = $F_flagTagList->item($0);
+		my $F_flagTag     = $F_flagTagList->item(0);
 		my $F_flag        = "";
 		eval { $F_flag = $F_flagTag->getFirstChild->getData; };
 

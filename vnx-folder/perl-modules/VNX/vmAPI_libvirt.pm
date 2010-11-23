@@ -229,10 +229,10 @@ sub defineVM {
 		my $dom          = $parser->parse($doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
+		my $virtualm     = $virtualmList->item(0);
 
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
+		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
 
@@ -250,7 +250,7 @@ sub defineVM {
 
 		# memory
 		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
+		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 
 		# create XML for libvirt
@@ -480,10 +480,10 @@ sub defineVM {
 		my $dom          = $parser->parse($doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item($0);
+		my $virtualm     = $virtualmList->item(0);
 
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
-		my $filesystemTag     = $filesystemTagList->item($0);
+		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
 
@@ -989,7 +989,7 @@ sub createVM {
 
 		# memory
 		my $memTagList = $virtualm->getElementsByTagName("mem");
-		my $memTag     = $memTagList->item($0);
+		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 
 		# create XML for libvirt

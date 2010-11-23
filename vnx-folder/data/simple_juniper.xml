@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE vnx SYSTEM "/usr/share/xml/vnx/vnx-1.92.dtd">
+
+<!--
+
+Simple scenario
+Just one Juniper olive virtual machine. Use this specification for testing
+
+-->
+
+<vnx>
+  <global>
+    <version>1.92</version>
+    <scenario_name>simple_juniper</scenario_name>
+    <automac offset="6"/>
+    <vm_mgmt type="none" />
+  </global>
+    
+  <net name="Net0" mode="virtual_bridge" />
+      
+  <!-- NODES -->
+  <vm name="juniper" type="libvirt" subtype="kvm" os="olive">
+    <filesystem type="cow">/root/juniper/root_fs_juniper</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.11/24</ipv4>
+    </if>
+  </vm>
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>
+  
+</vnx>
