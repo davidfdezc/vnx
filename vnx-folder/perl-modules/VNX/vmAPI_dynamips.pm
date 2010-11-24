@@ -82,10 +82,10 @@ my $M_flag;       # passed from createVM to halt
 
 
 my $HHOST="localhost";
-my $HPORT=get_dynamips_port_conf();
 my $HIDLEPC="0x604f8104";
 my $conf_file="";
 my $vnxconf = "/etc/vnx.conf";
+my $HPORT=get_dynamips_port_conf();
 
 #
 #
@@ -586,6 +586,7 @@ sub createVM{
 	
 	# Definicion del fichero de configuracion extendida host
 	my $conf_dynamips = get_conf_file($vmName);
+	$conf_dynamips = get_absolute_file($conf_dynamips);
 	
 	# Miro si hay definido en el XML un fichero de configuracion extendida
 	if (!($conf_dynamips eq 0))
@@ -1390,7 +1391,16 @@ sub executeCMD{
 
 ## INTERNAL USE ##
 
-# Configura el fichero dynamips_ext en la variable global
+# Recibe un fichero o directorio y devuelve el path absoluto si es que no lo es en un principio
+sub get_absolute_file{
+	my $tempconf = shift;
+	# Comprueba si es una variable global o no
+	if (!($tempconf =~ m/^\/((\w|\.|-)+\/)*(\w|\.|-)+$/)){
+		return( $dh->get_xml_dir() . $tempconf);
+	}
+	return $tempconf;
+}
+
 sub set_config_file{
 	my $tempconf = shift;
 	# Comprueba si es una variable global o no
@@ -1786,9 +1796,6 @@ sub get_conf_file {
 			$global_tag = 0;
 		}
 	}
-	#if (($default_tag eq 1)&&($global_tag eq 1)){
-	#	$result = "0x604f8104";
-	#}
  	return $result;
 }
 
@@ -1809,6 +1816,8 @@ sub get_dynamips_port_conf {
 			my @config1 = split(/=/, $line);
 			my @config2 = split(/#/,$config1[1]);
 			$result = $config2[0];
+			chop $result;
+			$result =~ s/\s+//g;
 	    }
 	}
  	return $result;
@@ -1830,67 +1839,11 @@ sub get_idle_pc_conf {
 			my @config1 = split(/=/, $line);
 			my @config2 = split(/#/,$config1[1]);
 			$result = $config2[0];
+			chop $result;
+			$result =~ s/\s+//g;
 	    }
 	}
  	return $result;
-	
-	
-	
-#	my $vmName = shift;
-#	my $result = "0x604f8104";
-#	
-#	unless(-e $conf_file){
-#		return $result;
-#	}
-#	# Parseamos el fichero.
-#	my $parser       = new XML::DOM::Parser;
-#	my $dom          = $parser->parsefile($conf_file);
-#	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
-#	my $virtualmList = $globalNode->getElementsByTagName("vm");
-#		
-# 	my $numsvm = $virtualmList->getLength;
-# 	my $name;
-# 	my $virtualm;
-# 	my $default_tag = 1;
-# 	my $global_tag = 1;
-# 	# Buscamos la seccion de la maquina virtual
-# 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
-# 		# We get name attribute
-# 		$virtualm = $virtualmList->item($j);
-#		$name = $virtualm->getAttribute("name");
-#
-#		if ( $name eq $vmName ) {
-#			last;
-#		}
-# 	}
-# 	# Comprobamos que la maquina es la correcta
-#	if($name eq $vmName){
-#		my $hw_list = $virtualm->getElementsByTagName("hw");
-#		if ($hw_list->getLength gt 0){
-#			my $hw = $hw_list->item(0);
-#			my $idle_pc_list = $hw->getElementsByTagName("idle_pc");
-#	 		if($idle_pc_list->getLength gt 0){
-#	 			my $idle_pcTag = $idle_pc_list->item(0);
-#	 			$result = $idle_pcTag->getAttribute("value");
-#	 			$global_tag = 0;
-#	 		}
-#		}
-#	}
-#	if ($global_tag eq 1){
-#		my $globalList = $globalNode->getElementsByTagName("global");
-#		if ($globalList->getLength gt 0){
-#			my $globaltag = $globalList->item(0);
-#			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
-#			if ($hw_gl_list->getLength gt 0){
-#				my $hw_gl = $hw_gl_list->item(0);
-#				my $idle_pc_gl_list = $hw_gl->getElementsByTagName("idle_pc");
-#	 			if($idle_pc_gl_list->getLength gt 0){
-#	 				$result = $idle_pc_gl_list->getAttribute("value");
-#	 			}
-#			}
-#		}	
-#	}
-# 	return $result;
 }
 
 
