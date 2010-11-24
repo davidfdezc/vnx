@@ -90,8 +90,6 @@ my $M_flag;       # passed from createVM to halt
 # Consoles port
 my $CON_PORT = 20000;  # DFC: base port for consoles. The code looks for a free port starting from this value
 
-
-
 ###################################################################
 #                                                                 #
 #   defineVM                                                      #
@@ -1795,7 +1793,8 @@ sub shutdownVM {
 				&change_vm_status( $dh, $vmName, "REMOVE" );
 
 				# remove run directory (de momento no se puede porque necesitamos saber a que pid esperar)
-#				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) );
+				# lo habilito para la demo
+				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) );
 
 				print "Domain shut down\n";
 				return $error;
