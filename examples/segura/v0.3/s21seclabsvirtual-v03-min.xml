@@ -26,7 +26,9 @@ S21SecLabs scenario v0.3
 			<filesystem type="cow">&VNXDIR;filesystems/root_fs_light</filesystem>
 			<kernel>/usr/share/vnx/kernels/linux</kernel>
 			<console id="1">xterm</console>
+			<!--basedir>/home/jorge/workspace/ediv_testing/</basedir-->
 		</vm_defaults>
+		<!--dynamips_ext>simple_dynamips-dn.xml</dynamips_ext-->
 	</global>
 
 	<!--NETS START-->
@@ -88,7 +90,8 @@ S21SecLabs scenario v0.3
         <!-- Copies scripts to start and stop fw -->
 		<filetree root="/usr/local/bin" seq="start">conf/fw/bin</filetree> 
         <!-- Copies fwbuilder configuration file (*.fwb) -->
-		<filetree root="/root" seq="start">conf/fw/conf</filetree>            		      			<exec seq="start" type="verbatim">/usr/local/bin/s21secfw.fw</exec>
+		<filetree root="/root" seq="start">conf/fw/conf</filetree>
+		<exec seq="start" type="verbatim">/usr/local/bin/s21secfw.fw</exec>
 		<exec seq="stop" type="verbatim">/usr/local/bin/delete-all-fw-rules.sh</exec>
 	</vm>
 
@@ -230,7 +233,7 @@ S21SecLabs scenario v0.3
       </vm>
 
       <vm name="ext-3" type="libvirt" subtype="kvm" os="linux">
-        <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu-gui</filesystem>
+        <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
         <mem>256M</mem>
     	<if id="1" net="ExtNet">
 		    <ipv4 mask="255.255.255.0">192.168.0.13</ipv4>
@@ -406,7 +409,9 @@ S21SecLabs scenario v0.3
 	<!--SubNet3 VMs-->
 	<!--8 generic VMs-->
 
-	<vm name="net3-1" type="uml" subtype="" os="">
+	<vm name="net3-1" type="libvirt" subtype="kvm" os="freebsd">
+	    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_freebsd</filesystem>
+	    <mem>256M</mem>
 		<if id="1" net="SubNet3">
 			<ipv4 mask="255.255.255.0">10.0.3.11</ipv4>
 	    	</if>
