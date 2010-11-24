@@ -579,6 +579,7 @@ sub autoconfigure {
 			system "hostname $vmName";
 			print LOG "   rebooting...\n\n";
 			close LOG;
+			sleep 5;
 			system "reboot";
 			sleep 100; # wait for system to reboot
 		}
@@ -711,6 +712,7 @@ sub autoconfigure {
 			system "hostname $vmName";
 			print LOG "   rebooting...\n\n";
 			close LOG;
+			sleep 5;
 			system "reboot";
 			sleep 100; # wait for system to reboot
 		}
