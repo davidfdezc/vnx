@@ -205,7 +205,8 @@ sub defineVM {
 	#                  defineVM for uml                               #
 	###################################################################
 	if ( $type eq "uml" ) {
-		$error = "Can't define vm of type uml.\n";
+		#$error = "Can't define vm of type uml.\n";
+		$error = 0;
 		return $error;
 	}
 	else {
@@ -235,7 +236,8 @@ sub undefineVM {
 	#                  undefineVM for uml                             #
 	###################################################################
 	if ( $type eq "uml" ) {
-		$error = "Can't undefine vm of type uml.\n";
+		#$error = "Can't undefine vm of type uml.\n";
+		$error = 0;
 		return $error;
 	}
 	else {
