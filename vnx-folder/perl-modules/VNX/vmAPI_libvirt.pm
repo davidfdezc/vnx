@@ -214,12 +214,12 @@ sub defineVM {
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "vnxboot"
 		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 		#$execution->execute($doc ,*CONFILE);
 		print CONFILE "$doc\n";
 
-		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		close CONFILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"} . " -l -R -quiet -o $filesystem_small $path" );
 		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
 
@@ -455,7 +455,7 @@ sub defineVM {
 	}
 	
 	###################################################################
-	#                  defineVM for libvirt-kvm-linux/freebsd         #
+	#                  defineVM for libvirt-kvm-linux/freebsd/olive   #
 	###################################################################
 	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")||
 	        ($type eq "libvirt-kvm-olive") ) {
@@ -463,12 +463,12 @@ sub defineVM {
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "vnxboot"
 		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 		#$execution->execute($doc ,*CONFILE);
 		print CONFILE "$doc\n";
 
-		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		close CONFILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
 			  . " -l -R -quiet -o $filesystem_small $path" );
 		$execution->execute(
@@ -2416,9 +2416,9 @@ my $random_id  = &generate_random_string(6);
 				
 				open XML_COMMAND_WINDOWS_FILE, ">" . $dh->get_hostfs_dir($name) . '/' . 'command_libvirt.xml'
 		 			 or $execution->smartdie("can not open " . $dh->get_hostfs_dir . '/' . 'command_libvirt.xml' )
-		  		unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		  		unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 				print XML_COMMAND_WINDOWS_FILE "$xmlstring_command_windows\n";
-				close XML_COMMAND_WINDOWS_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+				close XML_COMMAND_WINDOWS_FILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 				$execution->execute("virsh -c qemu:///system 'attach-device \"$name\" ". $dh->get_hostfs_dir($name) . "/command_libvirt.xml'");
 				#$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 				print "Sending command to client... \n";

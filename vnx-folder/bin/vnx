@@ -2987,7 +2987,14 @@ sub automac {
       my $upper_offset = sprintf("%x",int($dh->get_automac_offset / 256));
       my $lower_offset = sprintf("%x",$dh->get_automac_offset % 256);
 
-      return ",fe:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
+      # DFC 26/11/2010: En Ubuntu 10.04 y con las versiones 0.8.3, 0.8.4 y 0.8.5 hay un problema 
+      # de conectividad entre máquinas virtuales. Cuando se arrancan los ejemplos simple_*
+      # las vm tienen conectividad con el host pero no entre ellas.
+      # Parece que tienen que ver con la elección de las direcciones MAC en los interfaces
+      # tun/tap (ver https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/579892)
+      # Una solución temporal es cambiar las direcciones aun número más bajo: fe:fd -> 02:fd
+      # return ",fe:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
+      return ",02:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
 
 }
 
