@@ -16,8 +16,9 @@
   <devices>
     <emulator>/usr/bin/kvm</emulator>
     <disk type='file' device='disk'>
-      <source file='/usr/share/vnx/filesystems/root_fs_linux'/>
+      <source file='/usr/share/vnx/filesystems/root_fs_ubuntu'/>
       <target dev='hda'/>
+      <driver name="qemu" type="qcow2"/>
     </disk>
     <!--disk type='file' device='cdrom'>
       <source file='/almacen/iso/ubuntu-10.04-server-i386.iso'/>

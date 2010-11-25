@@ -58,6 +58,7 @@
             <xs:enumeration value="system" />
             <xs:enumeration value="processn" />
             <xs:enumeration value="processy" />
+            <xs:enumeration value="exec" />
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
