@@ -881,7 +881,7 @@ sub createVM {
 			$filesystem_type = $dh->get_default_filesystem_type;
 		}
 
-		if ( $execution->get_exe_mode() != EXE_DEBUG ) {
+		if ( $execution->get_exe_mode() ne EXE_DEBUG ) {
 			my $command =
 			    $bd->get_binaries_path_ref->{"mktemp"}
 			  . " -d -p "
@@ -1162,9 +1162,9 @@ sub createVM {
 		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
 		  or $execution->smartdie(
 			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml')
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 		print XML_FILE "$xmlstring\n";
-		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		close XML_FILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 
         # check that the domain is not already defined or started
@@ -1210,12 +1210,12 @@ sub createVM {
 		$filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
 		open CONFILE, ">$path" . "vnxboot"
 		  or $execution->smartdie("can not open ${path}vnxboot: $!")
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 		#$execution->execute($doc ,*CONFILE);
 		print CONFILE "$doc\n";
 
-		close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		close CONFILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
 			  . " -l -R -quiet -o $filesystem_small $path" );
 		$execution->execute(
@@ -1480,9 +1480,9 @@ sub createVM {
 		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
 		  or $execution->smartdie(
 			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml')
-		  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 		print XML_FILE "$xmlstring\n";
-		close XML_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		close XML_FILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 
         # check that the domain is not already defined or started
@@ -1660,7 +1660,7 @@ sub startVM {
 			#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
 			open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
 				or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
-				unless ( $execution->get_exe_mode() == EXE_DEBUG );
+				unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			print HOSTLINES $net->addr() . " $vmName\n";
 			close HOSTLINES;
 		}
@@ -1727,7 +1727,7 @@ sub startVM {
 					#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
 					open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
 						or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
-						unless ( $execution->get_exe_mode() == EXE_DEBUG );
+						unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 					print HOSTLINES $net->addr() . " $vmName\n";
 					close HOSTLINES;
 				}
@@ -2183,7 +2183,7 @@ my $random_id  = &generate_random_string(6);
 			my $user   = &get_user_in_seq( $vm, $seq );
 			my $mode   = &get_vm_exec_mode($vm);
 			my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name)  . " filetree.XXXXXX";
-			open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			my $verb_prompt_bk = $execution->get_verb_prompt();
 			# FIXME: consider to use a different new VNX::Execution object to perform this
 			# actions (avoiding this nasty verb_prompt backup)
@@ -2240,16 +2240,16 @@ my $random_id  = &generate_random_string(6);
 				}
 			}
 			$execution->execute( "</filetrees>", *COMMAND_FILE );
-			close COMMAND_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			close COMMAND_FILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			
 			open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |") || die "Failed: $!\n";
 			my $dimension = <DU>;
 			$dimension = $dimension + 20;
 			my $dimensiondisk = $dimension + 30;
-			close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			close DU unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var3 = substr(var,length(var),length(var)+1); print var3} ' |") || die "Failed: $!\n";
 			my $unit = <DU>;
-			close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			close DU unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			if ($countfiletree > 0){
 				if (   ( $unit eq "K\n" || $unit eq "B\n" )|| ( ( $unit eq "M\n" ) && ( $dimension <= 32 ) ) ){
 					$unit          = 'M';
@@ -2292,9 +2292,9 @@ my $random_id  = &generate_random_string(6);
 				$execution->execute("rm ". $dh->get_hostfs_dir($name) . "/filetree_libvirt.xml"); 
 				open XML_FILETREE_WINDOWS_FILE, ">" . $dh->get_hostfs_dir($name) . '/' . 'filetree_libvirt.xml'
 		 			 or $execution->smartdie("can not open " . $dh->get_hostfs_dir . '/' . 'filetree_libvirt.xml' )
-		  		unless ( $execution->get_exe_mode() == EXE_DEBUG );
+		  		unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 				print XML_FILETREE_WINDOWS_FILE "$xmlstring_filetree_windows\n";
-				close XML_FILETREE_WINDOWS_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+				close XML_FILETREE_WINDOWS_FILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 				
 				
 				
@@ -2316,7 +2316,7 @@ my $random_id  = &generate_random_string(6);
 			############ COMMAND_FILE ########################
 			# We open file
 			open COMMAND_FILE,">" . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" or $execution->smartdie("can not open " . $dh->get_tmp_dir . "/vnx.$name.$seq: $!" )
-			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 			# FIXME: consider to use a different new VNX::Execution object to perform this
 			# actions (avoiding this nasty verb_prompt backup)
@@ -2374,7 +2374,7 @@ my $random_id  = &generate_random_string(6);
 			$execution->execute( "</command>", *COMMAND_FILE );
 			# We close file and mark it executable
 			close COMMAND_FILE
-			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			$execution->set_verb_prompt($verb_prompt_bk);
 			$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_tmp_dir  . "/vnx.$name.$seq.$random_id" );
 			############# INSTALL COMMAND FILES #############
@@ -2439,7 +2439,7 @@ my $random_id  = &generate_random_string(6);
 			my $user   = &get_user_in_seq( $vm, $seq );
 			my $mode   = &get_vm_exec_mode($vm);
 			my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name)  . " filetree.XXXXXX";
-			open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			my $verb_prompt_bk = $execution->get_verb_prompt();
 			# FIXME: consider to use a different new VNX::Execution object to perform this
 			# actions (avoiding this nasty verb_prompt backup)
@@ -2496,16 +2496,16 @@ my $random_id  = &generate_random_string(6);
 				}
 			}
 			$execution->execute( "</filetrees>", *COMMAND_FILE );
-			close COMMAND_FILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			close COMMAND_FILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			
 			open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |") || die "Failed: $!\n";
 			my $dimension = <DU>;
 			$dimension = $dimension + 20;
 			my $dimensiondisk = $dimension + 30;
-			close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			close DU unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var3 = substr(var,length(var),length(var)+1); print var3} ' |") || die "Failed: $!\n";
 			my $unit = <DU>;
-			close DU unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			close DU unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			if ($countfiletree > 0){
 				if (   ( $unit eq "K\n" || $unit eq "B\n" )|| ( ( $unit eq "M\n" ) && ( $dimension <= 32 ) ) ){
 					$unit          = 'M';
@@ -2539,7 +2539,7 @@ my $random_id  = &generate_random_string(6);
 
 			# We open file
 			open COMMAND_FILE,">" . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" or $execution->smartdie("can not open " . $dh->get_tmp_dir . "/vnx.$name.$seq: $!" )
-			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			# FIXME: consider to use a different new VNX::Execution object to perform this
 			# actions (avoiding this nasty verb_prompt backup)
 			$execution->set_verb_prompt("$name> ");
@@ -2611,7 +2611,7 @@ my $random_id  = &generate_random_string(6);
 			$execution->execute( "</command>", *COMMAND_FILE );
 			# We close file and mark it executable
 			close COMMAND_FILE
-			  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+			  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 			$execution->set_verb_prompt($verb_prompt_bk);
 			$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_tmp_dir  . "/vnx.$name.$seq.$random_id" );
 			############# INSTALL COMMAND FILES #############
@@ -2791,7 +2791,7 @@ sub UML_plugins_conf {
 
 	open CONFILE, ">$path" . "plugins_conf.sh"
 	  or $execution->smartdie("can not open ${path}plugins_conf.sh: $!")
-	  unless ( $execution->get_exe_mode() == EXE_DEBUG );
+	  unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 	my $verb_prompt_bk = $execution->get_verb_prompt();
 
 # FIXME: consider to use a different new VNX::Execution object to perform this
@@ -2864,7 +2864,7 @@ sub UML_plugins_conf {
 
 	# Close file and restore prompting method
 	$execution->set_verb_prompt($verb_prompt_bk);
-	close CONFILE unless ( $execution->get_exe_mode() == EXE_DEBUG );
+	close CONFILE unless ( $execution->get_exe_mode() eq EXE_DEBUG );
 
 	# Configuration file must be executable
 	$execution->execute( $bd->get_binaries_path_ref->{"chmod"}
