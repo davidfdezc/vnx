@@ -114,6 +114,8 @@ sub defineVM {
 	my $doc2       = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
 
+
+
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 
 		my $vm = $vm_ordered[$i];
@@ -551,6 +553,8 @@ sub createVM{
 	
 	my $doc2       = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
+
+
 
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 
@@ -993,6 +997,8 @@ sub startVM {
 	my $dh           = shift;
 	my $sock         = shift;
 	my $counter = shift;
+
+
 	
     print "-----------------------------\n";
     print "Starting router: $vmName\n";
@@ -1036,6 +1042,8 @@ sub shutdownVM{
     $line = $t->getline; print $line;
     $t->close;
 	sleep(2);	
+	
+	&change_vm_status( $dh, $vmName, "REMOVE" );
 }
 
 #
@@ -2025,5 +2033,24 @@ sub reload_conf {
 	
 }
 
+###################################################################
+#                                                                 
+sub change_vm_status {
+
+	my $dh     = shift;
+	my $vm     = shift;
+	my $status = shift;
+
+	my $status_file = $dh->get_vm_dir($vm) . "/status";
+
+	if ( $status eq "REMOVE" ) {
+		$execution->execute(
+			$bd->get_binaries_path_ref->{"rm"} . " -f $status_file" );
+	}
+	else {
+		$execution->execute(
+			$bd->get_binaries_path_ref->{"echo"} . " $status > $status_file" );
+	}
+}
 
 1;
