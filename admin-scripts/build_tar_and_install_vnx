@@ -6,7 +6,19 @@ cd $cdir/..
 echo `pwd`
 
 admin-scripts/build_vnx_tar
+
+TARNAME=$( readlink distrib/vnx-latest.tgz )  # vnx-latest.tgz is a symbolic link
+                                              # with stat we get the name of the 
+                                              # file pointed by the link
+
+DIRNAME=$( echo "$TARNAME" | sed s/.tgz$// )
+
+echo "TARNAME=$TARNAME"
+echo "DIRNAME=$DIRNAME"
+
 mkdir -p tmp
 cd tmp
-tar xfvz ../vnx-0.14b.tgz
-vnx-0.14b/install_vnx
+tar xfvz ../distrib/$TARNAME
+$DIRNAME/install_vnx
+cd ..
+rm -rf tmp
