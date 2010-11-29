@@ -122,6 +122,9 @@ sub listen {
 							next;				
 						}
 						my $path = $file;
+						my $command = "date +%X";
+						chomp (my $now = `$command`);						
+						print LOG "   $now\n";
 						print LOG "   filetree received in $file2\n";
 						&filetree($path);
 						print LOG "   sending 'done' signal to host...\n\n";
@@ -130,6 +133,9 @@ sub listen {
 						unless (&check_if_new_file($file2,"command")){
 							next;				
 						}
+						my $command = "date +%X";
+						chomp (my $now = `$command`);						
+						print LOG "   $now\n";
 						print LOG "   command received in $file2\n";
 						&execute_commands($file2);
 						print LOG "   sending 'done' signal to host...\n\n";
@@ -138,6 +144,9 @@ sub listen {
 						unless (&check_if_new_file($file2,"create_conf")){
 							next;				
 						}
+						my $command = "date +%X";
+						chomp (my $now = `$command`);						
+						print LOG "   $now\n";
 						print LOG "   configuration file received in $file2\n";
 						&autoconfigure($file2);
 						print LOG "\n";
@@ -145,6 +154,9 @@ sub listen {
 						unless (&check_if_new_file($file2,"vnx_update") eq '1'){
 							next;				
 						}
+						my $command = "date +%X";
+						chomp (my $now = `$command`);						
+						print LOG "   $now\n";
 						print LOG "   update files received in $file2\n";
 						&autoupdate;
 						print LOG "\n";
@@ -185,6 +197,9 @@ sub listen {
 							next;				
 						}
 						my $path = $file;
+						my $command = "date +%X";
+						chomp (my $now = `$command`);						
+						print LOG "   $now\n";
 						print LOG "   filetree received in $file2\n";
 						&filetree($path);
 						print LOG "   sending 'done' signal to host....\n\n";
@@ -194,6 +209,9 @@ sub listen {
 						unless (&check_if_new_file($file2,"command")){
 							next;				
 						}
+						my $command = "date +%X";
+						chomp (my $now = `$command`);						
+						print LOG "   $now\n";
 						print LOG "   command received in $file2\n";
 						&execute_commands($file2);
 						print LOG "   sending 'done' signal to host...\n\n";
@@ -203,6 +221,9 @@ sub listen {
 						unless (&check_if_new_file($file2,"create_conf")){
 							next;				
 						}
+						my $command = "date +%X";
+						chomp (my $now = `$command`);						
+						print LOG "   $now\n";
 						print LOG "   configuration file received in $file2\n";
 						&autoconfigure($file2);
 						print LOG "\n";
@@ -211,6 +232,9 @@ sub listen {
 						unless (&check_if_new_file($file2,"vnx_update") eq '1'){
 							next;				
 						}
+						my $command = "date +%X";
+						chomp (my $now = `$command`);						
+						print LOG "   $now\n";
 						print LOG "   update files received in $file2\n";
 						&autoupdate;
 						print LOG "\n";
@@ -247,7 +271,8 @@ sub autoupdate {
 		system "cp /cdrom/freebsd/* /etc/rc.d/vnxdaemon";
 	}
 	system "rm /root/.vnx/LOCK";
-#	system "reboot";
+	sleep 1;
+	system "reboot";
 	return;
 }
 
@@ -319,13 +344,14 @@ sub execute_commands {
 				}else{
 					# child executes command and dies
 					#exec "xterm -display :0.0 -e $command2";
-					exec "DISPLAY=:0.0 $command2";
+					#exec "DISPLAY=:0.0 $command2";
+					exec $command2;
 				}
 			}elsif($mode eq "system"){
-					print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
+					print LOG "   executing: '$command2'\n   in mode: 'system'\n";
 					system $command2;
 			}else{
-				print LOG "   Command mode '$mode' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
+				print LOG "   command mode '$mode' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
 			}
 					
 			
@@ -390,13 +416,14 @@ sub execute_commands {
 				}else{
 					# child executes command and dies
 					#exec "xterm -display :0.0 -e $command2";
-					exec "DISPLAY=:0.0 $command2";
+					#exec "DISPLAY=:0.0 $command2";
+					exec $command2;
 				}
 			}elsif($mode eq "system"){
 					print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
 					system $command2;
 			}else{
-				print LOG "   Command mode '$mode' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
+				print LOG "   command mode '$mode' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
 			}
 
 
@@ -731,7 +758,7 @@ sub filetree {
 	my $path = shift;
 
 	open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
-	print LOG "   Parsing filetree file...\n";
+	print LOG "   parsing filetree file...\n";
 	my $filetree_file = $path . "/filetree.xml";
 	my @files_array = <$path/*>;
 	my $parser       = new XML::DOM::Parser;
@@ -745,7 +772,11 @@ sub filetree {
 		my $root       = $filetreeTag->getAttribute("root");
 		my $folder = $j + 1;
 		my $source_path = $path . "/destination/" . $folder . "/*";
-		print LOG "   Executing 'cp -R $source_path $root'...\n";
+		unless (-d $root){
+			print LOG "   creating unexisting dir '$root'...\n";
+			system "mkdir -p $root";
+		}
+		print LOG "   executing 'cp -R $source_path $root'...\n";
 		system "cp -R $source_path $root";
 			
 	}
