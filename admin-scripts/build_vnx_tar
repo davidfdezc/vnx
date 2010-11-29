@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-VNX_VERSION="0.14b"
+VNX_VERSION="0.14b-`date +%Y%m%d%H%M`"
 #ROOTFS_VERSION="es-v023b"
 FNAME=vnx-${VNX_VERSION}
 
@@ -9,20 +9,29 @@ cd $cdir/..
 
 echo "** "
 echo "** Creating ${FNAME}.tgz file... "
-echo "** "
 
 mkdir -p tmp
 rm -rf tmp/*
 mkdir -p tmp/${FNAME}
 
-cp -r vnx-folder/doc vnx-folder/bin vnx-folder/perl-modules vnx-folder/data tmp/${FNAME}  
+cp -r vnx-folder/doc vnx-folder/bin vnx-folder/perl-modules vnx-folder/data tmp/${FNAME}
+
+# Change $release variable in vnx
+RELDATE=$( date +%d/%m/%Y )
+echo "** \$release=$RELDATE"
+echo "** "
+
+#sed --in-place -e "s%my $release = \"DD/MM/YYYY\"%my $release = \"$RELDATE\"%" tmp/${FNAME}/bin/vnx
+sed --in-place -e "s%DD/MM/YYYY%$RELDATE%" tmp/${FNAME}/bin/vnx
 cp admin-scripts/install_vnx tmp/${FNAME}
 mv tmp/${FNAME}/doc/00-readme.txt tmp/${FNAME}
 
 cd tmp
 tar cfvz  ${FNAME}.tgz ${FNAME}
-mv ${FNAME}.tgz ..
-cd ..
+mv ${FNAME}.tgz ../distrib
+cd ../distrib
+rm vnx-latest.tgz
+ln -s ${FNAME}.tgz vnx-latest.tgz
 # rm -rf tmp/*
 echo "** "
 echo "** ...done"

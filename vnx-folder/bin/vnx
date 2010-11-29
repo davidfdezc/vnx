@@ -205,7 +205,7 @@ my @plugins;     # plugins array
 # my $version = "[arroba]PACKAGE_VERSION[arroba]";[JSF]
 # my $release = "[arroba]RELEASE_DATE[arroba]";[JSF]
 my $version = "1.92beta1";
-my $release = "4/5/2010";
+my $release = "DD/MM/YYYY";
 
 my $branch = "";
 
@@ -261,11 +261,12 @@ sub main {
    GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
               'r=s' => \$opt_r, 'd' => \$opt_d, 'm=s' => \$opt_m,
               'c=s' => \$opt_c,'T=s' => \$opt_T, 'g' => \$opt_g,
-              'v' => \$opt_v, 'F' => \$opt_F, 'V' => \$opt_V,
+              'v' => \$opt_v, 'F' => \$opt_F, 'V' => \$opt_V, 'version' => \$opt_V,
               'o=s' => \$opt_o,  'M=s' => \$opt_M, 'k' => \$opt_k,
               'i' => \$opt_i, 'B' => \$opt_B, 'S=s' => \$opt_S,
               'w=s' => \$opt_w,'e=s' => \$opt_e, 'P' => \$opt_P,
-              'H' => \$opt_H, 'x=s' => \$opt_x, 'u=s' => \$opt_u,
+              'H' => \$opt_H, 'h' => \$opt_H, 'help' => \$opt_H, 
+              'x=s' => \$opt_x, 'u=s' => \$opt_u,
               '4' => \$opt_4, '6' => \$opt_6, 'Z' => \$opt_Z,
               'create' => \$opt_create, 'shutdown' => \$opt_shutdown,
               'destroy' => \$opt_destroy, 'define' => \$opt_define,
@@ -274,8 +275,7 @@ sub main {
               'suspend' => \$opt_suspend, 'resume' => \$opt_resume,
               'reboot' => \$opt_reboot, 'reset' => \$opt_reset,
               'execute=s' => \$opt_execute, 'f=s' => \$opt_f);
-
-   
+  
    # Build the argument object
    $args = new Arguments(
       $opt_t,$opt_s,$opt_p,$opt_r,$opt_d,
@@ -298,7 +298,7 @@ sub main {
 
    # To check arguments consistency
    # 0. Check if -f is present
-   if (!($opt_f)) {
+   if (!($opt_f) && !($opt_V) && !($opt_H) ) {
    	  &usage;
       &vnx_die ("Option -f missing\n");
    }
@@ -343,13 +343,12 @@ sub main {
    }
    if ($opt_V) {
       $how_many_args++;
-      $mode = "V";
+      $mode = "V";      
    }
    if ($opt_H) {
       $how_many_args++;
       $mode = "H";
    }
-   
    if ($opt_define) {
       $how_many_args++;
       $mode = "define";
@@ -432,7 +431,7 @@ sub main {
    # Version pseudomode
    if ($opt_V) {
    	  my $basename = basename $0;
-      print "This is $basename version: $version" . "$branch ($release)\n";
+      print "This is $basename version: $version" . "$branch (build on $release)\n";
       print "Fermin Galan Marquez. galan\@dit.upm.es\n";
       exit(0);
    }
