@@ -17,11 +17,10 @@ mkdir -p tmp/${FNAME}
 cp -r vnx-folder/doc vnx-folder/bin vnx-folder/perl-modules vnx-folder/data tmp/${FNAME}
 
 # Change $release variable in vnx
-RELDATE=$( date +%d/%m/%Y )
+RELDATE=$( date +%d/%m/%Y_%H:%M )
 echo "** \$release=$RELDATE"
 echo "** "
 
-#sed --in-place -e "s%my $release = \"DD/MM/YYYY\"%my $release = \"$RELDATE\"%" tmp/${FNAME}/bin/vnx
 sed --in-place -e "s%DD/MM/YYYY%$RELDATE%" tmp/${FNAME}/bin/vnx
 cp admin-scripts/install_vnx tmp/${FNAME}
 mv tmp/${FNAME}/doc/00-readme.txt tmp/${FNAME}

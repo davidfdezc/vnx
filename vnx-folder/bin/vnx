@@ -431,8 +431,26 @@ sub main {
    # Version pseudomode
    if ($opt_V) {
    	  my $basename = basename $0;
-      print "This is $basename version: $version" . "$branch (build on $release)\n";
-      print "Fermin Galan Marquez. galan\@dit.upm.es\n";
+      print "\n";
+      print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
+      print "                    `888.     .8'  `888b.     `8'  `8888    d8'  \n";
+      print "                     `888.   .8'    8 `88b.    8     Y888..8P    \n";
+      print "                      `888. .8'     8   `88b.  8      `8888'     \n";
+      print "                       `888.8'      8     `88b.8     .8PY888.    \n";
+      print "                        `888'       8       `888    d8'  `888b   \n";
+      print "                         `8'       o8o        `8  o888o  o88888o \n";
+      print "\n";
+      print "                       Virtual Network over X virtualization \n";
+      print "                              http://www.dit.upm.es/vnx      \n";
+      print "                                    vnx\@dit.upm.es          \n";
+      print "\n";
+      print "                 Departamento de Ingeniería de Sistemas Telemáticos\n";
+      print "                              E.T.S.I. Telecomunicación\n";
+      print "                          Universidad Politécnica de Madrid\n";
+      print "\n";
+      print "                   Version: $version" . "$branch (build on $release)\n";
+      print "\n";
+      #print "Fermin Galan Marquez. galan\@dit.upm.es\n";
       exit(0);
    }
 
