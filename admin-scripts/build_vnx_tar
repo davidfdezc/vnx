@@ -10,6 +10,7 @@ cd $cdir/..
 echo "** "
 echo "** Creating ${FNAME}.tgz file... "
 
+mkdir -p distrib
 mkdir -p tmp
 rm -rf tmp/*
 mkdir -p tmp/${FNAME}
