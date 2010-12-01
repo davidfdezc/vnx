@@ -1,6 +1,6 @@
 <domain type='kvm'>
   <name>WinXP</name>
-  <memory>524288</memory>
+  <memory>262144</memory>
   <vcpu>1</vcpu>
   <os>
     <type arch="i686">hvm</type>
