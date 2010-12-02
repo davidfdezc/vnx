@@ -2176,6 +2176,10 @@ sub executeCMD {
 	# loop can cause exit, if capabilities are not accomplished
 my $random_id  = &generate_random_string(6);
 
+print "executeCMD******************************************************************\n";
+
+print "seq=$seq\n";
+
 		if ( $merged_type eq "libvirt-kvm-windows" ) {
 			############ WINDOWS ##############
 			############ FILETREE ##############
@@ -2206,37 +2210,44 @@ my $random_id  = &generate_random_string(6);
 			$execution->execute("mkdir " . $filetree_host ."/destination");
 			foreach my $filetree (@filetree_list) {
 				# To get momment
-				my $filetree_seq = $filetree->getAttribute("seq");
+				my $filetree_seq_string = $filetree->getAttribute("seq");
 				# To install subtree (only in the right momment)
 				# FIXME: think again the "always issue"; by the moment deactivated
-				if ( $filetree_seq eq $seq ) {
-					$countfiletree++;
-					my $src;
-					my $filetree_value = &text_tag($filetree);
-					if ( $filetree_value =~ /^\// ) {
-					# Absolute pathname
-					$src = &do_path_expansion($filetree_value);
-					}
-					else {
-						# Relative pahtname
-						if ( $basedir eq "" ) {
-						# Relative to xml_dir
-							$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
+
+				# JSF 01/12/10: we accept several commands in the same seq tag,
+				# separated by spaces
+				my @filetree_seqs = split(' ',$filetree_seq_string);
+				foreach my $filetree_seq (@filetree_seqs) {
+
+					if ( $filetree_seq eq $seq ) {
+						$countfiletree++;
+						my $src;
+						my $filetree_value = &text_tag($filetree);
+						if ( $filetree_value =~ /^\// ) {
+						# Absolute pathname
+						$src = &do_path_expansion($filetree_value);
 						}
 						else {
-						# Relative to basedir
-							$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
+							# Relative pahtname
+							if ( $basedir eq "" ) {
+							# Relative to xml_dir
+								$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
+							}
+							else {
+							# Relative to basedir
+								$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
+							}
 						}
+						$src = &chompslash($src);
+						my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
+						
+						$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
+						$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
+						my %file_perms = &save_dir_permissions($filetree_host);
+						my $dest = $filetree->getAttribute("root");
+						my $filetreetxt = $filetree->toString(1);
+						$execution->execute( "$filetreetxt", *COMMAND_FILE );
 					}
-					$src = &chompslash($src);
-					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
-					
-					$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
-					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
-					my %file_perms = &save_dir_permissions($filetree_host);
-					my $dest = $filetree->getAttribute("root");
-					my $filetreetxt = $filetree->toString(1);
-					$execution->execute( "$filetreetxt", *COMMAND_FILE );
 				}
 			}
 			$execution->execute( "</filetrees>", *COMMAND_FILE );
@@ -2337,38 +2348,45 @@ my $random_id  = &generate_random_string(6);
 			for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
 				my $command = $command_list->item($j);	
 				# To get attributes
-				my $cmd_seq = $command->getAttribute("seq");
-				if ( $cmd_seq eq $seq ) {
-					my $type = $command->getAttribute("type");
-					# Case 1. Verbatim type
-					if ( $type eq "verbatim" ) {
-						# Including command "as is"
-						my $comando = $command->toString(1);
-						$execution->execute( $comando, *COMMAND_FILE );
-						$countcommand = $countcommand + 1;
-					}
-
-					# Case 2. File type
-					elsif ( $type eq "file" ) {
-						# We open the file and write commands line by line
-						my $include_file =  &do_path_expansion( &text_tag($command) );
-						open INCLUDE_FILE, "$include_file"
-						  or $execution->smartdie("can not open $include_file: $!");
-						while (<INCLUDE_FILE>) {
-							chomp;
-							$execution->execute(
-								#"<exec seq=\"file\" type=\"file\">" 
-								  #. $_
-								  #. "</exec>",
-								  $_,
-								*COMMAND_FILE
-							);
+				my $cmd_seq_string = $command->getAttribute("seq");
+				
+				# JSF 01/12/10: we accept several commands in the same seq tag,
+				# separated by spaces
+				my @cmd_seqs = split(' ',$cmd_seq_string);
+				foreach my $cmd_seq (@cmd_seqs) {
+				
+					if ( $cmd_seq eq $seq ) {
+						my $type = $command->getAttribute("type");
+						# Case 1. Verbatim type
+						if ( $type eq "verbatim" ) {
+							# Including command "as is"
+							my $comando = $command->toString(1);
+							$execution->execute( $comando, *COMMAND_FILE );
 							$countcommand = $countcommand + 1;
 						}
-						close INCLUDE_FILE;
+	
+						# Case 2. File type
+						elsif ( $type eq "file" ) {
+							# We open the file and write commands line by line
+							my $include_file =  &do_path_expansion( &text_tag($command) );
+							open INCLUDE_FILE, "$include_file"
+							  or $execution->smartdie("can not open $include_file: $!");
+							while (<INCLUDE_FILE>) {
+								chomp;
+								$execution->execute(
+									#"<exec seq=\"file\" type=\"file\">" 
+									  #. $_
+									  #. "</exec>",
+									  $_,
+									*COMMAND_FILE
+								);
+								$countcommand = $countcommand + 1;
+							}
+							close INCLUDE_FILE;
+						}
+	
+				 # Other case. Don't do anything (it would be and error in the XML!)
 					}
-
-			 # Other case. Don't do anything (it would be and error in the XML!)
 				}
 			}
 			$execution->execute( "</command>", *COMMAND_FILE );
@@ -2462,37 +2480,44 @@ my $random_id  = &generate_random_string(6);
 			$execution->execute("mkdir " . $filetree_host ."/destination");
 			foreach my $filetree (@filetree_list) {
 				# To get momment
-				my $filetree_seq = $filetree->getAttribute("seq");
-				# To install subtree (only in the right momment)
-				# FIXME: think again the "always issue"; by the moment deactivated
-				if ( $filetree_seq eq $seq ) {
-					$countfiletree++;
-					my $src;
-					my $filetree_value = &text_tag($filetree);
-					if ( $filetree_value =~ /^\// ) {
-					# Absolute pathname
-					$src = &do_path_expansion($filetree_value);
-					}
-					else {
-						# Relative pahtname
-						if ( $basedir eq "" ) {
-						# Relative to xml_dir
-							$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
+				my $filetree_seq_string = $filetree->getAttribute("seq");
+				
+				# JSF 01/12/10: we accept several commands in the same seq tag,
+				# separated by spaces
+				my @filetree_seqs = split(' ',$filetree_seq_string);
+				foreach my $filetree_seq (@filetree_seqs) {
+				
+					# To install subtree (only in the right momment)
+					# FIXME: think again the "always issue"; by the moment deactivated
+					if ( $filetree_seq eq $seq ) {
+						$countfiletree++;
+						my $src;
+						my $filetree_value = &text_tag($filetree);
+						if ( $filetree_value =~ /^\// ) {
+						# Absolute pathname
+						$src = &do_path_expansion($filetree_value);
 						}
 						else {
-						# Relative to basedir
-							$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
+							# Relative pahtname
+							if ( $basedir eq "" ) {
+							# Relative to xml_dir
+								$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
+							}
+							else {
+							# Relative to basedir
+								$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
+							}
 						}
+						$src = &chompslash($src);
+						my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
+						
+						$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
+						$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
+						my %file_perms = &save_dir_permissions($filetree_host);
+						my $dest = $filetree->getAttribute("root");
+						my $filetreetxt = $filetree->toString(1);
+						$execution->execute( "$filetreetxt", *COMMAND_FILE );
 					}
-					$src = &chompslash($src);
-					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
-					
-					$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
-					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
-					my %file_perms = &save_dir_permissions($filetree_host);
-					my $dest = $filetree->getAttribute("root");
-					my $filetreetxt = $filetree->toString(1);
-					$execution->execute( "$filetreetxt", *COMMAND_FILE );
 				}
 			}
 			$execution->execute( "</filetrees>", *COMMAND_FILE );
@@ -2565,47 +2590,55 @@ my $random_id  = &generate_random_string(6);
 				my $command = $command_list->item($j);
 
 				# To get attributes
-				my $cmd_seq = $command->getAttribute("seq");
+				my $cmd_seq_string = $command->getAttribute("seq");
 				my $type    = $command->getAttribute("type");
                 my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
-				if ( $cmd_seq eq $seq ) {
 
-					# Case 1. Verbatim type
-					if ( $type eq "verbatim" ) {
-
-						# Including command "as is"
-
-						#$execution->execute("<comando>",*COMMAND_FILE);
-						my $comando = $command->toString(1);
-						$execution->execute( $comando, *COMMAND_FILE );
-
-						#$execution->execute("</comando>",*COMMAND_FILE);
-						$countcommand = $countcommand + 1;
-
-					}
-
-					# Case 2. File type
-					elsif ( $type eq "file" ) {
-
-						# We open the file and write commands line by line
-						my $include_file = &do_path_expansion( &text_tag($command) );
-						open INCLUDE_FILE, "$include_file" or $execution->smartdie("can not open $include_file: $!");
-						while (<INCLUDE_FILE>) {
-							chomp;
-							$execution->execute(
-								#"<exec seq=\"file\" type=\"file\">" 
-								  #. $_
-								  #. "</exec>",
-								  $_,
-								*COMMAND_FILE
-							);
+				# JSF 01/12/10: we accept several commands in the same seq tag,
+				# separated by spaces
+print "cmd_seq_string=$cmd_seq_string\n";		
+				my @cmd_seqs = split(' ',$cmd_seq_string);
+				foreach my $cmd_seq (@cmd_seqs) {
+print "cmd_seq=$cmd_seq\n";
+					if ( $cmd_seq eq $seq ) {
+	
+						# Case 1. Verbatim type
+						if ( $type eq "verbatim" ) {
+	
+							# Including command "as is"
+	
+							#$execution->execute("<comando>",*COMMAND_FILE);
+							my $comando = $command->toString(1);
+							$execution->execute( $comando, *COMMAND_FILE );
+	
+							#$execution->execute("</comando>",*COMMAND_FILE);
 							$countcommand = $countcommand + 1;
+	
 						}
-						close INCLUDE_FILE;
+	
+						# Case 2. File type
+						elsif ( $type eq "file" ) {
+	
+							# We open the file and write commands line by line
+							my $include_file = &do_path_expansion( &text_tag($command) );
+							open INCLUDE_FILE, "$include_file" or $execution->smartdie("can not open $include_file: $!");
+							while (<INCLUDE_FILE>) {
+								chomp;
+								$execution->execute(
+									#"<exec seq=\"file\" type=\"file\">" 
+									  #. $_
+									  #. "</exec>",
+									  $_,
+									*COMMAND_FILE
+								);
+								$countcommand = $countcommand + 1;
+							}
+							close INCLUDE_FILE;
+						}
+	
+				 # Other case. Don't do anything (it would be and error in the XML!)
 					}
-
-			 # Other case. Don't do anything (it would be and error in the XML!)
 				}
 			}
 			$execution->execute( "</command>", *COMMAND_FILE );

@@ -688,7 +688,7 @@ sub get_vm_ordered {
 sub get_vm_to_use {
    my $self = shift;
    my @plugins = @_;
-
+   
    # The hash to be returned at the end
    my %vm_hash;
    
@@ -707,6 +707,7 @@ sub get_vm_to_use {
 
       # To get name attribute
       my $name = $vm->getAttribute("name");
+
       # Include only if have commands to execute or filetree to install (in -x modes); other modes (-t and -d) always
       if (
           ($self->{'mode'} eq "t") ||
@@ -721,7 +722,7 @@ sub get_vm_to_use {
 	      ($self->{'mode'} eq "suspend") ||
 	      ($self->{'mode'} eq "resume") ||
 	      ($self->{'mode'} eq "undefine") ||
-          (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || ($plugins_vms{$name} eq "1") ) && ($self->{'mode'} eq "x") || ($plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") )  
+          (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || (exists $plugins_vms{$name} && $plugins_vms{$name} eq "1") ) && ($self->{'mode'} eq "x") || (exists $plugins_vms{$name} && $plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") )  
 	  ) {
 	  	# En proceso de construccion, hay que quitar los plugins en caso de que %plugins_vms no tenga nada.
 #	     if (
@@ -740,7 +741,7 @@ sub get_vm_to_use {
 #          (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || 
 #          			((scalar(%plugins_vms) ge 0) && (($plugins_vms{$name} eq "1") && ($self->{'mode'} eq "x") || ($plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") ))  
 #	  ) {
-	  	
+
          # Only if list is not empty
          if ($self->{'vm_to_use'}) {
             my $vm_list = $self->{'vm_to_use'};
@@ -753,7 +754,6 @@ sub get_vm_to_use {
          }
       }
    }
-
    return %vm_hash;
 
 }
