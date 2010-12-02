@@ -52,26 +52,45 @@ sub vm_has_tag {
    my $vm = shift;
    my $tag = shift;
 
+
+
    # Search for tag
    my $tag_list = $vm->getElementsByTagName($tag);
    
    if ($tag_list->getLength != 0) {
+
       # Special case: filetree
       if ($tag eq "filetree") {
          my $seq = shift;
          for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
-	        my $seq_at = $tag_list->item($i)->getAttribute("seq");
-	        # FIXME: review the "always" thing
-	        #return 1 if (($seq_at eq $seq) || ($seq_at eq "always"));
-	        return 1 if ($seq_at eq $seq);
+	        my $seq_at_string = $tag_list->item($i)->getAttribute("seq");
+	        
+	        # JSF 02/12/10: we accept several commands in the same seq tag,
+			# separated by spaces
+			my @seqs = split(' ',$seq_at_string);
+			foreach my $seq_at (@seqs) {
+	        
+		        # FIXME: review the "always" thing
+		        #return 1 if (($seq_at eq $seq) || ($seq_at eq "always"));
+		        return 1 if ($seq_at eq $seq);
+			}
 	     }
       }
       # Special case: exec
       elsif ($tag eq "exec") {
          my $seq = shift;
          for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
-	        my $seq_at = $tag_list->item($i)->getAttribute("seq");
+	        my $seq_at_string = $tag_list->item($i)->getAttribute("seq");
+	        
+	        
+	        # JSF 02/12/10: we accept several commands in the same seq tag,
+			# separated by spaces
+			my @seqs = split(' ',$seq_at_string);
+			foreach my $seq_at (@seqs) {
+	        
+	        
 	        return 1 if (($seq_at eq $seq));
+			}
          }
       }
       else {

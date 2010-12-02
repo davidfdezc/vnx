@@ -666,7 +666,7 @@ exit;
    # Deprecation warnings
    &check_deprecated;
 
-#peta aqui
+
    # Semantic check (in addition to validation)
    if (my $err_msg = &check_doc($dh,$bd->get_binaries_path_ref,$execution->get_uid)) {
       &vnx_die ("$err_msg\n");
@@ -1936,7 +1936,6 @@ sub mode_x {
 	my $seq = shift;
 	
 	my %vm_ips;
-	
 
    # If -B, block until ready
    if ($args->get('B')) {
@@ -1967,8 +1966,6 @@ sub mode_x {
 	
 		my %vm_hash    = $dh->get_vm_to_use(@plugins);
 	
-	
-
 	# First loop: look for uml_mconsole exec capabilities if needed. This
 	# loop can cause exit, if capabilities are not accomplished
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
@@ -1989,7 +1986,6 @@ sub mode_x {
      	}
 	}
 	vmAPI_uml->exec_command_host($seq,$execution,$bd,$dh);
-
 }
 
 
@@ -2889,7 +2885,7 @@ sub get_UML_command_ip {
 	 
 	  # If seq not empty then check vm only uses exec_mode="net"
 	  unless ($seq eq "") {
-	     unless (&get_vm_exec_mode($vm) eq "net") {
+	     unless (defined &get_vm_exec_mode($vm) && &get_vm_exec_mode($vm) eq "net") {
 	        $counter++;
 	        next;
 	     }
@@ -3517,8 +3513,7 @@ sub get_user_in_seq {
 sub get_vm_exec_mode {
 
    my $vm = shift;
-
-   if ($vm->getAttribute("mode") ne "") {
+   if (defined $vm->getAttribute("mode") && $vm->getAttribute("mode") ne "") {
       return $vm->getAttribute("mode");
    }
    else {
