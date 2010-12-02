@@ -2176,10 +2176,6 @@ sub executeCMD {
 	# loop can cause exit, if capabilities are not accomplished
 my $random_id  = &generate_random_string(6);
 
-print "executeCMD******************************************************************\n";
-
-print "seq=$seq\n";
-
 		if ( $merged_type eq "libvirt-kvm-windows" ) {
 			############ WINDOWS ##############
 			############ FILETREE ##############
