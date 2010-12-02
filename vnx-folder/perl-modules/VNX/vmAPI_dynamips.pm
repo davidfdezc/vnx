@@ -1283,114 +1283,121 @@ sub executeCMD{
 				# Por cada sentencia.
 				my $command = $command_list->item($j);	
 				# To get attributes
-				my $cmd_seq = $command->getAttribute("seq");
-				# Se comprueba si la seq es la misma que la que te pasan a ejecutar
-				if ( $cmd_seq eq $seq ) {
-					my $type = $command->getAttribute("type");
-					# Case 1. Verbatim type
-					if ( $type eq "verbatim" ) {
-						# Including command "as is"
-						my $command_tag = &text_tag($command);
-						# Si el primer elemento a ejecutar es un reload, no se ejecuta en el router
-						# sino que:
-						# 1º Se para el router
-						# 2º Se introduce el nuevo fichero de configuracion (que estará como parametro de la funcion reload)
-						# 3º Se vuelve a encender.
-						if ($command_tag =~ m/^reload/){
-							my @file_conf = split('reload ',$command_tag);
-							my $filenameconf = $file_conf[1];
-							$t = new Net::Telnet (Timeout => 10);
-						    $t->open(Host => $HHOST, Port => $HPORT);
-						    print("vm stop $name \n");
-							$t->print("vm stop $name");
-							sleep(2);
-						    $line = $t->getline; print $line;
-						   	print("vm set_config $name \"$filenameconf\" \n");
-						   	$t->print("vm set_config $name \"$filenameconf\" ");
-						   	$line = $t->getline; print $line;
-						   	$t->print("vm start $name");
-						    $line = $t->getline; print $line;
-						    sleep (3);
-       						$execution->execute("xterm -title Dynamips_$name -e 'telnet $HHOST $port' >/dev/null 2>&1 &");
-						}else{
-							# Si no es un reload, se ejecutara el comando que se haya especificado
-							# Para que funcione correctamente se ha de hacer siempre primero esta secuencia
-							# en telnet para dejarle preparado aunque esté en situacion desconocida.
-							$telnet = new Net::Telnet (Timeout => 10);
-	   						$telnet->open(Host => '127.0.0.1', Port => $port);
-	    					$telnet->print("");
-	    					$telnet->print("");
-	    					$telnet->print("");
-	    					$telnet->print("exit");
-	    					$telnet->print("");
-	    					$telnet->print("");
-	    					$telnet->print("");
-	    					sleep(3);
-	    					$telnet->close;
-	    					# Hasta aqui es la secuencia.
-	    					# Se conecta a traves de un nuevo modulo perl al cisco a traves del puerto leido anterior mente
-							my $session = Net::Telnet::Cisco->new(Host => $HHOST, Port => $port);
-							# Siempre se ejecuta este comando para que estemos en una situacion conocida.
-							$session->cmd(' show version');
-							# Se adquiere en pass de enable.
-							# Si no tiene, esta funcion devolvera un "" que significa que no tiene pass
-							# y que es admitida por el cisco si el enable no tienen password
-							my $enablepass = get_enable_pass($name);
-							if ($session->enable($enablepass)){
-								# Se ejecuta el comando.
-								@output = $session->cmd(" $command_tag");
-								# Se sale del enable para seguridad de no poder ejecutar otro comando sin permiso
-								$session->disable();
-							}else {
-								die ("Can't enable")
-							}
-							$session->close();
-							# Saca por pantalla el resulŧado del comando anterior
-							print "\nOutput of command \"$command_tag\" on $name\n";
-							print "@output";
-						}
-					}
-					# Case 2. File type
-					# En caso de que sea un fichero, simplemente se lee el fichero
-					# y se va ejecutando linea por linea.
-					# En el caso de que se requiera un enable, este se tiene que poner en el fichero.
-					elsif ( $type eq "file" ) {
-						# We open the file and write commands line by line
-						my $include_file =  &do_path_expansion( &text_tag($command) );
-						open INCLUDE_FILE, "$include_file"
-						  or $execution->smartdie("can not open $include_file: $!");
-						  	# Secuencia para dejar el router en un estado conocido
-						  	$telnet = new Net::Telnet (Timeout => 10);
-	   						$telnet->open(Host => '127.0.0.1', Port => $port);
-	    					$telnet->print("");
-	    					$telnet->print("");
-	    					$telnet->print("");
-	    					$telnet->print("exit");
-	    					$telnet->print("");
-	    					$telnet->print("");
-	    					$telnet->print("");
-	    					sleep(3);
-	    					$telnet->close;
-	    					# Fin de la secuencia
-							my $session = Net::Telnet::Cisco->new(Host => $HHOST, Port => $port);
-							# Comando para dejartlo en estado conocido.
-							$session->cmd(' show version');
-							print "\nExecution: Command --> Output\n";
-							while (<INCLUDE_FILE>) {
-								# Se van ejecutando linea por linea
-								chomp;
-								$command_tag = $_;
-								@output = $session->cmd(" $command_tag");
-								print "$command_tag --> @output\n";
-							}
-	    					$session->cmd(" end");
-	    					# Cuando se acaba, se hace un disable para mayor seguridad.
-							$session->disable();
-							$session->close();
-							close INCLUDE_FILE;
-					}
+				my $cmd_seq_string = $command->getAttribute("seq");
 
-			 # Other case. Don't do anything (it would be and error in the XML!)
+				# JSF 02/12/10: we accept several commands in the same seq tag,
+				# separated by spaces
+				my @cmd_seqs = split(' ',$cmd_seq_string);
+				foreach my $cmd_seq (@cmd_seqs) {
+		
+					# Se comprueba si la seq es la misma que la que te pasan a ejecutar
+					if ( $cmd_seq eq $seq ) {
+						my $type = $command->getAttribute("type");
+						# Case 1. Verbatim type
+						if ( $type eq "verbatim" ) {
+							# Including command "as is"
+							my $command_tag = &text_tag($command);
+							# Si el primer elemento a ejecutar es un reload, no se ejecuta en el router
+							# sino que:
+							# 1º Se para el router
+							# 2º Se introduce el nuevo fichero de configuracion (que estará como parametro de la funcion reload)
+							# 3º Se vuelve a encender.
+							if ($command_tag =~ m/^reload/){
+								my @file_conf = split('reload ',$command_tag);
+								my $filenameconf = $file_conf[1];
+								$t = new Net::Telnet (Timeout => 10);
+							    $t->open(Host => $HHOST, Port => $HPORT);
+							    print("vm stop $name \n");
+								$t->print("vm stop $name");
+								sleep(2);
+							    $line = $t->getline; print $line;
+							   	print("vm set_config $name \"$filenameconf\" \n");
+							   	$t->print("vm set_config $name \"$filenameconf\" ");
+							   	$line = $t->getline; print $line;
+							   	$t->print("vm start $name");
+							    $line = $t->getline; print $line;
+							    sleep (3);
+	       						$execution->execute("xterm -title Dynamips_$name -e 'telnet $HHOST $port' >/dev/null 2>&1 &");
+							}else{
+								# Si no es un reload, se ejecutara el comando que se haya especificado
+								# Para que funcione correctamente se ha de hacer siempre primero esta secuencia
+								# en telnet para dejarle preparado aunque esté en situacion desconocida.
+								$telnet = new Net::Telnet (Timeout => 10);
+		   						$telnet->open(Host => '127.0.0.1', Port => $port);
+		    					$telnet->print("");
+		    					$telnet->print("");
+		    					$telnet->print("");
+		    					$telnet->print("exit");
+		    					$telnet->print("");
+		    					$telnet->print("");
+		    					$telnet->print("");
+		    					sleep(3);
+		    					$telnet->close;
+		    					# Hasta aqui es la secuencia.
+		    					# Se conecta a traves de un nuevo modulo perl al cisco a traves del puerto leido anterior mente
+								my $session = Net::Telnet::Cisco->new(Host => $HHOST, Port => $port);
+								# Siempre se ejecuta este comando para que estemos en una situacion conocida.
+								$session->cmd(' show version');
+								# Se adquiere en pass de enable.
+								# Si no tiene, esta funcion devolvera un "" que significa que no tiene pass
+								# y que es admitida por el cisco si el enable no tienen password
+								my $enablepass = get_enable_pass($name);
+								if ($session->enable($enablepass)){
+									# Se ejecuta el comando.
+									@output = $session->cmd(" $command_tag");
+									# Se sale del enable para seguridad de no poder ejecutar otro comando sin permiso
+									$session->disable();
+								}else {
+									die ("Can't enable")
+								}
+								$session->close();
+								# Saca por pantalla el resulŧado del comando anterior
+								print "\nOutput of command \"$command_tag\" on $name\n";
+								print "@output";
+							}
+						}
+						# Case 2. File type
+						# En caso de que sea un fichero, simplemente se lee el fichero
+						# y se va ejecutando linea por linea.
+						# En el caso de que se requiera un enable, este se tiene que poner en el fichero.
+						elsif ( $type eq "file" ) {
+							# We open the file and write commands line by line
+							my $include_file =  &do_path_expansion( &text_tag($command) );
+							open INCLUDE_FILE, "$include_file"
+							  or $execution->smartdie("can not open $include_file: $!");
+							  	# Secuencia para dejar el router en un estado conocido
+							  	$telnet = new Net::Telnet (Timeout => 10);
+		   						$telnet->open(Host => '127.0.0.1', Port => $port);
+		    					$telnet->print("");
+		    					$telnet->print("");
+		    					$telnet->print("");
+		    					$telnet->print("exit");
+		    					$telnet->print("");
+		    					$telnet->print("");
+		    					$telnet->print("");
+		    					sleep(3);
+		    					$telnet->close;
+		    					# Fin de la secuencia
+								my $session = Net::Telnet::Cisco->new(Host => $HHOST, Port => $port);
+								# Comando para dejartlo en estado conocido.
+								$session->cmd(' show version');
+								print "\nExecution: Command --> Output\n";
+								while (<INCLUDE_FILE>) {
+									# Se van ejecutando linea por linea
+									chomp;
+									$command_tag = $_;
+									@output = $session->cmd(" $command_tag");
+									print "$command_tag --> @output\n";
+								}
+		    					$session->cmd(" end");
+		    					# Cuando se acaba, se hace un disable para mayor seguridad.
+								$session->disable();
+								$session->close();
+								close INCLUDE_FILE;
+						}
+	
+				 # Other case. Don't do anything (it would be and error in the XML!)
+					}
 				}
 			}
 	}	

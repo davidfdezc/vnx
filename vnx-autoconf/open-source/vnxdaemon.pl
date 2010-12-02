@@ -344,12 +344,13 @@ sub execute_commands {
 				}else{
 					# child executes command and dies
 					#exec "xterm -display :0.0 -e $command2";
-					#exec "DISPLAY=:0.0 $command2";
-					exec $command2;
+					exec "DISPLAY=:0.0 $command2";
+					#exec $command2;
 				}
 			}elsif($mode eq "system"){
 					print LOG "   executing: '$command2'\n   in mode: 'system'\n";
-					system $command2;
+					#system $command2;
+					system "DISPLAY=:0.0 $command2";
 			}else{
 				print LOG "   command mode '$mode' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
 			}
@@ -416,12 +417,12 @@ sub execute_commands {
 				}else{
 					# child executes command and dies
 					#exec "xterm -display :0.0 -e $command2";
-					#exec "DISPLAY=:0.0 $command2";
-					exec $command2;
+					exec "DISPLAY=:0.0 $command2";
+					#exec $command2;
 				}
 			}elsif($mode eq "system"){
-					print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
-					system $command2;
+					print LOG "   executing: '$command2'\n   in mode: 'system'\n";
+					system "DISPLAY=:0.0 $command2";
 			}else{
 				print LOG "   command mode '$mode' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
 			}
