@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Move to the directory where this script is
+cdir=$( dirname $0 )
+cd $cdir
+
+INSDIR=/usr/local/sbin
+
+echo "-- Creating dir $INSDIR..."
+mkdir -vp $INSDIR
+echo "-- Copying programs..."
+cp -v mask2cidr vnx-jconfig vnxolived $INSDIR
+chmod -v 755 $INSDIR/mask2cidr $INSDIR/vnx-jconfig $INSDIR/vnxolived
+echo "-- Installing daemon in startup scripts..."
+cp -v vnxolive /etc/rc.d
+chmod -v 700 /etc/rc.d/vnxolive
+echo "-- ...done"

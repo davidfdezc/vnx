@@ -3,6 +3,7 @@
 VNX_VERSION="0.14b"
 ROOTFS_VERSION="es-v023b"
 
+# Move to the directory where this script is
 cdir=$( dirname $0 )
 cd $cdir
 
@@ -47,6 +48,12 @@ if [ -e /etc/vnx.conf ]; then
 	mv /etc/vnx.conf /etc/vnx.conf.bak
 fi
 cp -v data/vnx.conf /etc
+
+#
+# Copy ace daemons 
+#
+mkdir -vp /usr/share/vnx/ace
+cp -v ace/* /usr/share/vnx/ace
 
 echo "** "
 echo "** ...done"

@@ -1,0 +1,43 @@
+#!/bin/sh
+
+MASK=$1
+#echo $MASK
+
+if [ "$MASK" = "255.255.255.255" ]; then RES="/32"; fi
+if [ "$MASK" = "255.255.255.254" ]; then RES="/31"; fi
+if [ "$MASK" = "255.255.255.252" ]; then RES="/30"; fi
+if [ "$MASK" = "255.255.255.248" ]; then RES="/29"; fi
+if [ "$MASK" = "255.255.255.240" ]; then RES="/28"; fi
+if [ "$MASK" = "255.255.255.224" ]; then RES="/27"; fi
+if [ "$MASK" = "255.255.255.192" ]; then RES="/26"; fi
+if [ "$MASK" = "255.255.255.128" ]; then RES="/25"; fi
+if [ "$MASK" = "255.255.255.0"   ]; then RES="/24"; fi
+
+if [ "$MASK" = "255.255.254.0" ]; then RES="/23"; fi
+if [ "$MASK" = "255.255.252.0" ]; then RES="/22"; fi
+if [ "$MASK" = "255.255.248.0" ]; then RES="/21"; fi
+if [ "$MASK" = "255.255.240.0" ]; then RES="/20"; fi
+if [ "$MASK" = "255.255.224.0" ]; then RES="/19"; fi
+if [ "$MASK" = "255.255.192.0" ]; then RES="/18"; fi
+if [ "$MASK" = "255.255.128.0" ]; then RES="/17"; fi
+if [ "$MASK" = "255.255.0.0"   ]; then RES="/16"; fi
+
+if [ "$MASK" = "255.254.0.0"   ]; then RES="/15"; fi
+if [ "$MASK" = "255.252.0.0"   ]; then RES="/14"; fi
+if [ "$MASK" = "255.248.0.0"   ]; then RES="/13"; fi
+if [ "$MASK" = "255.240.0.0"   ]; then RES="/12"; fi
+if [ "$MASK" = "255.224.0.0"   ]; then RES="/11"; fi
+if [ "$MASK" = "255.192.0.0"   ]; then RES="/10"; fi
+if [ "$MASK" = "255.128.0.0"   ]; then RES="/9"; fi
+if [ "$MASK" = "255.0.0.0"     ]; then RES="/8"; fi
+
+if [ "$MASK" = "254.0.0.0"     ]; then RES="/7"; fi
+if [ "$MASK" = "252.0.0.0"     ]; then RES="/6"; fi
+if [ "$MASK" = "248.0.0.0"     ]; then RES="/5"; fi
+if [ "$MASK" = "240.0.0.0"     ]; then RES="/4"; fi
+if [ "$MASK" = "224.0.0.0"     ]; then RES="/3"; fi
+if [ "$MASK" = "192.0.0.0"     ]; then RES="/2"; fi
+if [ "$MASK" = "128.0.0.0"     ]; then RES="/1"; fi
+if [ "$MASK" = "0.0.0.0"       ]; then RES="/0"; fi
+
+echo -n $RES
