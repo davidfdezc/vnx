@@ -875,6 +875,34 @@ sub get_run_dir {
    return $self->get_vm_dir($name) . "/run";
 }
 
+# get_mnt_dir
+#
+# Arguments:
+#
+# - the name of the vm
+#
+# Returns the directory used to mount shared disks for a particular vm
+#
+sub get_mnt_dir {
+   my $self = shift;
+   my $name = shift;
+   return $self->get_vm_dir($name) . "/mnt";
+}
+
+# get_vm_tmp_dir
+#
+# Arguments:
+#
+# - the name of the vm
+#
+# Returns the temporary directory a particular vm
+#
+sub get_vm_tmp_dir {
+   my $self = shift;
+   my $name = shift;
+   return $self->get_vm_dir($name) . "/tmp";
+}
+
 ###########################################################################
 # OTHERS
 

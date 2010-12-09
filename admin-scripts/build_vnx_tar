@@ -1,9 +1,11 @@
 #!/bin/bash
 
 VNX_VERSION="0.14b-`date +%Y%m%d%H%M`"
+OLIVE_VERSION="0.1b-`date +%Y%m%d%H%M`"
 #ROOTFS_VERSION="es-v023b"
 FNAME=vnx-${VNX_VERSION}
 
+# Move to the upper directory where this script is
 cdir=$( dirname $0 )
 cd $cdir/..
 
@@ -15,21 +17,60 @@ mkdir -p tmp
 rm -rf tmp/*
 mkdir -p tmp/${FNAME}
 
-cp -r vnx-folder/doc vnx-folder/bin vnx-folder/perl-modules vnx-folder/data tmp/${FNAME}
+#
+# Create autoconf tar files
+#
+mkdir -p tmp/ace
+#
+# Olive
+#
+mkdir -p tmp/ace/vnx-ace-olive-$OLIVE_VERSION
+cp vnx-autoconf/open-source/olive/*  tmp/ace/vnx-ace-olive-$OLIVE_VERSION
+cd tmp/ace 
+tar cfvz vnx-ace-olive-${OLIVE_VERSION}.tgz vnx-ace-olive-$OLIVE_VERSION
+rm -rf vnx-ace-olive-$OLIVE_VERSION
+cd ../..
+#
+# Windows
+#
+# TBP
+#
+# Linux
+#
+# TBP
+#
+# Freebsd
+#
+# TBP
 
+
+cp -r vnx-folder/doc \
+      vnx-folder/bin \
+      vnx-folder/perl-modules \
+      vnx-folder/data \
+      tmp/ace \
+      tmp/${FNAME}
+
+#
 # Change $release variable in vnx
+#
 RELDATE=$( date +%d/%m/%Y_%H:%M )
 echo "** \$release=$RELDATE"
 echo "** "
-
 sed --in-place -e "s%DD/MM/YYYY%$RELDATE%" tmp/${FNAME}/bin/vnx
 cp admin-scripts/install_vnx tmp/${FNAME}
 mv tmp/${FNAME}/doc/00-readme.txt tmp/${FNAME}
 
+#
+# Create tar file and move it to distrib directory
+#
 cd tmp
 tar cfvz  ${FNAME}.tgz ${FNAME}
 mv ${FNAME}.tgz ../distrib
 cd ../distrib
+#
+# Create a symbolic link named vnx-latest.tgz to the new version
+# 
 rm vnx-latest.tgz
 ln -s ${FNAME}.tgz vnx-latest.tgz
 # rm -rf tmp/*

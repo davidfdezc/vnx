@@ -59,6 +59,16 @@
             <xs:enumeration value="processn" />
             <xs:enumeration value="processy" />
             <xs:enumeration value="exec" />
+            <xs:enumeration value="cdrom" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="ostype" use="optional">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="show" />
+            <xs:enumeration value="set" />
+            <xs:enumeration value="load" />
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>

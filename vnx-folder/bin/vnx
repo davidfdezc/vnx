@@ -3642,7 +3642,8 @@ sub create_dirs {
 		  mkdir $dh->get_fs_dir($name);
 		  mkdir $dh->get_hostfs_dir($name);
 		  mkdir $dh->get_run_dir($name);
-
+		  mkdir $dh->get_mnt_dir($name);
+		  mkdir $dh->get_vm_tmp_dir($name);		  
 	  }
    }
 }
@@ -3922,7 +3923,7 @@ sub make_vm_API_doc {
                $ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
                $ip = "$1.$2.$3.$4";
             }
-            else {
+            else { 
                # Check the value of the mask attribute
                my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
                if ($ipv4_mask_attr ne "") {
@@ -3939,8 +3940,14 @@ sub make_vm_API_doc {
 	       
             my $ipv4_tag = $dom->createElement('ipv4');
             $if_tag->addChild($ipv4_tag);
+            # DFC: cambio para que el formato sea siempre x.x.x.x/y
+            # Hay que ver si fastidia algo en los demosnios de autoconfig
+            # Lineas originales:
             $ipv4_tag->addChild( $dom->createAttribute( mask => $ipv4_effective_mask));
             $ipv4_tag->addChild($dom->createTextNode($ip));
+            # Nuevas lineas:
+            #$ip = NetAddr::IP->new ($ip, $ipv4_effective_mask)->cidr();
+            #$ipv4_tag->addChild($dom->createTextNode($ip));
                
             }
          }

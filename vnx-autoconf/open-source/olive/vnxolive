@@ -1,0 +1,60 @@
+#!/bin/sh
+#
+# $FreeBSD: src/etc/rc.d/usbd,v 1.3 2004/10/07 13:55:26 mtm Exp $
+#
+
+# PROVIDE: vnx-olived
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="vnxolived"
+command="/usr/local/sbin/${name}"
+start_cmd=${name}_start
+stop_cmd=${name}_stop
+status_cmd=${name}_status
+restart_cmd=${name}_restart
+
+vnxolived_start() {
+    sh $command &
+    echo "-- $name started ($!)"
+}
+
+vnxolived_stop() {
+    PIDS=`ps uaxw | grep "sh /usr/local/sbin/${name}" | grep -v "grep" | awk '{print $2}'`
+    #echo PIDS=$PIDS
+    if [ "$PIDS" ] 
+    then
+      #echo kill $PIDS
+      kill $PIDS
+      echo -n "-- ${name} process ("
+      echo -n $PIDS
+      echo ") stopped."
+    else
+      echo "-- ${name} not running."
+    fi
+}
+
+vnxolived_status() {
+    PIDS=`ps uaxw | grep "sh /usr/local/sbin/${name}" | grep -v "grep" | awk '{print $2}'`
+    #echo PIDS=$PIDS
+    if [ "$PIDS" ] 
+    then
+      #echo kill $PIDS
+      echo -n "-- ${name} running ("
+      echo -n $PIDS
+      echo ")."
+    else
+      echo "-- ${name} not running."
+    fi
+}
+
+vnxolived_restart() {
+    vnxolived_stop
+    vnxolived_start
+}
+
+load_rc_config $name
+run_rc_command "$1"

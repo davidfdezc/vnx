@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE vnx SYSTEM "/usr/share/xml/vnx/vnx-1.92.dtd">
 
 <!--
 
@@ -17,7 +16,8 @@ commit
 
 -->
 
-<vnx>
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.93.xsd">
   <global>
     <version>1.92</version>
     <scenario_name>simple_juniper</scenario_name>
@@ -29,11 +29,32 @@ commit
       
   <!-- NODES -->
   <vm name="juniper" type="libvirt" subtype="kvm" os="olive">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_juniper</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_olive</filesystem>
     <mem>256M</mem>
-    <if id="1" net="Net0">
+    <if id="1" net="Net0" name="fxp0">
       <ipv4>10.0.0.11/24</ipv4>
+      <ipv6>2001:db8::11/64</ipv6>
     </if>
+    <if id="2" net="Net0" name="fxp1">
+      <ipv4>10.0.0.12/24</ipv4>
+      <ipv6>2001:db8::12/64</ipv6>
+    </if>
+    <route type="ipv4" gw="10.0.0.1">default</route>
+  	<route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
+
+    
+    <filetree seq="copyconfig2" root="/var/tmp">conf/</filetree>
+    <filetree seq="copyconfig2" root="/var/tmp">conf/txtfile/</filetree>
+    <exec seq="config1" type="verbatim" mode="cdrom" ostype="load">override conf/juniper.conf</exec>
+    <exec seq="configif" type="verbatim" mode="cdrom" ostype="set">set interfaces fxp0 unit 0 family inet address 10.0.0.10/24</exec>
+    <exec seq="enable-ssh" type="verbatim" mode="cdrom" ostype="set">set system services ssh</exec>
+    <exec seq="enable-telnet" type="verbatim" mode="cdrom" ostype="set">set system services telnet</exec>
+    <exec seq="showint" type="verbatim" mode="cdrom" ostype="show">show interfaces</exec>
+    <exec seq="file" type="file" mode="cdrom">comandos/commands-file</exec>
+
+    <exec seq="copyconfig" type="verbatim" mode="cdrom" ostype="set">set interfaces fxp0 unit 0 family inet address 192.168.122.10/24</exec>
+    <exec seq="copyconfig" type="verbatim" mode="cdrom" ostype="show">show interfaces</exec>
+    <exec seq="copyconfig" type="verbatim" mode="cdrom" ostype="show">show interfaces</exec>    
   </vm>
 
   <host>

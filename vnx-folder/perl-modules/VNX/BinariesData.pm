@@ -55,8 +55,9 @@ sub new {
    # List of mandatory binaries
    my @binaries_mandatory = ("touch", "rm",  "mv", "echo", "modprobe", "tunctl", 
    "ifconfig", "cp", "cat", "lsof", "chown",
-   "hostname", "route", "scp", "chmod", "ssh", "uml_mconsole",
-   "date", "ps", "grep", "kill", "ln", "mkisofs", "mktemp", "su", "find");
+   "hostname", "route", "scp", "chmod", "ssh", "uml_mconsole",                                                                             
+   "date", "ps", "grep", "kill", "ln", "mkisofs", "mktemp", "su", "find",
+   "qemu-img", "mkfs.msdos", "mount", "umount");
    
    # List of optional binaries for xterm, vlan, screen and
    # uml_switch (defaults are empty: the add_additional_*_binaries 
