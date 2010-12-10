@@ -239,7 +239,7 @@ sub check_doc {
 
       # To get name attribute
       my $name = $net->getAttribute("name");
-
+      
       # To check name length
       my $upper = $max_name_length + 1;
       return "net name $name is too long: max $max_name_length characters"
@@ -305,12 +305,12 @@ sub check_doc {
       # (this method is not very strong, only existence and duplication is 
       # checked; a best checking would be to analyze the full information 
       # returned by ifconfig command) 
+
       my $external_if = $net->getAttribute("external");
       unless ($external_if =~ /^$/) {
 	    if (system($bp->{"ifconfig"} . " $external_if &> /dev/null")) {
 	      return "in network $name, $external_if does not exist";
-	    }
-	    
+	    } 
 	    # Check the VLAN attribute (to compose the physical name, for 
 	    # duplication checking)
 	    my $vlan = $net->getAttribute("vlan");
