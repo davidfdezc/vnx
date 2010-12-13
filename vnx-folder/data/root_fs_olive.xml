@@ -1,0 +1,53 @@
+<domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
+<!--domain type='kvm'-->
+  <name>Olive</name>
+  <memory>1048576</memory>
+  <vcpu>1</vcpu>
+  <biosfile>bios-0.10.6.bin</biosfile>
+  <os>
+    <type arch="i686">hvm</type>
+    <boot dev='hd'/>
+    <boot dev='cdrom'/>
+  </os>
+  <features>
+     <pae/>
+     <acpi/>
+     <apic/>
+  </features>
+  <clock sync="localtime"/>
+  <devices>
+    <emulator>/usr/bin/kvm</emulator>
+    <disk type='file' device='disk'>
+      <source file='/root/juniper/root_fs_juniper-test.qcow2'/>
+      <target dev='hda'/>
+      <driver name="qemu" type="qcow2"/>
+    </disk>
+    <!--disk type='file' device='cdrom'>
+      <source file='/almacen/iso/4.11-RELEASE-i386-miniinst.iso'/>
+      <target dev='hdb'/>
+    </disk!-->
+    <disk type="file" device="disk">
+      <source file="/root/juniper/jconfig.img"/>
+      <target dev="hdb"/>
+    </disk>
+    <interface type='network'>
+      <source network='default'/>
+      <model type="i82559er"/>
+    </interface>
+   <serial type="tcp">
+      <source mode="bind" host="0.0.0.0" service="20000"/>
+      <protocol type="telnet"/>
+      <target port="2"/>
+    </serial>
+    <serial type="unix">
+      <source mode="bind" path="/tmp/socket000"/>
+      <target port="1"/>
+    </serial>
+    <!--graphics type='vnc'/!-->
+  <qemu:commandline>
+    <qemu:arg value='-bios'/>
+    <qemu:arg value='bios-0.10.6.bin'/>
+    <!--qemu:arg value='-nodefaults'/!-->
+  </qemu:commandline>
+  </devices>
+</domain>

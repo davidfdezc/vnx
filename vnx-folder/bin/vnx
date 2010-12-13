@@ -1047,7 +1047,7 @@ sub mode_start {
 			    my $vnx_dir = $dh->get_vnx_dir;
 			    my $pts=`cat $vnx_dir/scenarios/$scename/vms/$name/run/pts`;
 			    $pts =~ s/\s+$//;        # Delete linefeed at the end
-				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $name, $merged_type, $name, $pts;
+				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $name, $merged_type, $name, $name, $pts;
 			} elsif ( $vm->getAttribute("type") eq "dynamips"){
 				my $port;
 				#$port = 900 + $i;
@@ -4093,7 +4093,7 @@ sub para {
 	   print $var . "\n";	
 	}
 	print "*********************************\n";
-	<STDIN>;
+	#<STDIN>;
 }
 
 

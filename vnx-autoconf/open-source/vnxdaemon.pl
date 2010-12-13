@@ -79,8 +79,8 @@ sub daemonize {
 	setsid();
 
 	# Close descriptors
-	close(STDERR);
-	close(STDOUT);
+	#close(STDERR);
+	#close(STDOUT);
 	close(STDIN);
 
 	# Set permissions for temporary files
