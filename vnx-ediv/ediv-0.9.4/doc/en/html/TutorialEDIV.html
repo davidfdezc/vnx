@@ -1,0 +1,425 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
+        
+<!-- Mirrored from www.dit.upm.es/vnumlwiki/index.php/TutorialEDIV by HTTrack Website Copier/3.x [XR&CO'2007], Thu, 19 Feb 2009 10:06:01 GMT -->
+<!-- Added by HTTrack --><meta http-equiv="content-type" content="text/html;charset=UTF-8"><!-- /Added by HTTrack -->
+<head>
+                <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+                <meta name="keywords" content="TutorialEDIV,Usermanual" />
+<link rel="shortcut icon" href="http://www.dit.upm.es/favicon.ico" />
+<link rel="search" type="application/opensearchdescription+xml" href="../opensearch_desc.php" title="VNUML-WIKI (English)" />
+<link title="Creative Commons" type="application/rdf+xml" href="../index8239.html?title=TutorialEDIV&amp;action=creativecommons" rel="meta" />
+<link rel="copyright" href="http://creativecommons.org/licenses/by/2.5/" />
+                <title>TutorialEDIV - VNUML-WIKI</title>
+                <style type="text/css" media="screen,projection">/*<![CDATA[*/ @import "skins/fratman_enhanced/main5444.css?42b"; /*]]>*/</style>
+                <link rel="stylesheet" type="text/css" media="print" href="skins/common/commonPrint5444.css?42b" />
+                <link rel="stylesheet" type="text/css" media="handheld" href="skins/fratman_enhanced/handheld5444.css?42b" />
+                <!--[if lt IE 5.5000]><style type="text/css">@import "/vnumlwiki/skins/fratman_enhanced/IE50Fixes.css?42b";</style><![endif]-->
+                <!--[if IE 5.5000]><style type="text/css">@import "/vnumlwiki/skins/fratman_enhanced/IE55Fixes.css?42b";</style><![endif]-->
+                <!--[if IE 6]><style type="text/css">@import "/vnumlwiki/skins/fratman_enhanced/IE60Fixes.css?42b";</style><![endif]-->
+                <!--[if IE 7]><style type="text/css">@import "/vnumlwiki/skins/fratman_enhanced/IE70Fixes.css?42b";</style><![endif]-->
+                <!--[if lt IE 7]><script type="text/javascript" src="/vnumlwiki/skins/common/IEFixes.js?42b"></script>
+                <meta http-equiv="imagetoolbar" content="no" /><![endif]-->
+
+                <script type= "text/javascript">/*<![CDATA[*/
+var skin = "fratman_enhanced";
+var stylepath = "/vnumlwiki/skins";
+var wgArticlePath = "/vnumlwiki/index.php/$1";
+var wgScriptPath = "/vnumlwiki";
+var wgServer = "http://www.dit.upm.es/";
+var wgCanonicalNamespace = "";
+var wgCanonicalSpecialPageName = false;
+var wgNamespaceNumber = 0;
+var wgPageName = "TutorialEDIV";
+var wgTitle = "TutorialEDIV";
+var wgArticleId = "1544";
+var wgIsArticle = true;
+var wgUserName = null;
+var wgUserLanguage = "en";
+var wgContentLanguage = "en";
+var wgBreakFrames = false;
+var wgCurRevisionId = "3766";
+/*]]>*/</script>
+
+                <script type="text/javascript" src="skins/common/wikibits5444.js?42b"><!-- wikibits js --></script>
+                <script type="text/javascript" src="../index6a64.php?title=-&amp;action=raw&amp;gen=js"><!-- site js --></script>
+                <style type="text/css">/*<![CDATA[*/
+@import "../index809e.css?title=MediaWiki:Common.css&amp;usemsgcache=yes&amp;action=raw&amp;ctype=text/css&amp;smaxage=18000";
+@import "../indexb6d0.css?title=MediaWiki:Fratman_enhanced.css&amp;usemsgcache=yes&amp;action=raw&amp;ctype=text/css&amp;smaxage=18000";
+@import "../index89be.css?title=-&amp;action=raw&amp;gen=css&amp;maxage=18000";
+/*]]>*/</style>
+                <!-- Head Scripts -->
+                        </head>
+
+
+  <body                 class="ns-0">
+
+<div id="titleBar"></div>
+
+    <!--  ---------------------------------------------
+      Added to have a link to the home page from the background image
+      in the top of the page (DFC 11/3/2007).
+      Based on recipe in http://www.alistapart.com/articles/imagemap/
+    -->
+
+    <div id="menu"> 
+       <a href="http://www.dit.upm.es/vnuml" id="home"><i>Home</i></a>
+    </div>
+
+    <div id="globalWrapper">
+      <div id="column-content">
+	<div id="content">
+	  <a name="top" id="contentTop"></a>
+	  	  <!--h1 class="firstHeading">TutorialEDIV</h1-->
+
+          
+
+	  <div id="bodyContent">
+	    <h3 id="siteSub">From VNUML-WIKI</h3>
+	    <div id="contentSub"></div>
+	    	    	    <!-- start content -->
+	    <p style="font-size:1.65em;font-weight:bold; color: #173A7B; margin:0em 0 0.25em 0;border-bottom: 1px solid #333333; line-height: 1.1em; padding-bottom: 0.2em;">
+EDIV Tutorial
+</p>
+<p><big>
+</p>
+<pre>Authors:
+<b>Francisco José Martín Moreno (fjmartin at dit.upm.es)</b>
+<b>Miguel Ferrer Cámara (mferrer at dit.upm.es)</b>
+<b>Fermín Galán Márquez (galan at dit.upm.es)</b>
+<b>version 1.0, Oct 14th, 2008</b>
+</pre>
+<p></big>
+</p>
+<table id="toc" class="toc" summary="Contents"><tr><td><div id="toctitle"><h2>Contents</h2></div>
+<ul>
+<li class="toclevel-1"><a href="#Introduction"><span class="tocnumber">1</span> <span class="toctext">Introduction</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Previous_Steps"><span class="tocnumber">1.1</span> <span class="toctext">Previous Steps</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#Building_the_scenario"><span class="tocnumber">2</span> <span class="toctext">Building the scenario</span></a></li>
+<li class="toclevel-1"><a href="#Command_sequences"><span class="tocnumber">3</span> <span class="toctext">Command sequences</span></a></li>
+<li class="toclevel-1"><a href="#Testing_the_scenario"><span class="tocnumber">4</span> <span class="toctext">Testing the scenario</span></a></li>
+<li class="toclevel-1"><a href="#Purging_the_scenario"><span class="tocnumber">5</span> <span class="toctext">Purging the scenario</span></a></li>
+<li class="toclevel-1"><a href="#Using_another_algorithms"><span class="tocnumber">6</span> <span class="toctext">Using another algorithms</span></a></li>
+<li class="toclevel-1"><a href="#Creating_a_restriction_file"><span class="tocnumber">7</span> <span class="toctext">Creating a restriction file</span></a></li>
+</ul>
+</td></tr></table><script type="text/javascript"> if (window.showTocToggle) { var tocShowText = "show"; var tocHideText = "hide"; showTocToggle(); } </script>
+<p><br />
+</p>
+<a name="Introduction"></a><h2><span class="editsection">[<a href="../index11df.html?title=TutorialEDIV&amp;action=edit&amp;section=1" title="Edit section: Introduction">edit</a>]</span> <span class="mw-headline"> Introduction </span></h2>
+<p>In this section a brief tutorial is presented, in order to help people using EDIV for the first time. The tutorial has three main steps: launching a VNUML simulation in a distributed environment (<a href="Example-BGP.html" class="external text" title="http://www.dit.upm.es/vnumlwiki/index.php/Example-BGP" rel="nofollow">the BGP VNUML example</a>); executing commands in several virtual machines through EDIV execution mode (-x) to configure the BGP routing in the distributed scenario; and finally monitor the cluster and the running scenario through the management scripts provided in the EDIV software package.
+</p><p>To follow this tutorial, <b>a proper installation and configuration of EDIV is required</b>. The way to do it is described in the EDIV documentation ('Installation' and 'User Manual' sections). In addition, familiarity with the VNUML tool is assumed.
+</p>
+<a name="Previous_Steps"></a><h3><span class="editsection">[<a href="../index326c.html?title=TutorialEDIV&amp;action=edit&amp;section=2" title="Edit section: Previous Steps">edit</a>]</span> <span class="mw-headline"> Previous Steps </span></h3>
+<p>To begin with the tutorial, several files are required:
+</p>
+<ul><li> <a href="http://jungla.dit.upm.es/~vnuml/doc/examples/bgp/bgp.xml" class="external text" title="http://jungla.dit.upm.es/~vnuml/doc/examples/bgp/bgp.xml" rel="nofollow">The VNUML BGP Example scenario file</a>
+</li><li> <a href="http://jungla.dit.upm.es/~vnuml/doc/examples/bgp/bgp.tar" class="external text" title="http://jungla.dit.upm.es/~vnuml/doc/examples/bgp/bgp.tar" rel="nofollow">The BGP routing configuration of the scenario</a>
+</li></ul>
+<p>Download and put them in the same folder (e.g., /root/) and decompress the configuration file (bgp.tar) in that folder.
+</p>
+<a name="Building_the_scenario"></a><h2><span class="editsection">[<a href="../indexef86.html?title=TutorialEDIV&amp;action=edit&amp;section=3" title="Edit section: Building the scenario">edit</a>]</span> <span class="mw-headline"> Building the scenario </span></h2>
+<p>To launch the distributed scenario root privileges should be used when using EDIV (in some GNU/Linux distributions, mainly in Ubuntu based ones, this is donde with "sudo su").
+</p><p>In order to launch the BGP scenario deployment in the cluster, the following command is used:
+</p>
+<pre>ediv_ctl.pl -t -s /root/bgp.xml -a RoundRobin
+</pre>
+<p>Firstly, the EDIV controller will do the assignment of the virtual machines to physical hosts of the cluster and will show it to the user:
+</p>
+<pre>**** Calling segmentator... ****
+
+Segmentator: Using RoundRobin
+Segmentator: Cluster physical machines -&gt; 3
+Segmentator: Virtual machine R1 to physical host zermat.dit.upm.es
+Segmentator: Virtual machine R2 to physical host kofy.dit.upm.es
+Segmentator: Virtual machine R3 to physical host cuco.dit.upm.es
+Segmentator: Virtual machine R4 to physical host zermat.dit.upm.es
+Segmentator: Virtual machine R5 to physical host kofy.dit.upm.es
+Segmentator: Virtual machine R6 to physical host cuco.dit.upm.es
+</pre>
+<p><br />
+The EDIV controller will continue deploying the scenario and consoles of the virtual machines will appear on your desktop (because the BGP simulation example uses graphic consoles to access the virtual machines):
+</p>
+<pre>
+**** Checking simulation status ****
+
+Checking R1 status
+	 R1 still booting, waiting...
+	 R1 still booting, waiting...
+	 R1 still booting, waiting...
+	 R1 running
+Checking R4 status
+	 R4 running
+Checking R2 status
+	 R2 running
+Checking R5 status
+	 R5 running
+Checking R3 status
+	 R3 running
+Checking R6 status
+	 R6 running
+</pre>
+<p>When the EDIV controller finishes launching the scenario, it will present a text to the user, showing the way to access the virtual machines through ssh. Finally, EDIV ends after showing a 'Succesfully finished' message:
+</p>
+<pre>**** Creating tunnels to access VM ****
+
+	To access VM R1 at zermat.dit.upm.es use local port 64000
+	To access VM R2 at kofy.dit.upm.es use local port 64004
+	To access VM R3 at cuco.dit.upm.es use local port 64001
+	To access VM R4 at zermat.dit.upm.es use local port 64003
+	To access VM R5 at kofy.dit.upm.es use local port 64005
+	To access VM R6 at cuco.dit.upm.es use local port 64002
+
+	Use command ssh -2 root@localhost -p &lt;port&gt; to access VMs
+	Or ediv_console.pl console &lt;simulation_name&gt; &lt;vm_name&gt;
+	Where &lt;port&gt; is a port number of the previous list
+	The port list can be found running ediv_console.pl info
+
+****** Succesfully finished ******
+</pre>
+<p>The BGP simulation is running&nbsp;:)
+</p><p><strong><span style="color:red">NOTE:</span></strong> The graphic terminals or either ssh can be used to control the virtual machines. Graphic terminal windows can even be closed because the ssh access will work during the whole simulation.
+</p>
+<a name="Command_sequences"></a><h2><span class="editsection">[<a href="../indexf36f.html?title=TutorialEDIV&amp;action=edit&amp;section=4" title="Edit section: Command sequences">edit</a>]</span> <span class="mw-headline"> Command sequences </span></h2>
+<p>The BGP example provides command sequences to configure and run the BGP routing daemon in each virtual machine of the scenario:
+</p><p>To execute them use the command:
+</p>
+<pre>ediv_ctl.pl -x start -s /root/bgp.xml 
+</pre>
+<p>After some time, the BPG protocol converges and connectivity can be tested as described in <a href="Example-BGP.html#Scenario" class="external text" title="http://dit.upm.es/vnumlwiki/index.php/Example-BGP#Scenario" rel="nofollow">the BGP scenario page</a>.
+</p>
+<a name="Testing_the_scenario"></a><h2><span class="editsection">[<a href="../index2e7f.html?title=TutorialEDIV&amp;action=edit&amp;section=5" title="Edit section: Testing the scenario">edit</a>]</span> <span class="mw-headline"> Testing the scenario </span></h2>
+<p>This section describes the use of some scripts provided by EDIV. Using them permits the user to know what is happening in the cluster.
+</p><p>Firstly, show which scenarios are running in the cluster:
+</p>
+<pre>ediv_query_status.pl
+</pre>
+<p>Previous command will display something similar to:
+</p>
+<pre>The simulation bgp is running at host zermat.dit.upm.es
+The simulation bgp is running at host kofy.dit.upm.es
+The simulation bgp is running at host cuco.dit.upm.es
+</pre>
+<p>Once we know that the bgp distributed scenario is running, we can know the virtual machines it launches:
+</p>
+<pre>ediv_query_status.pl bgp
+</pre>
+<p>And the corresponding information will be displayed:
+</p>
+<pre>The simulation bgp has the virtual machine R1 that is in host zermat.dit.upm.es
+The simulation bgp has the virtual machine R2 that is in host kofy.dit.upm.es
+The simulation bgp has the virtual machine R3 that is in host cuco.dit.upm.es
+The simulation bgp has the virtual machine R4 that is in host zermat.dit.upm.es
+The simulation bgp has the virtual machine R5 that is in host kofy.dit.upm.es
+The simulation bgp has the virtual machine R6 that is in host cuco.dit.upm.es
+</pre>
+<p>Now we can access any of the running virtual machines through the command:
+</p>
+<pre> ediv_console.pl console bgp R1
+</pre>
+<p><span style="color:red"><strong>NOTE:</strong></span> Just a reminder, the password to access virtual machines is 'xxxx'.
+</p><p>Once we are inside one the virtual machines, we can get bgp routing information with the commands:
+</p>
+<pre>vtysh
+</pre>
+<pre>sh ip bgp summary
+</pre>
+<p>And results similar to the next one will be displayed: 
+</p>
+<pre>BGP router identifier 10.250.0.18, local AS number 65001
+RIB entries 5, using 320 bytes of memory
+Peers 3, using 7524 bytes of memory
+
+Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+161.0.0.2       4 65002      15      18        0    0    0 00:12:11        2
+161.0.0.6       4 65003      11      14        0    0    0 00:09:26        1
+161.0.0.10      4 65004      12      14        0    0    0 00:09:28        1
+
+Total number of neighbors 3
+</pre>
+<p>After returning to the cluster controller (leaving the virtual machine) we can test the cluster hosts status:
+</p>
+<pre>ediv_monitor.pl 0
+</pre>
+<p>And get information similar to:
+</p>
+<pre>
+Host zermat.dit.upm.es status:
+
+Load:   12:09:26 up 8 days,  1:37,  1 user,  load average: 0.09, 0.26, 0.33
+
+Virtual machines running at simulation bgp_zermat.dit.upm.es:
+         available vms: R1 R4
+
+
+Host kofy.dit.upm.es status:
+
+Load:   12:08:56 up  1:41,  2 users,  load average: 0.09, 0.20, 0.20
+
+Virtual machines running at simulation bgp_kofy.dit.upm.es:
+         available vms: R2 R5
+
+
+Host cuco.dit.upm.es status:
+
+Load:   12:08:57 up 29 min,  0 users,  load average: 0.00, 0.00, 0.00
+
+Virtual machines running at simulation bgp_cuco.dit.upm.es:
+         available vms: R3 R6
+</pre>
+<a name="Purging_the_scenario"></a><h2><span class="editsection">[<a href="../index0ddc.html?title=TutorialEDIV&amp;action=edit&amp;section=6" title="Edit section: Purging the scenario">edit</a>]</span> <span class="mw-headline"> Purging the scenario </span></h2>
+<p>To purge the scenario, we need this command:
+</p>
+<pre>ediv_ctl.pl -P -s /root/bgp.xml
+</pre>
+<p>EDIV finishes after showing a 'Succesfully finished' message:
+</p>
+<pre>****** Succesfully finished ******
+</pre>
+<a name="Using_another_algorithms"></a><h2><span class="editsection">[<a href="../index8ab0.html?title=TutorialEDIV&amp;action=edit&amp;section=7" title="Edit section: Using another algorithms">edit</a>]</span> <span class="mw-headline"> Using another algorithms </span></h2>
+<p>The segmentation algorithm can be changed using the -a switch. For example, if we want to use weighted round robin instead of conventional (i.e., non-weighted) round robin, then:
+</p>
+<pre>ediv_ctl.pl -t -s /root/bgp.xml -a WeightedRoundRobin
+</pre>
+<p>As you can observe, the assignment of virtual machines to physical host is different (if some cluster host is CPU loaded). To check how the scenario would be deployed, you can use the next script:
+</p>
+<pre> ediv_segmentation_info.pl bgp.xml WeightedRoundRobin
+</pre>
+<pre>
+
+Segmentator: Using WeightedRoundRobin
+Segmentator: Dynamic CPU load of zermat.dit.upm.es is 0.32
+Segmentator: Dynamic CPU load of kofy.dit.upm.es is 0.43
+Segmentator: Dynamic CPU load of cuco.dit.upm.es is 0.00
+Segmentator: Assigned 28.6666666666667% to zermat.dit.upm.es
+Segmentator: Assigned 21.3333333333333% to kofy.dit.upm.es
+Segmentator: Assigned 50% to cuco.dit.upm.es
+Segmentator: 2 VMs assigned to zermat.dit.upm.es
+Segmentator: 1 VMs assigned to kofy.dit.upm.es
+Segmentator: 3 VMs assigned to cuco.dit.upm.es
+Segmentator: Virtual machine R1 goes to physical host zermat.dit.upm.es
+Segmentator: Virtual machine R2 goes to physical host zermat.dit.upm.es
+Segmentator: Virtual machine R3 goes to physical host kofy.dit.upm.es
+Segmentator: Virtual machine R4 goes to physical host cuco.dit.upm.es
+Segmentator: Virtual machine R5 goes to physical host cuco.dit.upm.es
+Segmentator: Virtual machine R6 goes to physical host cuco.dit.upm.es
+
+</pre>
+<a name="Creating_a_restriction_file"></a><h2><span class="editsection">[<a href="../index707c.html?title=TutorialEDIV&amp;action=edit&amp;section=8" title="Edit section: Creating a restriction file">edit</a>]</span> <span class="mw-headline"> Creating a restriction file </span></h2>
+<p>This is an example of a restriction file for the BGP example. For more information about this topic check <a href="Usermanual.html#Language_Reference" title="Usermanual"> the language reference</a>.
+</p><p>First, we want all the virtual machines belonging to the net AS1-AS4 deployed together:
+</p>
+<pre>&lt;net_deploy_at net="AS1-AS4" host="kofy.dit.upm.es" /&gt;
+</pre>
+<p>Then, we want the virtual machine R2 deployed in a certain host:
+</p>
+<pre>&lt;vm_deploy_at vm="R2" host="zermat.dit.upm.es" /&gt;
+</pre>
+<p>We don't want the virtual machines R2 and R5 in the same host:
+</p>
+<pre>&lt;antiaffinity&gt;
+  &lt;vm&gt;R2&lt;/vm&gt;
+  &lt;vm&gt;R5&lt;/vm&gt;
+&lt;/antiaffinity&gt;
+</pre>
+<p>And last, we want R3 and R2 deployed together in the same host:
+</p>
+<pre>&lt;affinity&gt;
+  &lt;vm&gt;R3&lt;/vm&gt;
+  &lt;vm&gt;R2&lt;/vm&gt;
+&lt;/affinity&gt;
+</pre>
+<p>The complete restriction file is:
+</p>
+<pre>
+&lt;deployment_restrictions&gt;
+
+&lt;net_deploy_at net=&quot;AS1-AS4&quot; host=&quot;kofy.dit.upm.es&quot; /&gt;
+
+&lt;vm_deploy_at vm=&quot;R2&quot; host=&quot;zermat.dit.upm.es&quot; /&gt;
+ 
+&lt;antiaffinity&gt;
+  &lt;vm&gt;R2&lt;/vm&gt;
+  &lt;vm&gt;R5&lt;/vm&gt;
+&lt;/antiaffinity&gt;
+
+&lt;affinity&gt;
+  &lt;vm&gt;R3&lt;/vm&gt;
+  &lt;vm&gt;R2&lt;/vm&gt;
+&lt;/affinity&gt;
+ 
+&lt;/deployment_restrictions&gt;
+</pre>
+<p>Now we can launch this scenario using the created restriction file with the following command:
+</p>
+<pre>ediv_ctl.pl -t -s /root/bgp.xml -r /root/restriction_file.xml
+</pre>
+<!-- Saved in parser cache with key wikidb-vnuml_:pcache:idhash:1544-0!1!0!!en!2 and timestamp 20090218174603 -->
+<div class="printfooter">
+Retrieved from "<a href="TutorialEDIV.html">http://www.dit.upm.es/vnumlwiki/index.php/TutorialEDIV</a>"</div>
+	    	    <!-- end content -->
+	    <div class="visualClear"></div>
+	  </div>
+	</div>
+      </div>
+      <div id="column-one">
+        <br>
+        <br>
+        <br>
+
+	<div class="portlet" id="p-logo">
+	  <a style="background-image: url(skins/common/images/vnuml-150.png);"
+	    href="Main_Page.html"
+	    title="Main Page"></a>
+	</div>
+
+	<script type="text/javascript"> if (window.isMSIE55) fixalpha(); </script>
+	        
+	        
+	        <!-- BEGINSIDEBAR p-EDIV Documentation -->
+	<div class='portlet' id='p-EDIV Documentation'>
+	  <h5>EDIV Documentation</h5>
+	  <div class='pBody'>
+	    <ul>
+	    	      <li id="n-Tutorial"><a href="TutorialEDIV.html">Tutorial</a></li>
+	     	      <li id="n-Installation"><a href="InstallationEDIV.html">Installation</a></li>
+	     	      <li id="n--User-Manual"><a href="UsermanualEDIV.html"> User Manual</a></li>
+	     	    </ul>
+	  </div>
+	</div>
+        <!-- ENDSIDEBAR p-EDIV Documentation -->
+	        
+	
+        
+
+	<!--div id="p-cactions" class="portlet">
+	  <h5>Views</h5>
+	  <ul>
+	    <li id="ca-nstab-main"
+	       class="selected"	       ><a href="/vnumlwiki/index.php/TutorialEDIV">Article</a></li><li id="ca-talk"
+	       class="new"	       ><a href="/vnumlwiki/index.php?title=Talk:TutorialEDIV&amp;action=edit">Discussion</a></li><li id="ca-edit"
+	       	       ><a href="/vnumlwiki/index.php?title=TutorialEDIV&amp;action=edit">Edit</a></li><li id="ca-history"
+	       	       ><a href="/vnumlwiki/index.php?title=TutorialEDIV&amp;action=history">History</a></li>	  </ul>
+	</div-->
+        
+        
+
+        
+
+	      </div><!-- end of the left (by default at least) column -->
+      <div class="visualClear"></div>
+      <div id="footer">
+		<table width = "100%">
+			<tr><td width="5%" align="left" nowrap='nowrap'><div id="f-copyrightico"><a href="http://creativecommons.org/licenses/by/2.5/"><img src="http://creativecommons.org/images/public/somerights20.png" alt='Attribution 2.5 ' /></a></div></td>
+				<td align="center">
+	    This page was last modified 10:05, 11 February 2009. - 	   	  	  	  	   	  	</td>
+			<td width="5%" align="right" nowrap='nowrap'><div id="f-poweredbyico"><a href="http://www.mediawiki.org/"><img src="skins/common/images/poweredby_mediawiki_88x31.png" alt="Powered by MediaWiki" /></a></div></td></tr></table>
+      </div>
+    </div>
+    <!-- Served by buitre in 0.227 secs. -->  </body>
+
+<!-- Mirrored from www.dit.upm.es/vnumlwiki/index.php/TutorialEDIV by HTTrack Website Copier/3.x [XR&CO'2007], Thu, 19 Feb 2009 10:06:11 GMT -->
+<!-- Added by HTTrack --><meta http-equiv="content-type" content="text/html;charset=UTF-8"><!-- /Added by HTTrack -->
+</html>

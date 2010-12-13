@@ -1,0 +1,36 @@
+This file is part of EDIV package.
+
+1. Brief Description
+--------------------
+EDIV is an evolution of VNUML to allow the management of virtualization
+scenarios deployed on multi-host distributed infrastructure. One of the
+main design requirements is transparency, so users accustomed to use
+basic VNUML (i.e. mono-host) will be able to work with EDIV in minutes. 
+
+2. Licensing
+------------
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+3. Authors
+----------
+Copyright: (C) 2008 Telefonica Investigacion y Desarrollo, S.A.U.
+Authors: Francisco Jose Martin,
+         Miguel Ferrer,
+         Fermin Galan,
+         Departamento de Ingenieria de Sistemas Telematicos, Universidad Politécnica de Madrid
+
+4. Documentation
+----------------
+All the available documentation is hosted at the VNUML Wiki:
+http://www.dit.upm.es/vnumlwiki/
+
+The documentation regarding EDIV can be found at:
+http://www.dit.upm.es/vnumlwiki/index.php/Docintro#EDIV_Documentation
