@@ -20,30 +20,52 @@ echo "** "
 echo "** Installing VNX v${VNX_VERSION}... "
 echo "** "
 
-# vnx
+#
+# Create directories if not already created
+#
+mkdir -vp ${VNX_LIBS}
+mkdir -vp /usr/share/xml/vnx
+mkdir -vp /usr/share/vnx/bin
+mkdir -vp /usr/share/vnx/examples/
+mkdir -vp /usr/share/vnx/filesystems
+mkdir -vp /usr/share/vnx/kernels
+mkdir -vp /usr/share/vnx/aced
+
+#
+# Copy vnx
+#
 cp -v bin/vnx /usr/bin
 chmod +x /usr/bin/vnx
 
-# vnx perl modules
-mkdir -vp ${VNX_LIBS}
+#
+# Copy vnx perl modules
+#
 cp -v perl-modules/VNX/* ${VNX_LIBS}
 chmod 644 ${VNX_LIBS}*
 
-# vnx dtd and xsd
-mkdir -vp /usr/share/xml/vnx
+#
+# Copy vnx dtd and xsd
+#
 cp -v data/*.dtd /usr/share/xml/vnx/
 cp -v data/*.xsd /usr/share/xml/vnx/
 
-# examples
-mkdir -vp /usr/share/vnx/examples/
+#
+# Copy examples
+#
 cp -v data/*.xml data/*.net /usr/share/vnx/examples/
 cp -vr data/conf /usr/share/vnx/examples/
 chmod 644 /usr/share/vnx/examples/*
 
-mkdir -vp /usr/share/vnx/filesystems
-mkdir -vp /usr/share/vnx/kernels
+#
+# Copy other utils
+#
+cp -v bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
+cp -v bin/vnx_modify_rootfs.sh /usr/share/vnx/bin/vnx_modify_rootfs
+chmod 755 /usr/share/vnx/bin/*
 
-# config file
+#
+# Copy vnx config file
+#
 if [ -e /etc/vnx.conf ]; then
 	mv /etc/vnx.conf /etc/vnx.conf.bak
 fi
@@ -52,8 +74,7 @@ cp -v data/vnx.conf /etc
 #
 # Copy ace daemons 
 #
-mkdir -vp /usr/share/vnx/ace
-cp -v ace/* /usr/share/vnx/ace
+cp -v aced/* /usr/share/vnx/aced
 
 echo "** "
 echo "** ...done"

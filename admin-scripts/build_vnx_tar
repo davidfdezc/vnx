@@ -1,7 +1,8 @@
 #!/bin/bash
 
 VNX_VERSION="0.14b-`date +%Y%m%d%H%M`"
-OLIVE_VERSION="0.1b-`date +%Y%m%d%H%M`"
+OLIVE_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
+ACEDLF_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
 #ROOTFS_VERSION="es-v023b"
 FNAME=vnx-${VNX_VERSION}
 
@@ -20,35 +21,40 @@ mkdir -p tmp/${FNAME}
 #
 # Create autoconf tar files
 #
-mkdir -p tmp/ace
+mkdir -p tmp/aced
+rm -rf tmp/aced/*
 #
 # Olive
 #
-mkdir -p tmp/ace/vnx-ace-olive-$OLIVE_VERSION
-cp vnx-autoconf/open-source/olive/*  tmp/ace/vnx-ace-olive-$OLIVE_VERSION
-cd tmp/ace 
-tar cfvz vnx-ace-olive-${OLIVE_VERSION}.tgz vnx-ace-olive-$OLIVE_VERSION
-rm -rf vnx-ace-olive-$OLIVE_VERSION
+mkdir -p tmp/aced/vnx-aced-olive-$OLIVE_VERSION
+cp vnx-autoconf/open-source/olive/*  tmp/aced/vnx-aced-olive-$OLIVE_VERSION
+cd tmp/aced
+tar cfvz vnx-aced-olive-${OLIVE_VERSION}.tgz vnx-aced-olive-$OLIVE_VERSION
+rm -rf vnx-aced-olive-$OLIVE_VERSION
 cd ../..
 #
 # Windows
 #
 # TBP
 #
-# Linux
+# Linux & Freebsd
 #
-# TBP
-#
-# Freebsd
-#
-# TBP
+mkdir -p tmp/aced/vnx-aced-lf-$ACEDLF_VERSION
+cp -r vnx-autoconf/open-source/freebsd vnx-autoconf/open-source/unix \
+      vnx-autoconf/open-source/vnxdaemon.pl vnx-autoconf/open-source/install-vnxdaemon \
+      tmp/aced/vnx-aced-lf-$ACEDLF_VERSION
+cd tmp/aced
+tar cfvz vnx-aced-lf-${ACEDLF_VERSION}.tgz vnx-aced-lf-$ACEDLF_VERSION
+rm -rf vnx-aced-lf-$ACEDLF_VERSION
+cd ../..
+
 
 
 cp -r vnx-folder/doc \
       vnx-folder/bin \
       vnx-folder/perl-modules \
       vnx-folder/data \
-      tmp/ace \
+      tmp/aced \
       tmp/${FNAME}
 
 #

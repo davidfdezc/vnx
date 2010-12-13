@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# Move to the upper directory where this script is
 cdir=$( dirname $0 )
 cd $cdir/..
 

@@ -1,0 +1,46 @@
+#!/usr/bin/perl
+
+use strict;
+
+my $platform;
+
+# Move to the directory where this script is
+$0 =~ /(.*)\// and chdir "$1";
+my $cdir=`pwd`;
+chomp ($cdir);
+print "-- Installing VNX ACE daemon from $cdir\n";
+
+# detect platform (values: 'Linux', 'FreeBSD')
+my $command;
+$command = "uname";
+chomp ($platform = `$command`);
+
+#############################
+# update for Linux          #
+#############################
+if ($platform eq 'Linux'){
+	print "-- Linux platform detected\n";
+	system "cp -v vnxdaemon.pl /etc/init.d/";
+	system "chown root:root /etc/init.d/vnxdaemon.pl";
+	system "chmod 755 /etc/init.d/vnxdaemon.pl";
+	system "cp -v unix/vnxdaemon.conf /etc/init/";
+	system "chown root:root /etc/init/vnxdaemon.conf";
+	system "chmod 644 /etc/init/vnxdaemon.conf";
+}
+#############################
+# update for FreeBSD        #
+#############################
+elsif ($platform eq 'FreeBSD'){
+	print "-- FreeBSD platform detected\n";
+	print LOG "   updating vnxdaemon for FreeBSD\n";
+	system "cp -v vnxdaemon.pl /usr/sbin/";
+	system "chown root:wheel /usr/sbin/vnxdaemon.pl";
+	system "chmod 555 /usr/sbin/vnxdaemon.pl";
+	system "cp -v freebsd/vnxdaemon /etc/rc.d/";
+	system "chown root:wheel /etc/rc.d/vnxdaemon";
+	system "chmod 555 /etc/rc.d/vnxdaemon";
+}
+else {
+	print "-- Unknown platform\n";
+}
+

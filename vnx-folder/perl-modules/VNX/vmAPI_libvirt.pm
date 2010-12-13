@@ -491,8 +491,13 @@ sub defineVM {
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 		my $domain_tag = $init_xml->createElement('domain');
 		$init_xml->addChild($domain_tag);
-		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-
+		# $domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
+		# DFC: changed the first line to 
+		# <domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
+		# to allow the use of <qemu:commandline> tag to especify the bios in Olive routers
+		$domain_tag->addChild( $init_xml->createAttribute( type => "qemu" ) );
+		$domain_tag->addChild( $init_xml->createAttribute( 'xmlns:qemu' => "http://libvirt.org/schemas/domain/qemu/1.0" ) );
+ 
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
 
@@ -511,13 +516,15 @@ sub defineVM {
 		# <vcpu> tag
 		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
 
-        # DFC: Add <biosfile> tag for Olive routers 
-        if ($type eq "libvirt-kvm-olive") {
-			my $biosfile_tag = $init_xml->createElement('biosfile');
-			$domain_tag->addChild($biosfile_tag);
-			#biosfile
-			$biosfile_tag->addChild( $init_xml->createTextNode("bios-0.10.6.bin") );
-        }
+# 		 Not used anymore. Obsoleted by the use of <qemu:commandline> tag to define
+#		 commandline arguments for kvm (-bios bios-0.10.6)
+#        # DFC: Add <biosfile> tag for Olive routers 
+#        if ($type eq "libvirt-kvm-olive") {
+#			my $biosfile_tag = $init_xml->createElement('biosfile');
+#			$domain_tag->addChild($biosfile_tag);
+#			#biosfile
+#			$biosfile_tag->addChild( $init_xml->createTextNode("bios-0.10.6.bin") );
+#        }
         
         # <os> tag
 		my $os_tag = $init_xml->createElement('os');
@@ -740,6 +747,21 @@ sub defineVM {
            } else {
 			$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
 		}
+
+        if ($type eq "libvirt-kvm-olive") {
+	        # <qemu:commandline> tag
+	        # Olive routers have to use an old bios version from qemu 0.10.6 version
+	        # with newer versions they fail booting with error:
+	        # "Fatal trap 30: reserved (unknown) fault while in kernel mode"
+			my $qemucmdline_tag = $init_xml->createElement('qemu:commandline');
+			$domain_tag->addChild($qemucmdline_tag);
+			my $qemuarg_tag = $init_xml->createElement('qemu:arg');
+			$qemucmdline_tag->addChild($qemuarg_tag);
+			$qemuarg_tag->addChild( $init_xml->createAttribute( value => "-bios" ) );
+			my $qemuarg2_tag = $init_xml->createElement('qemu:arg');
+			$qemucmdline_tag->addChild($qemuarg2_tag);
+			$qemuarg2_tag->addChild( $init_xml->createAttribute( value => "bios-0.10.6.bin" ) );
+        }
 		     
 #   ############<graphics type='sdl' display=':0.0'/>
 #      my $graphics_tag2 = $init_xml->createElement('graphics');

@@ -20,7 +20,7 @@ commit
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.93.xsd">
   <global>
     <version>1.92</version>
-    <scenario_name>simple_juniper</scenario_name>
+    <scenario_name>simple_olive</scenario_name>
     <automac offset="11"/>
     <vm_mgmt type="none" />
   </global>

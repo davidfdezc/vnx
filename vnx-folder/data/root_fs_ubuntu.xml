@@ -20,10 +20,10 @@
       <target dev='hda'/>
       <driver name="qemu" type="qcow2"/>
     </disk>
-    <!--disk type='file' device='cdrom'>
-      <source file='/almacen/iso/ubuntu-10.04-server-i386.iso'/>
+    <disk type='file' device='cdrom'>
+      <!--source file='/almacen/iso/ubuntu-10.04.1-server-i386.iso'/-->
       <target dev='hdb'/>
-    </disk-->
+    </disk>
     <interface type='network'>
       <source network='default'/>
     </interface>
