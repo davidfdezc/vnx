@@ -55,10 +55,6 @@ sub main{
 }
 
 
-
-
-
-
 ############### daemonize process ################
 
 sub daemonize {
