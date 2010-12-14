@@ -47,7 +47,7 @@ system $command;
 #system "mv /tmp/vnx_update.xml /tmp/vnx_temp_update_dir";
 
 if ($acetarfile eq ""){
-	my $acetarfile=`ls $vnxdir/ace/vnx-ace-lf-*.tgz`; 
+	$acetarfile=`ls $vnxdir/aced/vnx-aced-lf-*.tgz`; 
 	chomp ($acetarfile);
 }
 print "-- acetarfile ($acetarfile)...\n";
