@@ -495,7 +495,7 @@ sub defineVM {
 		# DFC: changed the first line to 
 		# <domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
 		# to allow the use of <qemu:commandline> tag to especify the bios in Olive routers
-		$domain_tag->addChild( $init_xml->createAttribute( type => "qemu" ) );
+		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
 		$domain_tag->addChild( $init_xml->createAttribute( 'xmlns:qemu' => "http://libvirt.org/schemas/domain/qemu/1.0" ) );
  
 		my $name_tag = $init_xml->createElement('name');
