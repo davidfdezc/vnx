@@ -1,0 +1,11 @@
+#!/bin/bash
+VER=$1
+
+service libvirt-bin stop
+cd /root/src/libvirt-$VER
+make install
+rm /usr/lib/libvirt.so.0
+ln -s /usr/lib/libvirt.so.$VER /usr/lib/libvirt.so.0
+rm /usr/lib/libvirt-qemu.so.0
+ln -s /usr/lib/libvirt-qemu.so.$VER /usr/lib/libvirt-qemu.so.0
+service libvirt-bin start
