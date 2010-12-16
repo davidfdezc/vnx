@@ -130,6 +130,7 @@ if ( $mode eq '-t' ) {
 #		    $dynamips_ext_path = "/root/.vnx/scenarios/";
 #    }
 
+
 	# Fill segmentation mode.
 	&getSegmentationMode;
 	
@@ -195,7 +196,7 @@ if ( $mode eq '-t' ) {
 			
 	# Fill the scenario array
 	&fillScenarioArray;
-	
+
 	# Assign first and last VLAN.
 	&assignVLAN;
 	
@@ -308,6 +309,28 @@ if ( $mode eq '-t' ) {
 	
 	# Delete /tmp files
 	&deleteTMP;
+
+} elsif ( $mode eq '--define' | $mode eq '--undefine' | $mode eq '--start' | $mode eq '--save' | 
+		$mode eq '--restore' | $mode eq '--suspend' | $mode eq '--resume' | $mode eq '--reboot' ) {
+	# Processing VMs mode
+
+	print "\n****** You chose mode $mode ******\n";
+	
+	# Fill cluster host
+	&fillClusterHosts;
+	
+	# Parse scenario XML
+	&parseScenario;
+	
+	# Make a tgz compressed file containing VM execution config 
+	&getConfiguration;
+	
+	# Send Configuration to each host.
+	&sendConfiguration;
+	
+	# Process mode defined in $mode
+	&processMode;
+
 	
 } else {
 	# default action: die
@@ -339,6 +362,11 @@ sub parseArguments{
 				my $execution_mode_arg = $i + 1;
 				$execution_mode = $ARGV[$execution_mode_arg];
 			}
+		}
+		# Search for new execution modes
+		if ($ARGV[$i] eq '--define' | $ARGV[$i] eq '--undefine' | $ARGV[$i] eq '--start' | $ARGV[$i] eq '--save' | 
+		$ARGV[$i] eq '--restore' | $ARGV[$i] eq '--suspend' | $ARGV[$i] eq '--resume' | $ARGV[$i] eq '--reboot'){
+			$mode = $ARGV[$i];
 		}
 		# Search for scenario xml file
 		if ($ARGV[$i] eq '-s'){
@@ -574,10 +602,13 @@ sub parseScenario {
 			die ("The simulation $simulation_name wasn't running... Aborting");
 		}
 		$query->finish();
-		$query_string = "UPDATE hosts SET status = 'purging' WHERE status = 'running' AND simulation = '$simulation_name'";
-		$query = $dbh->prepare($query_string);
-		$query->execute();
-		$query->finish();
+		# If no -M option, mark simulation as "purging"
+		unless ($vm_name){
+			$query_string = "UPDATE hosts SET status = 'purging' WHERE status = 'running' AND simulation = '$simulation_name'";
+			$query = $dbh->prepare($query_string);
+			$query->execute();
+			$query->finish();
+		}
 	} elsif($mode eq '-d') {
 		
 			# Checking if the simulation is running
@@ -588,13 +619,29 @@ sub parseScenario {
 		if ($contenido eq undef) {
 			die ("The simulation $simulation_name wasn't running... Aborting");
 		}
-		$query->finish();
-		$query_string = "UPDATE hosts SET status = 'destroying' WHERE status = 'running' AND simulation = '$simulation_name'";
-		$query = $dbh->prepare($query_string);
+		# If no -M option, mark simulation as "destroying"
+		unless ($vm_name){
+			$query->finish();
+			$query_string = "UPDATE hosts SET status = 'destroying' WHERE status = 'running' AND simulation = '$simulation_name'";
+			$query = $dbh->prepare($query_string);
+			$query->execute();
+			$query->finish();
+		}
+		
+	} elsif($mode eq '--define' | $mode eq '--undefine' | $mode eq '--start' | $mode eq '--save' | 
+		$mode eq '--restore' | $mode eq '--suspend' | $mode eq '--resume' | $mode eq '--reboot') {
+		# quizá el define se podría usar sin la simulacion creada ya, sobraria aqui	
+		# Checking if the simulation is running
+		my $query_string = "SELECT `simulation` FROM hosts WHERE status = 'running' AND simulation = '$simulation_name'";
+		my $query = $dbh->prepare($query_string);
 		$query->execute();
+		my $contenido = $query->fetchrow_array();
+		if ($contenido eq undef) {
+			die ("The simulation $simulation_name wasn't running... Aborting");
+		}
 		$query->finish();
 	}
-	
+	 
 
 	#if dynamips_ext node is present, update path
 	$dynamips_ext_path = "";
@@ -733,8 +780,7 @@ sub fillScenarioArray {
 		eval{
 			$scenarioNode->getElementsByTagName("global")->item(0)->getElementsByTagName("vm_defaults")->item(0)->getElementsByTagName("basedir")->item(0)->getFirstChild->setData($basedir_data);
 		};		
-		$scenarioHash{$currentHostName} = $scenarioNode;
-		
+		$scenarioHash{$currentHostName} = $scenarioNode;	
 		# Save data into DB
 		
 		my $query_string = "INSERT INTO hosts (simulation,local_simulation,host,status) VALUES ('$data','$newdata','$currentHostName','creating')";
@@ -1103,7 +1149,9 @@ sub sendScenarios {
 		my $permissions_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'chmod -R 777 $filename\'";
 		&daemonize($permissions_command, "/tmp/$host_name"."_log"); 
 #VNX		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnumlparser.pl -Z -u root -v -t $filename -o /dev/null\'";
-		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename -u root -v -t -o /dev/null\'";
+		my $option_M = "";
+		if ($vm_name){$option_M="-M $vm_name";}
+		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename -u root -v -t -o /dev/null\ " . $option_M . "'";
 		&daemonize($ssh_command, "/tmp/$host_name"."_log");		
 	}
 	$dbh->disconnect;
@@ -1201,7 +1249,9 @@ sub purgeScenario {
 		
 		print "\n  **** Stopping simulation and network restoring in $host_name ****\n";
 #VNX		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnumlparser.pl -u root -v -P $scenario_name'";
-		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -u root -v -P -f $scenario_name'";
+		my $option_M = "";
+		if ($vm_name){$option_M="-M $vm_name";}
+		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -u root -v -P -f $scenario_name " . $option_M . "'";
 		&daemonize($ssh_command, "/tmp/$host_name"."_log");	
 
 			#Clean vlans
@@ -1261,7 +1311,9 @@ sub destroyScenario {
 				
 		print "\n  **** Stopping simulation and network restoring in $host_name ****\n";
 #VNX		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnumlparser.pl -u root -v -d $scenario_name'";
-		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -u root -v -d -f $scenario_name'";
+		my $option_M = "";
+		if ($vm_name){$option_M="-M $vm_name";}
+		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -u root -v -d -f $scenario_name " . $option_M . "'";
 		&daemonize($ssh_command, "/tmp/$host_name"."_log");	
 		
 			#Clean vlans
@@ -1413,13 +1465,14 @@ sub sendConfiguration {
 		$conf_plugin = $globalNode->getElementsByTagName("global")->item(0)->getElementsByTagName("extension")->item(0)->getAttribute("conf");
 	};
 	
-	# código de sendDynConfiguration	
+	# código de sendDynConfiguration
 	if ($dynamips_ext_path ne ""){
 		print "\n\n  **** Sending dynamips configuration file to cluster hosts ****\n\n";
 		foreach $physical_host (@cluster_hosts) {
 			my $hostname = $physical_host->hostName;
-			my $currentScenario = $scenarioHash{$hostname};
-			my $filename = $currentScenario->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
+			#my $currentScenario = $scenarioHash{$hostname};
+			#&para("$currentScenario");
+			#my $filename = $currentScenario->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 			my $hostIP = $physical_host->ipAddress;
 			my $dynamips_user_path = $dom_tree->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData;
 			
@@ -1523,7 +1576,7 @@ sub executeConfiguration {
 #VNX	my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnumlparser.pl -u root -v -x $execution_mode\@$scenario_name'";
 		my $option_M = "";
 		if ($vm_name){$option_M="-M $vm_name";}
-		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnx -u root -v -x $execution_mode -f $scenario_name " . $option_M; 
+		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnx -f $scenario_name -v -u root -x $execution_mode " . $option_M . "'"; 
 		&daemonize($execution_command, "/tmp/$hostname"."_log");
 	}
 	$dbh->disconnect;
@@ -1618,6 +1671,51 @@ sub daemonize {
     setsid							or die "Can't start a new session: $!";
     system("$command") == 0			or die "Could not execute $command!";
     exit();
+}
+
+	###########################################################
+	# Subroutine to execute execution mode in cluster
+	###########################################################
+sub processMode {
+	
+	#my $execution_mode = shift;
+	my $dbh;
+	my $simulation_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
+	foreach $physical_host (@cluster_hosts) {	
+		$dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
+		my $hostname = $physical_host->hostName;
+		my $hostIP = $physical_host->ipAddress;
+		
+		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = 'running' AND host = '$hostname' AND simulation = '$simulation_name'";
+		my $query = $dbh->prepare($query_string);
+		$query->execute();
+		my $scenario_bin = $query->fetchrow_array();
+
+		$query->finish();
+					
+		$query_string = "SELECT `local_simulation` FROM hosts WHERE status = 'running' AND host = '$hostname' AND simulation = '$simulation_name'";
+		$query = $dbh->prepare($query_string);
+		$query->execute();
+		my $scenario_name = $query->fetchrow_array();
+
+		$query->finish();
+	
+		$scenario_name = "/tmp/$scenario_name".".xml";
+		open(FILEHANDLE, ">$scenario_name") or die 'cannot open file';
+		print FILEHANDLE "$scenario_bin";
+		close (FILEHANDLE);
+		
+		my $scp_command = "scp -2 $scenario_name root\@$hostIP:/tmp/";
+		&daemonize($scp_command, "/tmp/$hostname"."_log");
+		my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$hostIP \'chmod -R 777 $scenario_name\'";	
+		&daemonize($permissions_command, "/tmp/$hostname"."_log"); 		
+#VNX	my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnumlparser.pl -u root -v -x $execution_mode\@$scenario_name'";
+		my $option_M = "";
+		if ($vm_name){$option_M="-M $vm_name";}
+		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnx -f $scenario_name -v -u root $mode " . $option_M . "'"; 
+		&daemonize($execution_command, "/tmp/$hostname"."_log");
+	}
+	$dbh->disconnect;
 }
 
 # Subroutines end

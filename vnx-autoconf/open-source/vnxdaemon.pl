@@ -103,7 +103,7 @@ sub listen {
 
 		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
 		print LOG "## Listening ##\n\n";
-		system "mkdir /root/.vnx";
+		system "mkdir -p /root/.vnx";
 		my @files = </media/*>;
 		my $commands_file;
 		sleep 5;
@@ -175,10 +175,13 @@ sub listen {
 	elsif ($platform eq 'FreeBSD'){
 		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
 		print LOG "## Listening ##\n\n";
-		system "mkdir /root/.vnx";
+		system "mkdir -p /root/.vnx";
 		my @files = </*>;
 		my $commands_file;
-		system "umount -f /cdrom";
+		
+		# JSF: comentado porque al rearrancar el servicio a mano pinta error por pantalla si
+		# no esta montado el CD-ROM. Si no da errores de otro tipo se podra quitar del todo.
+		#system "umount -f /cdrom";
 		sleep 5;
 		system "mount /cdrom";
 		while (1){

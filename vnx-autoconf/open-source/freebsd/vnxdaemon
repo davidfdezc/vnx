@@ -21,7 +21,8 @@ vnxdaemon_stop()
 {
    echo 'stopping vnxdaemon...'
    echo 'stopped' > /var/run/${name}.status
-   kill -INT `cat /var/run/vnxdaemon.pid`
+#   kill -INT `cat /var/run/vnxdaemon.pid`
+   kill `cat /var/run/vnxdaemon.pid`
    rm /var/run/vnxdaemon.pid
    echo '...done'
 }
@@ -36,7 +37,8 @@ vnxdaemon_restart()
    
    if [ -f /var/run/vnxdaemon.pid ]
    then
-      kill -INT `cat /var/run/vnxdaemon.pid`
+ #     kill -INT `cat /var/run/vnxdaemon.pid`
+      kill `cat /var/run/vnxdaemon.pid`
       echo 'stopped' > /var/run/${name}.status
       rm /var/run/vnxdaemon.pid
    fi
