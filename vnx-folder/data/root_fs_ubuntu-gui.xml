@@ -1,5 +1,5 @@
 <domain type='kvm'>
-  <name>Ubuntu</name>
+  <name>Ubuntu-gui</name>
   <memory>524288</memory>
   <vcpu>1</vcpu>
   <os>
