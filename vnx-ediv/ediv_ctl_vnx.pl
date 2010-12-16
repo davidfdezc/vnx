@@ -120,14 +120,15 @@ if ( $mode eq '-t' ) {
 	print "\n  **** Parsing scenario ****\n\n";
 	&parseScenario;
 
-	#if dynamips_ext node is present, update path
-    $dynamips_ext_path = "";
-    my $dynamips_extTagList=$dom_tree->getElementsByTagName("dynamips_ext");
-    my $numdynamips_ext = $dynamips_extTagList->getLength;
-    if ($numdynamips_ext == 1) {
-		    my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
-		    $dynamips_ext_path = "/root/.vnx/scenarios/";
-    }
+# JSF: metido en parse scenario, si funciona borrar
+#	#if dynamips_ext node is present, update path
+#    $dynamips_ext_path = "";
+#    my $dynamips_extTagList=$dom_tree->getElementsByTagName("dynamips_ext");
+#    my $numdynamips_ext = $dynamips_extTagList->getLength;
+#    if ($numdynamips_ext == 1) {
+#		    my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
+#		    $dynamips_ext_path = "/root/.vnx/scenarios/";
+#    }
 
 	# Fill segmentation mode.
 	&getSegmentationMode;
@@ -207,8 +208,9 @@ if ( $mode eq '-t' ) {
 	# Send Configuration to each host.
 	&sendConfiguration;
 	
+	#TODO: código copiado a sub sendConfiguration, si funciona borrar esta subrutina.	
 	# Send dynamips configuration to each host.
-	&sendDynConfiguration;
+	#&sendDynConfiguration;
 	
 	print "\n\n  **** Sending scenario to cluster hosts and executing it ****\n\n";
 	# Send scenario files to the hosts and run them with VNUML (-t option)
@@ -593,6 +595,17 @@ sub parseScenario {
 		$query->finish();
 	}
 	
+
+	#if dynamips_ext node is present, update path
+	$dynamips_ext_path = "";
+	my $dynamips_extTagList=$dom_tree->getElementsByTagName("dynamips_ext");
+	my $numdynamips_ext = $dynamips_extTagList->getLength;
+	if ($numdynamips_ext == 1) {
+		my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
+		$dynamips_ext_path = "/root/.vnx/scenarios/";
+	}
+
+
 	$dbh->disconnect;	
 }
 
@@ -1400,6 +1413,23 @@ sub sendConfiguration {
 		$conf_plugin = $globalNode->getElementsByTagName("global")->item(0)->getElementsByTagName("extension")->item(0)->getAttribute("conf");
 	};
 	
+	# código de sendDynConfiguration	
+	if ($dynamips_ext_path ne ""){
+		print "\n\n  **** Sending dynamips configuration file to cluster hosts ****\n\n";
+		foreach $physical_host (@cluster_hosts) {
+			my $hostname = $physical_host->hostName;
+			my $currentScenario = $scenarioHash{$hostname};
+			my $filename = $currentScenario->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
+			my $hostIP = $physical_host->ipAddress;
+			my $dynamips_user_path = $dom_tree->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData;
+			
+			#my $scp_command = "scp -2 $dynamips_user_path root\@$hostIP:$dynamips_ext_path".$filename."/dynamips-dn.xml";
+			my $scp_command = "scp -2 $dynamips_user_path root\@$hostIP:/tmp/dynamips-dn.xml";
+			system($scp_command);
+		}
+	}
+
+
 	if ((!($plugin eq undef)) && (!($conf_plugin eq undef))){
 		print "\n\n  **** Sending configuration to cluster hosts ****\n\n";
 		
@@ -1431,7 +1461,7 @@ sub sendConfiguration {
 	###########################################################
 	# Subroutine to copy dynamips configuration file to cluster machines
 	###########################################################
-
+#TODO: código copiado a sub sendConfiguration, si funciona borrar esta subrutina.
 sub sendDynConfiguration {
 	if ($dynamips_ext_path ne ""){
 		print "\n\n  **** Sending dynamips configuration file to cluster hosts ****\n\n";
