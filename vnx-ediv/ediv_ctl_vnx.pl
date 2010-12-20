@@ -109,7 +109,7 @@ my $dynamips_ext_path;
 	&getDBConfiguration;
 	
 	# Check which running mode is selected
-if ( $mode eq '-t' ) {
+if ( $mode eq '-t' | $mode eq '--create' ) {
 	# Scenario launching mode
 	print "\n****** You chose mode -t: scenario launching preparation ******\n";
 	
@@ -228,7 +228,7 @@ unless ($vm_name){
 	&tunnelize;
 }
 	
-} elsif ( $mode eq '-x' ) {
+} elsif ( $mode eq '-x' | $mode eq '--execute' | $mode eq '--exe' ) {
 	# Execution of commands in VMs mode
 	
 	if ($execution_mode eq undef){
@@ -252,7 +252,7 @@ unless ($vm_name){
 	print "\n **** Sending commands to VMs ****\n";
 	&executeConfiguration($execution_mode);
 	
-} elsif ( $mode eq '-P' ) {
+} elsif ( $mode eq '-P' | $mode eq '--destroy' ) {
 	# Clean and purge scenario temporary files
 	print "\n****** You chose mode -P: purging scenario ******\n";	
 	
@@ -283,7 +283,7 @@ unless ($vm_name){
 		&deleteTMP;
 	}
 	
-} elsif ( $mode eq '-d' ) {
+} elsif ( $mode eq '-d' | $mode eq '--shutdown' ) {
 	# Clean and destroy scenario temporary files
 	print "\n****** You chose mode -d: destroying scenario ******\n";	
 	
@@ -360,9 +360,11 @@ sub parseArguments{
 	my $arg_lenght = $#ARGV +1;
 	for ($i==0; $i<$arg_lenght; $i++){
 		# Search for execution mode
-		if ($ARGV[$i] eq '-t' || $ARGV[$i] eq '-x' || $ARGV[$i] eq '-P' || $ARGV[$i] eq '-d'){
+		if ($ARGV[$i] eq '-t' || $ARGV[$i] eq '--create' || $ARGV[$i] eq '-x' || $ARGV[$i] eq '--exe' || 
+		$ARGV[$i] eq '--execute' ||	$ARGV[$i] eq '-P' || $ARGV[$i] eq '--destroy' || $ARGV[$i] eq '-d'||
+		 $ARGV[$i] eq '--shutdown' ){
 			$mode = $ARGV[$i];
-			if ($mode eq '-x'){
+			if ($mode eq '-x' | $mode eq '--exe' | $mode eq '--execute'){
 				my $execution_mode_arg = $i + 1;
 				$execution_mode = $ARGV[$execution_mode_arg];
 			}
@@ -373,7 +375,7 @@ sub parseArguments{
 			$mode = $ARGV[$i];
 		}
 		# Search for scenario xml file
-		if ($ARGV[$i] eq '-s'){
+		if ($ARGV[$i] eq '-s' | $ARGV[$i] eq '-f'){
 			my $vnunl_scenario_arg = $i+1;
 			$vnuml_scenario = $ARGV[$vnunl_scenario_arg];
 			open(FILEHANDLE, $vnuml_scenario) or die  "The scenario file $vnuml_scenario doesn't exist... Aborting";
@@ -567,7 +569,7 @@ sub parseScenario {
 	$globalNode = $dom_tree->getElementsByTagName("vnx")->item(0);
 	my $simulation_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 	
-	if ($mode eq '-t') {
+	if ($mode eq '-t' | $mode eq '--create') {
 		
 			# Checking if the simulation already exists
 		my $query_string = "SELECT `name` FROM simulations WHERE name='$simulation_name'";
@@ -584,7 +586,7 @@ sub parseScenario {
 		$query = $dbh->prepare($query_string);
 		$query->execute();
 		$query->finish();
-	} elsif($mode eq '-x') {
+	} elsif($mode eq '-x' | $mode eq '--exe' | $mode eq '--execute') {
 		
 			# Checking if the simulation is running
 		my $query_string = "SELECT `simulation` FROM hosts WHERE status = 'running' AND simulation = '$simulation_name'";
@@ -595,7 +597,7 @@ sub parseScenario {
 			die ("The simulation $simulation_name wasn't running... Aborting");
 		} 
 		$query->finish();
-	} elsif($mode eq '-P') {
+	} elsif($mode eq '-P' | $mode eq '--destroy') {
 		
 			# Checking if the simulation is running
 		my $query_string = "SELECT `simulation` FROM hosts WHERE status = 'running' AND simulation = '$simulation_name'";
@@ -613,7 +615,7 @@ sub parseScenario {
 			$query->execute();
 			$query->finish();
 		}
-	} elsif($mode eq '-d') {
+	} elsif($mode eq '-d' | $mode eq '--shutdown') {
 		
 			# Checking if the simulation is running
 		my $query_string = "SELECT `simulation` FROM hosts WHERE status = 'running' AND simulation = '$simulation_name'";
@@ -1258,7 +1260,7 @@ sub purgeScenario {
 			}
 		}
 	
-		# If vm specified with -M, do not switch simulation status to purging.
+		# If vm specified with -M, do not switch simulation status to "purging".
 		my $simulation_status;
 		if ($vm_name){
 			$simulation_status = "running";
@@ -1341,12 +1343,20 @@ sub destroyScenario {
 			}
 		}	
 		
-		my $query_string = "SELECT `local_simulation` FROM hosts WHERE status = 'destroying' AND host = '$host_name' AND simulation = '$simulation_name'";
+		# If vm specified with -M, do not switch simulation status to "destroying".
+		my $simulation_status;
+		if ($vm_name){
+			$simulation_status = "running";
+		}else{
+			$simulation_status = "destroying";
+		}
+		
+		my $query_string = "SELECT `local_simulation` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$simulation_name'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		my $scenario_name = $query->fetchrow_array();
 		$query->finish();
-		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = 'destroying' AND host = '$host_name' AND simulation = '$simulation_name'";
+		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$simulation_name'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		my $scenario_bin = $query->fetchrow_array();
@@ -1756,24 +1766,27 @@ sub processMode {
 		my $hostIP = $physical_host->ipAddress;
 		
 		# If vm specified with -M is not running in current host, check the next one.
+
 		if ($vm_name){
 			my $query_string = "SELECT `host` FROM vms WHERE name='$vm_name'";
 			my $query = $dbh->prepare($query_string);
 			$query->execute();
 			my $host_of_vm = $query->fetchrow_array();
+
 			unless ($host_name eq $host_of_vm){
 				next;
 			}
 		}
+
 		
-		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = 'running' AND host = '$hostname' AND simulation = '$simulation_name'";
+		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = 'running' AND host = '$host_name' AND simulation = '$simulation_name'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		my $scenario_bin = $query->fetchrow_array();
 
 		$query->finish();
 					
-		$query_string = "SELECT `local_simulation` FROM hosts WHERE status = 'running' AND host = '$hostname' AND simulation = '$simulation_name'";
+		$query_string = "SELECT `local_simulation` FROM hosts WHERE status = 'running' AND host = '$host_name' AND simulation = '$simulation_name'";
 		$query = $dbh->prepare($query_string);
 		$query->execute();
 		my $scenario_name = $query->fetchrow_array();
@@ -1784,7 +1797,7 @@ sub processMode {
 		open(FILEHANDLE, ">$scenario_name") or die 'cannot open file';
 		print FILEHANDLE "$scenario_bin";
 		close (FILEHANDLE);
-		
+	
 		my $scp_command = "scp -2 $scenario_name root\@$hostIP:/tmp/";
 		&daemonize($scp_command, "/tmp/$hostname"."_log");
 		my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$hostIP \'chmod -R 777 $scenario_name\'";	
