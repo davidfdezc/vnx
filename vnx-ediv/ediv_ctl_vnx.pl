@@ -131,9 +131,10 @@ if ( $mode eq '-t' ) {
 #    }
 
 
+
 	# Fill segmentation mode.
 	&getSegmentationMode;
-	
+
 	# Fill segmentation modules.
 	&getSegmentationModules;
 	
@@ -193,13 +194,13 @@ if ( $mode eq '-t' ) {
 	}
 	
 	print "\n  **** Configuring distributed networking in cluster ****\n";
-			
+		
 	# Fill the scenario array
 	&fillScenarioArray;
-
+unless ($vm_name){
 	# Assign first and last VLAN.
 	&assignVLAN;
-	
+}	
 	# Split into files
 	&splitIntoFiles;
 	
@@ -217,7 +218,7 @@ if ( $mode eq '-t' ) {
 	# Send scenario files to the hosts and run them with VNUML (-t option)
 	&sendScenarios;
 	
-	
+unless ($vm_name){
 	# Check if every VM is running and ready
 	print "\n\n  **** Checking simulation status ****\n\n";
 	&checkFinish;
@@ -225,6 +226,7 @@ if ( $mode eq '-t' ) {
 	# Create a ssh tunnel to access remote VMs
 	print "\n\n  **** Creating tunnels to access VM ****\n\n";
 	&tunnelize;
+}
 	
 } elsif ( $mode eq '-x' ) {
 	# Execution of commands in VMs mode
@@ -273,13 +275,13 @@ if ( $mode eq '-t' ) {
 	&purgeScenario;
 	sleep(5);
 	
-	
-	# Clean simulation from database
-	&cleanDB;
-	
-	# Delete /tmp files
-	&deleteTMP;
-	
+	unless ($vm_name){	
+		# Clean simulation from database
+		&cleanDB;
+		
+		# Delete /tmp files
+		&deleteTMP;
+	}
 	
 } elsif ( $mode eq '-d' ) {
 	# Clean and destroy scenario temporary files
@@ -303,12 +305,14 @@ if ( $mode eq '-t' ) {
 	# Purge the scenario
 	&destroyScenario;
 	sleep(5);
+
+	unless ($vm_name){		
+		# Clean simulation from database
+		&cleanDB;
 		
-	# Clean simulation from database
-	&cleanDB;
-	
-	# Delete /tmp files
-	&deleteTMP;
+		# Delete /tmp files
+		&deleteTMP;
+	}
 
 } elsif ( $mode eq '--define' | $mode eq '--undefine' | $mode eq '--start' | $mode eq '--save' | 
 		$mode eq '--restore' | $mode eq '--suspend' | $mode eq '--resume' | $mode eq '--reboot' ) {
@@ -571,7 +575,7 @@ sub parseScenario {
 		$query->execute();
 		my $contenido = $query->fetchrow_array();
 
-		if ( !($contenido eq undef)) {
+		if ( !($vm_name) && !($contenido eq undef)) {
 			die ("The simulation $simulation_name was already created... Aborting");
 		} 
 	
@@ -663,7 +667,7 @@ sub assignVLAN {
 	my $dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
 	$firstVlan = $cluster_config->get("vlan_first");
 	$lastVlan  = $cluster_config->get("vlan_last");	
-	
+
 	while (1){
 			my $query_string = "SELECT `number` FROM vlans WHERE number='$firstVlan'";
 			my $query = $dbh->prepare($query_string);
@@ -819,21 +823,24 @@ sub splitIntoFiles {
 
 		$vnumlNode->appendChild($newVirtualM);
 
-			# Creating virtual machines in the database
-		
-		my $query_string = "SELECT `name` FROM vms WHERE name='$virtualm_name'";
-		my $query = $dbh->prepare($query_string);
-		$query->execute();
-		my $contenido = $query->fetchrow_array();
-		if ( !($contenido eq undef)) {
-			&cleanDB;
-			die ("The vm $virtualm_name was already created... Aborting");
-		}
-		$query->finish();
-		$query_string = "INSERT INTO vms (name,simulation,host) VALUES ('$virtualm_name','$simulation_name','$host_name')";
-		$query = $dbh->prepare($query_string);
-		$query->execute();
-		$query->finish();		
+
+		unless ($vm_name){
+				# Creating virtual machines in the database
+
+			my $query_string = "SELECT `name` FROM vms WHERE name='$virtualm_name'";
+			my $query = $dbh->prepare($query_string);
+			$query->execute();
+			my $contenido = $query->fetchrow_array();
+			if ( !($contenido eq undef)) {
+				&cleanDB;
+				die ("The vm $virtualm_name was already created... Aborting");
+			}
+			$query->finish();
+			$query_string = "INSERT INTO vms (name,simulation,host) VALUES ('$virtualm_name','$simulation_name','$host_name')";
+			$query = $dbh->prepare($query_string);
+			$query->execute();
+			$query->finish();
+		}		
 	}
 
 		# We add the corresponding nets to subscenario specification file
@@ -874,8 +881,10 @@ sub splitIntoFiles {
 		}
 	}
 	$dbh->disconnect;
-	&netTreatment;
-	&setAutomac;
+	unless ($vm_name){
+		&netTreatment;
+		&setAutomac;
+	}
 	
 }
 
@@ -1120,7 +1129,7 @@ sub sendScenarios {
 	my $dbh;
 	my $host_ip;
 	foreach $host_name (keys(%scenarioHash)) {
-		
+	
 		$dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
 		my $currentScenario = $scenarioHash{$host_name};
 		foreach $physical_host (@cluster_hosts) {
@@ -1128,6 +1137,18 @@ sub sendScenarios {
 				$host_ip = $physical_host->ipAddress;
 			}				
 		}
+	
+		# If vm specified with -M is not running in current host, check the next one.
+		if ($vm_name){	
+			my $query_string = "SELECT `host` FROM vms WHERE name='$vm_name'";
+			my $query = $dbh->prepare($query_string);
+			$query->execute();
+			my $host_of_vm = $query->fetchrow_array();
+			unless ($host_name eq $host_of_vm){
+				next;
+			}
+		}
+		
 		my $filename = $currentScenario->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 		my $simulation_name = $filename;
 		$filename = "/tmp/$filename".".xml";
@@ -1224,13 +1245,34 @@ sub purgeScenario {
 		$host_ip = $physical_host->ipAddress;			
 		$host_name = $physical_host->hostName;
 
-		my $query_string = "SELECT `local_simulation` FROM hosts WHERE status = 'purging' AND host = '$host_name' AND simulation = '$simulation_name'";
+
+		# If vm specified with -M is not running in current host, check the next one.
+		if ($vm_name){
+			my $query_string = "SELECT `host` FROM vms WHERE name='$vm_name'";
+			my $query = $dbh->prepare($query_string);
+			$query->execute();
+			my $host_of_vm = $query->fetchrow_array();
+
+			unless ($host_name eq $host_of_vm){
+				next;
+			}
+		}
+	
+		# If vm specified with -M, do not switch simulation status to purging.
+		my $simulation_status;
+		if ($vm_name){
+			$simulation_status = "running";
+		}else{
+			$simulation_status = "purging";
+		}
+
+		my $query_string = "SELECT `local_simulation` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$simulation_name'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		my $scenario_name = $query->fetchrow_array();
 		$query->finish();
 
-		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = 'purging' AND host = '$host_name' AND simulation = '$simulation_name'";
+		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$simulation_name'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		my $scenario_bin = $query->fetchrow_array();
@@ -1254,18 +1296,20 @@ sub purgeScenario {
 		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -u root -v -P -f $scenario_name " . $option_M . "'";
 		&daemonize($ssh_command, "/tmp/$host_name"."_log");	
 
+
+		unless ($vm_name){
 			#Clean vlans
-		$query_string = "SELECT `number`, `external_if` FROM vlans WHERE host = '$host_name' AND simulation = '$simulation_name'";
-		$query = $dbh->prepare($query_string);
-		$query->execute();
-		
-		while (@vlans = $query->fetchrow_array()) {
-			$vlan_command = $vlan_command . "vconfig rem $vlans[1].$vlans[0]\n";
-		}
-		$query->finish();
-		$vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
-		&daemonize($vlan_command, "/tmp/$host_name"."_log");
+			$query_string = "SELECT `number`, `external_if` FROM vlans WHERE host = '$host_name' AND simulation = '$simulation_name'";
+			$query = $dbh->prepare($query_string);
+			$query->execute();
 			
+			while (@vlans = $query->fetchrow_array()) {
+				$vlan_command = $vlan_command . "vconfig rem $vlans[1].$vlans[0]\n";
+			}
+			$query->finish();
+			$vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
+			&daemonize($vlan_command, "/tmp/$host_name"."_log");
+		}	
 	}
 	$dbh->disconnect;	
 }
@@ -1284,7 +1328,19 @@ sub destroyScenario {
 		$dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
 		my $vlan_command;
 		$host_ip = $physical_host->ipAddress;			
-		$host_name = $physical_host->hostName;
+		$host_name = $physical_host->hostName;		
+		
+		# If vm specified with -M is not running in current host, check the next one.
+		if ($vm_name){
+			my $query_string = "SELECT `host` FROM vms WHERE name='$vm_name'";
+			my $query = $dbh->prepare($query_string);
+			$query->execute();
+			my $host_of_vm = $query->fetchrow_array();
+			unless ($host_name eq $host_of_vm){
+				next;
+			}
+		}	
+		
 		my $query_string = "SELECT `local_simulation` FROM hosts WHERE status = 'destroying' AND host = '$host_name' AND simulation = '$simulation_name'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
@@ -1316,18 +1372,20 @@ sub destroyScenario {
 		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -u root -v -d -f $scenario_name " . $option_M . "'";
 		&daemonize($ssh_command, "/tmp/$host_name"."_log");	
 		
-			#Clean vlans
-		$query_string = "SELECT `number`, `external_if` FROM vlans WHERE host = '$host_name' AND simulation = '$simulation_name'";
-		$query = $dbh->prepare($query_string);
-		$query->execute();
 		
-		while (@vlans = $query->fetchrow_array()) {
-			$vlan_command = $vlan_command . "vconfig rem $vlans[1].$vlans[0]\n";
-		}
-		$query->finish();
-		$vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
-		&daemonize($vlan_command, "/tmp/$host_name"."_log");
+		unless ($vm_name){
+			#Clean vlans
+			$query_string = "SELECT `number`, `external_if` FROM vlans WHERE host = '$host_name' AND simulation = '$simulation_name'";
+			$query = $dbh->prepare($query_string);
+			$query->execute();
 			
+			while (@vlans = $query->fetchrow_array()) {
+				$vlan_command = $vlan_command . "vconfig rem $vlans[1].$vlans[0]\n";
+			}
+			$query->finish();
+			$vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
+			&daemonize($vlan_command, "/tmp/$host_name"."_log");
+		}	
 	}
 	$dbh->disconnect;	
 }
@@ -1455,7 +1513,7 @@ sub sendConfiguration {
 			my $scp_command = "scp -2 $tgz_name root\@$hostIP:/tmp/";	
 			system($scp_command);
 			my $tgz_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$hostIP \'tar xzf $tgz_name -C /tmp'";
-			&daemonize($tgz_command, "/tmp/$hostname"."_log");		
+			&daemonize($tgz_command, "/tmp/$hostname"."_log");
 		}
 	}
 	my $plugin;
@@ -1547,8 +1605,19 @@ sub executeConfiguration {
 	my $simulation_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 	foreach $physical_host (@cluster_hosts) {	
 		$dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
-		my $hostname = $physical_host->hostName;
+		my $host_name = $physical_host->hostName;
 		my $hostIP = $physical_host->ipAddress;
+		
+		# If vm specified with -M is not running in current host, check the next one.
+		if ($vm_name){
+			my $query_string = "SELECT `host` FROM vms WHERE name='$vm_name'";
+			my $query = $dbh->prepare($query_string);
+			$query->execute();
+			my $host_of_vm = $query->fetchrow_array();
+			unless ($host_name eq $host_of_vm){
+				next;
+			}
+		}
 		
 		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = 'running' AND host = '$hostname' AND simulation = '$simulation_name'";
 		my $query = $dbh->prepare($query_string);
@@ -1683,8 +1752,19 @@ sub processMode {
 	my $simulation_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 	foreach $physical_host (@cluster_hosts) {	
 		$dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
-		my $hostname = $physical_host->hostName;
+		my $host_name = $physical_host->hostName;
 		my $hostIP = $physical_host->ipAddress;
+		
+		# If vm specified with -M is not running in current host, check the next one.
+		if ($vm_name){
+			my $query_string = "SELECT `host` FROM vms WHERE name='$vm_name'";
+			my $query = $dbh->prepare($query_string);
+			$query->execute();
+			my $host_of_vm = $query->fetchrow_array();
+			unless ($host_name eq $host_of_vm){
+				next;
+			}
+		}
 		
 		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = 'running' AND host = '$hostname' AND simulation = '$simulation_name'";
 		my $query = $dbh->prepare($query_string);
