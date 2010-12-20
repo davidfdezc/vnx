@@ -1833,8 +1833,8 @@ sub define_VMs {
    for ( my $i = 0; $i < @vm_ordered; $i++) {
 
       my $vm = $vm_ordered[$i];
-      my $name = $vm->getAttribute("name");&para("name=$name");
-      unless ($vm_hash{$name}){&para("me la salto");
+      my $name = $vm->getAttribute("name");
+      unless ($vm_hash{$name}){
          next;       
       }
 #JSF: no usado ya
