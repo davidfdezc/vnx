@@ -714,7 +714,7 @@ sub defineVM {
 			}
 			$source4_tag->addChild(	$init_xml->createAttribute( service => "$CON_PORT" ) );
 			print "console file = $portfile; CON_PORT = $CON_PORT\n";
-			my $portfile = $dh->get_vm_dir($vmName) . "/console_port";
+			my $portfile = $dh->get_vm_dir($vmName) . "/console";
 			print "console file = $portfile; CON_PORT = $CON_PORT\n";
 			open (CONPORT, ">$portfile") || die "ERROR: Cannot open file $portfile";;
 			print CONPORT $CON_PORT;	
@@ -1048,7 +1048,7 @@ sub startVM {
 
         		if ($type eq "libvirt-kvm-olive") {
         			my $consport;
-					my $portfile = $dh->get_vm_dir($vmName) . "/console_port";
+					my $portfile = $dh->get_vm_dir($vmName) . "/console";
 					if (-e $portfile ){
 						open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
 						$consport= <CONPORT>;

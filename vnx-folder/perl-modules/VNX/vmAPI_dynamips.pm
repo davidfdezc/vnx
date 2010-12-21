@@ -405,7 +405,7 @@ sub defineVM {
 	# Configuring telnet port
 
 	my $consoleport = &get_port_conf($vmName,$counter);
-	my $portfile = $dh->get_vm_dir($vmName) . "/port.txt";
+	my $portfile = $dh->get_vm_dir($vmName) . "/console";
 	
 	open (PORT_CISCO, ">$portfile") || die "ERROR: No puedo abrir el fichero $portfile";;
 	print PORT_CISCO $consoleport ;	
@@ -842,7 +842,7 @@ sub executeCMD{
 	my $temp;
 	my $port;
 	# Recupero el puerto telnet de acceso al router
-	my $portfile = $dh->get_vm_dir($name) . "/port.txt";
+	my $portfile = $dh->get_vm_dir($name) . "/console";
 	# Configuro el fichero de configuracion extendida
 	my $dynamipsconf = $dh->get_default_dynamips();
 	if (!($dynamipsconf eq "0")){

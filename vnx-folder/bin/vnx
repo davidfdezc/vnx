@@ -1025,7 +1025,7 @@ sub mode_start {
 			}
 			if ($merged_type eq "libvirt-kvm-olive"){
 				my $port;
-				my $portfile = $dh->get_vm_dir($name) . "/console_port";
+				my $portfile = $dh->get_vm_dir($name) . "/console";
 				if (-e $portfile ){
 					open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
 					$port= <CONPORT>;
@@ -1051,7 +1051,7 @@ sub mode_start {
 			} elsif ( $vm->getAttribute("type") eq "dynamips"){
 				my $port;
 				#$port = 900 + $i;
-				my $portfile = $dh->get_vm_dir($name) . "/port.txt";
+				my $portfile = $dh->get_vm_dir($name) . "/console";
 				if (-e $portfile ){
 					open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
 					$port= <CONPORT>;
