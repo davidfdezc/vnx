@@ -794,7 +794,7 @@ sub createVM {
 								my $s3 = $3;
 
 					   # If the second attribute is empty, we add the vm name as
-					   # tittle
+					   # title
 								if ( $s2 =~ /\W+\w+\W+/ ) {
 									$xterm_cmd =
 "$s1 $s2 $s3 screen -t $vmName $xterm_pts";
@@ -804,8 +804,13 @@ sub createVM {
 "$s1 $s2 $vmName $s3 screen -t $vmName $xterm_pts";
 								}
 							}
-							$execution->execute_bg( "$xterm_cmd", "/dev/null",
+							
+							# display console if required
+							my $display_console   = $dom->getElementsByTagName("display_console")->item(0)->getFirstChild->getData;
+							unless ($display_console eq "no") {
+								$execution->execute_bg( "$xterm_cmd", "/dev/null",
 								"" );
+							}
 						}
 					}
 				}
@@ -3315,6 +3320,16 @@ sub UML_notify_cleanup {
 	unlink $notify_ctl;
 }
 
+sub para {
+	my $mensaje = shift;
+	my $var = shift;
+	print "************* $mensaje *************\n";
+	if (defined $var){
+	   print $var . "\n";	
+	}
+	print "*********************************\n";
+	<STDIN>;
+}
 
 1;
 
