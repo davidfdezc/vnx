@@ -576,7 +576,7 @@ sub destroyVM{
 ####################################################################
 #
 sub startVM {
-		my $self   = shift;
+	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
 	my $doc    = shift;
@@ -596,9 +596,15 @@ sub startVM {
     $line = $t->getline; 
     print $line;
     
-    
-	my $consoleport=&get_port_conf($vmName,$counter);
-    $execution->execute("xterm -title Dynamips_$vmName -e 'telnet $HHOST $consoleport' >/dev/null 2>&1 &");
+    # display console if required
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parse($doc);
+	my $display_console   = $dom->getElementsByTagName("display_console")->item(0)->getFirstChild->getData;
+	unless ($display_console eq "no") {
+		my $consoleport=&get_port_conf($vmName,$counter);
+    	$execution->execute("xterm -title Dynamips_$vmName -e 'telnet $HHOST $consoleport' >/dev/null 2>&1 &");
+	}    
+
 }
 
 

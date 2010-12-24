@@ -963,10 +963,10 @@ sub startVM {
 	$bd        = shift;
 	my $dh           = shift;
 	my $sock         = shift;
-	my $manipcounter = shift;
+	my $counter = shift;
 
 	my $error;
-
+	
 	###################################################################
 	#                  startVM for libvirt-kvm-windows                #
 	###################################################################
@@ -992,8 +992,14 @@ sub startVM {
 					  . " | grep -v grep | awk '{print \$2}' > "
 					  . $dh->get_run_dir($vmName)
 					  . "/pid" );
-
-				$execution->execute("virt-viewer $vmName &");
+				
+				# display console if required
+				my $parser       = new XML::DOM::Parser;
+				my $dom          = $parser->parse($doc);
+				my $display_console   = $dom->getElementsByTagName("display_console")->item(0)->getFirstChild->getData;
+				unless ($display_console eq "no") {
+					$execution->execute("virt-viewer $vmName &");
+				}
 
 		my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type,$dh->get_vmmgmt_net,$dh->get_vmmgmt_mask,$dh->get_vmmgmt_offset,$dh->get_vmmgmt_hostip, 2 );
 
@@ -1056,10 +1062,22 @@ sub startVM {
 					} else {
 						printf "ERROR: file $portfile does not exist\n";
 					}
-		    		$execution->execute("xterm -title '$vmName (Olive)' -e 'telnet localhost $consport' >/dev/null 2>&1 &");
+					# display console if required
+					my $parser       = new XML::DOM::Parser;
+					my $dom          = $parser->parse($doc);
+					my $display_console   = $dom->getElementsByTagName("display_console")->item(0)->getFirstChild->getData;
+					unless ($display_console eq "no") {
+		    			$execution->execute("xterm -title '$vmName (Olive)' -e 'telnet localhost $consport' >/dev/null 2>&1 &");
+					}
         		}
         		else {
-					$execution->execute("virt-viewer $vmName &");
+        			# display console if required
+					my $parser       = new XML::DOM::Parser;
+					my $dom          = $parser->parse($doc);
+					my $display_console   = $dom->getElementsByTagName("display_console")->item(0)->getFirstChild->getData;
+					unless ($display_console eq "no") {
+						$execution->execute("virt-viewer $vmName &");
+					}
 				}
 
 				my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type,$dh->get_vmmgmt_net,$dh->get_vmmgmt_mask,$dh->get_vmmgmt_offset,$dh->get_vmmgmt_hostip, 2 );
@@ -2814,7 +2832,16 @@ sub merge_vm_type {
 	
 }
 
-
+sub para {
+	my $mensaje = shift;
+	my $var = shift;
+	print "************* $mensaje *************\n";
+	if (defined $var){
+	   print $var . "\n";	
+	}
+	print "*********************************\n";
+	<STDIN>;
+}
 
 
 1;

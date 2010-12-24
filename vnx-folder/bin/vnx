@@ -1758,54 +1758,54 @@ sub UML_notify_cleanup {
 
 
 # no utilizado
-sub boot_VMs {
-
-   my $sock = shift;
-   my $notify_ctl = shift;
-   
-   my @vm_ordered = $dh->get_vm_ordered;
-   my %vm_hash = $dh->get_vm_to_use;
-
-   my $dom;
-   
-   # If defined screen configuration file, open it
-   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
-      open SCREEN_CONF, ">". $args->get('e')
-         or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
-   }
-
-   #contador para management ip, lo necesita el código de bootfiles que está pasado al API.
-   #se pasa al API en la llamada al CreateVM
-   my $manipcounter = 0;
-   
-   my $docstring;
-   
-   for ( my $i = 0; $i < @vm_ordered; $i++) {
-      my $vm = $vm_ordered[$i];
-      my $name = $vm->getAttribute("name");
-      unless ($vm_hash{$name}){
-         next;       
-      }
-      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
-      $curr_uml = $name;
-      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);
-      # call the corresponding vmAPI
-      my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->createVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
-      if (!($error eq 0)){print $error}	
-      $manipcounter++;	  
-      undef($curr_uml);
-
-      &change_vm_status($dh,$name,"running");
-      
-   }
-
-   # Close screen configuration file
-   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
-      close SCREEN_CONF;
-   }
-
-}
+#sub boot_VMs {
+#
+#   my $sock = shift;
+#   my $notify_ctl = shift;
+#   
+#   my @vm_ordered = $dh->get_vm_ordered;
+#   my %vm_hash = $dh->get_vm_to_use;
+#
+#   my $dom;
+#   
+#   # If defined screen configuration file, open it
+#   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
+#      open SCREEN_CONF, ">". $args->get('e')
+#         or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
+#   }
+#
+#   #contador para management ip, lo necesita el código de bootfiles que está pasado al API.
+#   #se pasa al API en la llamada al CreateVM
+#   my $manipcounter = 0;
+#   
+#   my $docstring;
+#   
+#   for ( my $i = 0; $i < @vm_ordered; $i++) {
+#      my $vm = $vm_ordered[$i];
+#      my $name = $vm->getAttribute("name");
+#      unless ($vm_hash{$name}){
+#         next;       
+#      }
+#      my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+#      $curr_uml = $name;
+#      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);
+#      # call the corresponding vmAPI
+#      my $vmType = $vm->getAttribute("type");
+#      my $error = "vmAPI_$vmType"->createVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
+#      if (!($error eq 0)){print $error}	
+#      $manipcounter++;	  
+#      undef($curr_uml);
+#
+#      &change_vm_status($dh,$name,"running");
+#      
+#   }
+#
+#   # Close screen configuration file
+#   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
+#      close SCREEN_CONF;
+#   }
+#
+#}
 
 
 sub define_VMs {
@@ -3861,6 +3861,18 @@ sub make_vm_API_doc {
 
 #####
 
+   # To get display_console tag from scenario
+   my $display_console_list = $vm->getElementsByTagName("display_console");
+   my $display_console = "yes";
+   if ($display_console_list->getLength == 1) {
+      $display_console = &text_tag($display_console_list->item(0));
+   }
+   # display_console tag to vmAPI dom tree        
+   my $display_console_tag = $dom->createElement('display_console');
+   $vm_tag->addChild($display_console_tag);
+   $display_console_tag->addChild($dom->createTextNode($display_console)); 
+   
+
    # To process all interfaces
    # To get UML's interfaces list
    my $if_list = $vm->getElementsByTagName("if");
@@ -4080,6 +4092,7 @@ sub make_vm_API_doc {
 	  
       # dom es un XML::LibXML::Document; 
       my $docstring = $dom->toString($format);
+      
       return $docstring;
 }
 
@@ -4093,7 +4106,7 @@ sub para {
 	   print $var . "\n";	
 	}
 	print "*********************************\n";
-	#<STDIN>;
+	<STDIN>;
 }
 
 
