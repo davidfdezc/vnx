@@ -1498,13 +1498,13 @@ my $currentVMListLength = $currentVMList->getLength;
 		my $tgz_name = "/tmp/conf.tgz"; 
 		my $tgz_command = "tar czf $tgz_name @directories_list";
 		system ($tgz_command);
-		$configuration = 1;
+		$configuration = 1;	
 	}
 	#JSF añadido para tags <exec>
-	if (@exec_list){
+	elsif (@exec_list){
 		$configuration = 2;
 	}
-	
+
 # JSF: (corregido) por algún motivo solo se permite la ejecucion de comandos ($configuration = 1) si hay un tag filetree
 # debería permitirse también si hay algún exec (?). Añadiendo la linea de debajo (es mia) se puede ejecutar ahora mismo:
 # $configuration = 1;	
