@@ -1,0 +1,343 @@
+#!/usr/bin/perl
+
+# ---------------------------------------------------------------------------------
+# The vn program is part of the VNUML tool
+#
+# Author: Fermín Galán Márquez (galan@dit.upm.es)
+# Copyright (C) 2008	DIT-UPM
+# 			Departamento de Ingenieria de Sistemas Telematicos
+#			Universidad Politecnica de Madrid
+#			SPAIN
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+# An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
+# -----------------------------------------------------------------------------------
+
+use strict;
+no strict "subs";	# Needed in deamonize subrutine
+use POSIX qw(setsid setuid setgid);	# Needed in deamonize subrutine
+
+# FIXME: unhardwire
+my $working_dir = "/root/.vnx";
+
+my $mode = shift;
+
+if ($mode eq "console") {
+   # mode console:
+   #   vn console <simname> <vm> [<xterm>]
+   my $simname = shift;
+   my $vm = shift;
+   my $xterm = shift;
+   &console_vnx($simname,$vm,$xterm);
+}
+else {
+   print "uknown mode: $mode\n";
+   exit(1);
+}
+exit(0);
+
+# AUXILIARY FUNCTIONS
+
+# returns a list of running simulations
+sub get_sims {
+
+	my @sims = ();
+
+	if (opendir(DIR,"$working_dir/scenarios")) {
+		my @subdirs = readdir(DIR);
+		closedir DIR;
+		foreach (@subdirs) {
+			# Checking in subdirs
+			if (-d "$working_dir/scenarios/$_") {
+				if (-f "$working_dir/scenarios/$_/lock") {
+					push (@sims,$_);
+				}
+			}
+		}
+	}
+	
+	return sort @sims;
+ 
+}
+
+# returns a list of the vms of a given simulation (first argument)
+sub get_vms {
+
+	my $sim = shift;
+	my @vms = ();
+	
+	if (opendir(DIR,"$working_dir/scenarios/$sim/vms")) {
+		my @subdirs = readdir(DIR);
+		closedir DIR;
+		foreach (@subdirs) {
+			# Checking in subdirs
+			if (-d "$working_dir/scenarios/$sim/vms/$_") {
+				if ($_ ne "." && $_ ne "..") {
+					push (@vms,$_);
+				}
+			}
+		}
+	}
+
+	return sort @vms;
+
+}
+
+# MODE FUNCTIONS
+
+sub console {
+
+
+sub console_vnx {
+
+   # TODO:
+   #  - fix the daemonization of the popping-up xterm
+   #  - fix the problem of xterm launched by VNUML as vnuml user
+   #  - multiple <console>s tags using pts or xterm (implications on VNUML?)
+
+   my $simname = shift;
+   my $vm = shift;
+   my $xterm = shift;
+   
+   if ($simname eq "") {
+      print "empty simulation name\n";
+      my @sims = &get_sims;
+      if (@sims == 0) {
+         die ("there isn't any running simulation\n");
+      }
+      else {
+         my $a = @sims;
+         my $j = join(" ",@sims);
+         print "available simulations: $j\n";
+         return;
+      }
+   }
+
+   # simulation dir
+   my $sim_dir = "$working_dir/scenarios/$simname";
+   my $sim_lock = "$sim_dir/lock";
+   unless (-f $sim_lock) {
+      print "$simname simulation is not running\n";
+      my @sims = &get_sims;
+      if (@sims == 0) {
+         die ("there isn't any running simulation\n");
+      }
+      else {
+         my $j = join(" ",@sims);
+         print "available simulations: $j\n";
+         return;
+      }
+   }
+   
+   if ($vm eq "") {
+      print "empty vm name\n";
+      my @vms = &get_vms($simname);
+      if (@vms == 0) {
+         die ("the simulation has not running vms (that's weird!)\n");
+      }
+      else {
+         my $j = join(" ",@vms);
+         print "available vms: $j\n";
+         return;
+      }
+   }
+   
+   # vm dir
+   my $vm_dir = "$sim_dir/vms/$vm";
+   unless (-d $vm_dir) {
+      print("$vm vm is not part of $simname simulation\n");
+      my @vms = &get_vms($simname);
+      if (@vms == 0) {
+         die ("the simulation has not running vms (that's weird!)\n");
+      }
+      else {
+         my $j = join(" ",@vms);
+         print "available vms: $j\n";
+         return;
+      }
+   }
+   
+   # pts file
+   my $pts_file = "$vm_dir/run/pts";
+   unless (-f $pts_file) {
+      die("pts file does not exists in the vm run directory (maybe you are using a VNUML version previous to 1.8.3?)\n");
+   }   
+   my $pts_dev = `cat $pts_file`;
+   chomp ($pts_dev);
+   $pts_dev =~ /\/dev\/pts\/(\d+)/;
+   my $pts_number = $1;
+   
+   # look for deattached screens associated to that pts
+   # (this correspon to previous connection of pts). Ideally,
+   # only one (we work with that assumption)
+   my $pid = "";
+   open CMD, "ps ax | grep SCREEN|";
+   while(<CMD>) {
+      if (/(\d+).+SCREEN -t $vm $pts_dev/) {
+         $pid = $1;
+         last;
+      }
+   }
+   
+   my $screen_params;
+   if ($pid ne "") {
+      open CMD, "screen -ls|";
+      while(<CMD>) {
+         if (/($pid\.pts\-\d+\..+)\W*\(Detached\)/) {
+            $screen_params = "-r $1";
+            last;
+         }
+         elsif (/($pid\.pts\-\d+\..+)\W*\(Attached\)/) {
+            die("the console of that vm is currently in use (maybe another instance of vn of VNUML itself)\n");
+         }
+      }
+   }
+   else {
+      # This is the first time that this console is launch
+      # for that vm
+      $screen_params = "$pts_dev";   
+   }   
+   
+   # launch the screen/console
+   if ($xterm eq "xterm") {
+      my $cmd = "xterm -T $vm -e screen -t $vm $screen_params";
+      `$cmd`;
+   }
+   else {
+      my $cmd = "screen -t $vm $screen_params";
+      `$cmd`;
+   }
+   
+}
+   # TODO:
+   #  - fix the daemonization of the popping-up xterm
+   #  - fix the problem of xterm launched by VNUML as vnuml user
+   #  - multiple <console>s tags using pts or xterm (implications on VNUML?)
+
+   my $simname = shift;
+   my $vm = shift;
+   my $xterm = shift;
+   
+   if ($simname eq "") {
+      print "empty simulation name\n";
+      my @sims = &get_sims;
+      if (@sims == 0) {
+         die ("there isn't any running simulation\n");
+      }
+      else {
+         my $a = @sims;
+         my $j = join(" ",@sims);
+         print "available simulations: $j\n";
+         return;
+      }
+   }
+
+   # simulation dir
+   my $sim_dir = "$working_dir/scenarios/$simname";
+   my $sim_lock = "$sim_dir/lock";
+   unless (-f $sim_lock) {
+      print("$simname simulation is not running\n");
+      my @sims = &get_sims;
+      if (@sims == 0) {
+         die ("there isn't any running simulation\n");
+      }
+      else {
+         my $j = join(" ",@sims);
+         print "available simulations: $j\n";
+         return;
+      }
+   }
+   
+   if ($vm eq "") {
+      print ("empty vm name\n");
+      my @vms = &get_vms($simname);
+      if (@vms == 0) {
+         die ("the simulation has not running vms (that's weird!)\n");
+      }
+      else {
+         my $j = join(" ",@vms);
+         print "available vms: $j\n";
+         return;
+      }
+   }
+   
+   # vm dir
+   my $vm_dir = "$sim_dir/vms/$vm";
+   unless (-d $vm_dir) {
+      print("$vm vm is not part of $simname simulation\n");
+      my @vms = &get_vms($simname);
+      if (@vms == 0) {
+         die ("the simulation has not running vms (that's weird!)\n");
+      }
+      else {
+         my $j = join(" ",@vms);
+         print "available vms: $j\n";
+         return;
+      }
+   }
+   
+   # pts file
+   my $pts_file = "$vm_dir/run/pts";
+   unless (-f $pts_file) {
+      die("pts file does not exists in the vm run directory (maybe you are using a VNUML version previous to 1.8.3?)\n");
+   }   
+   my $pts_dev = `cat $pts_file`;
+   chomp ($pts_dev);
+   $pts_dev =~ /\/dev\/pts\/(\d+)/;
+   my $pts_number = $1;
+   
+   # look for deattached screens associated to that pts
+   # (this correspon to previous connection of pts). Ideally,
+   # only one (we work with that assumption)
+   my $pid = "";
+   open CMD, "ps ax | grep SCREEN|";
+   while(<CMD>) {
+      if (/(\d+).+SCREEN -t $vm $pts_dev/) {
+         $pid = $1;
+         last;
+      }
+   }
+   
+   my $screen_params;
+   if ($pid ne "") {
+      open CMD, "screen -ls|";
+      while(<CMD>) {
+         if (/($pid\.pts\-\d+\..+)\W*\(Detached\)/) {
+            $screen_params = "-r $1";
+            last;
+         }
+         elsif (/($pid\.pts\-\d+\..+)\W*\(Attached\)/) {
+            die("the console of that vm is currently in use (maybe another instance of vn of VNUML itself)\n");
+         }
+      }
+   }
+   else {
+      # This is the first time that this console is launch
+      # for that vm
+      $screen_params = "$pts_dev";   
+   }   
+   
+   # launch the screen/console
+   if ($xterm eq "xterm") {
+      my $cmd = "xterm -T $vm -e screen -t $vm $screen_params";
+      `$cmd`;
+   }
+   else {
+      my $cmd = "screen -t $vm $screen_params";
+      `$cmd`;
+   }
+   
+}
