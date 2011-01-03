@@ -7,6 +7,10 @@ use XML::DOM;
 
 my $platform;
 
+use constant LINUX_TTY => '/dev/ttyS1';
+use constant FREEBSD_TTY => '/dev/cuau1';
+
+
 sleep 15;
 &main;
 exit(0);
@@ -124,7 +128,7 @@ sub listen {
 						print LOG "   filetree received in $file2\n";
 						&filetree($path);
 						print LOG "   sending 'done' signal to host...\n\n";
-						system "echo 1 > /dev/ttyS0";
+						system "echo 1 > LINUX_TTY";
 					}elsif ($file2 eq "/media/cdrom/command.xml"){
 						unless (&check_if_new_file($file2,"command")){
 							next;				
@@ -135,7 +139,7 @@ sub listen {
 						print LOG "   command received in $file2\n";
 						&execute_commands($file2);
 						print LOG "   sending 'done' signal to host...\n\n";
-						system "echo 1 > /dev/ttyS0";
+						system "echo 1 > LINUX_TTY";
 					}elsif ($file2 eq "/media/cdrom/vnxboot"){
 						unless (&check_if_new_file($file2,"create_conf")){
 							next;				
@@ -202,7 +206,7 @@ sub listen {
 						print LOG "   filetree received in $file2\n";
 						&filetree($path);
 						print LOG "   sending 'done' signal to host....\n\n";
-						system "echo 1 > /dev/cuau0";
+						system "echo 1 > FREEBSD_TTY";
 
 					}elsif ($file2 eq "/cdrom/command.xml"){
 						unless (&check_if_new_file($file2,"command")){
@@ -214,7 +218,7 @@ sub listen {
 						print LOG "   command received in $file2\n";
 						&execute_commands($file2);
 						print LOG "   sending 'done' signal to host...\n\n";
-						system "echo 1 > /dev/cuau0";
+						system "echo 1 > FREEBSD_TTY";
 
 					}elsif ($file2 eq "/cdrom/vnxboot"){
 						unless (&check_if_new_file($file2,"create_conf")){

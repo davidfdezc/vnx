@@ -23,7 +23,7 @@
        <slot id="1">NM-4T</slot>
        <console port="920"/>
      </hw>
-     <login password="xxxx"/>
+     <!--login password="xxxx"/-->
      <login user="root" password="xxxx"/>
      <enable password="xxxx"/>
   </vm>

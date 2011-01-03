@@ -33,10 +33,12 @@ package VNX::FileChecks;
 require(Exporter);
 
 @ISA = qw(Exporter);
-@EXPORT = qw(valid_absolute_directoryname valid_absolute_filename do_path_expansion);
+@EXPORT = qw(valid_absolute_directoryname valid_absolute_filename do_path_expansion get_conf_value);
 
 use strict;
 use File::Glob ':glob';
+use VNX::Globals;
+use VNX::Execution;
 
 # valid_absolute_directoryname
 #
@@ -90,6 +92,33 @@ sub valid_absolute_filename {
 sub do_path_expansion {
 	my @list = bsd_glob(shift, GLOB_TILDE | GLOB_NOCHECK | GLOB_ERR );
 	return $list[0];
+}
+
+# get_conf_value 
+#
+# Returns a value from a configuration file made of 'param=value' lines
+# Dies (smartly) if the file is not found.
+#
+sub get_conf_value {
+
+    my $confFile=shift;
+    my $param=shift;
+#    my $execution=shift;
+    my $result="";
+    
+	unless(-e $confFile){ return $result }
+	open FILE, "< $confFile" or $execution->smartdie("$confFile not found");
+	my @lines = <FILE>;
+	foreach my $line (@lines){
+	    if (($line =~ /$param/) && !($line =~ /^#/)){ 
+			my @config1 = split(/=/, $line);
+			my @config2 = split(/#/,$config1[1]);
+			$result = $config2[0];
+			chop $result;
+			$result =~ s/\s+//g;
+	    }
+	}
+ 	return $result;
 }
 
 1;

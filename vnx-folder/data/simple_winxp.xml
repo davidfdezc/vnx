@@ -11,7 +11,7 @@ Just one Windows XP virtual machine. Use this specification for testing
 <vnx>
   <global>
     <version>1.92</version>
-    <scenario_name>simple_xp</scenario_name>
+    <scenario_name>simple_winxp</scenario_name>
     <automac offset="3"/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">

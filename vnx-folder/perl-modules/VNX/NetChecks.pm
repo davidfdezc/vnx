@@ -33,6 +33,7 @@ require(Exporter);
 @EXPORT = qw( tundevice_needed check_net_host_conn );
 
 use strict;
+use VNX::Globals;
 use VNX::DocumentChecks;
 
 # tundevice_needed
@@ -49,7 +50,7 @@ use VNX::DocumentChecks;
 #
 sub tundevice_needed {
 
-   my $dh = shift;
+#   my $dh = shift;
    my $vmmgmt_type = shift;
    my @machines = @_;
 
@@ -70,7 +71,8 @@ sub tundevice_needed {
    }
    
    # 2. Management interfaces
-   return 1 if ($vmmgmt_type eq 'private' && &at_least_one_vm_with_mng_if($dh,@machines) ne "");
+   #return 1 if ($vmmgmt_type eq 'private' && &at_least_one_vm_with_mng_if($dh,@machines) ne "");
+   return 1 if ($vmmgmt_type eq 'private' && &at_least_one_vm_with_mng_if(@machines) ne "");
    
    return 0;
 	
