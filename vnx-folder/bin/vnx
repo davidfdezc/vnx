@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl 
 #!@PERL@
 # ---------------------------------------------------------------------------------
 # VNX parser. Version 0.14b (based on VNUML 1.9.1)
@@ -132,6 +132,7 @@ use lib "/usr/share/perl5";
 
 
 use strict;
+use warnings;
 use XML::DOM;
 use XML::DOM::ValParser;
 use File::Basename;
@@ -146,6 +147,7 @@ use Data::Dumper;
 
 use XML::LibXML;
 
+use VNX::Globals;
 use VNX::DataHandler;
 use VNX::Execution;
 use VNX::BinariesData;
@@ -179,9 +181,10 @@ push @Exception::Class::Base::ISA, 'Error';
 # Constants
 # TODO: constant should be included in a .pm that would be loaded from each module
 # that needs them
-use constant EXE_DEBUG => 0;	#	- does not execute, only shows
-use constant EXE_VERBOSE => 1;	#	- executes and shows
-use constant EXE_NORMAL => 2;	#	- executes
+# Moved to VNX::Globals module (DFC 1/1/2010)
+#use constant EXE_DEBUG => 0;	#	- does not execute, only shows
+#use constant EXE_VERBOSE => 1;	#	- executes and shows
+#use constant EXE_NORMAL => 2;	#	- executes
 
 ###########################################################
 # Set up signal handlers
@@ -192,11 +195,13 @@ $SIG{TERM} = \&handle_sig;
 ###########################################################
 # Global objects
 
-my $execution;   # the VNX::Execution object
-my $dh;          # the VNX::DataHandler object
-my $bd;          # the VNX::BinariesData object
-my $args;        # the VNX::Arguments object
-my @plugins;     # plugins array
+# Moved to VNX::Globals module in order to have it shared with
+# all packages (DFC 1/1/2010)
+#my $execution;   # the VNX::Execution object
+#my $dh;          # the VNX::DataHandler object
+#my $bd;          # the VNX::BinariesData object
+#my $args;        # the VNX::Arguments object
+#my @plugins;     # plugins array
 
 ###########################################################
 # Other global variables
@@ -460,9 +465,9 @@ sub main {
    }
 
    # 2. Optional arguments
-   my $exemode = EXE_NORMAL;
-   $exemode = EXE_VERBOSE if ($opt_v);
-   $exemode = EXE_DEBUG if ($opt_g);
+   $exemode = $EXE_NORMAL;
+   $exemode = $EXE_VERBOSE if ($opt_v);
+   $exemode = $EXE_DEBUG if ($opt_g);
    chomp(my $pwd = `pwd`);
    $vnx_dir = &chompslash($opt_c) if ($opt_c);
    $vnx_dir = "$pwd/$vnx_dir"
@@ -516,7 +521,7 @@ sub main {
 
    # 4. To check vnuml_dir and tmp_dir
    # Create the working directory, if it doesn't already exist
-   if ($exemode ne EXE_DEBUG) {
+   if ($exemode ne $EXE_DEBUG) {
 	   if (! -d $vnx_dir ) {
 		   mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
 	   }
@@ -574,8 +579,8 @@ sub main {
       $version =~ /^(\d\.\d+)/;
       my $version_in_parser = $1;
       unless ($version_in_file eq $version_in_parser) {
-	     &vnx_die("mayor version numbers of source file ($version_in_file) and parser ($version_in_parser) do not match");
-exit;
+      	&vnx_die("mayor version numbers of source file ($version_in_file) and parser ($version_in_parser) do not match");
+		exit;
       }
    }
    else {
@@ -667,41 +672,47 @@ exit;
 
 
    # Semantic check (in addition to validation)
-   if (my $err_msg = &check_doc($dh,$bd->get_binaries_path_ref,$execution->get_uid)) {
+   #if (my $err_msg = &check_doc($dh,$bd->get_binaries_path_ref,$execution->get_uid)) {
+   if (my $err_msg = &check_doc($bd->get_binaries_path_ref,$execution->get_uid)) {
       &vnx_die ("$err_msg\n");
    }
 
    # 6b (delayed because it required the $dh object constructed)
    # To check optional screen binaries
-   $bd->add_additional_screen_binaries($dh);
+   #$bd->add_additional_screen_binaries($dh);
+   $bd->add_additional_screen_binaries();
    if (($opt_e) && ($bd->check_binaries_screen != 0)) {
       &vnx_die ("screen related binary is missing\n");
    }
 
    # 6c (delayed because it required the $dh object constructed)
    # To check optional uml_switch binaries 
-   $bd->add_additional_uml_switch_binaries($dh);
+   #$bd->add_additional_uml_switch_binaries($dh);
+   $bd->add_additional_uml_switch_binaries();
    if (($bd->check_binaries_switch != 0)) {
       &vnx_die ("uml_switch related binary is missing\n");
    }
 
    # 6d (delayed because it required the $dh object constructed)
    # To check optional binaries for virtual bridge
-   $bd->add_additional_bridge_binaries($dh);   
+   #$bd->add_additional_bridge_binaries($dh);   
+   $bd->add_additional_bridge_binaries();   
    if ($bd->check_binaries_bridge != 0) {
       &vnx_die ("virtual bridge related binary is missing\n");  
    }
 
    # 6e (delayed because it required the $dh object constructed)
    # To check xterm binaries
-   $bd->add_additional_xterm_binaries($dh);
+   #$bd->add_additional_xterm_binaries($dh);
+   $bd->add_additional_xterm_binaries();
    if (($bd->check_binaries_xterm != 0)) {
       &vnx_die ("xterm related binary is missing\n");
    }
 
    # 6f (delayed because it required the $dh object constructed)
    # To check optional binaries for VLAN support
-   $bd->add_additional_vlan_binaries($dh);   
+   #$bd->add_additional_vlan_binaries($dh);   
+   $bd->add_additional_vlan_binaries();   
    if ($bd->check_binaries_vlan != 0) {
       &vnx_die ("VLAN related binary is missing\n");  
    }   
@@ -769,7 +780,7 @@ exit;
    # Mode selection
 
    if ($opt_t||$opt_create) {
-	   if ($exemode != EXE_DEBUG && !$opt_M && !$opt_start) {
+	   if ($exemode != $EXE_DEBUG && !$opt_M && !$opt_start) {
          $execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
             if &scenario_exists($dh->get_scename);
       }
@@ -777,7 +788,7 @@ exit;
       &mode_start;
    }
    elsif ($opt_x||$opt_execute) {
-      if ($exemode != EXE_DEBUG) {
+      if ($exemode != $EXE_DEBUG) {
          $execution->smartdie ("scenario " . $dh->get_scename . " does not exists: create it with -t before\n")
            unless &scenario_exists($dh->get_scename);
       }
@@ -785,7 +796,7 @@ exit;
       &mode_x($cmdseq);
    }
    elsif ($opt_d||$opt_shutdown) {
-      if ($exemode != EXE_DEBUG) {
+      if ($exemode != $EXE_DEBUG) {
          $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
            unless &scenario_exists($dh->get_scename);
       }
@@ -795,7 +806,7 @@ exit;
       
    }
    elsif ($opt_P||$opt_destroy) {  # elsif ($opt_P) { [JSF]
-      if ($exemode != EXE_DEBUG) {
+      if ($exemode != $EXE_DEBUG) {
       #   $execution->smartdie ("scenario $scename does not exist\n")
       #     unless &scenario_exists($scename);
       }
@@ -805,28 +816,28 @@ exit;
       #&mode_undefine;
    }
    elsif ($opt_define){
-      if ($exemode != EXE_DEBUG && !$opt_M) {
+      if ($exemode != $EXE_DEBUG && !$opt_M) {
          $execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
             if &scenario_exists($dh->get_scename);
       }
       &mode_define;
    }
    elsif ($opt_undefine){
-      if ($exemode != EXE_DEBUG && !$opt_M) {
+      if ($exemode != $EXE_DEBUG && !$opt_M) {
          $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
            unless &scenario_exists($dh->get_scename);
       }
       &mode_undefine;
    }
    elsif ($opt_start) {
-      if ($exemode != EXE_DEBUG) {
+      if ($exemode != $EXE_DEBUG) {
          $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
            unless &scenario_exists($dh->get_scename);
       }
       &mode_start;
    }
    elsif ($opt_reset) {
-      if ($exemode != EXE_DEBUG) {
+      if ($exemode != $EXE_DEBUG) {
          $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
            unless &scenario_exists($dh->get_scename);
       }
@@ -839,7 +850,7 @@ exit;
    }
    
    elsif ($opt_reboot) {
-     if ($exemode != EXE_DEBUG) {
+     if ($exemode != $EXE_DEBUG) {
         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         unless &scenario_exists($dh->get_scename);
      }
@@ -848,14 +859,14 @@ exit;
    }
    
    elsif ($opt_save) {
-     if ($exemode != EXE_DEBUG) {
+     if ($exemode != $EXE_DEBUG) {
         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         unless &scenario_exists($dh->get_scename);
      }
      &mode_save;
    }
    elsif ($opt_restore) {
-     if ($exemode != EXE_DEBUG) {
+     if ($exemode != $EXE_DEBUG) {
         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         unless &scenario_exists($dh->get_scename);
      }
@@ -863,7 +874,7 @@ exit;
    }
    
    elsif ($opt_suspend) {
-     if ($exemode != EXE_DEBUG) {
+     if ($exemode != $EXE_DEBUG) {
         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         unless &scenario_exists($dh->get_scename);
      }
@@ -871,7 +882,7 @@ exit;
    }
    
    elsif ($opt_resume) {
-     if ($exemode != EXE_DEBUG) {
+     if ($exemode != $EXE_DEBUG) {
         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         unless &scenario_exists($dh->get_scename);
      }
@@ -913,14 +924,14 @@ sub mode_define {
     try {
 
         # 6. Initialize the notify socket
-        my ($sock,$notify_ctl) = &UML_notify_init if ($execution->get_exe_mode() ne EXE_DEBUG);
+        my ($sock,$notify_ctl) = &UML_notify_init if ($execution->get_exe_mode() ne $EXE_DEBUG);
         # 7. Set appropriate permissions and boot each UML
         &chown_working_dir;
         &xauth_add;
 
         &define_VMs($sock,$notify_ctl); #,$only_vm_to_define);    
         # 8. Clean up the notify socket
-        &UML_notify_cleanup($sock,$notify_ctl) if ($execution->get_exe_mode() ne EXE_DEBUG);
+        &UML_notify_cleanup($sock,$notify_ctl) if ($execution->get_exe_mode() ne $EXE_DEBUG);
         
     } 
     catch Vnx::Exception with {
@@ -961,7 +972,8 @@ sub mode_undefine{
       }
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type, $dh,$bd,$execution);
+      #my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type, $dh,$bd,$execution);
+      my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
 }
@@ -973,7 +985,7 @@ sub mode_start {
     try {
 
         # 6. Initialize the notify socket
-        my ($sock,$notify_ctl) = &UML_notify_init if ($execution->get_exe_mode() != EXE_DEBUG);
+        my ($sock,$notify_ctl) = &UML_notify_init if ($execution->get_exe_mode() != $EXE_DEBUG);
 
 #        # 7. Set appropriate permissions and boot each UML
 #        &chown_working_dir;
@@ -982,12 +994,12 @@ sub mode_start {
         &start_VMs($sock,$notify_ctl);
          
 #        # 8. Clean up the notify socket
-#        &UML_notify_cleanup($sock,$notify_ctl) if ($execution->get_exe_mode() != EXE_DEBUG);
+#        &UML_notify_cleanup($sock,$notify_ctl) if ($execution->get_exe_mode() != $EXE_DEBUG);
 
         # If <host_mapping> is in use and not in debug mode, process /etc/hosts
         my $lines = join "\n", @host_lines;
-#        &host_mapping_patch ($lines, $dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
-        &host_mapping_patch ($dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG)); # lines in the temp file
+#        &host_mapping_patch ($lines, $dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != $EXE_DEBUG));
+        &host_mapping_patch ($dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != $EXE_DEBUG)); # lines in the temp file
 
 
         # If -B, block until ready
@@ -999,7 +1011,7 @@ sub mode_start {
                 sleep($dh->get_delay);
                 my $time_w = time();
                 my $interval = $time_w - $time_0;
-                print "$interval seconds elapsed...\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+                print "$interval seconds elapsed...\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
                 %vm_ips = &get_UML_command_ip("");
             }
         }
@@ -1016,13 +1028,17 @@ sub mode_start {
 			my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 			
 			if ($first eq 1){
-				print "-------------------------------------------------------------------------------\n";	
-				print "Commands to access vm's consoles of scenario $scename\n";
-				print "\n";	
-				printf "%-12s  %-20s  %s\n", "VM_NAME", "TYPE", "COMMAND";	
-				print "-------------------------------------------------------------------------------\n";	
+				&print_console_table_header ($scename);
 				$first = 0;
 			}
+
+			if ( ($vm->getAttribute("type") eq "libvirt") || ( $vm->getAttribute("type") eq "dynamips") ) {
+				my $port;
+				my $cons0Cmd;
+				my $cons1Cmd;
+				my $consFile = $dh->get_vm_dir($name) . "/console";
+				&print_console_table_entry ($name, $merged_type, $consFile, $vm->getAttribute("type"));
+=BEGIN
 			if ($merged_type eq "libvirt-kvm-olive"){
 				my $port;
 				my $portfile = $dh->get_vm_dir($name) . "/console";
@@ -1042,12 +1058,16 @@ sub mode_start {
                 my $display=`virsh -c qemu:///system vncdisplay $name`;
                 $display =~ s/\s+$//;    # Delete linefeed at the end		
 				printf "%-12s  %-20s  virt-viewer %s   or   vncviewer %s\n", $name, $merged_type, $name, $display;
+=END
+=cut
+
 			} elsif ( $vm->getAttribute("type") eq "uml") {
 			    # xterm -T uml -e screen -t uml /dev/pts/0
 			    my $vnx_dir = $dh->get_vnx_dir;
 			    my $pts=`cat $vnx_dir/scenarios/$scename/vms/$name/run/pts`;
 			    $pts =~ s/\s+$//;        # Delete linefeed at the end
 				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $name, $merged_type, $name, $name, $pts;
+=BEGIN
 			} elsif ( $vm->getAttribute("type") eq "dynamips"){
 				my $port;
 				#$port = 900 + $i;
@@ -1060,11 +1080,9 @@ sub mode_start {
 				}else {
 					printf "%-12s  %-20s  ERROR: cannot open file $portfile \n", $name, $merged_type;
 				}
+=END
+=cut
 			}
-			my $last = @vm_ordered - $i;
-			if ($last eq 1){
-				print "-------------------------------------------------------------------------------\n\n";	
-			} 
 		}
         
     } 
@@ -1099,7 +1117,8 @@ sub mode_reset {
       }
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->resetVM($name, $merged_type, $execution, $bd,$dh);
+      #my $error = "vmAPI_$vmType"->resetVM($name, $merged_type, $execution, $bd,$dh);
+      my $error = "vmAPI_$vmType"->resetVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
 }
@@ -1125,7 +1144,8 @@ sub mode_save {
 
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->saveVM($name, $merged_type, $filename,$dh,$bd,$execution);
+      #my $error = "vmAPI_$vmType"->saveVM($name, $merged_type, $filename,$dh,$bd,$execution);
+      my $error = "vmAPI_$vmType"->saveVM($name, $merged_type, $filename);
       if (!($error eq 0)){print $error}
 
    }
@@ -1151,7 +1171,8 @@ sub mode_restore {
       $filename = $dh->get_vm_dir($name) . "/" . $name . "_savefile";
       #     call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->restoreVM($name, $merged_type, $filename, $dh,$bd,$execution);
+      #my $error = "vmAPI_$vmType"->restoreVM($name, $merged_type, $filename, $dh,$bd,$execution);
+      my $error = "vmAPI_$vmType"->restoreVM($name, $merged_type, $filename);
       if (!($error eq 0)){print $error}
    }
 }
@@ -1174,7 +1195,8 @@ sub mode_suspend {
       
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->suspendVM($name, $merged_type,$dh,$bd,$execution);
+      #my $error = "vmAPI_$vmType"->suspendVM($name, $merged_type,$dh,$bd,$execution);
+      my $error = "vmAPI_$vmType"->suspendVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
 }
@@ -1196,7 +1218,8 @@ sub mode_resume {
       }
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->resumeVM($name, $merged_type,$dh,$bd,$execution);
+      #my $error = "vmAPI_$vmType"->resumeVM($name, $merged_type,$dh,$bd,$execution);
+      my $error = "vmAPI_$vmType"->resumeVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
 }
@@ -1249,10 +1272,10 @@ sub configure_switched_networks {
        	
        	  # Some case are not supported in the current version
        	  if ((&vnet_exists_sw($name)) && (&check_net_host_conn($name,$dh->get_doc))) {
-       	  	print "VNX warning: switched network $name with connection to host already exits. Ignoring.\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+       	  	print "VNX warning: switched network $name with connection to host already exits. Ignoring.\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
        	  }
        	  if ((!($external_if =~ /^$/))) {
-       	  	print "VNX warning: switched network $name with external connection to $external_if: not implemented in current version. Ignoring.\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+       	  	print "VNX warning: switched network $name with external connection to $external_if: not implemented in current version. Ignoring.\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
        	  }
        	
        	  # If uml_switch does not exists, we create and set up it
@@ -1263,7 +1286,7 @@ sub configure_switched_networks {
 				 my $hub_str = ($hub eq "yes") ? "-hub" : "";
 				 my $sock = $dh->get_networks_dir . "/$name.ctl";
 				 unless (&check_net_host_conn($name,$dh->get_doc)) {
-					# print "VNX warning: no connection to host from virtualy switched net \"$name\". \n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+					# print "VNX warning: no connection to host from virtualy switched net \"$name\". \n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
 					# To start virtual switch
 					my $extra;
 					if ($capture_file) {
@@ -1291,7 +1314,7 @@ sub configure_switched_networks {
 						$execution->execute_bg($command . " -unix $sock $hub_str $extra", '/dev/null');
 					}
 					
-					if ($execution->get_exe_mode() != EXE_DEBUG && !&uml_switch_wait($sock, 5)) {
+					if ($execution->get_exe_mode() != $EXE_DEBUG && !&uml_switch_wait($sock, 5)) {
 						&mode_d;
 						$execution->smartdie("uml_switch for $name failed to start!");
 					}
@@ -1334,7 +1357,7 @@ sub configure_switched_networks {
 				       $execution->execute_bg($command . " -tap $tun_if -unix $sock $hub_str $extra", '/dev/null', $group[2]);
                     }
 
-					if ($execution->get_exe_mode() != EXE_DEBUG && !&uml_switch_wait($sock, 5)) {
+					if ($execution->get_exe_mode() != $EXE_DEBUG && !&uml_switch_wait($sock, 5)) {
 						&mode_d;
 						$execution->smartdie("uml_switch for $name failed to start!");
 					}
@@ -1389,7 +1412,8 @@ sub configure_virtual_bridged_networks {
       #!$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
      
       # To create management device (id 0), if needed
-      my $mng_if_value = &mng_if_value($dh,$vm);
+      #my $mng_if_value = &mng_if_value($dh,$vm);
+      my $mng_if_value = &mng_if_value($vm);
       
       if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
          my $tun_if = $name . "-e0";
@@ -1769,7 +1793,7 @@ sub UML_notify_cleanup {
 #   my $dom;
 #   
 #   # If defined screen configuration file, open it
-#   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
+#   if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
 #      open SCREEN_CONF, ">". $args->get('e')
 #         or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
 #   }
@@ -1801,7 +1825,7 @@ sub UML_notify_cleanup {
 #   }
 #
 #   # Close screen configuration file
-#   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
+#   if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
 #      close SCREEN_CONF;
 #   }
 #
@@ -1820,7 +1844,7 @@ sub define_VMs {
    my $dom;
    
    # If defined screen configuration file, open it
-   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
+   if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
       open SCREEN_CONF, ">". $args->get('e')
          or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
    }
@@ -1846,19 +1870,29 @@ sub define_VMs {
 
       my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
-      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);	  
+      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);	
+            
+      # Save the XML <create_conf> file to .vnx/scenarios/<vscenario_name>/vms/$name_cconf.xml
+	  open XML_CCFILE, ">" . $dh->get_vm_dir($name) . '/' . $name . '_cconf.xml'
+		  or $execution->smartdie("can not open " . $dh->get_vm_dir . '/' . $name . '_cconf.xml' )
+		    unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+	  print XML_CCFILE "$docstring\n";
+	  close XML_CCFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+        
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->defineVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
+      #my $error = "vmAPI_$vmType"->defineVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
+      my $error = "vmAPI_$vmType"->defineVM($name, $merged_type, $docstring, $sock, $manipcounter);
       if (!($error eq 0)){print $error}
       $manipcounter++;
       undef($curr_uml);
-      &change_vm_status($dh,$name,"defined");
+      #&change_vm_status($dh,$name,"defined");
+      &change_vm_status($name,"defined");
 
    }
 
    # Close screen configuration file
-   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
+   if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
       close SCREEN_CONF;
    }
 }
@@ -1888,7 +1922,7 @@ sub start_VMs {
    my %vm_hash = $dh->get_vm_to_use;
  
    # If defined screen configuration file, open it
-   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
+   if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
       open SCREEN_CONF, ">". $args->get('e')
          or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
    }
@@ -1912,16 +1946,18 @@ sub start_VMs {
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i); # only needed for uml vms 
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
+      #my $error = "vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
+      my $error = "vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $sock, $manipcounter);
       if (!($error eq 0)){print $error} 
       $manipcounter++;
       undef($curr_uml);
-      &change_vm_status($dh,$name,"running");
+      #&change_vm_status($dh,$name,"running");
+      &change_vm_status($name,"running");
 
    }
 
    # Close screen configuration file
-   if (($args->get('e')) && ($execution->get_exe_mode() != EXE_DEBUG)) {
+   if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
       close SCREEN_CONF;
    }
 
@@ -1951,7 +1987,7 @@ sub mode_x {
          sleep($dh->get_delay);
          my $time_f = time();
          my $interval = $time_f - $time_0;
-         print "$interval seconds eslapsed...\n" if ($execution->get_exe_mode() eq EXE_VERBOSE);
+         print "$interval seconds eslapsed...\n" if ($execution->get_exe_mode() eq $EXE_VERBOSE);
          %vm_ips = &get_UML_command_ip($seq);
       }
    }
@@ -1987,13 +2023,15 @@ sub mode_x {
 		# call the corresponding vmAPI
        my $vmType = $vm->getAttribute("type");
 
-       my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $execution, $bd, $dh, $vm, $name);
+       #my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $execution, $bd, $dh, $vm, $name);
+       my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $vm, $name);
      	if (!($error eq 0)){
      		print $error
      	}
 	}
 
-	vmAPI_uml->exec_command_host($seq,$execution,$bd,$dh);
+	#vmAPI_uml->exec_command_host($seq,$execution,$bd,$dh);
+	vmAPI_uml->exec_command_host($seq);
 
 }
 
@@ -2036,14 +2074,16 @@ sub mode_d {
 
            # call the corresponding vmAPI
            my $vmType = $vm->getAttribute("type");
-           my $error = "vmAPI_$vmType"->destroyVM($name, $merged_type, $execution, $bd,$dh);
+           #my $error = "vmAPI_$vmType"->destroyVM($name, $merged_type, $execution, $bd,$dh);
+           my $error = "vmAPI_$vmType"->destroyVM($name, $merged_type);
            if (!($error eq 0)){print $error}
       }
       else{
 
            # call the corresponding vmAPI
            my $vmType = $vm->getAttribute("type");
-           my $error = "vmAPI_$vmType"->shutdownVM($name, $merged_type, $execution, $bd,$dh,$args->get('F'));
+           #my $error = "vmAPI_$vmType"->shutdownVM($name, $merged_type, $execution, $bd,$dh,$args->get('F'));
+           my $error = "vmAPI_$vmType"->shutdownVM($name, $merged_type, $args->get('F'));
            if (!($error eq 0)){print $error}
           
       }
@@ -2060,17 +2100,17 @@ sub mode_d {
       # release)
       my $time_0 = time();
       
-      if ((!$args->get('F'))&&($execution->get_exe_mode() != EXE_DEBUG)) {		
+      if ((!$args->get('F'))&&($execution->get_exe_mode() != $EXE_DEBUG)) {		
 
-         print "---------- Waiting until virtual machines extinction ----------\n"; #if ($execution->get_exe_mode() == EXE_VERBOSE);
+         print "---------- Waiting until virtual machines extinction ----------\n"; #if ($execution->get_exe_mode() == $EXE_VERBOSE);
 
          while (my $pids = &VM_alive($only_vm)) {
-            print "waiting on processes $pids...\n"; #if ($execution->get_exe_mode() == EXE_VERBOSE);
+            print "waiting on processes $pids...\n"; #if ($execution->get_exe_mode() == $EXE_VERBOSE);
             #system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
             sleep($dh->get_delay);
             my $time_f = time();
             my $interval = $time_f - $time_0;
-            print "$interval seconds elapsed...\n"; #if ($execution->get_exe_mode() == EXE_VERBOSE);
+            print "$interval seconds elapsed...\n"; #if ($execution->get_exe_mode() == $EXE_VERBOSE);
          }       
       }
 
@@ -2113,7 +2153,7 @@ sub mode_d {
          }
 
          # If <host_mapping> is in use and not in debug mode, process /etc/hosts
-         &host_mapping_unpatch ($dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != EXE_DEBUG));
+         &host_mapping_unpatch ($dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != $EXE_DEBUG));
 
          # To remove lock file (it exists while topology is running)
          $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_sim_dir . "/lock");
@@ -2297,7 +2337,8 @@ sub tun_destroy {
       my $name = $vm->getAttribute("name");
 
       # To throw away and remove management device (id 0), if neeed
-      my $mng_if_value = &mng_if_value($dh,$vm);
+      #my $mng_if_value = &mng_if_value($dh,$vm);
+      my $mng_if_value = &mng_if_value($vm);
       
       if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
          my $tun_if = $name . "-e0";
@@ -2388,7 +2429,8 @@ sub mode_P {
         # call the corresponding vmAPI
         my $vmType = $vm->getAttribute("type");
         
-        my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type, $dh,$bd,$execution);
+        #my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type, $dh,$bd,$execution);
+        my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type);
         if (!($error eq 0)){print $error}
  
     }
@@ -2424,7 +2466,7 @@ sub check_user {
     my $basename = basename $0;
 	
 	# In debug mode, anyone can run the script
-	return 0 if ($execution->get_exe_mode() == EXE_DEBUG);
+	return 0 if ($execution->get_exe_mode() == $EXE_DEBUG);
 	
 	# Root user alwais can run the script
 	return 0 if ($> == 0);
@@ -2440,7 +2482,8 @@ sub check_user {
 	
     # Search for managemente interfaces (management interfaces needs ifconfig in the host
     # side, and no-root user can not use it)
-	my $name = &at_least_one_vm_with_mng_if($dh,$dh->get_vm_ordered);
+	#my $name = &at_least_one_vm_with_mng_if($dh,$dh->get_vm_ordered);
+	my $name = &at_least_one_vm_with_mng_if($dh->get_vm_ordered);
     if ($dh->get_vmmgmt_type eq 'private' && $name ne '') {
     	return "private vm management is enabled, and only root can configure management interfaces\n
 		Try again using <mng_if>no</mng_if> for virtual machine $name or use net type vm management";
@@ -2845,7 +2888,7 @@ sub UMLs_cmd_ready {
     my %vm_ips = @_;
     
     # In debug mode, this check makes no sense, so always is true
-    return 1 if ($execution->get_exe_mode() == EXE_DEBUG);
+    return 1 if ($execution->get_exe_mode() == $EXE_DEBUG);
 
     # The presence of a "0" means that one vm cannot be reached
     foreach my $key (keys %vm_ips) {
@@ -2903,7 +2946,7 @@ sub get_UML_command_ip {
       # To look for UMLs IP in -M list
       if ($vm_hash{$name}) {
 
-         if ($execution->get_exe_mode() == EXE_DEBUG) {
+         if ($execution->get_exe_mode() == $EXE_DEBUG) {
             $vm_ips{$name} = "(undefined in debug time)";
 	       $counter++;
                next;
@@ -2913,7 +2956,8 @@ sub get_UML_command_ip {
             $vm_ips{$name} = "0"; 
 	 
             # To check whether management interface exists
-            if ($dh->get_vmmgmt_type eq 'none' || &mng_if_value($dh,$vm) eq "no") {
+            #if ($dh->get_vmmgmt_type eq 'none' || &mng_if_value($dh,$vm) eq "no") {
+            if ($dh->get_vmmgmt_type eq 'none' || &mng_if_value($vm) eq "no") {
 	 
                # There isn't management interface, check <if>s in the virtual machine
                my $ip_candidate = "0";
@@ -2940,7 +2984,7 @@ sub get_UML_command_ip {
                         }
                         if (&socket_probe($ip_effective,"22")) {
                            $ip_candidate = $ip_effective;
-                           print "$name sshd is ready (socket style): $ip_effective (if id=$id)\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+                           print "$name sshd is ready (socket style): $ip_effective (if id=$id)\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
                            last;
                         }
                      }
@@ -2949,7 +2993,7 @@ sub get_UML_command_ip {
                   }
                }
 	           if ($ip_candidate eq "0") {
-                  print "$name sshd is not ready (socket style)\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+                  print "$name sshd is not ready (socket style)\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
 	           }
                $vm_ips{$name} = $ip_candidate;
             }
@@ -2957,11 +3001,11 @@ sub get_UML_command_ip {
                # There is a management interface
                my $net = &get_admin_address($counter, $dh->get_vmmgmt_type, 2);
                if (!&socket_probe($net->addr(),"22")) {
-                  print "$name sshd is not ready (socket style)\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+                  print "$name sshd is not ready (socket style)\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
                   return %vm_ips;	# Premature exit
                }
                else {
-                  print "$name sshd is ready (socket style): ".$net->addr()." (mng_if)\n" if ($execution->get_exe_mode() == EXE_VERBOSE);
+                  print "$name sshd is ready (socket style): ".$net->addr()." (mng_if)\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
                   $vm_ips{$name} = $net->addr();
                }
             }
@@ -3446,7 +3490,7 @@ sub get_cter {
 #
 sub change_vm_status {
 
-   my $dh = shift;
+#   my $dh = shift;
    my $vm = shift;
    my $status = shift;
 
@@ -3642,7 +3686,7 @@ sub create_dirs {
       my $name = $vm->getAttribute("name");
 
 	  # create fs, hostsfs and run directories, if they don't already exist
-	  if ($execution->get_exe_mode() != EXE_DEBUG) {
+	  if ($execution->get_exe_mode() != $EXE_DEBUG) {
 		  if (! -d $dh->get_vm_dir ) {
 			  mkdir $dh->get_vm_dir or $execution->smartdie ("error making directory " . $dh->get_vm_dir . ": $!");
 
@@ -3666,14 +3710,15 @@ sub build_topology{
    my $opt_M = shift;
     try {
             # To load tun module if needed
-            if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
+            #if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
+            if (&tundevice_needed($dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
                 if (! -e "/dev/net/tun") {
                     !$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
                 }
             }
 
             # To make directory to store files related with the topology
-            if (! -d $dh->get_sim_dir && $execution->get_exe_mode != EXE_DEBUG) {
+            if (! -d $dh->get_sim_dir && $execution->get_exe_mode != $EXE_DEBUG) {
                 mkdir $dh->get_sim_dir or $execution->smartdie ("error making directory " . $dh->get_sim_dir . ": $!");
             }
             # To copy the scenario file
@@ -3724,7 +3769,17 @@ sub build_topology{
 	
 }
 
-####################
+
+# make_vm_API_doc
+#
+# Argument:
+# - the virtual machine name
+# - the notify_ctl
+# - the virtual machine number
+#
+# Creates the <create_conf> element containing the XML vm definition 
+# which is passed to vmAPIs 
+# 
 
 sub make_vm_API_doc {
 	
@@ -3856,6 +3911,15 @@ sub make_vm_API_doc {
             $vm_tag->addChild($console_tag);
             $console_tag->addChild($dom->createTextNode($console_value));
             $console_tag->addChild($dom->createAttribute( id => $console_id));
+			# Optional attributes: display and port            
+            my $console_display = $console->getAttribute("display");
+            if ($console_display ne "") {
+                $console_tag->addChild($dom->createAttribute( display => $console_display));
+            }
+            my $console_port = $console->getAttribute("port");
+            if ($console_port ne "") {
+                $console_tag->addChild($dom->createAttribute( port => $console_port));
+            }  
      }
    }   
 
@@ -3872,7 +3936,6 @@ sub make_vm_API_doc {
    $vm_tag->addChild($display_console_tag);
    $display_console_tag->addChild($dom->createTextNode($display_console)); 
    
-
    # To process all interfaces
    # To get UML's interfaces list
    my $if_list = $vm->getElementsByTagName("if");
@@ -4028,7 +4091,8 @@ sub make_vm_API_doc {
          $forwarding_tag->addChild( $dom->createAttribute( type => $f_type));
       }
       # Management interface, if needed
-      my $mng_if_value = &mng_if_value($dh,$vm);
+      #my $mng_if_value = &mng_if_value($dh,$vm);
+      my $mng_if_value = &mng_if_value($vm);
       my $mng_if_tag = $dom->createElement('mng_if');
       $vm_tag->addChild($mng_if_tag);
       $mng_if_tag->addChild( $dom->createAttribute( value => $mng_if_value));
@@ -4109,7 +4173,60 @@ sub para {
 	<STDIN>;
 }
 
+#
+# print_console_table_header: print the header of the console command's table
+#                             printed at the end of vnx execution with -t option 
+sub print_console_table_header {
 
+	my $scename=shift;
+	
+	print "-----------------------------------------------------------------------------------------\n";	
+	print " Scenario \"$scename\" started\n";
+	print "\n";	
+	printf " %-12s| %-20s| %s\n", "VM_NAME", "TYPE", "CONSOLE ACCESS COMMAND";	
+	print "-----------------------------------------------------------------------------------------\n";	
+}  
+
+#
+# print_console_table_entry: prints the information about the consoles of a virtual machine
+#
+sub print_console_table_entry {
+
+    my $vmName=shift;
+    my $merged_type=shift;
+    my $consFile=shift;
+    my $type=shift;
+	
+	my @cons = qw(con0 con1 con2 con3);
+	my $con;
+	my @consDesc;
+	
+	foreach $con (@cons) {
+		#my $conData= &get_conf_value ($consFile, $con, $execution);
+		my $conData= &get_conf_value ($consFile, $con);
+		#print "** $consFile $con conData=$conData\n";
+		if ($conData ne "") {
+			#print "** conData=$conData\n";
+		    my @consField = split(/,/, $conData);
+		    if ($consField[1] eq "vnc_display") {
+ 				push (@consDesc, "$con:  'virt-viewer $vmName' or 'vncviewer $consField[2]'");		    	
+		    } elsif ($consField[1] eq "telnet") {
+ 				push (@consDesc, "$con:  'telnet localhost $consField[2]'");		    	   	
+		    } elsif ($consField[1] eq "pts") {
+ 				push (@consDesc, "$con:  'virsh console $vmName' or 'screen $consField[2]'");		    	   		    	
+		    } else {
+		    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
+		    }
+		}
+	}
+	printf " %-12s| %-20s| %s\n", $vmName, $merged_type, $consDesc[0];
+	shift (@consDesc);
+	foreach (@consDesc) {
+		printf " %-12s| %-20s| %s\n", "", "", $_;
+	}
+	print "-----------------------------------------------------------------------------------------\n";	
+	#printf "%-12s  %-20s  ERROR: cannot open file $portfile \n", $name, $merged_type;
+}  
 
 
 ####################

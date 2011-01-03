@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VNX_VERSION="0.14b-`date +%Y%m%d%H%M`"
+VNX_VERSION="0.15b-`date +%Y%m%d%H%M`"
 OLIVE_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
 ACEDLF_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
 #ROOTFS_VERSION="es-v023b"

@@ -32,7 +32,6 @@ package vmAPI_uml;
 @ISA    = qw(Exporter);
 @EXPORT = qw(defineVM
   undefineVM
-  createVM
   destroyVM
   startVM
   shutdownVM
@@ -49,9 +48,8 @@ package vmAPI_uml;
 use Sys::Virt;
 use Sys::Virt::Domain;
 
-#de vnumlparser
+use VNX::Globals;
 use VNX::DataHandler;
-
 use VNX::Execution;
 use VNX::BinariesData;
 use VNX::Arguments;
@@ -75,9 +73,9 @@ use IO::Socket::UNIX qw( SOCK_STREAM );
 
 # Global objects
 
-my $execution;    # the VNX::Execution object
-my $dh;           # the VNX::DataHandler object
-my $bd;           # the VNX::BinariesData object
+#my $execution;    # the VNX::Execution object
+#my $dh;           # the VNX::DataHandler object
+#my $bd;           # the VNX::BinariesData object
 
 
 # Name of UML whose boot process has started but not reached the init program
@@ -102,9 +100,9 @@ sub defineVM {
 	my $vmName = shift;
 	my $type   = shift;
 	my $doc    = shift;
-	$execution = shift;
-	$bd        = shift;
-	$dh        = shift;
+#	$execution = shift;
+#	$bd        = shift;
+#	$dh        = shift;
 	my $sock    = shift;
 	my $counter = shift;
 	$curr_uml = $vmName;
@@ -261,9 +259,9 @@ sub createVM {
 	my $vmName = shift;
 	my $type   = shift;
 	my $doc    = shift;
-	$execution = shift;
-	$bd        = shift;
-	$dh        = shift;
+#	$execution = shift;
+#	$bd        = shift;
+#	$dh        = shift;
 	my $sock    = shift;
 	my $counter = shift;
 	$curr_uml = $vmName;
@@ -845,9 +843,9 @@ sub destroyVM {
 	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
-	$execution = shift;
-	$bd        = shift;
-	$dh        = shift;
+#	$execution = shift;
+#	$bd        = shift;
+#	$dh        = shift;
 
 	my $error = 0;
 	
@@ -916,9 +914,9 @@ sub startVM {
 	my $vmName = shift;
 	my $type   = shift;
 	my $doc    = shift;
-	$execution = shift;
-	$bd        = shift;
-	my $dh           = shift;
+#	$execution = shift;
+#	$bd        = shift;
+#	my $dh           = shift;
 	my $sock         = shift;
 	my $manipcounter = shift;
 
@@ -956,9 +954,9 @@ sub shutdownVM {
 	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
-	$execution = shift;
-	$bd        = shift;
-	$dh        = shift;
+#	$execution = shift;
+#	$bd        = shift;
+#	$dh        = shift;
 	$F_flag    = shift;
 
 	my $error = 0;
@@ -990,9 +988,9 @@ sub saveVM {
 	my $vmName   = shift;
 	my $type     = shift;
 	my $filename = shift;
-	$dh        = shift;
-	$bd        = shift;
-	$execution = shift;
+#	$dh        = shift;
+#	$bd        = shift;
+#	$execution = shift;
 	
 
 	my $error = 0;
@@ -1281,9 +1279,9 @@ sub executeCMD {
 	my $self = shift;
 	my $merged_type = shift;
 	my $seq  = shift;
-	$execution = shift;
-	$bd        = shift;
-	$dh        = shift;
+#	$execution = shift;
+#	$bd        = shift;
+#	$dh        = shift;
 	$vm    = shift;
 	my $name = shift;
 
@@ -1751,7 +1749,8 @@ sub halt_uml {
 			next;
 		}
 
-		&change_vm_status( $dh, $name, "REMOVE" );
+		#&change_vm_status( $dh, $name, "REMOVE" );
+		&change_vm_status( $name, "REMOVE" );
 
 		# Currently booting uml has already been killed
 		if ( defined($curr_uml) && $name eq $curr_uml ) {
@@ -2103,7 +2102,7 @@ sub kill_curr_uml {
 #
 sub change_vm_status {
 
-	my $dh     = shift;
+#	my $dh     = shift;
 	my $vm     = shift;
 	my $status = shift;
 
@@ -2165,7 +2164,8 @@ sub vm_tun_access {
 	my $name = $vm->getAttribute("name");
 
 	# To throw away and remove management device (id 0), if neeed
-	my $mng_if_value = &mng_if_value( $dh, $vm );
+	#my $mng_if_value = &mng_if_value( $dh, $vm );
+	my $mng_if_value = &mng_if_value( $vm );
 
 	if ( $dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no" ) {
 		return 1;
@@ -2351,7 +2351,8 @@ sub UML_bootfile {
 	$execution->execute( "hostname $vm_name", *CONFILE );
 
 	# Configure management interface internal side, if neeed
-	my $mng_if_value = &mng_if_value( $dh, $vm );
+	#my $mng_if_value = &mng_if_value( $dh, $vm );
+	my $mng_if_value = &mng_if_value( $vm );
 	unless ( $mng_if_value eq "no" || $dh->get_vmmgmt_type eq 'none' ) {
 		my $net = &get_admin_address( $number, $dh->get_vmmgmt_type, 2 );
 
@@ -2866,7 +2867,8 @@ sub get_ip_hostname {
 	my $vm = shift;
 
 	# To check <mng_if>
-	my $mng_if_value = &mng_if_value( $dh, $vm );
+	#my $mng_if_value = &mng_if_value( $dh, $vm );
+	my $mng_if_value = &mng_if_value( $vm );
 
 	my $if_list = $vm->getElementsByTagName("if");
 	for ( my $i = 0 ; $i < $if_list->getLength ; $i++ ) {
@@ -2946,9 +2948,9 @@ sub exec_command_host {
 
 	my $self = shift;
 	my $seq  = shift;
-	$execution = shift;
-	$bd        = shift;
-	$dh        = shift;
+#	$execution = shift;
+#	$bd        = shift;
+#	$dh        = shift;
 	
 
 	my $doc = $dh->get_doc;

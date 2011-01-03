@@ -37,6 +37,7 @@ require(Exporter);
               mng_if_value);
 
 use strict;
+use VNX::Globals;
 use VNX::TextManipulation;
 
 # vm_has_tag
@@ -118,12 +119,13 @@ sub vm_has_tag {
 #    
 sub at_least_one_vm_without_mng_if {
    
-   my $dh = shift;
+#   my $dh = shift;
    my @vm_ordered = @_;   
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
      my $vm = $vm_ordered[$i];
-     return $vm->getAttribute("name") if (&mng_if_value($dh,$vm) eq "no");
+     #return $vm->getAttribute("name") if (&mng_if_value($dh,$vm) eq "no");
+     return $vm->getAttribute("name") if (&mng_if_value($vm) eq "no");
    }
    return "";
 
@@ -144,12 +146,13 @@ sub at_least_one_vm_without_mng_if {
 #
 sub at_least_one_vm_with_mng_if {
  
-   my $dh = shift;  
+#   my $dh = shift;  
    my @vm_ordered = @_;   
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
      my $vm = $vm_ordered[$i];
-     return $vm->getAttribute("name") if (&mng_if_value($dh,$vm) ne "no");
+     #return $vm->getAttribute("name") if (&mng_if_value($dh,$vm) ne "no");
+     return $vm->getAttribute("name") if (&mng_if_value($vm) ne "no");
    }
    return "";
 
@@ -165,7 +168,7 @@ sub at_least_one_vm_with_mng_if {
 #    
 sub mng_if_value {
 
-   my $dh = shift;
+#   my $dh = shift;
    my $vm = shift;
 
    my $mng_if_value = $dh->get_default_mng_if;

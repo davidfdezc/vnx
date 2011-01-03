@@ -7,7 +7,7 @@ Just one Ubuntu virtual machine. Use this specification for testing
 
 -->
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.93.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.95.xsd">
   <global>
     <version>1.92</version>
     <scenario_name>simple_ubuntu</scenario_name>
@@ -21,6 +21,7 @@ Just one Ubuntu virtual machine. Use this specification for testing
   <vm name="ubuntu" type="libvirt" subtype="kvm" os="linux">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
     <mem>256M</mem>
+    <console id="0" display="no"/>
     <if id="1" net="Net0">
       <ipv4>10.0.0.4/24</ipv4>
     </if>

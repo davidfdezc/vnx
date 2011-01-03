@@ -36,6 +36,7 @@ require(Exporter);
 use strict;
 use NetAddr::IP;
 use Net::Pcap;
+use VNX::Globals;
 use VNX::FileChecks;
 use VNX::IPChecks;
 use VNX::NetChecks;
@@ -112,7 +113,7 @@ sub check_doc {
 	my $max_name_length = 12;
 	
 	# Get arguments
-	my $dh= shift;
+#	my $dh= shift;
 	my $bp = shift;
 	my $uid = shift;
 	
@@ -151,7 +152,8 @@ sub check_doc {
     #   my $tun_device = &text_tag($tun_device_list->item(0));
     #   return "$tun_device is not a valid absolute filename" unless &valid_absolute_filename($tun_device);
     #}
-    if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
+    #if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
+    if (&tundevice_needed($dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
        return $dh->get_tun_device . " (tun_device) is not a valid absolute filename" 
           unless &valid_absolute_filename($dh->get_tun_device);
        return  $dh->get_tun_device . " (tun_device) does not exist or is not readable (user $uid_name)"

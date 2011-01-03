@@ -30,6 +30,7 @@
 package BinariesData;
 
 use strict;
+use VNX::Globals;
 use VNX::TextManipulation;
 
 # TODO: constant should be included in a .pm that would be loaded from each module
@@ -57,7 +58,7 @@ sub new {
    "ifconfig", "cp", "cat", "lsof", "chown",
    "hostname", "route", "scp", "chmod", "ssh", "uml_mconsole",                                                                             
    "date", "ps", "grep", "kill", "ln", "mkisofs", "mktemp", "su", "find",
-   "qemu-img", "mkfs.msdos", "mount", "umount");
+   "qemu-img", "mkfs.msdos", "mount", "umount", "virsh", "sed");
    
    # List of optional binaries for xterm, vlan, screen and
    # uml_switch (defaults are empty: the add_additional_*_binaries 
@@ -93,7 +94,7 @@ sub new {
 #
 sub add_additional_xterm_binaries {
 	my $self = shift;
-	my $dh = shift;
+#	my $dh = shift;
 
     # Check <vm_defaults>, in order to detect consoles with xterm
     my %xterm_console_default;
@@ -173,7 +174,7 @@ sub add_additional_xterm_binaries {
 #
 sub add_additional_vlan_binaries {
    my $self = shift;
-   my $dh = shift;
+#   my $dh = shift;
    
    # Check that there are at least one <net> tag using vlan attribute   
    my @list = ();
@@ -190,7 +191,7 @@ sub add_additional_vlan_binaries {
 #
 sub add_additional_screen_binaries {
    my $self = shift;
-   my $dh = shift;
+#   my $dh = shift;
    
    my @list = ();
    
@@ -215,7 +216,7 @@ sub add_additional_screen_binaries {
 #
 sub add_additional_uml_switch_binaries {
    my $self = shift;
-   my $dh = shift;
+#   my $dh = shift;
    
    my @list = ();
    
@@ -242,7 +243,7 @@ sub add_additional_uml_switch_binaries {
 #
 sub add_additional_bridge_binaries {
    my $self = shift;
-   my $dh = shift;
+#   my $dh = shift;
    
    my @list = ();
    my $net_list = $dh->get_doc->getElementsByTagName("net");

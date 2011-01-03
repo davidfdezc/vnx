@@ -9,14 +9,14 @@ Just one Cisco virtual machine. Use this specification for testing
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.93.xsd">
+     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.95.xsd">
   <global>
     <version>1.92</version>
     <scenario_name>simple_dynamips</scenario_name>
     <automac offset="10"/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
-    </vm_defaults>
+	</vm_defaults>
     <dynamips_ext>simple_dynamips-dn.xml</dynamips_ext>
   </global>
   
@@ -26,11 +26,13 @@ Just one Cisco virtual machine. Use this specification for testing
   <vm name="cisco" type="dynamips" subtype="3600" os="">
 	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
 	<mem>96M</mem>
+  	<console id="1" display="yes"/>
 	<if id="1" net="Net0" name="e0/0">
 		<ipv4>10.0.0.10/24</ipv4>
 		<ipv6>2001:db8::10/64</ipv6>
     </if>
     <exec seq="brief" type="verbatim">show ip interface brief</exec>
+    <exec seq="cmdfile" type="file">conf/cisco-cmd-file.conf</exec>
     <exec seq="reload" type="verbatim">reload conf/cisco.conf</exec>
   </vm>
 
