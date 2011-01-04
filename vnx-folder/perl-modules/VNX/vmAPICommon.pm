@@ -103,9 +103,6 @@ sub exec_command_host {
 }
 
 
-
-
-
 #
 # Starts the console of a virtual machine using the application
 # defined in VNX_CONFFILE console_exe entry
