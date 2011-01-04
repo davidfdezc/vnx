@@ -209,7 +209,7 @@ sub exeCmdFile {
     my @cmdfileoutput;
     my @cmdoutput;
 
-    open INCLUDE_FILE, "$cmdFile" or return "ERROR: cannot open $cmdFile";
+    open (INCLUDE_FILE, "$cmdFile") or return "ERROR: cannot open $cmdFile";
     while (<INCLUDE_FILE>) {
 	# Se van ejecutando linea por linea
 	chomp;

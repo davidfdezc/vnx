@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE vnx SYSTEM "/usr/share/xml/vnx/vnx-1.92.dtd">
 
 <!--
 
@@ -8,7 +7,8 @@ Just one Linux virtual machine. Use this specification for testing
 
 -->
 
-<vnx>
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.95.xsd">
   <global>
     <version>1.92</version>
     <scenario_name>simple_uml</scenario_name>
@@ -29,6 +29,12 @@ Just one Linux virtual machine. Use this specification for testing
     <if id="1" net="Net0">
       <ipv4>10.0.0.2/24</ipv4>
     </if>
+    <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
+    <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
+    <exec seq="movefile" type="verbatim">mv /tmp/vnx.txt /root/</exec>
+    <!--exec seq="start-www" type="verbatim">chmod 644 /var/www/*</exec-->
+    <exec seq="start-www" type="verbatim">/etc/init.d/apache2 start</exec>
+    <exec seq="stop-www" type="verbatim">/etc/init.d/apache2 stop</exec>
   </vm>
 
   <host>
