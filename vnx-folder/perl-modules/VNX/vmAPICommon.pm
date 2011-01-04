@@ -27,22 +27,84 @@
 # vmAPI_common is used to store functions common to two or more vmAPI_* modules 
 
 package VNX::vmAPICommon;
-require(Exporter);
-
-@ISA    = qw(Exporter);
-@EXPORT = qw(	start_console
-				start_consoles_from_console_file
-);
 
 use strict;
 use warnings;
+use Exporter;
 use VNX::Execution;
 use VNX::FileChecks;
 use VNX::Globals;
 
-#my $DEF_CONS_DISPLAY = 'yes';  # By default consoles are displayed at startup
-#use constant DEF_CONS_DISPLAY => 'yes';  # By default consoles are displayed at startup
-#use constant VNX_CONFFILE => '/etc/vnx.conf';
+our @ISA    = qw(Exporter);
+our @EXPORT = qw(	
+
+	exec_command_host
+	start_console
+	start_consoles_from_console_file
+);
+
+
+###################################################################
+#
+sub exec_command_host {
+
+	my $self = shift;
+	my $seq  = shift;
+#	$execution = shift;
+#	$bd        = shift;
+#	$dh        = shift;
+	
+
+	my $doc = $dh->get_doc;
+
+	# If host <host> is not present, there is nothing to do
+	return if ( $doc->getElementsByTagName("host")->getLength eq 0 );
+
+	# To get <host> tag
+	my $host = $doc->getElementsByTagName("host")->item(0);
+
+	# To process exec tags of matching commands sequence
+	my $command_list = $host->getElementsByTagName("exec");
+
+	# To process list, dumping commands to file
+	for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
+		my $command = $command_list->item($j);
+
+		# To get attributes
+		my $cmd_seq = $command->getAttribute("seq");
+		my $type    = $command->getAttribute("type");
+
+		if ( $cmd_seq eq $seq ) {
+
+			# Case 1. Verbatim type
+			if ( $type eq "verbatim" ) {
+
+				# To include the command "as is"
+				$execution->execute( &text_tag_multiline($command) );
+			}
+
+			# Case 2. File type
+			elsif ( $type eq "file" ) {
+
+				# We open file and write commands line by line
+				my $include_file = &do_path_expansion( &text_tag($command) );
+				open INCLUDE_FILE, "$include_file"
+				  or $execution->smartdie("can not open $include_file: $!");
+				while (<INCLUDE_FILE>) {
+					chomp;
+					$execution->execute($_);
+				}
+				close INCLUDE_FILE;
+			}
+
+			# Other case. Don't do anything (it would be an error in the XML!)
+		}
+	}
+}
+
+
+
+
 
 #
 # Starts the console of a virtual machine using the application

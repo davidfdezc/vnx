@@ -8,6 +8,10 @@ use Readonly;
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(
 	
+	$version
+	$release
+	$branch
+	
 	$execution
 	$dh
 	$bd
@@ -26,6 +30,12 @@ our @EXPORT = qw(
 	$EXE_NORMAL
 );
 
+# Version information
+# my $version = "[arroba]PACKAGE_VERSION[arroba]";[JSF]
+# my $release = "[arroba]RELEASE_DATE[arroba]";[JSF]
+my $version;;
+my $release;
+my $branch;
 
 ###########################################################
 # Global objects

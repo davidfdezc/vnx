@@ -822,7 +822,7 @@ sub check_doc {
 
    # 21. To check all the <exec> and <filetree> with the same seq attribute 
    # has also the same user attribute
-   my $vm_list = $doc->getElementsByTagName("vm");
+   $vm_list = $doc->getElementsByTagName("vm");
    for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
    	   my $name = $vm_list->item($i)->getAttribute("name");
    	   my %seq_users;

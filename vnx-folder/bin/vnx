@@ -158,6 +158,7 @@ use VNX::NetChecks;
 use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
+use VNX::vmAPICommon;
 use VNX::vmAPI_uml;
 use VNX::vmAPI_libvirt;
 use VNX::vmAPI_dynamips;
@@ -206,13 +207,12 @@ $SIG{TERM} = \&handle_sig;
 ###########################################################
 # Other global variables
 
-# Version information
+# Version information (variables moved to VNX::Globals)
 # my $version = "[arroba]PACKAGE_VERSION[arroba]";[JSF]
 # my $release = "[arroba]RELEASE_DATE[arroba]";[JSF]
-my $version = "1.92beta1";
-my $release = "DD/MM/YYYY";
-
-my $branch = "";
+$version = "1.92beta1";
+$release = "DD/MM/YYYY";
+$branch = "";
 
 my $valid_fail;	              # flag used to detect error during XML validation   
 
@@ -1976,8 +1976,6 @@ sub mode_x {
 	
 	my %vm_ips;
 
-
-
    # If -B, block until ready
    if ($args->get('B')) {
       my $time_0 = time();
@@ -1993,7 +1991,8 @@ sub mode_x {
    }
    else {
       %vm_ips = &get_UML_command_ip($seq);
-      $execution->smartdie ("some vm is not ready to exec sequence $seq through net. Wait a while and retry...\n") unless &UMLs_cmd_ready(%vm_ips);
+      $execution->smartdie ("some vm is not ready to exec sequence $seq through net. Wait a while and retry...\n") 
+         unless &UMLs_cmd_ready(%vm_ips);
    }
    
    
@@ -2024,14 +2023,14 @@ sub mode_x {
        my $vmType = $vm->getAttribute("type");
 
        #my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $execution, $bd, $dh, $vm, $name);
-       my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $vm, $name);
+       my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $vm, $name, %vm_ips);
      	if (!($error eq 0)){
      		print $error
      	}
 	}
 
 	#vmAPI_uml->exec_command_host($seq,$execution,$bd,$dh);
-	vmAPI_uml->exec_command_host($seq);
+	exec_command_host($seq);
 
 }
 
@@ -2906,7 +2905,7 @@ sub UMLs_cmd_ready {
 # a premature exit happens.
 #
 # "ssh probes" are used against the management interface 
-# (if <mng_if>no</mng_if> is not present) or againts the direfente 
+# (if <mng_if>no</mng_if> is not present) or againts the different
 # <ipv4> addresses in the <if> of the virtual machines
 #
 # Argument:
