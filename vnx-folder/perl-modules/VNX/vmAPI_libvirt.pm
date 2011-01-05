@@ -60,7 +60,6 @@ use VNX::NetChecks;
 use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
-use VNX::Constants;
 use VNX::vmAPI;
 
 #needed for UML_bootfile
