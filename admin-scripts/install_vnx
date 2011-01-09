@@ -2,6 +2,7 @@
 
 VNX_VERSION="0.14b"
 ROOTFS_VERSION="es-v023b"
+EDIV_ALG_MODULES_DIR="/usr/share/ediv/algorithms"
 
 # Move to the directory where this script is
 cdir=$( dirname $0 )
@@ -15,6 +16,7 @@ then
    exit 1
 fi
 VNX_LIBS="$PERL_LIBS/VNX/"
+EDIV_LIBS="$PERL_LIBS/EDIV/"
 
 echo "** "
 echo "** Installing VNX v${VNX_VERSION}... "
@@ -24,12 +26,15 @@ echo "** "
 # Create directories if not already created
 #
 mkdir -vp ${VNX_LIBS}
+mkdir -vp ${EDIV_LIBS}
+mkdir -vp ${EDIV_ALG_MODULES_DIR}
 mkdir -vp /usr/share/xml/vnx
 mkdir -vp /usr/share/vnx/bin
 mkdir -vp /usr/share/vnx/examples/
 mkdir -vp /usr/share/vnx/filesystems
 mkdir -vp /usr/share/vnx/kernels
 mkdir -vp /usr/share/vnx/aced
+mkdir -vp /etc/ediv
 
 #
 # Copy vnx
@@ -38,9 +43,29 @@ cp -v bin/vnx /usr/bin
 chmod +x /usr/bin/vnx
 
 #
+# Copy ediv executables
+#
+cp -v bin/ediv_* bin/vn /usr/bin
+chmod +x /usr/bin/ediv_* /usr/bin/vn
+
+#
+# Copy other utilities
+#
+cp -v bin/vnx2dot.pl /usr/bin/vnx2dot
+chmod +x /usr/bin/vnx2dot
+
+#
 # Copy vnx perl modules
 #
 cp -v perl-modules/VNX/* ${VNX_LIBS}
+chmod 644 ${VNX_LIBS}*
+
+#
+# Copy ediv perl modules
+#
+cp -v perl-modules/EDIV/* ${EDIV_LIBS}
+chmod 644 ${VNX_LIBS}*
+cp -v perl-modules/algorithms/* ${EDIV_ALG_MODULES_DIR}
 chmod 644 ${VNX_LIBS}*
 
 #
@@ -66,10 +91,17 @@ chmod 755 /usr/share/vnx/bin/*
 #
 # Copy vnx config file
 #
-if [ -e /etc/vnx.conf ]; then
-	mv /etc/vnx.conf /etc/vnx.conf.bak
-fi
-cp -v data/vnx.conf /etc
+#if [ -e /etc/vnx.conf ]; then
+#	mv /etc/vnx.conf /etc/vnx.conf.bak
+#fi
+cp -v etc/vnx.conf /etc/vnx.conf.sample
+chmod 600 /etc/vnx.conf.sample
+
+#
+# Copy ediv config file
+#
+cp -v etc/cluster.conf /etc/ediv/cluster.conf.sample
+chmod 600 /etc/ediv/cluster.conf.sample
 
 #
 # Copy ace daemons 
@@ -79,3 +111,44 @@ cp -v aced/* /usr/share/vnx/aced
 echo "** "
 echo "** ...done"
 echo "** "
+
+#
+# Create vnx user and group (taken from postinst script of vnumlXXX.deb
+#
+
+VNX_TUN=/dev/net/tun
+TUN_GROUP=uml-net
+VNX_USER=vnx
+VNX_GROUP=vnx
+DATA=/var/run/vnx
+
+if ! grep "^$TUN_GROUP:" /etc/group > /dev/null 2>&1
+then
+   echo "creating TUN group: $TUN_GROUP"
+   groupadd $TUN_GROUP
+fi
+
+if ! grep "^$VNX_GROUP:" /etc/group > /dev/null 2>&1       
+then 
+   echo "creating VNX group: $VNX_GROUP"
+   groupadd $VNX_GROUP
+fi
+
+if ! grep "^$VNX_USER:" /etc/passwd > /dev/null 2>&1
+then
+   echo "creating VNX user: $VNX_USER"
+   useradd -d $DATA -g $VNX_GROUP -G $TUN_GROUP -s /bin/false $VNX_USER
+fi
+
+if ! [ -e $DATA ]
+then
+   # FIXME: is this the right place for mkdir?
+   echo "creating data dir: $DATA"
+   mkdir -p $DATA
+fi
+
+chgrp $TUN_GROUP $VNX_TUN
+chmod g+w $VNX_TUN
+chown $VNX_USER:$VNX_GROUP $DATA
+chmod 755 $DATA
+
