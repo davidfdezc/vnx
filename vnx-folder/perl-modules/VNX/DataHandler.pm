@@ -310,9 +310,9 @@ sub get_scename {
    return $self->{'global_data'}->{'scename'};
 } 
 
-# get_vnuml_dir
+# get_vnx_dir
 #
-# Returns the vnuml_dir
+# Returns the vnx_dir
 #
 sub get_vnx_dir {
    my $self = shift;

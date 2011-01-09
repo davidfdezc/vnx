@@ -6,7 +6,7 @@ See the tutorial/index.html document for details
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.92.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.95.xsd">
   <global>
     <version>1.92</version>
     <scenario_name>tutorial-r1_all</scenario_name>
@@ -27,7 +27,7 @@ See the tutorial/index.html document for details
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu-gui</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.1</ipv4>
+      <ipv4>10.0.0.1/24</ipv4>
     </if>
     <route type="ipv4" gw="10.0.0.3">default</route>
     <exec seq="start" type="verbatim">nohup /usr/bin/hello &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;</exec>
@@ -38,7 +38,7 @@ See the tutorial/index.html document for details
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.2</ipv4>
+      <ipv4>10.0.0.2/24</ipv4>
     </if>
     <route type="ipv4" gw="10.0.0.3">default</route>
     <exec seq="dir" type="verbatim">dir </exec>
@@ -54,13 +54,13 @@ See the tutorial/index.html document for details
     <kernel>/usr/share/vnx/kernels/linux</kernel>
     <console id="0">xterm</console>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.3</ipv4>
+      <ipv4>10.0.0.3/24</ipv4>
     </if>
     <if id="2" net="Net1">
-      <ipv4>10.0.1.1</ipv4>
+      <ipv4>10.0.1.1/24</ipv4>
     </if>
     <if id="3" net="Net3">
-      <ipv4>10.0.3.1</ipv4>
+      <ipv4>10.0.3.1/24</ipv4>
     </if>
     <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
     <forwarding type="ip" />
@@ -72,10 +72,10 @@ See the tutorial/index.html document for details
     <kernel>/usr/share/vnx/kernels/linux</kernel>
     <console id="0">xterm</console>
     <if id="1" net="Net1">
-      <ipv4>10.0.1.2</ipv4>
+      <ipv4>10.0.1.2/24</ipv4>
     </if>
     <if id="2" net="Net2">
-      <ipv4>10.0.2.1</ipv4>
+      <ipv4>10.0.2.1/24</ipv4>
     </if>
     <route type="ipv4" gw="10.0.1.1">default</route>
     <forwarding type="ip" />
@@ -85,7 +85,7 @@ See the tutorial/index.html document for details
    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_win7</filesystem>
    <mem>1G</mem>
    <if id="1" net="Net2">
-      <ipv4>10.0.2.2</ipv4>
+      <ipv4>10.0.2.2/24</ipv4>
     </if>
     <route type="ipv4" gw="10.0.2.1">default</route>
     <exec seq="dir" type="verbatim">dir </exec>
@@ -99,14 +99,14 @@ See the tutorial/index.html document for details
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_freebsd-gui</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net2">
-      <ipv4>10.0.2.3</ipv4>
+      <ipv4>10.0.2.3/24</ipv4>
     </if>
     <route type="ipv4" gw="10.0.2.1">default</route>    
   </vm>
   
   <host>
     <hostif net="Net3">
-       <ipv4>10.0.3.2</ipv4>
+       <ipv4>10.0.3.2/24</ipv4>
     </hostif>
     <route type="ipv4" gw="10.0.3.1">10.0.0.0/16</route>
   </host>

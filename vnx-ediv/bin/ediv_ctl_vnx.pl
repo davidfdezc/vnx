@@ -491,6 +491,7 @@ sub fillClusterHosts {
 		my $packed_ip = gethostbyname($current_name);
 		my $ip = inet_ntoa($packed_ip);
 		my $hostname = gethostbyaddr($packed_ip, AF_INET);
+		if ($hostname eq '') { $hostname = $ip }
 		my $mem = $cluster_config->get("$current_name"."_mem");
 		my $cpu = $cluster_config->get("$current_name"."_cpu");
 		my $cpu_dynamic_command = 'cat /proc/loadavg | awk \'{print $1}\'';

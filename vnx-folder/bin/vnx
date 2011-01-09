@@ -224,6 +224,10 @@ my @host_lines;
 # on the UML then '#' is appended.
 my $curr_uml;
 
+# VNX scenario file
+my $input_file;
+
+
 &main;
 exit(0);
 
@@ -259,7 +263,7 @@ sub main {
       $opt_destroy,$opt_define,$opt_undefine,
       $opt_start,$opt_save,$opt_restore,
       $opt_suspend, $opt_resume,$opt_reboot,
-      $opt_reset,$opt_execute,$opt_f);
+      $opt_reset,$opt_execute,$opt_f,$opt_showmap);
       
    Getopt::Long::Configure ("bundling"); # case sensitive single-character options
    GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
@@ -278,7 +282,8 @@ sub main {
               'save' => \$opt_save, 'restore' => \$opt_restore,
               'suspend' => \$opt_suspend, 'resume' => \$opt_resume,
               'reboot' => \$opt_reboot, 'reset' => \$opt_reset,
-              'execute=s' => \$opt_execute, 'f=s' => \$opt_f);
+              'execute=s' => \$opt_execute, 'f=s' => \$opt_f,
+              'showmap' => \$opt_showmap);
   
    # Build the argument object
    $args = new Arguments(
@@ -291,7 +296,7 @@ sub main {
       $opt_destroy,$opt_define,$opt_undefine,
       $opt_start,$opt_save,$opt_restore,
       $opt_suspend,$opt_resume,$opt_reboot,
-      $opt_reset,$opt_execute,$opt_f);
+      $opt_reset,$opt_execute,$opt_f,$opt_showmap);
       
 
 
@@ -389,6 +394,10 @@ sub main {
       $how_many_args++;
       $mode = "reset";
    }
+   if ($opt_showmap) {
+      $how_many_args++;
+      $mode = "showmap";
+   }
    
    
 
@@ -398,11 +407,11 @@ sub main {
 
    if ($how_many_args gt 1) {
       &usage;
-      &vnx_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset or -H\n");
+      &vnx_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --showmap or -H\n");
    }
    if ($how_many_args lt 1) {
       &usage;
-      &vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -P|--destroy, -V or -H\n"); 
+      &vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --showmap, -V or -H\n");
    }
    if (($opt_F) && (!($opt_d||$opt_shutdown))) { 
       &usage; 
@@ -499,7 +508,7 @@ sub main {
 
    # Check for file and cmd_seq, depending the mode
    my $cmdseq = '';
-   my $input_file;
+#   my $input_file;
 
    if ($opt_x) {
       $cmdseq = $opt_x;
@@ -522,10 +531,10 @@ sub main {
    # 4. To check vnuml_dir and tmp_dir
    # Create the working directory, if it doesn't already exist
    if ($exemode ne $EXE_DEBUG) {
-	   if (! -d $vnx_dir ) {
-		   mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
-	   }
-		 if ($> == 0) {
+	   	if (! -d $vnx_dir ) {
+		   	mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
+	   	}
+		if ($> == 0) {
 			 my $uid_name = getpwuid($uid);
 			 system("chown $uid $vnx_dir");
 			 $> = $uid;
@@ -533,15 +542,15 @@ sub main {
 			 &vnx_die ("vnx_dir $vnx_dir is not writeable (user $uid_name)\n") unless ( -w _);
 			 &vnx_die ("vnx_dir $vnx_dir is not a valid directory\n") unless (-d _);
 			 $> = 0;
-		 }
+		}
 
 
-	   if (! -d "$vnx_dir/scenarios") {
-		   mkdir "$vnx_dir/scenarios" or &vnx_die("Unable to create scenarios directory $vnx_dir/scenarios: $!\n");
-	   }
-	   if (! -d "$vnx_dir/networks") {
-		   mkdir "$vnx_dir/networks" or &vnx_die("Unable to create networks directory $vnx_dir/networks: $!\n");
-	   }
+	   	if (! -d "$vnx_dir/scenarios") {
+		   	mkdir "$vnx_dir/scenarios" or &vnx_die("Unable to create scenarios directory $vnx_dir/scenarios: $!\n");
+	   	}
+	   	if (! -d "$vnx_dir/networks") {
+		   	mkdir "$vnx_dir/networks" or &vnx_die("Unable to create networks directory $vnx_dir/networks: $!\n");
+	   	}
    }
    &vnx_die ("tmp_dir $tmp_dir does not exist or is not readable/executable\n") unless (-r $tmp_dir && -x _);
    &vnx_die ("tmp_dir $tmp_dir is not writeable\n") unless (-w _);
@@ -889,6 +898,13 @@ sub main {
      &mode_resume;
    }
    
+   elsif ($opt_showmap) {
+#     if ($exemode != $EXE_DEBUG) {
+#        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+#        unless &scenario_exists($dh->get_scename);
+#     }
+     &mode_showmap;
+   }
    else {
       $execution->smartdie("if you are seeing this text something terribly horrible has happened...\n");
    }
@@ -1222,6 +1238,24 @@ sub mode_resume {
       my $error = "vmAPI_$vmType"->resumeVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
+}
+
+sub mode_showmap {
+
+   my $scedir  = $dh->get_sim_dir;
+   my $scename = $dh->get_scename;
+   #print "**** scedir=$scedir\n"; 
+   #print "**** file=$input_file\n"; 
+   $execution->execute("vnx2dot ${input_file} > ${scedir}/${scename}.dot");
+   $execution->execute("neato -Tpng -o${scedir}/${scename}.png ${scedir}/${scename}.dot");
+   
+   my $gnome=`w -sh | grep gnome-session`;
+   my $viewapp;
+   if ($gnome ne "") { $viewapp="gnome-open" }
+                else { $viewapp="xdg-open" }
+   #$execution->execute("eog ${scedir}/${scename}.png");
+   $execution->execute("$viewapp ${scedir}/${scename}.png");
+
 }
 
 
@@ -1600,6 +1634,8 @@ sub host_config {
 	                 $ipv4_mask_attr =~ /.(\d+)$/;
 	                 $ipv4_effective_mask = &slashed_to_dotted_mask($1);
 	              }
+	           } else {
+                  	 print "WARNING (host): no mask defined for $ip address of host interface. Using default mask ($ipv4_effective_mask)\n";
 	           }
 	        }
 	       
@@ -3996,6 +4032,7 @@ sub make_vm_API_doc {
          my $ipv4_list = $if->getElementsByTagName("ipv4");
          #my $command = "";
          for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
+
             my $ip = &text_tag($ipv4_list->item($j));
             my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
             if (&valid_ipv4_with_mask($ip)) {
@@ -4012,23 +4049,25 @@ sub make_vm_API_doc {
                if ($ipv4_mask_attr ne "") {
                   # Slashed or dotted?
                   if (&valid_dotted_mask($ipv4_mask_attr)) {
-                     $ipv4_effective_mask = $ipv4_mask_attr;
+                  	 $ipv4_effective_mask = $ipv4_mask_attr;
                   }
                   else {
                      $ipv4_mask_attr =~ /.(\d+)$/;
                      $ipv4_effective_mask = &slashed_to_dotted_mask($1);
                   }
+               } else {
+                  	 print "WARNING (vm=$name): no mask defined for $ip address of interface $id. Using default mask ($ipv4_effective_mask)\n";
                }
             }
 	       
             my $ipv4_tag = $dom->createElement('ipv4');
             $if_tag->addChild($ipv4_tag);
-            # DFC: cambio para que el formato sea siempre x.x.x.x/y
-            # Hay que ver si fastidia algo en los demosnios de autoconfig
+            # TODO: cambiar para que el formato sea siempre x.x.x.x/y
+            # Hay que hacer cambios en los demonios de autoconfig
             # Lineas originales:
             $ipv4_tag->addChild( $dom->createAttribute( mask => $ipv4_effective_mask));
             $ipv4_tag->addChild($dom->createTextNode($ip));
-            # Nuevas lineas:
+            # Nuevas lineas para usar /24:
             #$ip = NetAddr::IP->new ($ip, $ipv4_effective_mask)->cidr();
             #$ipv4_tag->addChild($dom->createTextNode($ip));
                
@@ -4249,6 +4288,7 @@ sub usage {
 	print "       vnx -f VNX_file [--resume] [-M vm_list] [-v] [-u user] [-i]\n";
 	print "       vnx -f VNX_file [--reboot] [-M vm_list] [-v] [-u user] [-i]\n";
 	print "       vnx -f VNX_file [--reset] [-M vm_list] [-v] [-u user] [-i]\n";
+	print "       vnx -f VNX_file [--show-map] \n";
 	print "       vnx -h\n";
 	print "       vnx -V\n";
 	print "\n";
@@ -4265,6 +4305,7 @@ sub usage {
 	print "       --suspend, suspend all machines, or the ones speficied (if -M), using VNX_file as source.\n";
 	print "       --resume, resume all machines, or the ones speficied (if -M), using VNX_file as source.\n";
 	print "       --reboot, reboot all machines, or the ones speficied (if -M), using VNX_file as source.\n";
+	print "       --show-map, shows a map of the network build using graphviz.\n";
 	print "\n";
 	print "Pseudomode:\n";
 	print "       -V, show program version and exit.\n";

@@ -19,7 +19,7 @@ rm -rf tmp/*
 mkdir -p tmp/${FNAME}
 
 #
-# Create autoconf tar files
+# Create ACE tar files
 #
 mkdir -p tmp/aced
 rm -rf tmp/aced/*
@@ -49,12 +49,18 @@ rm -rf vnx-aced-lf-$ACEDLF_VERSION
 cd ../..
 
 
-
-cp -r vnx-folder/doc \
-      vnx-folder/bin \
+#
+# Copy all the files to tmp/${FNAME} directory to buil the tar file from there 
+#
+cp -r vnx-folder/doc  \
+      vnx-folder/etc  \
+      vnx-folder/bin  \
       vnx-folder/perl-modules \
       vnx-folder/data \
-      tmp/aced \
+      tmp/aced        \
+      vnx-ediv/bin    \
+      vnx-ediv/etc    \
+      vnx-ediv/perl-modules \
       tmp/${FNAME}
 
 #
