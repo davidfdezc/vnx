@@ -68,7 +68,8 @@ use Net::Telnet;
 use Net::IP;
 use Net::Telnet::Cisco;
 use File::Basename;
-
+use File::Spec;
+         
 #my $execution;    # the VNX::Execution object
 #my $dh;           # the VNX::DataHandler object
 #my $bd;           # the VNX::BinariesData object
@@ -1136,6 +1137,10 @@ sub reload_conf {
 	my $dynamipsPort = shift;
 	my $consFile = shift;
 	
+    if ($confFile !~ /^\//) {
+        # relative pathname
+        $confFile=File::Spec->rel2abs($confFile);
+    }
 	unless (-e $confFile) {	$execution->smartdie ("router $vmName configuration file not found ($confFile)") } 
 	my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
@@ -1563,6 +1568,7 @@ sub get_conf_file {
 			$global_tag = 0;
 		}
 	}
+	#print "**** get_conf_file: $result\n";
  	return $result;
 }
 
