@@ -156,6 +156,7 @@ sub createDB{
   					`local_simulation` text collate utf8_spanish_ci NOT NULL,
  					`host` text collate utf8_spanish_ci NOT NULL,
  					`local_specification` blob,
+ 					`ip` text collate utf8_spanish_ci NOT NULL,
   					`status` enum('creating','running','purging','destroying') collate utf8_spanish_ci NOT NULL
 					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_spanish_ci;";
 	$query = $dbh->prepare($query_string);
@@ -192,6 +193,7 @@ sub createDB{
 	
 	$query_string = "CREATE TABLE IF NOT EXISTS `vms` (
   					`name` text collate utf8_spanish_ci NOT NULL,
+  					`type` text collate utf8_spanish_ci NOT NULL,
   					`simulation` text collate utf8_spanish_ci NOT NULL,
   					`host` text collate utf8_spanish_ci NOT NULL,
   					`ssh_port` int(11) default NULL

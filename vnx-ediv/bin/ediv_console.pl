@@ -45,8 +45,8 @@ my $db_pass;
 my $db_connection_info;
 
 my $mode = $ARGV[0];
-my $simulation_name = $ARGV[1];
-my $virtual_machine = $ARGV[2];	
+my $scenario_name = $ARGV[1];
+my $vm_name = $ARGV[2];	
 
 #
 # Main	
@@ -149,36 +149,48 @@ sub getDBConfiguration {
 sub tunnelsInfo{
 	my $dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
 	
-	if ($simulation_name eq undef){
-		my $query_string = "SELECT `name`,`host`,`ssh_port`,`simulation` FROM vms";
+	if ($scenario_name eq undef){
+		my $query_string = "SELECT `name`,`host`,`ssh_port`,`simulation`,`type` FROM vms";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 			
 		while (@ports = $query->fetchrow_array()) {
-			print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] use local port $ports[2]\n");
+			if ($ports[4] eq "uml"){
+				print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] use local port $ports[2]\n");
+			}else{
+				print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] execute command 'ediv_console.pl console $ports[3] $ports[0]'\n");
+			}
 		}
 		
 		$query->finish();
 		
 	} else{
-		if ($virtual_machine eq undef){
-			my $query_string = "SELECT `name`,`host`,`ssh_port`,`simulation` FROM vms WHERE simulation='$simulation_name'";
+		if ($vm_name eq undef){
+			my $query_string = "SELECT `name`,`host`,`ssh_port`,`simulation`,`type` FROM vms WHERE simulation='$scenario_name'";
 			my $query = $dbh->prepare($query_string);
 			$query->execute();
 			
 			while (@ports = $query->fetchrow_array()) {
-				print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] use local port $ports[2]\n");
+				if ($ports[4] eq "uml"){
+					print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] use local port $ports[2]\n");
+				}else{
+					print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] execute command 'ediv_console.pl console $ports[3] $ports[0]'\n");
+				}
 			}
 			
 			$query->finish();
 			
 		} else{
-			my $query_string = "SELECT `name`,`host`,`ssh_port`,`simulation` FROM vms WHERE simulation='$simulation_name' AND name='$virtual_machine'";
+			my $query_string = "SELECT `name`,`host`,`ssh_port`,`simulation`,`type` FROM vms WHERE simulation='$scenario_name' AND name='$vm_name'";
 			my $query = $dbh->prepare($query_string);
 			$query->execute();
 			
-			my @ports = $query->fetchrow_array();
-			print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] use local port $ports[2]\n");
+			my @ports = $query->fetchrow_array();			
+			if ($ports[4] eq "uml"){
+				print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] use local port $ports[2]\n");
+			}else{
+				print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] execute command 'ediv_console.pl console $ports[3] $ports[0]'\n");
+			}
 						
 			$query->finish();
 		}
@@ -191,21 +203,85 @@ sub tunnelsInfo{
 #
 sub console {
 	my $dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
-	
-	my $query_string = "SELECT `ssh_port` FROM vms WHERE simulation='$simulation_name' AND name='$virtual_machine'";
+
+	my $query_string = "SELECT `type` FROM vms WHERE simulation='$scenario_name' AND name='$vm_name'";
 	my $query = $dbh->prepare($query_string);
 	$query->execute();
-	
-	my $port = $query->fetchrow_array();
+	my $vm_type = $query->fetchrow_array();
 	$query->finish;
 	
-	if ($port eq undef){
-		print ("The virtual machine $virtual_machine from simulation $simulation_name don't exist\nYou can execute ediv_query_status.pl to see that virtual machines exist\n");
-	} else {
-		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' root\@localhost -p $port";
-		system ($ssh_command);	
-	}
-	
-	$dbh->disconnect
+	my $query_string = "SELECT `host` FROM vms WHERE simulation='$scenario_name' AND name='$vm_name'";
+	my $query = $dbh->prepare($query_string);
+	$query->execute();
+	my $vm_host = $query->fetchrow_array();
+	$query->finish;
+
+	if ($vm_type eq undef){
+			print ("The virtual machine $vm_name from simulation $scenario_name doesn't exist\nYou can execute ediv_query_status.pl for a list of virtual machines\n");
+
+	}elsif ($vm_type eq "uml"){
+
+    	  		
+		my $query_string = "SELECT `ssh_port` FROM vms WHERE simulation='$scenario_name' AND name='$vm_name'";
+print "$query_string\n";
+		my $query = $dbh->prepare($query_string);
+		$query->execute();
+		my $port = $query->fetchrow_array();
+print "$port\n";
+		$query->finish;
+		
+		if ($port eq undef){
+			print ("The virtual machine $vm_name from simulation $scenario_name doesn't exist\nYou can execute ediv_query_status.pl to see that virtual machines exist\n");
+		} else {
+			my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' root\@localhost -p $port";
+			system ($ssh_command);	
+		}
+
+    }else{
+    	#for non-uml vms, execute the display command in their host
+		my $ssh_command = &build_display_command($dbh);
+		&daemonize($ssh_command, "/tmp/$vm_host"."_log");
+    }
+    
+    $dbh->disconnect;
 }
 
+sub build_display_command {
+	
+	my $dbh = shift;
+
+	my $query_string = "SELECT `host` FROM vms WHERE simulation='$scenario_name' AND name='$vm_name'";
+		my $query = $dbh->prepare($query_string);
+	$query->execute();
+	my $vm_host = $query->fetchrow_array();
+	$query->finish;
+	
+	$query_string = "SELECT `ip` FROM hosts WHERE simulation='$scenario_name' AND host='$vm_host'";
+		$query = $dbh->prepare($query_string);
+	$query->execute();
+	my $host_ip = $query->fetchrow_array();
+	$query->finish;
+	
+	$filename = "/tmp/$scenario_name" . "_" . "$vm_host".".xml";
+	
+    return "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename -v -u root --display -M $vm_name'"; 
+}
+
+	###########################################################
+	# Subroutine to launch background operations
+	###########################################################
+sub daemonize {	
+	print("\n");
+    my $command = shift;
+    my $output = shift;
+    print("Backgrounded command:\n$command\n------> Log can be found at: $output\n");
+    defined(my $pid = fork)			or die "Can't fork: $!";
+    return if $pid;
+    chdir '/tmp'					or die "Can't chdir to /: $!";
+    open STDIN, '/dev/null'			or die "Can't read /dev/null: $!";
+    open STDOUT, ">>$output"		or die "Can't write to $output: $!";
+    open STDERR, ">>$output"		or die "Can't write to $output: $!";
+    setsid							or die "Can't start a new session: $!";
+    system("$command") == 0			or die "Could not execute $command!";
+    exit();
+}
