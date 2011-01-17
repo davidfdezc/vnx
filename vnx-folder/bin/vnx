@@ -263,7 +263,8 @@ sub main {
       $opt_destroy,$opt_define,$opt_undefine,
       $opt_start,$opt_save,$opt_restore,
       $opt_suspend, $opt_resume,$opt_reboot,
-      $opt_reset,$opt_execute,$opt_f,$opt_showmap);
+      $opt_reset,$opt_execute,$opt_f,$opt_showmap,
+      $opt_display);
       
    Getopt::Long::Configure ("bundling"); # case sensitive single-character options
    GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
@@ -283,7 +284,7 @@ sub main {
               'suspend' => \$opt_suspend, 'resume' => \$opt_resume,
               'reboot' => \$opt_reboot, 'reset' => \$opt_reset,
               'execute=s' => \$opt_execute, 'f=s' => \$opt_f,
-              'showmap' => \$opt_showmap);
+              'showmap' => \$opt_showmap, 'display' => \$opt_display);
   
    # Build the argument object
    $args = new Arguments(
@@ -296,7 +297,7 @@ sub main {
       $opt_destroy,$opt_define,$opt_undefine,
       $opt_start,$opt_save,$opt_restore,
       $opt_suspend,$opt_resume,$opt_reboot,
-      $opt_reset,$opt_execute,$opt_f,$opt_showmap);
+      $opt_reset,$opt_execute,$opt_f,$opt_showmap,$opt_display);
       
 
 
@@ -313,7 +314,7 @@ sub main {
    }
 
    # 1. To use -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start,
-   # --undefine, --save, --restore, --suspend, --resume, --reboot, --reset at the same time
+   # --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --display at the same time
    
    my $how_many_args;
    my $mode;
@@ -397,6 +398,10 @@ sub main {
    if ($opt_showmap) {
       $how_many_args++;
       $mode = "showmap";
+   }
+   if ($opt_display) {
+      $how_many_args++;
+      $mode = "display";
    }
    
    
@@ -905,6 +910,11 @@ sub main {
 #     }
      &mode_showmap;
    }
+   
+      elsif ($opt_display) {
+     &mode_display;
+   }
+   
    else {
       $execution->smartdie("if you are seeing this text something terribly horrible has happened...\n");
    }
@@ -1258,6 +1268,41 @@ sub mode_showmap {
 
 }
 
+sub mode_display {
+	
+	my $opt_M = $args->get('M');
+
+	my @vm_ordered = $dh->get_vm_ordered;
+
+ 	my $scename = $dh->get_scename;
+	for ( my $i = 0; $i < @vm_ordered; $i++) {
+		my $vm = $vm_ordered[$i];
+			
+		my $name = $vm->getAttribute("name");
+		
+		unless ($opt_M eq $name){
+			next;
+		}
+		
+		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+			
+		if ( ($vm->getAttribute("type") eq "libvirt") || ( $vm->getAttribute("type") eq "dynamips") ) {
+			my $command = "virt-viewer $name &";
+			system $command;
+
+		} elsif ( $vm->getAttribute("type") eq "uml") {
+			my $vnx_dir = $dh->get_vnx_dir;
+			my $pts=`cat $vnx_dir/scenarios/$scename/vms/$name/run/pts`;
+			$pts =~ s/\s+$//;        # Delete linefeed at the end
+			my $command = "xterm -T $name -e screen -t $name $pts &";
+			system $command;
+			
+
+			}
+		}
+        
+
+}
 
 
 ####################################################################################

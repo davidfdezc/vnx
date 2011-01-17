@@ -120,7 +120,7 @@ if ( $mode eq '-t' | $mode eq '--create' ) {
 	print "\n  **** Parsing scenario ****\n\n";
 	&parseScenario;
 
-# JSF: metido en parse scenario, si funciona borrar
+# JSF: movido a parseScenario, borrar
 #	#if dynamips_ext node is present, update path
 #    $dynamips_ext_path = "";
 #    my $dynamips_extTagList=$dom_tree->getElementsByTagName("dynamips_ext");
@@ -210,7 +210,7 @@ unless ($vm_name){
 	# Send Configuration to each host.
 	&sendConfiguration;
 	
-	#TODO: código copiado a sub sendConfiguration, si funciona borrar esta subrutina.	
+	#jsf: código copiado a sub sendConfiguration, borrar esta subrutina.	
 	# Send dynamips configuration to each host.
 	#&sendDynConfiguration;
 	
@@ -718,7 +718,8 @@ sub fillScenarioArray {
 	for ($i=0; $i<$numberOfHosts;$i++){
 		my $scenarioNode=$nuevoNodo->cloneNode("true");
 		my $currentHostName=$cluster_hosts[$i]->hostName;
-		
+		my $currentHostIP=$cluster_hosts[$i]->ipAddress;
+
 
 		my $newdata=$data."_".$currentHostName;
 		$scenarioNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->setData($newdata);
@@ -790,7 +791,7 @@ sub fillScenarioArray {
 		$scenarioHash{$currentHostName} = $scenarioNode;	
 		# Save data into DB
 		
-		my $query_string = "INSERT INTO hosts (simulation,local_simulation,host,status) VALUES ('$data','$newdata','$currentHostName','creating')";
+		my $query_string = "INSERT INTO hosts (simulation,local_simulation,host,ip,status) VALUES ('$data','$newdata','$currentHostName','$currentHostIP','creating')";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		$query->finish();
@@ -816,6 +817,9 @@ sub splitIntoFiles {
 		my $virtualm=$virtualmList->item($m);
 		my $virtualm_name = $virtualm->getAttribute("name");
 		my $host_name = $allocation{$virtualm_name};
+		
+		#añadimos type para base de datos
+		my $virtualm_type = $virtualm->getAttribute("type");
 
 		my $newVirtualM=$virtualm->cloneNode("true");
 		$newVirtualM->setOwnerDocument($scenarioHash{$host_name});
@@ -839,7 +843,11 @@ sub splitIntoFiles {
 				die ("The vm $virtualm_name was already created... Aborting");
 			}
 			$query->finish();
-			$query_string = "INSERT INTO vms (name,simulation,host) VALUES ('$virtualm_name','$simulation_name','$host_name')";
+
+			#añadimos type
+			#$query_string = "INSERT INTO vms (name,simulation,host) VALUES ('$virtualm_name','$simulation_name','$host_name')";
+			$query_string = "INSERT INTO vms (name,type,simulation,host) VALUES ('$virtualm_name','$virtualm_type','$simulation_name','$host_name')";
+
 			$query = $dbh->prepare($query_string);
 			$query->execute();
 			$query->finish();
@@ -1583,7 +1591,7 @@ sub sendConfiguration {
 	###########################################################
 	# Subroutine to copy dynamips configuration file to cluster machines
 	###########################################################
-#TODO: código copiado a sub sendConfiguration, si funciona borrar esta subrutina.
+#TODO: código copiado a sub sendConfiguration, borrar esta subrutina.
 sub sendDynConfiguration {
 	if ($dynamips_ext_path ne ""){
 		print "\n\n  **** Sending dynamips configuration file to cluster hosts ****\n\n";
@@ -1670,8 +1678,17 @@ sub tunnelize {
 	my $simulation_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 	my $localport = 64000;
 
-	foreach $vm (keys (%allocation)) {
-		my $hostname = $allocation{$vm};
+	foreach $vm_name (keys (%allocation)) {
+		my $hostname = $allocation{$vm_name};
+		
+		# continue only if type of vm is "uml"
+		my $query_string = "SELECT `type` FROM vms WHERE name='$vm_name'";
+			my $query = $dbh->prepare($query_string);
+			$query->execute();
+			my $type_of_vm = $query->fetchrow_array();
+		unless($type_of_vm eq "uml"){
+			next;
+		}	
 		
 		while (1){
 			my $query_string = "SELECT `ssh_port` FROM vms WHERE ssh_port='$localport'";
@@ -1685,8 +1702,10 @@ sub tunnelize {
 			$localport++;
 			
 		}
-		system("ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:$vm:22 $hostname");	
-		my $query_string = "UPDATE vms SET ssh_port = '$localport' WHERE name='$vm'";
+		system("ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:$vm_name:22 $hostname");
+
+	
+		my $query_string = "UPDATE vms SET ssh_port = '$localport' WHERE name='$vm_name'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		$query->finish();	
