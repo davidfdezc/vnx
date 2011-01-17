@@ -195,7 +195,7 @@ sub new {
       $global_data{'dynamips_ext'} =  &text_tag($dynamipsmapping_list->item(0));
    }
    else {
- 	  $global_data{'dynamips_ext'} = 0;             # by default, management addresses are not mapped in /etc/hosts
+ 	  $global_data{'dynamips_ext'} = 0;             
    }
 
    # Network configuration options, if <netconfig> is present
