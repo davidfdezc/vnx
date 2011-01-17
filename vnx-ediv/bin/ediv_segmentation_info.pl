@@ -35,7 +35,7 @@ use POSIX qw(setsid setuid setgid);
 use Socket;								# To resolve hostnames to IPs
 
 use EDIV::cluster_host;                 # Cluster Host class 
-use EDIV::splitter;						# Module that assigns vm to host
+#use EDIV::splitter;						# Module that assigns vm to host
 use EDIV::static;  						# Module that process static assignment 
 
 

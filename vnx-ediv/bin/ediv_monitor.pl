@@ -170,7 +170,7 @@ sub sendVn{
 	foreach my $physical_host (@cluster_hosts) {
 		my $ip = $physical_host->ipAddress;
 		print "Copying vn command to $ip...";
-		my $scp_command = `scp -2 -o 'StrictHostKeyChecking no' vn root\@$ip:/tmp/`;
+		my $scp_command = `scp -2 -o 'StrictHostKeyChecking no' /usr/bin/vn root\@$ip:/tmp/`;
 		system ($scp_command);
 		print "done.\n";
 	
@@ -208,7 +208,7 @@ sub monitor{
 			}
 			push (@output, "  Load:  $uptime\n");
 
-			my $numScenariosCmd = "/tmp/vn console | grep available | awk '{print NF}'";
+			my $numScenariosCmd = "/tmp/vn console 2>&1 | grep available | awk '{print NF}'";
 			my $numScenarios = `ssh -2 -o 'StrictHostKeyChecking no' root\@$ip $numScenariosCmd`;
 			chomp $numScenarios;
 							

@@ -1842,27 +1842,36 @@ sub executeCMD {
 					$countfiletree++;
 					my $src;
 					my $filetree_value = &text_tag($filetree);
+
+					$src = &get_abs_path ($filetree_value);
+
+=BEGIN
 					if ( $filetree_value =~ /^\// ) {
-					# Absolute pathname
-					$src = &do_path_expansion($filetree_value);
+						# Absolute pathname
+						$src = &do_path_expansion($filetree_value);
 					}
 					else {
+						
 				      	# Calculate the efective basedir
       					my $basedir = $dh->get_default_basedir;
-      					my $basedir_list = $vm->getElementsByTagName("basedir");
-      					if ($basedir_list->getLength == 1) {
-					         $basedir = &text_tag($basedir_list->item(0));
-				      	}
-						# Relative pahtname
+      					# Comentado por DFC: esta parte sobre, es el mismo código de get_default_basedir
+      					#my $basedir_list = $vm->getElementsByTagName("basedir");
+      					#if ($basedir_list->getLength == 1) {
+					    #     $basedir = &text_tag($basedir_list->item(0));
+				      	#}
+						# Relative pathname
 						if ( $basedir eq "" ) {
-						# Relative to xml_dir
+							# Relative to xml_dir
 							$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
 						}
 						else {
-						# Relative to basedir
+							# Relative to basedir
 							$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
 						}
 					}
+=END
+=cut
+
 					$src = &chompslash($src);
 					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
 					
@@ -2132,6 +2141,9 @@ sub executeCMD {
 					$countfiletree++;
 					my $src;
 					my $filetree_value = &text_tag($filetree);
+
+					$src = &get_abs_path ($filetree_value);
+=BEGIN
 					if ( $filetree_value =~ /^\// ) {
 					# Absolute pathname
 					$src = &do_path_expansion($filetree_value);
@@ -2153,6 +2165,9 @@ sub executeCMD {
 							$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
 						}
 					}
+=END
+=cut
+
 					$src = &chompslash($src);
 					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
 					
@@ -2437,6 +2452,10 @@ sub executeCMD {
 					$countfiletree++;
 					my $src;
 					my $filetree_value = &text_tag($filetree);
+
+					$src = &get_abs_path ($filetree_value);
+
+=BEGIN
 					if ( $filetree_value =~ /^\// ) {
 						# Absolute pathname
 						$src = &do_path_expansion($filetree_value);
@@ -2451,6 +2470,9 @@ sub executeCMD {
 							$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
 						}
 					}
+=END
+=cut
+
 					$src = &chompslash($src);
 					$execution->execute("mkdir $vmmnt_dir/destination/".  $countfiletree);
 					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $vmmnt_dir/destination/" . $countfiletree );
@@ -2496,7 +2518,8 @@ sub executeCMD {
 							my @aux = split(' ', &text_tag($command));
 							print "*** config file = $aux[1]\n" if ($exemode == $EXE_VERBOSE);
 							# TODO: relative pathname
-							my $src;
+							my $src = &get_abs_path ($aux[1]);
+=BEGIN							
 							if ( $aux[1] =~ /^\// ) {
 								# Absolute pathname
 								$src = &do_path_expansion($aux[1]);
@@ -2511,6 +2534,10 @@ sub executeCMD {
 									$src =  &do_path_expansion(	&chompslash($basedir) . "/$aux[1]" );
 								}
 							}
+=END
+=cut							
+							
+							
 							$src = &chompslash($src);
 							$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $src $vmmnt_dir");													
 						}			

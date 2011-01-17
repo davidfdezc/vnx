@@ -33,12 +33,19 @@ package VNX::FileChecks;
 require(Exporter);
 
 @ISA = qw(Exporter);
-@EXPORT = qw(valid_absolute_directoryname valid_absolute_filename do_path_expansion get_conf_value);
+@EXPORT = qw(
+  valid_absolute_directoryname 
+  valid_absolute_filename 
+  do_path_expansion 
+  get_conf_value
+  get_abs_path
+);
 
 use strict;
 use File::Glob ':glob';
 use VNX::Globals;
 use VNX::Execution;
+use VNX::TextManipulation;
 
 # valid_absolute_directoryname
 #
@@ -119,6 +126,41 @@ sub get_conf_value {
 	    }
 	}
  	return $result;
+}
+
+# get_abs_path
+# 
+#   Converts a relative path to absolute following VNX rules:
+#     - if <basedir> tag is specified, then the path is relative to <basedir> value
+#     - if <basedir> tag is NOT specified, then the path is relative to the XML file location
+#   Beside, it performs tilde (and wildcard) expansion calling do_path_expansion 
+#   If the path is already absolute, it does not modify it (only the mentioned expansion ).
+# 
+# Arguments:
+#   pathname
+#
+# Result:
+#   absolut pathname
+# 
+sub get_abs_path {
+	
+	my $path = shift;
+	if ($path =~ /^\//) {
+    	# Absolute pathname
+		$path = &do_path_expansion($path);
+    } else {
+        # Relative pathname; we convert it to absolute
+   		my $basedir = $dh->get_default_basedir;
+		print "**** basedir: $basedir\n";
+		if ( $basedir eq "" ) {
+			# No <basedir> tag defined: relative to xml_dir
+			$path = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$path" );
+		}
+		else {
+			# <basedir> tag defined: relative to basedir value
+			$path = &do_path_expansion(	&chompslash($basedir) . "/$path" );
+		}
+	}			
 }
 
 1;

@@ -1,11 +1,12 @@
+#
 # vmAPI_dynamips.pm
 #
 # This file is a module part of VNX package.
 #
-# Authors: Jorge Somavilla, Jorge Rodriguez, Miguel Ferrer, Francisco José Martín, David Fernández
+# Authors: Jorge Rodriguez, David Fernández, Jorge Somavilla
 # Coordinated by: David Fernández (david@dit.upm.es)
 #
-# Copyright (C) 2010, 	DIT-UPM
+# Copyright (C) 2011, 	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN
@@ -69,12 +70,8 @@ use Net::IP;
 use Net::Telnet::Cisco;
 use File::Basename;
 use File::Spec;
-         
-#my $execution;    # the VNX::Execution object
-#my $dh;           # the VNX::DataHandler object
-#my $bd;           # the VNX::BinariesData object
 
-my $conf_file="";
+         
 my $dynamipsHost="localhost";
 my $dynamipsPort=get_dynamips_port_conf();
 
@@ -93,42 +90,22 @@ sub defineVM {
 	my $vmName = shift;
 	my $type   = shift;
 	my $doc    = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 	my $sock    = shift;
 	my $counter = shift;
+    my $extConfFile;
+	my $newRouterConfFile;
+	my $ifTagList;
+
+	# Get the extended configuration file if it exists
+	$extConfFile = $dh->get_default_dynamips();
+	print "*** dynamipsconf=$extConfFile\n";
+	if ($extConfFile ne "0"){
+		$extConfFile = &validate_ext_config_file($extConfFile);	
+	}
+	
 	my $doc2       = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
 
-
-# Comentado por DFC (31/12/2010) Sirve para algo?
-=BEGIN
-	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-
-		my $vm = $vm_ordered[$i];
-
-		# We get name attribute
-		my $name = $vm->getAttribute("name");
-
-		unless ( $name eq $vmName ) {
-			next;
-		}
-	}
-=END
-=cut	
-	
-	
-	# Configuramos el fichero de configuracion especial
-	my $dynamipsconf = $dh->get_default_dynamips();
-	if (!($dynamipsconf eq "0")){
-		my $result = &set_config_file($dh->get_default_dynamips());	
-	}
-
-		
-	my $filenameconf;
-	my $ifTagList;
-	
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parse($doc);
 	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
@@ -140,210 +117,125 @@ sub defineVM {
 	my $filesystem_type   = $filesystemTag->getAttribute("type");
 	my $filesystem        = $filesystemTag->getFirstChild->getData;
 	
-	# Definicion del fichero de configuracion extendida host
-	my $conf_dynamips = get_conf_file($vmName);
+	# Get the configuration file name of the router (if defined) 
+	# form the extended config file
+	my $routerConfFile = get_router_conf_file($extConfFile, $vmName);
+	print "**** conf_dynamips=$routerConfFile\n";
+
+	# $newRouterConfFile is the file where we will store the configuration of the new router	
+	$newRouterConfFile = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
 	
-	# Miro si hay definido en el XML un fichero de configuracion extendida
-	if (!($conf_dynamips eq 0))
-	{
-		# Compruebo que se puede abrir.
-	 	if (-e $conf_dynamips)
-		{
-			# Si existe, me voy al final del fichero y quito el end, ya que vamos a continuar
-			# desde el final.  
-	   	 	$filenameconf  = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
-	   	 	$execution->execute("sed '/end/d' " . $conf_dynamips . ">" . $filenameconf);
-	   	 	open (CONF_CISCO, ">>$filenameconf") || $execution->smartdie("ERROR: No puedo abrir el fichero $filenameconf");
-	   	 	
-	   	 	# Por defecto, los valores puestos en el XML del vnx ,
-	   	 	# prevalecen sobre los puestos en cualquier fichero de configuracion.
-	   	 	
-			print CONF_CISCO "hostname " . $vmName ."\n";
-	 		$ifTagList = $virtualm->getElementsByTagName("if");
-	 		my $numif = $ifTagList->getLength;
-	 		# Configuramos las interfaces.
-	 		# P.ej:
-	 		# 	interface e0/0
-			# 	 mac-address fefd.0003.0101
-			# 	 ip address 10.1.1.4 255.255.255.0
-			# 	 ipv6 enable
-			# 	 ipv6 address 2001:db8::1/64
-			# 	 no shutdown
-	 		
-	 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
-	 			my $ifTag = $ifTagList->item($j);
-				my $id    = $ifTag->getAttribute("id");
-				my $net   = $ifTag->getAttribute("net");
-				my $mac   = $ifTag->getAttribute("mac");
-				$mac =~ s/,//;
-				my @maclist = split(/:/,$mac);
-				$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
-				my $nameif   = $ifTag->getAttribute("name");
-				print CONF_CISCO "interface " . $nameif . "\n";	
-				print CONF_CISCO " mac-address " . $mac . "\n";
-				# Damos direccion IPv4	
-				my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
-				if ( $ipv4_list->getLength != 0 ) {
-					my $ipv4_Tag = $ipv4_list->item(0);
-					my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
-					my $subnetv4 = $ipv4_Tag->getAttribute("mask");
-					print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
-				}
-				# Damos direccion IPv6
-				my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
-				if ( $ipv6_list->getLength != 0 ) {
-					print CONF_CISCO " ipv6 enable\n";	
-					my $ipv6_Tag = $ipv6_list->item(0);
-					my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
-					print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
-					}
-				# Levantamos la interfaz
-				print CONF_CISCO " no shutdown\n";	
-	 		}
-	 		# Configura las rutas	
-			my $routeTagList = $virtualm->getElementsByTagName("route");
- 			my $numroute = $routeTagList->getLength;
- 			for ( my $j = 0 ; $j < $numroute ; $j++ ) {
- 				my $routeTag = 	$routeTagList->item($j);
- 				my $gw = $routeTag->getAttribute("gw");
- 				my $destination = $routeTag->getFirstChild->getData;
- 				my $maskdestination = "";
- 				if ($destination eq "default"){
- 					$destination = "0.0.0.0";
- 					$maskdestination = "0.0.0.0";
- 				}else {
- 					my $ip = new Net::IP ($destination) or $execution->smartdie (Net::IP::Error());
- 					$maskdestination = $ip->mask();
- 					$destination = $ip->ip();
- 				}
- 				print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
- 			}
- 			# Si en el fichero de configuracion extendida se define un usuario y password.
-			my @login_users = &get_login_user($vmName);
- 			my $login_user;
- 			my $check_login_user = 0;
- 			foreach $login_user(@login_users){
- 				my $user=$login_user->[0];
- 				my $pass=$login_user->[1];
- 				if (($user eq "")&&(!($pass eq ""))){
- 					print CONF_CISCO " line con 0 \n";
- 					print CONF_CISCO " password $pass\n";
- 					print CONF_CISCO " login\n";
- 				}elsif((!($user eq ""))&&(!($pass eq ""))){
-					print CONF_CISCO " username $user password 0 $pass\n";
-					$check_login_user= 1;
- 				}
-    		}
-    		if ($check_login_user eq 1){
-    			print CONF_CISCO " line con 0 \n";
- 				print CONF_CISCO " login local\n";
-    		}
- 			# Si el fichero de configuacion extendida se define una password de enable, se pone.
- 			my $enablepass = &get_enable_pass($vmName);
- 			if (!($enablepass eq "")){
-				print CONF_CISCO " enable password " . $enablepass . "\n";
-    		}
- 			print CONF_CISCO " end\n";
- 			close(CONF_CISCO);		 	
+	if ($routerConfFile ne 0) {
+		# A router config file has been defined, we check if exists 
+	 	if (-e $routerConfFile)	{
+			# Router config file exists: we copy the content of the conf file 
+			# provided to the new file, but deleting the "end" command 
+			# (if exists) to allow adding new configuration commands at the end
+	   	 	$execution->execute("sed '/^end/d' " . $routerConfFile . ">" . $newRouterConfFile);
 		}else{
-			$execution->smartdie("Can not open " . $conf_dynamips );
+			# ERROR: The router config file has been defined, but it does not exists 
+			$execution->smartdie("ERROR: cannot open " . $routerConfFile );
 		}
-	}
-	# Si no se ha definido ninguno, me defino el fichero de configuracion a pasar al cisco.
-	else{
-		$filenameconf = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
-		open (CONF_CISCO, ">$filenameconf") || $execution->smartdie("ERROR: No puedo abrir el fichero $filenameconf");
-		print CONF_CISCO "hostname " . $vmName ."\n";
- 		$ifTagList = $virtualm->getElementsByTagName("if");
- 		my $numif = $ifTagList->getLength;
- 			# Configuramos las interfaces.
-	 		# P.ej:
-	 		# 	interface e0/0
-			# 	 mac-address fefd.0003.0101
-			# 	 ip address 10.1.1.4 255.255.255.0
-			# 	 ipv6 enable
-			# 	 ipv6 address 2001:db8::1/64
-			# 	 no shutdown
- 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
- 			my $ifTag = $ifTagList->item($j);
-			my $id    = $ifTag->getAttribute("id");
-			my $net   = $ifTag->getAttribute("net");
-			my $mac   = $ifTag->getAttribute("mac");
-			$mac =~ s/,//;
-			my @maclist = split(/:/,$mac);
-			$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
-			my $nameif   = $ifTag->getAttribute("name");
-			print CONF_CISCO "interface " . $nameif . "\n";	
-			print CONF_CISCO " mac-address " . $mac . "\n";
-			# Damos direccion IPv4		
-			my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
-			if ( $ipv4_list->getLength != 0 ) {
-				my $ipv4_Tag = $ipv4_list->item(0);
-				my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
-				my $subnetv4 = $ipv4_Tag->getAttribute("mask");
-				print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
+	} else {
+		# No configuration file defined for the router 
+	}		
+ 	open (CONF_CISCO, ">>$newRouterConfFile") || 
+ 	   $execution->smartdie("ERROR: Cannot open $newRouterConfFile");
+	#open (CONF_CISCO, ">$newRouterConfFile") || $execution->smartdie("ERROR: No puedo abrir el fichero $newRouterConfFile");
+
+	# Hostname
+	print CONF_CISCO "hostname " . $vmName ."\n";
+
+	# Network interface configuration
+	$ifTagList = $virtualm->getElementsByTagName("if");
+	my $numif = $ifTagList->getLength;
+	# P.ej:
+	# 	interface e0/0
+	# 	 mac-address fefd.0003.0101
+	# 	 ip address 10.1.1.4 255.255.255.0
+	# 	 ipv6 enable
+	# 	 ipv6 address 2001:db8::1/64
+	# 	 no shutdown
+ 	for ( my $j = 0 ; $j < $numif ; $j++ ) {
+ 		my $ifTag = $ifTagList->item($j);
+		my $id    = $ifTag->getAttribute("id");
+		my $net   = $ifTag->getAttribute("net");
+		my $mac   = $ifTag->getAttribute("mac");
+		$mac =~ s/,//;
+		my @maclist = split(/:/,$mac);
+		$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
+		my $nameif   = $ifTag->getAttribute("name");
+		print CONF_CISCO "interface " . $nameif . "\n";	
+		print CONF_CISCO " mac-address " . $mac . "\n";
+		# Damos direccion IPv4		
+		my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
+		if ( $ipv4_list->getLength != 0 ) {
+			my $ipv4_Tag = $ipv4_list->item(0);
+			my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
+			my $subnetv4 = $ipv4_Tag->getAttribute("mask");
+			print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
+		}
+		# Damos direccion IPv6
+		my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
+		if ( $ipv6_list->getLength != 0 ) {
+			print CONF_CISCO " ipv6 enable\n";	
+			my $ipv6_Tag = $ipv6_list->item(0);
+			my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
+			print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
 			}
-			# Damos direccion IPv6
-			my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
-			if ( $ipv6_list->getLength != 0 ) {
-				print CONF_CISCO " ipv6 enable\n";	
-				my $ipv6_Tag = $ipv6_list->item(0);
-				my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
-				print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
-				}
-			# Levantamos la interfaz
-			print CONF_CISCO " no shutdown\n";		
+		# Levantamos la interfaz
+		print CONF_CISCO " no shutdown\n";		
+ 	}
+ 	# IP route configuration
+ 	my $routeTagList = $virtualm->getElementsByTagName("route");
+ 	my $numroute = $routeTagList->getLength;
+ 	for ( my $j = 0 ; $j < $numroute ; $j++ ) {
+ 		my $routeTag = 	$routeTagList->item($j);
+ 		my $gw = $routeTag->getAttribute("gw");
+ 		my $destination = $routeTag->getFirstChild->getData;
+ 		my $maskdestination = "";
+ 		if ($destination eq "default"){
+ 			$destination = "0.0.0.0";
+ 			$maskdestination = "0.0.0.0";
+ 		}else {
+ 			my $ip = new Net::IP ($destination) or $execution->smartdie (Net::IP::Error());
+ 			$maskdestination = $ip->mask();
+ 			$destination = $ip->ip();
  		}
- 		# Configura las rutas
- 		my $routeTagList = $virtualm->getElementsByTagName("route");
- 		my $numroute = $routeTagList->getLength;
- 		for ( my $j = 0 ; $j < $numroute ; $j++ ) {
- 			my $routeTag = 	$routeTagList->item($j);
- 			my $gw = $routeTag->getAttribute("gw");
- 			my $destination = $routeTag->getFirstChild->getData;
- 			my $maskdestination = "";
- 			if ($destination eq "default"){
- 				$destination = "0.0.0.0";
- 				$maskdestination = "0.0.0.0";
- 			}else {
- 				my $ip = new Net::IP ($destination) or $execution->smartdie (Net::IP::Error());
- 				$maskdestination = $ip->mask();
- 				$destination = $ip->ip();
- 			}
- 			print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
- 			
+ 		print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
+ 		
+ 	}
+ 	# Si en el fichero de configuracion extendida se define un usuario y password.
+ 	my @login_users = &get_login_user($extConfFile, $vmName);
+ 	my $login_user;
+ 	my $check_login_user = 0;
+ 	foreach $login_user(@login_users){
+ 		my $user=$login_user->[0];
+ 		my $pass=$login_user->[1];
+ 		if (($user eq "")&&(!($pass eq ""))){
+ 			print CONF_CISCO " line con 0 \n";
+ 			print CONF_CISCO " password $pass\n";
+ 			print CONF_CISCO " login\n";
+ 		}elsif((!($user eq ""))&&(!($pass eq ""))){
+			print CONF_CISCO " username $user password 0 $pass\n";
+			$check_login_user= 1;
  		}
- 		# Si en el fichero de configuracion extendida se define un usuario y password.
- 			my @login_users = &get_login_user($vmName);
- 			my $login_user;
- 			my $check_login_user = 0;
- 			foreach $login_user(@login_users){
- 				my $user=$login_user->[0];
- 				my $pass=$login_user->[1];
- 				if (($user eq "")&&(!($pass eq ""))){
- 					print CONF_CISCO " line con 0 \n";
- 					print CONF_CISCO " password $pass\n";
- 					print CONF_CISCO " login\n";
- 				}elsif((!($user eq ""))&&(!($pass eq ""))){
-					print CONF_CISCO " username $user password 0 $pass\n";
-					$check_login_user= 1;
- 				}
-    		}
-    		if ($check_login_user eq 1){
-    			print CONF_CISCO " line con 0 \n";
- 				print CONF_CISCO " login local\n";
-    		}
-    		
- 		# Si el fichero de configuacion extendida se define una password de enable, se pone.
- 		my $enablepass = get_enable_pass($vmName);
- 		if (!($enablepass eq "")){
-			print CONF_CISCO " enable password " . $enablepass . "\n";
-    	}
-    	# Se habilita el ip http server ya que si no se hace, el acceso por telnet se bloquea.
- 		print CONF_CISCO "ip http server\n";
- 		print CONF_CISCO " end\n";
- 		close(CONF_CISCO);	
-	}
+    }
+    if ($check_login_user eq 1){
+    	print CONF_CISCO " line con 0 \n";
+ 		print CONF_CISCO " login local\n";
+    }
+    	
+ 	# Si el fichero de configuacion extendida se define una password de enable, se pone.
+ 	my $enablepass = get_enable_pass($extConfFile, $vmName);
+ 	if (!($enablepass eq "")){
+		print CONF_CISCO " enable password " . $enablepass . "\n";
+    }
+    # Se habilita el ip http server ya que si no se hace, el acceso por telnet se bloquea.
+ 	# print CONF_CISCO "ip http server\n";
+ 	print CONF_CISCO " end\n";
+ 	close(CONF_CISCO);
+ 	
     # Preparar las variables
     my $memTagList = $virtualm->getElementsByTagName("mem");
     my $mem = "96";
@@ -373,11 +265,6 @@ sub defineVM {
     	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     }
     
-	
-	
-	#my $consoleportbase = "900";
-	#my $consoleport = $consoleportbase + $counter;
-
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
     print("hypervisor version\n") if ($exemode == $EXE_VERBOSE);
@@ -406,7 +293,6 @@ sub defineVM {
 	my $numcons     = $consTagList->getLength;
     my $consType;
     my %consPortDefInXML = (1,'',2,'');     # % means that consPortDefInXML is a perl associative array 
-#    my %consDisplayDefInXML = (1,$VNX::Globals::CONS_DISPLAY_DEFAULT,2,$VNX::Globals::CONS_DISPLAY_DEFAULT); 
     my %consDisplayDefInXML = (1,$CONS_DISPLAY_DEFAULT,2,$CONS_DISPLAY_DEFAULT); 
     print "** $vmName: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
 	for ( my $j = 0 ; $j < $numcons ; $j++ ) {
@@ -466,7 +352,7 @@ sub defineVM {
 	close (PORT_CISCO);
     
     # Set Chassis
-    my $chassis = &get_chassis($vmName);
+    my $chassis = &get_chassis($extConfFile, $vmName);
     $chassis =~ s/c//;
     print("c$model set_chassis $vmName $chassis\n");
     $t->print("c$model set_chassis $vmName $chassis");
@@ -481,7 +367,7 @@ sub defineVM {
     print("vm set_ram $vmName $mem\n");
     $t->print("vm set_ram $vmName $mem");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    if (&get_sparsemem($vmName) eq "true"){
+    if (&get_sparsemem($extConfFile, $vmName) eq "true"){
 		print("vm set_sparse_mem $vmName 1\n");
 		$t->print("vm set_sparse_mem $vmName 1");
    		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
@@ -494,7 +380,7 @@ sub defineVM {
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     
     #Set ios ghost
-    if (&get_ghost_ios($vmName) eq "true"){
+    if (&get_ghost_ios($extConfFile, $vmName) eq "true"){
     	print("vm set_ghost_status $vmName 2\n");
 		$t->print("vm set_ghost_status $vmName 2");
     	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
@@ -510,7 +396,7 @@ sub defineVM {
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     
     # Add slot cards
-    my @cards=&get_cards_conf($vmName);
+    my @cards=&get_cards_conf($extConfFile, $vmName);
     my $index = 0;
     foreach my $slot (@cards){
     	print("vm slot_add_binding $vmName $index 0 $slot \n");
@@ -521,7 +407,7 @@ sub defineVM {
     
     # Connect virtual networks to host interfaces
     $ifTagList = $virtualm->getElementsByTagName("if");
-	my $numif     = $ifTagList->getLength;
+	$numif     = $ifTagList->getLength;
 
 	for ( my $j = 0 ; $j < $numif ; $j++ ) {
 		my $ifTag = $ifTagList->item($j);
@@ -539,8 +425,8 @@ sub defineVM {
 	}
 	
 	# Set config file to router
-	print("vm set_config $vmName \"$filenameconf\" \n");
-   	$t->print("vm set_config $vmName \"$filenameconf\" ");
+	print("vm set_config $vmName \"$newRouterConfFile\" \n");
+   	$t->print("vm set_config $vmName \"$newRouterConfFile\" ");
    	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
    	$t->close;
 
@@ -560,12 +446,10 @@ sub defineVM {
 ####################################################################
 #
 sub undefineVM{
-		my $self   = shift;
+
+	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
@@ -589,12 +473,10 @@ sub undefineVM{
 ####################################################################
 #
 sub destroyVM{
+
 	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Destroying: $vmName\n" if ($exemode == $EXE_VERBOSE);
@@ -624,14 +506,12 @@ sub destroyVM{
 ####################################################################
 #
 sub startVM {
-	my $self   = shift;
-	my $vmName = shift;
-	my $type   = shift;
-	my $doc    = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	my $dh           = shift;
-	my $sock         = shift;
+
+	my $self    = shift;
+	my $vmName  = shift;
+	my $type    = shift;
+	my $doc     = shift;
+	my $sock    = shift;
 	my $counter = shift;
 
     print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
@@ -643,17 +523,7 @@ sub startVM {
     print $line if ($exemode == $EXE_VERBOSE);
 
     # Display consoles 
-	#VNX::vmAPICommon->start_consoles_from_console_file ($vmName, $dh->get_vm_dir($vmName) . "/console", $execution);
 	VNX::vmAPICommon->start_consoles_from_console_file ($vmName, $dh->get_vm_dir($vmName) . "/console");
-
-    # display console if required
-#	my $parser       = new XML::DOM::Parser;
-#	my $dom          = $parser->parse($doc);
-#	my $display_console   = $dom->getElementsByTagName("display_console")->item(0)->getFirstChild->getData;
-#	unless ($display_console eq "no") {
-#		my $consoleport=&get_port_conf($vmName,$counter);
-#    	$execution->execute("xterm -title Dynamips_$vmName -e 'telnet $dynamipsHost $consoleport' >/dev/null 2>&1 &");
-#	}    
 
 }
 
@@ -672,9 +542,6 @@ sub shutdownVM{
 	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 	my $F_flag    = shift;
 		
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
@@ -707,9 +574,6 @@ sub saveVM{
 	my $vmName   = shift;
 	my $type     = shift;
 	my $filename = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 		
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
@@ -721,7 +585,7 @@ sub saveVM{
     $t->close;
 	
 }
-#
+
 #
 ####################################################################
 ##                                                                 #
@@ -737,9 +601,6 @@ sub restoreVM{
 	my $vmName   = shift;
 	my $type     = shift;
 	my $filename = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Rebooting router: $vmName\n" if ($exemode == $EXE_VERBOSE);
@@ -771,9 +632,6 @@ sub suspendVM{
 	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
@@ -800,9 +658,6 @@ sub resumeVM{
 	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
@@ -840,8 +695,6 @@ sub rebootVM{
     $t->print("vm start $vmName");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
-
-	
 }
 
 ####################################################################
@@ -881,23 +734,24 @@ sub resetVM{
 ####################################################################
 #
 sub executeCMD{
-	my $self = shift;
+
+	my $self        = shift;
 	my $merged_type = shift;
-	my $seq  = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
-	my $vm    = shift;
-	my $vmName = shift;
+	my $seq         = shift;
+	my $vm          = shift;
+	my $vmName      = shift;
+	
 	my @output = "Nothing to show";
 	my $temp;
 	my $port;
+	my $extConfFile; 
+	
 	# Recupero el puerto telnet de acceso al router
 	my $consFile = $dh->get_vm_dir($vmName) . "/console";
 	# Configuro el fichero de configuracion extendida
-	my $dynamipsconf = $dh->get_default_dynamips();
-	if (!($dynamipsconf eq "0")){
-		&set_config_file($dh->get_default_dynamips());
+	$extConfFile = $dh->get_default_dynamips();
+	if ($extConfFile ne "0"){
+		$extConfFile = &validate_ext_config_file($extConfFile);	
 	}
 	# Get the console port from vm's console file
 	open (PORT_CISCO, "< $consFile") || $execution->smartdie ("ERROR: cannot open $vmName console file ($consFile)");
@@ -958,35 +812,17 @@ sub executeCMD{
 					if ($command_tag =~ m/^reload/){
 						my @file_conf = split('reload ',$command_tag);
 						&reload_conf ($vmName, $file_conf[1], $dynamipsHost, $dynamipsPort, $consFile);
-=BEGIN						
-						my $t = new Net::Telnet (Timeout => 10);
-					    $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-					    print("vm stop $vmName \n");
-						$t->print("vm stop $vmName");
-						sleep(2);
-					    my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-					   	print("vm set_config $vmName \"$filenameconf\" \n");
-					   	$t->print("vm set_config $vmName \"$filenameconf\" ");
-					   	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-					   	$t->print("vm start $vmName");
-					    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-					    sleep (3);
-   						#$execution->execute("xterm -title Dynamips_$vmName -e 'telnet $dynamipsHost $port' >/dev/null 2>&1 &");
-   						#VNX::vmAPICommon->start_consoles_from_console_file ($vmName, $consFile, $execution);
-   						VNX::vmAPICommon->start_consoles_from_console_file ($vmName, $consFile);
-=END
-=cut   									
 					}else{
 						# Command is not a 'reload', we execute it 
 
 						# Get the user name and password. If several users are define, 
 						# we just take the first one.
-						my @login_users = &get_login_user($vmName);
+						my @login_users = &get_login_user($extConfFile, $vmName);
 		     			my $login_user = $login_users[0];
 		 				my $user=$login_user->[0];
 						my $pass=$login_user->[1];
 						# Get enable password
- 						my $enablepass = get_enable_pass($vmName);
+ 						my $enablepass = get_enable_pass($extConfFile, $vmName);
 						# create CiscoExeCmd object to connect to router console
 						my $sess = new VNX::CiscoExeCmd ('localhost', $port, $user, $pass, $enablepass);
 						# Connect to console
@@ -1007,45 +843,6 @@ sub executeCMD{
 						$sess->exeCmd ("disable");
 						$sess->exeCmd ("exit");
 						$sess->close;
-						
-=BEGIN
-						# Para que funcione correctamente se ha de hacer siempre primero esta secuencia
-						# en telnet para dejarle preparado aunque esté en situacion desconocida.
-						$telnet = new Net::Telnet (Timeout => 10);
-   						$telnet->open(Host => '127.0.0.1', Port => $port);
-    					$telnet->print("");
-    					$telnet->print("");
-    					$telnet->print("");
-    					$telnet->print("exit");
-    					$telnet->print("");
-    					$telnet->print("");
-    					$telnet->print("");
-    					sleep(3);
-    					$telnet->close;
-    					# Hasta aqui es la secuencia.
-    					# Se conecta a traves de un nuevo modulo perl al cisco a traves del puerto leido anterior mente
-						my $session = Net::Telnet::Cisco->new(Host => $dynamipsHost, Port => $port);
-						# Siempre se ejecuta este comando para que estemos en una situacion conocida.
-						$session->cmd(' show version');
-						# Se adquiere en pass de enable.
-						# Si no tiene, esta funcion devolvera un "" que significa que no tiene pass
-						# y que es admitida por el cisco si el enable no tienen password
-						my $enablepass = get_enable_pass($vmName);
-						if ($session->enable($enablepass)){
-							# Se ejecuta el comando.
-							@output = $session->cmd(" $command_tag");
-							# Se sale del enable para seguridad de no poder ejecutar otro comando sin permiso
-							$session->disable();
-						}else {
-							die ("Can't enable")
-						}
-						$session->close();
-						# Saca por pantalla el resulŧado del comando anterior
-						print "\nOutput of command \"$command_tag\" on $vmName\n";
-						print "@output";
-=END
-=cut															
-								
 					}
 				}
 				# Case 2. File type
@@ -1058,12 +855,12 @@ sub executeCMD{
 							
 					# Get the user name and password. If several users are define, 
 					# we just take the first one.
-					my @login_users = &get_login_user($vmName);
+					my @login_users = &get_login_user($extConfFile, $vmName);
 	     			my $login_user = $login_users[0];
 	 				my $user=$login_user->[0];
 					my $pass=$login_user->[1];
 					# Get enable password
-					my $enablepass = get_enable_pass($vmName);
+					my $enablepass = get_enable_pass($extConfFile, $vmName);
 					# create CiscoExeCmd object to connect to router console
 					my $sess = new VNX::CiscoExeCmd ('localhost', $port, $user, $pass, $enablepass);
 					# Connect to console
@@ -1084,42 +881,6 @@ sub executeCMD{
 					$sess->exeCmd ("disable");
 					$sess->exeCmd ("exit");
 					$sess->close;
-						
-=BEGIN							
-					open INCLUDE_FILE, "$include_file"
-					  or $execution->smartdie("can not open $include_file: $!");
-					  	# Secuencia para dejar el router en un estado conocido
-					  	$telnet = new Net::Telnet (Timeout => 10);
-   						$telnet->open(Host => '127.0.0.1', Port => $port);
-    					$telnet->print("");
-    					$telnet->print("");
-    					$telnet->print("");
-    					$telnet->print("exit");
-    					$telnet->print("");
-    					$telnet->print("");
-    					$telnet->print("");
-    					sleep(3);
-    					$telnet->close;
-    					# Fin de la secuencia
-						my $session = Net::Telnet::Cisco->new(Host => $dynamipsHost, Port => $port);
-						# Comando para dejartlo en estado conocido.
-						$session->cmd(' show version');
-						print "\nExecution: Command --> Output\n";
-						while (<INCLUDE_FILE>) {
-							# Se van ejecutando linea por linea
-							chomp;
-							$command_tag = $_;
-							@output = $session->cmd(" $command_tag");
-							print "$command_tag --> @output\n";
-						}
-    					$session->cmd(" end");
-    					# Cuando se acaba, se hace un disable para mayor seguridad.
-						$session->disable();
-						$session->close();
-						close INCLUDE_FILE;
-=END
-=cut
-
 				}
 	
 			# Other case. Don't do anything (it would be and error in the XML!)
@@ -1128,19 +889,18 @@ sub executeCMD{
 	}	
 }
 
-## INTERNAL USE ##
-
+#
+# Internal subs
+#
 sub reload_conf {
+
 	my $vmName    = shift;
 	my $confFile = shift;
 	my $dynamipsHost = shift;
 	my $dynamipsPort = shift;
 	my $consFile = shift;
 	
-    if ($confFile !~ /^\//) {
-        # relative pathname
-        $confFile=File::Spec->rel2abs($confFile);
-    }
+	$confFile = &get_abs_path ($confFile);
 	unless (-e $confFile) {	$execution->smartdie ("router $vmName configuration file not found ($confFile)") } 
 	my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
@@ -1157,37 +917,40 @@ sub reload_conf {
 }
 
 
-
-# Recibe un fichero o directorio y devuelve el path absoluto si es que no lo es en un principio
-sub get_absolute_file{
+# 
+# validate_ext_config_file
+# 
+#   Checks the existence of the extended configuration file and validates it.
+#   Returns the full pathname of the file.
+#
+# Arguments:
+#   extConfFile: the extended configuration filename provided in the XML
+#
+# Returns
+#   full path name of file
+#
+sub validate_ext_config_file{
 	my $tempconf = shift;
-	# Comprueba si es una variable global o no
-	if (!($tempconf =~ m/^\/((\w|\.|-)+\/)*(\w|\.|-)+$/)){
-		return( $dh->get_xml_dir() . $tempconf);
-	}
-	return $tempconf;
-}
+	print "************************************************************************\n";
+	print "*** set_and_validate_ext_config_file: tempconf=$tempconf\n";
+	print "************************************************************************\n";
 
-sub set_config_file{
-	my $tempconf = shift;
-	# Comprueba si es una variable global o no
-	if (!($tempconf =~ m/^\/((\w|\.|-)+\/)*(\w|\.|-)+$/)){
-		$tempconf = $dh->get_xml_dir() . $tempconf;
-	}
+	$tempconf = &get_abs_path ($tempconf);
+	
 	# Comprueba que exista el fichero
 	if (-e $tempconf){
-		$conf_file = $tempconf;;
-		open CONF_EXT_FILE, "$conf_file";
+		#$extConfFile = $tempconf;
+		open CONF_EXT_FILE, "$tempconf";
    			my @conf_file_array = <CONF_EXT_FILE>;
-   			my $conf_file_string = join("",@conf_file_array);
+   			my $extConfFile_string = join("",@conf_file_array);
    		close CONF_EXT_FILE;
 		my $schemalocation;
 
 #jsf	if ($input_file_string =~ /="(.*).xsd"/) {
-	    if ($conf_file_string =~ /="(\S*).xsd"/) {
+	    if ($extConfFile_string =~ /="(\S*).xsd"/) {
         	$schemalocation = $1 .".xsd";
 		}else{
-			print "input_file_string = $conf_file_string, $schemalocation=schemalocation\n" if ($exemode == $EXE_VERBOSE);
+			print "input_file_string = $extConfFile_string, $schemalocation=schemalocation\n" if ($exemode == $EXE_VERBOSE);
 			$execution->smartdie("XSD not found");
 		}
 		if (!(-e $schemalocation)){
@@ -1199,35 +962,39 @@ sub set_config_file{
 		
 		my $parser = XML::LibXML->new;
 		#$doc    = $parser->parse_file($document);
-		my $doc = $parser->parse_file($conf_file);
+		my $doc = $parser->parse_file($tempconf);
 		
 		eval { $schema->validate($doc) };
 	
 		if ($@) {
 		  # Validation errors
-		  $execution->smartdie("$conf_file is not a well-formed VNX file");
+		  $execution->smartdie("$tempconf is not a well-formed Dynamips extended configuration file");
 		}
-		return 0;	
+    	print "*** set_and_validate_ext_config_file: tempconf=$tempconf\n";
+		return $tempconf;	
 	}else
 	{
-		$execution->smartdie("$conf_file not found");
+		$execution->smartdie("$tempconf not found");
 	}
 }
 
 # Devuelve en un array de dos columnas, los valores dados en la etiqueta login del XML
 # Por defecto (si no existe) no devuelve usuarios.
 sub get_login_user {
-	my $vmName = shift;
+
+	my $extConfFile = shift;
+	my $vmName    = shift;
+
 	my @users;
 	
-	# Si no hay fichero, se pone el valor por defecto de ""
-	unless(-e $conf_file){
+	# If the extended config file is not defined, return default value 
+	if ($extConfFile eq '0'){
 		push(@users,["",""]);
 		return @users;
 	}
 	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($conf_file);
+	my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 		
@@ -1288,15 +1055,18 @@ sub get_login_user {
 #                  or an empty string if not defined
 sub get_enable_pass {
 
+	my $extConfFile = shift;
 	my $vmName = shift;
+
 	my $result = "";
 
-	unless(-e $conf_file){
+	# If the extended config file is not defined, return default value 
+	if ($extConfFile eq '0'){
 		return $result;
 	}
 	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($conf_file);
+	my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 		
@@ -1342,15 +1112,19 @@ sub get_enable_pass {
 # Devuelve el valor de la etiqueta sparsemem
 # Si no se define, devuelve un valor true.
 sub get_sparsemem {
-	my $vmName = shift;
+
+	my $extConfFile = shift;
+	my $vmName    = shift;
+
 	my $result = "true";
 	
-	unless(-e $conf_file){
+	# If the extended config file is not defined, return default value 
+	if ($extConfFile eq '0'){
 		return $result;
 	}
 	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($conf_file);
+	my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 		
@@ -1395,15 +1169,19 @@ sub get_sparsemem {
 # Devuelve el valor de la etiqueta ghost_ios
 # Si no se define, devuelve un valor false.
 sub get_ghost_ios {
-	my $vmName = shift;
+	
+	my $extConfFile = shift;
+	my $vmName    = shift;
+
 	my $result = "false";
 	
-	unless(-e $conf_file){
+	# If the extended config file is not defined, return default value 
+	if ($extConfFile eq '0'){
 		return $result;
 	}
 	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($conf_file);
+	my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 		
@@ -1457,17 +1235,20 @@ sub get_ghost_ios {
 #   el de por defecto, que es "c3640"							# 
 #################################################################
 sub get_chassis {
-	my $vmName = shift;
-	# Valor por defecto en caso de no encontrarse definicion en el fichero de configuarcion
-	# extendida
+
+	my $extConfFile = shift;
+	my $vmName    = shift;
+
+	# Default chasis if not defined in extended config file
 	my $result = "c3640";
 	
-	unless(-e $conf_file){
+	# If the extended config file is not defined, return default value 
+	if ($extConfFile eq '0'){
 		return $result;
 	}
 	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($conf_file);
+	my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 		
@@ -1520,27 +1301,32 @@ sub get_chassis {
  	return $result;
 }
 
-#################################################################
-# get_conf_file													#
-# 																#
-# Saca del fichero de configuración extendida, el fichero		#
+#
+# get_router_conf_file:
+#																
+#   Gets the router configuration file from the dynamips extended 
+#   configuration file (if exists)
 # 
-# Entrada:														#
-# 	Nombre del router virtual									#
-# Salida:														#
-# 	Nombre del chasis a utilizar, si no está definido se utiliza#
-#   el de por defecto, que es "c3640"							# 
-#################################################################
-sub get_conf_file {
-	my $vmName = shift;
+# Arguments:						
+# 	vmName: name of virtual router
+# 
+# Returns:									
+# 	absolute path of the router config file or empty string if not defined
+#
+sub get_router_conf_file {
+
+	my $extConfFile = shift;
+	my $vmName    = shift;
+
 	my $result = "0";
 	
-	unless(-e $conf_file){
+	# If the extended config file is not defined, return default value 
+	if ($extConfFile eq '0'){
 		return $result;
 	}
 	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($conf_file);
+	my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 		
@@ -1566,71 +1352,33 @@ sub get_conf_file {
 			my $conftag = $conf_list->item(0);
 			$result = &text_tag($conftag);
 			$global_tag = 0;
+			$result = &get_abs_path ($result);
 		}
 	}
-	#print "**** get_conf_file: $result\n";
+	print "**** get_router_conf_file: $result\n";
  	return $result;
 }
 
-
-# Returns dynamips port from /etc/vnx.conf file
-# If not defined, 7200 is used by default
-sub get_dynamips_port_conf {
-
-	my $result = $VNX::Globals::DYNAMIPS_DEFAULT_PORT;
-	
-	unless(-e $VNX::Globals::MAIN_CONF_FILE){
-		return $result;
-	}
-	open FILE, "<$VNX::Globals::MAIN_CONF_FILE" or $execution->smartdie("$VNX::Globals::MAIN_CONF_FILE not found");
-	my @lines = <FILE>;
-	foreach my $line (@lines){
-	    if (($line =~ /port/) && !($line =~ /^#/)){ 
-			my @config1 = split(/=/, $line);
-			my @config2 = split(/#/,$config1[1]);
-			$result = $config2[0];
-			chop $result;
-			$result =~ s/\s+//g;
-	    }
-	}
- 	return $result;
-}
-
-# Devuelve el valor de la etiqueta idle_pc
-# Si no se define, devuelve un valor 0x604f8104.
-sub get_idle_pc_conf {
-	my $vmName = shift;
-	my $result = "0x604f8104";
-	
-	unless(-e $VNX::Globals::MAIN_CONF_FILE){
-		return $result;
-	}
-	open FILE, "<$VNX::Globals::MAIN_CONF_FILE" or $execution->smartdie("$VNX::Globals::MAIN_CONF_FILE not found");
-	my @lines = <FILE>;
-	foreach my $line (@lines){
-	    if (($line =~ /idle_pc/) && !($line =~ /^#/)){ 
-			my @config1 = split(/=/, $line);
-			my @config2 = split(/#/,$config1[1]);
-			$result = $config2[0];
-			chop $result;
-			$result =~ s/\s+//g;
-	    }
-	}
- 	return $result;
-}
-
-
+=BEGIN
+# 
+# get_port_conf
+#
+#
+#
 sub get_port_conf {
-	my $vmName = shift;
-	my $counter = shift;
+
+	my $extConfFile = shift;
+	my $vmName    = shift;
+	my $counter   = shift;
+
 	my $result =  900 + $counter;
 	
-	unless(-e $conf_file){
+	unless(-e $extConfFile){
 		return $result;
 	}
 	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($conf_file);
+	my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 
@@ -1683,6 +1431,9 @@ sub get_port_conf {
 #	}
  	return $result;
 }
+=END
+=cut
+
 
 #################################################################
 # get_card_conf													#
@@ -1699,17 +1450,20 @@ sub get_port_conf {
 #################################################################
 
 sub get_cards_conf {
-	my $vmName = shift;
+	
+	my $extConfFile = shift;
+	my $vmName      = shift;
+
 	my @slotarray;
 	
-	# Si no hay fichero, se pone el valor por defecto de "NM-4E"
-	unless(-e $conf_file){
+	# If the extended config file is not defined, return default value 
+	if ($extConfFile eq '0'){
 		push(@slotarray,"NM-4E");
 		return @slotarray;
 	}
 	# Parseamos el fichero.
 	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($conf_file);
+	my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 		
@@ -1775,6 +1529,61 @@ sub get_cards_conf {
 	}
  	return @slotarray;
 }
+
+#
+# get_dynamips_port_conf
+#
+#   Returns dynamips daemon port from /etc/vnx.conf file
+#   If not defined, returns default value ($VNX::Globals::DYNAMIPS_DEFAULT_PORT)
+#
+sub get_dynamips_port_conf {
+
+	my $result = $VNX::Globals::DYNAMIPS_DEFAULT_PORT;
+	
+	unless(-e $VNX::Globals::MAIN_CONF_FILE){
+		return $result;
+	}
+	open FILE, "<$VNX::Globals::MAIN_CONF_FILE" or $execution->smartdie("$VNX::Globals::MAIN_CONF_FILE not found");
+	my @lines = <FILE>;
+	foreach my $line (@lines){
+	    if (($line =~ /port/) && !($line =~ /^#/)){ 
+			my @config1 = split(/=/, $line);
+			my @config2 = split(/#/,$config1[1]);
+			$result = $config2[0];
+			chop $result;
+			$result =~ s/\s+//g;
+	    }
+	}
+ 	return $result;
+}
+
+#
+# get_dynamips_port_conf
+#
+#   Returns idle-pc value from /etc/vnx.conf file
+#   If not defined, returns 0x604f8104
+#
+sub get_idle_pc_conf {
+	my $vmName = shift;
+	my $result = "0x604f8104";
+	
+	unless(-e $VNX::Globals::MAIN_CONF_FILE){
+		return $result;
+	}
+	open FILE, "<$VNX::Globals::MAIN_CONF_FILE" or $execution->smartdie("$VNX::Globals::MAIN_CONF_FILE not found");
+	my @lines = <FILE>;
+	foreach my $line (@lines){
+	    if (($line =~ /idle_pc/) && !($line =~ /^#/)){ 
+			my @config1 = split(/=/, $line);
+			my @config2 = split(/#/,$config1[1]);
+			$result = $config2[0];
+			chop $result;
+			$result =~ s/\s+//g;
+	    }
+	}
+ 	return $result;
+}
+
 
 ###################################################################
 #                                                                 
