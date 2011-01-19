@@ -66,8 +66,9 @@ use VNX::IPChecks;
 use VNX::CiscoExeCmd;
 use VNX::vmAPICommon;
 use Net::Telnet;
-use Net::IP;
-use Net::Telnet::Cisco;
+use NetAddr::IP;
+#use Net::IP;
+#use Net::Telnet::Cisco;
 use File::Basename;
 use File::Spec;
 
@@ -198,7 +199,8 @@ sub defineVM {
  			$destination = "0.0.0.0";
  			$maskdestination = "0.0.0.0";
  		}else {
- 			my $ip = new Net::IP ($destination) or $execution->smartdie (Net::IP::Error());
+ 			#my $ip = new Net::IP ($destination) or $execution->smartdie (Net::IP::Error());
+ 			my $ip = new NetAddr::IP ($destination) or $execution->smartdie (NetAddr::IP::Error());
  			$maskdestination = $ip->mask();
  			$destination = $ip->ip();
  		}
