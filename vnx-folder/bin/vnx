@@ -264,7 +264,7 @@ sub main {
       $opt_start,$opt_save,$opt_restore,
       $opt_suspend, $opt_resume,$opt_reboot,
       $opt_reset,$opt_execute,$opt_f,$opt_showmap,
-      $opt_display);
+      $opt_console,$opt_info);
       
    Getopt::Long::Configure ("bundling"); # case sensitive single-character options
    GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
@@ -284,7 +284,8 @@ sub main {
               'suspend' => \$opt_suspend, 'resume' => \$opt_resume,
               'reboot' => \$opt_reboot, 'reset' => \$opt_reset,
               'execute=s' => \$opt_execute, 'f=s' => \$opt_f,
-              'showmap' => \$opt_showmap, 'display' => \$opt_display);
+              'showmap' => \$opt_showmap, 'console' => \$opt_console,
+              'info' => \$opt_info);
   
    # Build the argument object
    $args = new Arguments(
@@ -297,7 +298,7 @@ sub main {
       $opt_destroy,$opt_define,$opt_undefine,
       $opt_start,$opt_save,$opt_restore,
       $opt_suspend,$opt_resume,$opt_reboot,
-      $opt_reset,$opt_execute,$opt_f,$opt_showmap,$opt_display);
+      $opt_reset,$opt_execute,$opt_f,$opt_showmap,$opt_console,$opt_info);
       
 
 
@@ -314,7 +315,7 @@ sub main {
    }
 
    # 1. To use -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start,
-   # --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --display at the same time
+   # --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --console, --info at the same time
    
    my $how_many_args;
    my $mode;
@@ -399,9 +400,13 @@ sub main {
       $how_many_args++;
       $mode = "showmap";
    }
-   if ($opt_display) {
+   if ($opt_console) {
       $how_many_args++;
-      $mode = "display";
+      $mode = "console";
+   }
+   if ($opt_info) {
+      $how_many_args++;
+      $mode = "info";
    }
    
    
@@ -911,9 +916,13 @@ sub main {
      &mode_showmap;
    }
    
-      elsif ($opt_display) {
-     &mode_display;
+   elsif ($opt_console) {
+   &mode_console;
    }
+   elsif ($opt_info) {
+   &mode_info;
+   }
+   
    
    else {
       $execution->smartdie("if you are seeing this text something terribly horrible has happened...\n");
@@ -1041,8 +1050,15 @@ sub mode_start {
                 %vm_ips = &get_UML_command_ip("");
             }
         }
+        
+        my $scename = $dh->get_scename;
+       	print "\n-----------------------------------------------------------------------------------------\n";	
+		print " Scenario \"$scename\" started\n";
+        # Print information about vm consoles
+        &print_consoles_info;
 
-    
+#[jsf] movido a print_consoles_info
+=BEGIN    	
         # Print information about vm consoles
         my @vm_ordered = $dh->get_vm_ordered;
         my $first = 1;
@@ -1085,7 +1101,7 @@ sub mode_start {
                 $display =~ s/\s+$//;    # Delete linefeed at the end		
 				printf "%-12s  %-20s  virt-viewer %s   or   vncviewer %s\n", $name, $merged_type, $name, $display;
 =END
-=cut
+
 
 			} elsif ( $vm->getAttribute("type") eq "uml") {
 			    # xterm -T uml -e screen -t uml /dev/pts/0
@@ -1108,8 +1124,8 @@ sub mode_start {
 				}
 =END
 =cut
-			}
-		}
+#			}
+#		}
         
     } 
     catch Vnx::Exception with {
@@ -1268,7 +1284,7 @@ sub mode_showmap {
 
 }
 
-sub mode_display {
+sub mode_console {
 	
 	my $opt_M = $args->get('M');
 
@@ -1300,6 +1316,13 @@ sub mode_display {
 
 			}
 		}
+        
+
+}
+
+sub mode_info {
+	
+	&print_consoles_info;
         
 
 }
@@ -4261,10 +4284,10 @@ sub para {
 #                             printed at the end of vnx execution with -t option 
 sub print_console_table_header {
 
-	my $scename=shift;
-	
-	print "-----------------------------------------------------------------------------------------\n";	
-	print " Scenario \"$scename\" started\n";
+#	my $scename=shift;
+#	
+#	print "-----------------------------------------------------------------------------------------\n";	
+#	print " Scenario \"$scename\" started\n";
 	print "\n";	
 	printf " %-12s| %-20s| %s\n", "VM_NAME", "TYPE", "CONSOLE ACCESS COMMAND";	
 	print "-----------------------------------------------------------------------------------------\n";	
@@ -4309,6 +4332,78 @@ sub print_console_table_entry {
 	}
 	print "-----------------------------------------------------------------------------------------\n";	
 	#printf "%-12s  %-20s  ERROR: cannot open file $portfile \n", $name, $merged_type;
+}
+
+sub print_consoles_info{
+	
+        # Print information about vm consoles
+        my @vm_ordered = $dh->get_vm_ordered;
+        my $first = 1;
+        my $scename = $dh->get_scename;
+        for ( my $i = 0; $i < @vm_ordered; $i++) {
+			my $vm = $vm_ordered[$i];
+			
+			my $name = $vm->getAttribute("name");
+			my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+			
+			if ($first eq 1){
+				&print_console_table_header ($scename);
+				$first = 0;
+			}
+
+			if ( ($vm->getAttribute("type") eq "libvirt") || ( $vm->getAttribute("type") eq "dynamips") ) {
+				my $port;
+				my $cons0Cmd;
+				my $cons1Cmd;
+				my $consFile = $dh->get_vm_dir($name) . "/console";
+				&print_console_table_entry ($name, $merged_type, $consFile, $vm->getAttribute("type"));
+=BEGIN
+			if ($merged_type eq "libvirt-kvm-olive"){
+				my $port;
+				my $portfile = $dh->get_vm_dir($name) . "/console";
+				if (-e $portfile ){
+					open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
+					$port= <CONPORT>;
+					close (CONPORT);
+					printf "%-12s  %-20s  telnet localhost %s\n", $name, $merged_type, $port;
+				}else {
+					printf "%-12s  %-20s  ERROR: cannot open file $portfile \n", $name, $merged_type;
+				}
+			
+			}
+			elsif ( ($vm->getAttribute("type") eq "libvirt") && ( $merged_type ne "libvirt-kvm-olive" ) ) {
+# DFC			my $vnc_port = 6900 + $i;
+# DFC			print $name . ": " . $vnc_port . "\n";
+                my $display=`virsh -c qemu:///system vncdisplay $name`;
+                $display =~ s/\s+$//;    # Delete linefeed at the end		
+				printf "%-12s  %-20s  virt-viewer %s   or   vncviewer %s\n", $name, $merged_type, $name, $display;
+=END
+=cut
+
+			} elsif ( $vm->getAttribute("type") eq "uml") {
+			    # xterm -T uml -e screen -t uml /dev/pts/0
+			    my $vnx_dir = $dh->get_vnx_dir;
+			    my $pts=`cat $vnx_dir/scenarios/$scename/vms/$name/run/pts`;
+			    $pts =~ s/\s+$//;        # Delete linefeed at the end
+				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $name, $merged_type, $name, $name, $pts;
+=BEGIN
+			} elsif ( $vm->getAttribute("type") eq "dynamips"){
+				my $port;
+				#$port = 900 + $i;
+				my $portfile = $dh->get_vm_dir($name) . "/console";
+				if (-e $portfile ){
+					open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
+					$port= <CONPORT>;
+					close (CONPORT);
+					printf "%-12s  %-20s  telnet localhost %s\n", $name, $merged_type, $port;
+				}else {
+					printf "%-12s  %-20s  ERROR: cannot open file $portfile \n", $name, $merged_type;
+				}
+=END
+=cut
+			}
+		}
+	
 }  
 
 
