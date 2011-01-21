@@ -223,11 +223,11 @@ sub console {
 
     	  		
 		my $query_string = "SELECT `ssh_port` FROM vms WHERE simulation='$scenario_name' AND name='$vm_name'";
-print "$query_string\n";
+
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		my $port = $query->fetchrow_array();
-print "$port\n";
+
 		$query->finish;
 		
 		if ($port eq undef){
@@ -264,7 +264,7 @@ sub build_display_command {
 	
 	$filename = "/tmp/$scenario_name" . "_" . "$vm_host".".xml";
 	
-    return "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename -v -u root --display -M $vm_name'"; 
+    return "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename -v -u root --console -M $vm_name'"; 
 }
 
 	###########################################################
