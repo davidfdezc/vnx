@@ -393,9 +393,11 @@
         <xs:element ref="filetree" minOccurs="0" maxOccurs="unbounded" />
         <xs:element ref="exec" minOccurs="0" maxOccurs="unbounded" />
       </xs:sequence>
-      <xs:attribute name="order" type="xs:string" use="optional" />
-      <xs:attribute name="subtype" type="xs:string" use="required" />
       <xs:attribute name="name" type="xs:string" use="required" />
+      <xs:attribute name="type" type="xs:string" use="required" />
+      <xs:attribute name="subtype" type="xs:string" use="optional" />
+      <xs:attribute name="os" type="xs:string" use="optional" />
+      <xs:attribute name="order" type="xs:string" use="optional" />
       <xs:attribute name="exec_mode" use="optional" default="net">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
@@ -405,9 +407,7 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
-      <xs:attribute name="type" type="xs:string" use="required" />
-      <xs:attribute name="os" type="xs:string" use="required" />
-    </xs:complexType>
+     </xs:complexType>
   </xs:element>
 
   <xs:element name="vm_defaults">

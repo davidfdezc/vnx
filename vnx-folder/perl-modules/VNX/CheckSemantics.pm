@@ -1,6 +1,6 @@
 # CheckSemantics.pm
 #
-# This file is a module part of VNUML package.
+# This file is a module part of VNX package.
 #
 # Author: Fermin Galan Marquez (galan@dit.upm.es)
 # Copyright (C) 2005, 2006	DIT-UPM
@@ -24,7 +24,7 @@
 #
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 
-# CheckSemantincs implements the needed methods to check the VNUML XML specification before
+# CheckSemantincs implements the needed methods to check the VNX XML specification before
 # starting processing
 
 package VNX::CheckSemantics;
@@ -49,7 +49,7 @@ use VNX::TextManipulation;
 # - the DataHandler object reference that containts the document to be checked
 # - the binaries_path hash reference
 #
-# Checks additional semantics in VNUML file that can not be
+# Checks additional semantics in VNX file that can not be
 # checked during XML validation process.
 # Currently this check consist in:
 #
@@ -71,7 +71,7 @@ use VNX::TextManipulation;
 #   - 8e. uml_switch_binary are valid, readable and executable filenames
 #   - 8f. external interfaces (external attribute of <net>) are actually physical interfaces
 #         (they exist in the OS host enviroment)
-#   - 8g. <net type="ppp"> has exactly to virtual machine interfaces connected to it
+#   - 8g. <net type="ppp"> has exactly two virtual machine interfaces connected to it
 #   - 8h. only <net type="ppp"> networks has <bw> tag
 #   - 8i. sock are readable, writable socket files
 #   - 9a. there is not duplicated UML names (<vm>)
@@ -384,6 +384,9 @@ sub check_doc {
 
       # To get name attribute
       my $name = $vm->getAttribute("name");
+      
+      # To get type attribute
+      my $vm_type = $vm->getAttribute("type");		         
 
       # To check name length
       my $upper = $max_name_length + 1;
@@ -467,6 +470,20 @@ sub check_doc {
          		return "<if net=\"lo\"> can not nests <mac> tag";
          	}
          } 
+         # 9f. check that uml_switch is only used with uml vms, that is, an interface
+         #     of a libvirt or dynamips machine cannot be connected to a uml_switch
+	     for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+      		 my $net_def = $net_list->item($i);
+      		 my $net_id = $net_def->getAttribute("id");
+      		 my $net_name = $net_def->getAttribute("name");
+      		 my $net_mode = $net_def->getAttribute("mode");
+      		 if ($net_name eq $net) {
+      		 	if ( (($vm_type eq 'libvirt') or ($vm_type eq 'dynamips')) and ($net_mode eq 'uml_switch') ){
+	         	 	return "vm '$name' of type '$vm_type' is not allowed to connect its interface '$id' to network '$net' based on 'uml_switch'";
+      		 	}
+      		 }
+	     }
+         
       }
 
 	  #10. Check users and groups
@@ -524,6 +541,18 @@ sub check_doc {
             unless (-d _);
          return "$root (root) is not a valid absolute directory name" unless &valid_absolute_directoryname($root);
       }
+      # vm type attribute is requiered; subtype and os are optional or not depending on the type value
+	  my $vm_subtype = $vm->getAttribute("subtype");		         
+	  my $vm_os = $vm->getAttribute("os");		         
+	  if ($vm_type eq "libvirt") {
+		  if ( ($vm_subtype eq '') or ($vm_os eq '') ) {
+			  return "missing 'subtype' and/or 'os' attribute for libvirt vm $name";
+		  }
+	  } elsif ($vm_type eq "dynamips") {
+		  if ($vm_subtype eq '') {
+		  	  return "missing 'subtype' attribute for dynamips vm $name";
+	  	  }
+	  }
 
    }
 
@@ -531,8 +560,8 @@ sub check_doc {
    $> = $uid if ($is_root);
    my $filesystem_list = $doc->getElementsByTagName("filesystem");
    for ( my $i = 0 ; $i < $filesystem_list->getLength; $i++) {
-      my $filesystem = &do_path_expansion(&text_tag($filesystem_list->item($i++)));
-      my $filesystem_type = $filesystem_list->item(0)->getAttribute("type");
+      my $filesystem = &do_path_expansion(&text_tag($filesystem_list->item($i)));
+      my $filesystem_type = $filesystem_list->item($i)->getAttribute("type");
       if ($filesystem_type eq "hostfs") {         	
          # 12a. <filesystem> are valid, readable/executable files
          return "$filesystem (filesystem) is not a valid absolute directory name" unless &valid_absolute_directoryname($filesystem);
