@@ -72,13 +72,6 @@ use XML::DOM;
 
 use IO::Socket::UNIX qw( SOCK_STREAM );
 
-# Global objects
-
-#my $execution;    # the VNX::Execution object
-#my $dh;           # the VNX::DataHandler object
-#my $bd;           # the VNX::BinariesData object
-
-
 # Name of UML whose boot process has started but not reached the init program
 # (for emergency cleanup).  If the mconsole socket has successfully been initialized
 # on the UML then '#' is appended.
@@ -101,9 +94,6 @@ sub defineVM {
 	my $vmName = shift;
 	my $type   = shift;
 	my $doc    = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 	my $sock    = shift;
 	my $counter = shift;
 	$curr_uml = $vmName;
@@ -259,9 +249,6 @@ sub startVM {
 	my $vmName = shift;
 	my $type   = shift;
 	my $doc    = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 	my $sock    = shift;
 	my $counter = shift;
 	$curr_uml = $vmName;
@@ -359,7 +346,7 @@ sub startVM {
 		}
 	}
 	###################################################################
-	#                  createVM for uml                               #
+	#                  startVM for uml                               #
 	###################################################################
 	if ( $type eq "uml" ) {
 
@@ -831,9 +818,6 @@ sub destroyVM {
 	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 
 	my $error = 0;
 	
@@ -884,49 +868,6 @@ sub destroyVM {
 }
 
 
-=BEGIN
-###################################################################
-#                                                                 #
-#   startVM                                                       #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-sub startVM {
-
-	my $self   = shift;
-	my $vmName = shift;
-	my $type   = shift;
-	my $doc    = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	my $dh           = shift;
-	my $sock         = shift;
-	my $manipcounter = shift;
-
-	my $error;
-
-	###################################################################
-	#                  startVM for uml                                #
-	###################################################################
-	if ( $type eq "uml" ) {
-
-		$error = &createVM(
-			$self, $vmName, $type, $doc, #$execution, $bd,   $dh,     
-			$sock, $manipcounter
-		);
-		return $error;
-
-	}
-	else {
-		$error = "Type is not yet supported\n";
-		return $error;
-	}
-}
-=END
-=cut
-
-
 ###################################################################
 #                                                                 #
 #   shutdownVM                                                    #
@@ -939,9 +880,6 @@ sub shutdownVM {
 	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 	$F_flag    = shift;
 
 	my $error = 0;
@@ -973,9 +911,6 @@ sub saveVM {
 	my $vmName   = shift;
 	my $type     = shift;
 	my $filename = shift;
-#	$dh        = shift;
-#	$bd        = shift;
-#	$execution = shift;
 	
 
 	my $error = 0;
@@ -1264,9 +1199,6 @@ sub executeCMD {
 	my $self = shift;
 	my $merged_type = shift;
 	my $seq  = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 	my $vm    = shift;
 	my $name = shift;
 	my %vm_ips    = @_;

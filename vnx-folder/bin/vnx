@@ -544,7 +544,7 @@ sub main {
 	   	if (! -d $vnx_dir ) {
 		   	mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
 	   	}
-		if ($> == 0) {
+		if ($> == 0) { # vnx executed as root
 			 my $uid_name = getpwuid($uid);
 			 system("chown $uid $vnx_dir");
 			 $> = $uid;

@@ -144,7 +144,7 @@ sub new {
       $global_data{'default_filesystem_type'} = "cow";
    }
    if ($no_mem) {
-      $global_data{'default_mem'} = "32M";
+      $global_data{'default_mem'} = "64M";
    }
    if ($no_kernel) {
       $global_data{'default_kernel'} = &do_path_expansion("/usr/share/vnx/kernels/linux");
