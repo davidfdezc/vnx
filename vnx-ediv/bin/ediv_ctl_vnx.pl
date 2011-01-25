@@ -1638,17 +1638,20 @@ sub executeConfiguration {
 			}
 		}
 		
-		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = 'running' AND host = '$hostname' AND simulation = '$simulation_name'";
+		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = 'running' AND host = '$host_name' AND simulation = '$simulation_name'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		my $scenario_bin = $query->fetchrow_array();
 
 		$query->finish();
 					
-		$query_string = "SELECT `local_simulation` FROM hosts WHERE status = 'running' AND host = '$hostname' AND simulation = '$simulation_name'";
+		$query_string = "SELECT `local_simulation` FROM hosts WHERE status = 'running' AND host = '$host_name' AND simulation = '$simulation_name'";
 		$query = $dbh->prepare($query_string);
 		$query->execute();
 		my $scenario_name = $query->fetchrow_array();
+print "*****SELECT `local_simulation` FROM hosts WHERE status = 'running' AND host = '$host_name' AND simulation = '$simulation_name'\n";
+print "scenario name:'$scenario_name'\n";
+<STDIN>;
 
 		$query->finish();
 	
@@ -1658,14 +1661,14 @@ sub executeConfiguration {
 		close (FILEHANDLE);
 		
 		my $scp_command = "scp -2 $scenario_name root\@$hostIP:/tmp/";
-		&daemonize($scp_command, "/tmp/$hostname"."_log");
+		&daemonize($scp_command, "/tmp/$host_name"."_log");
 		my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$hostIP \'chmod -R 777 $scenario_name\'";	
-		&daemonize($permissions_command, "/tmp/$hostname"."_log"); 		
+		&daemonize($permissions_command, "/tmp/$host_name"."_log"); 		
 #VNX	my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnumlparser.pl -u root -v -x $execution_mode\@$scenario_name'";
 		my $option_M = "";
 		if ($vm_name){$option_M="-M $vm_name";}
 		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnx -f $scenario_name -v -u root -x $execution_mode " . $option_M . "'"; 
-		&daemonize($execution_command, "/tmp/$hostname"."_log");
+		&daemonize($execution_command, "/tmp/$host_name"."_log");
 	}
 	$dbh->disconnect;
 }
