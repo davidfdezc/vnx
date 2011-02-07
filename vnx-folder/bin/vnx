@@ -2082,6 +2082,9 @@ sub mode_x {
 	my $seq = shift;
 	
 	my %vm_ips;
+	
+	# If 'seq' tag is found in any vm, switch value to '1'
+	my $seq_found = 0;
 
    # If -B, block until ready
    if ($args->get('B')) {
@@ -2125,20 +2128,26 @@ sub mode_x {
 			next;
 		}
 		
+		# 'seq' tag was found
+		$seq_found = 1;
+		
 		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 		# call the corresponding vmAPI
-       my $vmType = $vm->getAttribute("type");
+    	my $vmType = $vm->getAttribute("type");
 
-       #my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $execution, $bd, $dh, $vm, $name);
-       my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $vm, $name, %vm_ips);
+    	#my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $execution, $bd, $dh, $vm, $name);
+    	my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $vm, $name, %vm_ips);
      	if (!($error eq 0)){
      		print $error
-     	}
+		}
+	}
+	
+	if ($seq_found eq 0){
+		$execution->smartdie("Sequence $seq not found. Exiting");
 	}
 
 	#vmAPI_uml->exec_command_host($seq,$execution,$bd,$dh);
 	exec_command_host($seq);
-
 }
 
 
