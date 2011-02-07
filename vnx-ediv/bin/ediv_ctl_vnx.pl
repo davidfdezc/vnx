@@ -792,6 +792,7 @@ sub fillScenarioArray {
 		# Save data into DB
 		
 		my $query_string = "INSERT INTO hosts (simulation,local_simulation,host,ip,status) VALUES ('$data','$newdata','$currentHostName','$currentHostIP','creating')";
+		print "**** QUERY=$query_string\n";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		$query->finish();
@@ -848,6 +849,7 @@ sub splitIntoFiles {
 			#$query_string = "INSERT INTO vms (name,simulation,host) VALUES ('$virtualm_name','$simulation_name','$host_name')";
 			$query_string = "INSERT INTO vms (name,type,simulation,host) VALUES ('$virtualm_name','$virtualm_type','$simulation_name','$host_name')";
 
+		print "**** QUERY=$query_string\n";
 			$query = $dbh->prepare($query_string);
 			$query->execute();
 			$query->finish();
@@ -1215,13 +1217,13 @@ sub checkFinish {
 		open STDERR, "/dev/null";
 		foreach $vms (keys (%allocation)){
 			if ($allocation{$vms} eq $host_name){
-				print ("Checking $vms status\n");
+				print ("Checking $vms status (/root/.vnx/scenarios/$scenario/vms/$vms/status)\n");
 				my $status_command = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat /root/.vnx/scenarios/$scenario/vms/$vms/status'";
 				my $status = `$status_command`;
 				chomp ($status);
 
 				while (!($status eq "running")) {
-					print ("\t $vms still booting, waiting...\n");
+					print ("\t $vms still booting, waiting...(status=$status)\n");
 					$status_command = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat /root/.vnx/scenarios/$scenario/vms/$vms/status'";
 					$status = `$status_command`;
 					chomp ($status);

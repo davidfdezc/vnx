@@ -578,7 +578,9 @@ sub startVM {
 # (see https://lists.dit.upm.es/pipermail/vnuml-users/2007-July/000651.html for details)
 				$console_value = "pts";
 			}
-			push( @params, "con$console_id=$console_value" );
+			if ( $console_value ne "" ) {
+				push( @params, "con$console_id=$console_value" );
+			}
 		}
 
 		#get tag notify_ctl
@@ -687,11 +689,41 @@ sub startVM {
 
 		# Console pts and xterm processing
 		if ( $execution->get_exe_mode() ne $EXE_DEBUG ) {
+			
+			# Go through <consoles> tag list to get default value for display attribute  
+			my $consTagList = $virtualm->getElementsByTagName("console");
+			my $numcons     = $consTagList->getLength;
+	        my $consType = $VNX::Globals::CONS1_DEFAULT_TYPE;
+	        my $cons0Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
+	        my $cons1Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
+	        my $cons1Port = '';
+			for ( my $j = 0 ; $j < $numcons ; $j++ ) {
+				my $consTag = $consTagList->item($j);
+	       		my $value   = &text_tag($consTag);
+				my $id      = $consTag->getAttribute("id");
+				my $display = $consTag->getAttribute("display");
+	       		#print "** console: id=$id, value=$value\n" if ($exemode == $EXE_VERBOSE);
+				if ($display ne '') {
+					if (  $id eq "0" ) {
+						$cons0Display = $display 
+					} elsif ( $id eq "1" ) {
+						$cons1Display = $display
+					} 
+				}
+			}
+							
 			my @console_list = $dh->merge_console($virtualm);
 			my $get_screen_pts;
+			my $consFile = $dh->get_run_dir($vmName) . "/console";
 			foreach my $console (@console_list) {
 				my $console_id    = $console->getAttribute("id");
 				my $console_value = &text_tag($console);
+				my $display = $console->getAttribute("display");
+				print "**** console: id=$console_id, display=$display, value=$console_value\n";
+				if ( $display eq '' ) { # set default value
+					if ( $console_id eq "0" )    { $display = $cons0Display } 
+					elsif ( $console_id eq "1" ) { $display = $cons1Display } 					
+				}
 				if ( $console_value eq "pts" ) {
 					my $pts = "";
 					while ( $pts =~ /^$/ )
@@ -711,8 +743,12 @@ sub startVM {
 							$execution->execute(
 								    $bd->get_binaries_path_ref->{"echo"}
 								  . " $pts > "
-								  . $dh->get_run_dir($vmName)
+								  . dh->get_run_dir($vmName)
 								  . "/pts" );
+							$execution->execute(
+								    $bd->get_binaries_path_ref->{"echo"}
+								  . " con$console_id=$display,uml_pts,$pts >> "
+								  . $consFile );
 						}
 					}
 					if ($e_flag) {
@@ -749,7 +785,13 @@ sub startVM {
 								  . " $xterm_pts > "
 								  . $dh->get_run_dir($vmName)
 								  . "/pts" );
+							# Write console spec to vms/$name/run/console file
+							$execution->execute(
+								    $bd->get_binaries_path_ref->{"echo"}
+								  . " con$console_id=yes,uml_pts,$xterm_pts >> "
+								  . $consFile );
 
+=BEGIN
 			  # Get the xterm binary to use and parse it (it is supossed to be a
 			  # comma separated string with three fields)
 							my $xterm = $dh->get_default_xterm;
@@ -778,12 +820,19 @@ sub startVM {
 									$xterm_cmd = "$s1 $s2 $vmName $s3 screen -t $vmName $xterm_pts";
 								}
 							}
-							
+												
 							# display console if required
 							my $display_console   = $dom->getElementsByTagName("display_console")->item(0)->getFirstChild->getData;
 							unless ($display_console eq "no") {
 								$execution->execute_bg( "$xterm_cmd", "/dev/null", "" );
 							}
+=END
+=cut	
+
+							# Then, we just read the console file and start the active consoles
+							VNX::vmAPICommon->start_consoles_from_console_file ($vmName, $consFile);
+							
+							
 						}
 					}
 				}

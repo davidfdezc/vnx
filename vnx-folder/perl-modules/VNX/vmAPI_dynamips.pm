@@ -337,7 +337,7 @@ sub defineVM {
     }
 	
 	#my $consoleport = &get_port_conf($vmName,$counter);
-	my $consFile = $dh->get_vm_dir($vmName) . "/console";
+	my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
 	
 	open (PORT_CISCO, ">$consFile") || $execution->smartdie("ERROR (vm=$vmName): cannot open $consFile");
 	print PORT_CISCO "con1=$consDisplayDefInXML{1},telnet,$consolePort[1]\n";
@@ -525,7 +525,7 @@ sub startVM {
     print $line if ($exemode == $EXE_VERBOSE);
 
     # Display consoles 
-	VNX::vmAPICommon->start_consoles_from_console_file ($vmName, $dh->get_vm_dir($vmName) . "/console");
+	VNX::vmAPICommon->start_consoles_from_console_file ($vmName, $dh->get_vm_dir($vmName) . "/run/console");
 
 }
 
@@ -749,7 +749,7 @@ sub executeCMD{
 	my $extConfFile; 
 	
 	# Recupero el puerto telnet de acceso al router
-	my $consFile = $dh->get_vm_dir($vmName) . "/console";
+	my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
 	# Configuro el fichero de configuracion extendida
 	$extConfFile = $dh->get_default_dynamips();
 	if ($extConfFile ne "0"){

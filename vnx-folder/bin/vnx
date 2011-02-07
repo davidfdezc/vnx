@@ -656,12 +656,15 @@ sub main {
 		#$doc    = $parser->parse_file($document);
 		$doc = $parser->parse_file($input_file);
 		
+=BEGIN		
 		eval { $schema->validate($doc) };
 	
 		if ($@) {
 		  # Validation errors
 		  &vnx_die("$input_file is not a well-formed VNX file:\n$@\n");
 		}
+=END
+=cut	
 	
 		my $parser2 = new XML::DOM::Parser;
         $doc = $parser2->parsefile($input_file);
@@ -4318,8 +4321,10 @@ sub print_console_table_entry {
  				push (@consDesc, "$con:  'virt-viewer $vmName' or 'vncviewer $consField[2]'");		    	
 		    } elsif ($consField[1] eq "telnet") {
  				push (@consDesc, "$con:  'telnet localhost $consField[2]'");		    	   	
-		    } elsif ($consField[1] eq "pts") {
+		    } elsif ($consField[1] eq "libvirt_pts") {
  				push (@consDesc, "$con:  'virsh console $vmName' or 'screen $consField[2]'");		    	   		    	
+		    } elsif ($consField[1] eq "uml_pts") {
+ 				push (@consDesc, "$con:  'xterm -T $vmName -e screen -t $vmName $consField[2]'");
 		    } else {
 		    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
 		    }
@@ -4351,57 +4356,21 @@ sub print_consoles_info{
 				$first = 0;
 			}
 
-			if ( ($vm->getAttribute("type") eq "libvirt") || ( $vm->getAttribute("type") eq "dynamips") ) {
+#			if ( ($vm->getAttribute("type") eq "libvirt") || ( $vm->getAttribute("type") eq "dynamips") ) {
 				my $port;
 				my $cons0Cmd;
 				my $cons1Cmd;
-				my $consFile = $dh->get_vm_dir($name) . "/console";
+				my $consFile = $dh->get_run_dir($name) . "/console";
 				&print_console_table_entry ($name, $merged_type, $consFile, $vm->getAttribute("type"));
-=BEGIN
-			if ($merged_type eq "libvirt-kvm-olive"){
-				my $port;
-				my $portfile = $dh->get_vm_dir($name) . "/console";
-				if (-e $portfile ){
-					open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
-					$port= <CONPORT>;
-					close (CONPORT);
-					printf "%-12s  %-20s  telnet localhost %s\n", $name, $merged_type, $port;
-				}else {
-					printf "%-12s  %-20s  ERROR: cannot open file $portfile \n", $name, $merged_type;
-				}
-			
-			}
-			elsif ( ($vm->getAttribute("type") eq "libvirt") && ( $merged_type ne "libvirt-kvm-olive" ) ) {
-# DFC			my $vnc_port = 6900 + $i;
-# DFC			print $name . ": " . $vnc_port . "\n";
-                my $display=`virsh -c qemu:///system vncdisplay $name`;
-                $display =~ s/\s+$//;    # Delete linefeed at the end		
-				printf "%-12s  %-20s  virt-viewer %s   or   vncviewer %s\n", $name, $merged_type, $name, $display;
-=END
-=cut
 
-			} elsif ( $vm->getAttribute("type") eq "uml") {
-			    # xterm -T uml -e screen -t uml /dev/pts/0
-			    my $vnx_dir = $dh->get_vnx_dir;
-			    my $pts=`cat $vnx_dir/scenarios/$scename/vms/$name/run/pts`;
-			    $pts =~ s/\s+$//;        # Delete linefeed at the end
-				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $name, $merged_type, $name, $name, $pts;
-=BEGIN
-			} elsif ( $vm->getAttribute("type") eq "dynamips"){
-				my $port;
-				#$port = 900 + $i;
-				my $portfile = $dh->get_vm_dir($name) . "/console";
-				if (-e $portfile ){
-					open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
-					$port= <CONPORT>;
-					close (CONPORT);
-					printf "%-12s  %-20s  telnet localhost %s\n", $name, $merged_type, $port;
-				}else {
-					printf "%-12s  %-20s  ERROR: cannot open file $portfile \n", $name, $merged_type;
-				}
-=END
-=cut
-			}
+
+#			} elsif ( $vm->getAttribute("type") eq "uml") {
+#			    # xterm -T uml -e screen -t uml /dev/pts/0
+#			    my $vnx_dir = $dh->get_vnx_dir;
+#			    my $pts=`cat $vnx_dir/scenarios/$scename/vms/$name/run/pts`;
+#			    $pts =~ s/\s+$//;        # Delete linefeed at the end
+#				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $name, $merged_type, $name, $name, $pts;
+#			}
 		}
 	
 }  
