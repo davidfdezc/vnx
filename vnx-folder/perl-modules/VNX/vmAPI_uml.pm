@@ -743,7 +743,7 @@ sub startVM {
 							$execution->execute(
 								    $bd->get_binaries_path_ref->{"echo"}
 								  . " $pts > "
-								  . dh->get_run_dir($vmName)
+								  . $dh->get_run_dir($vmName)
 								  . "/pts" );
 							$execution->execute(
 								    $bd->get_binaries_path_ref->{"echo"}
@@ -1580,7 +1580,6 @@ sub UML_init_wait {
 	my $MCONSOLE_USER_NOTIFY = 3;
 
 
-    print "**** UML_init_wait: sock=$sock, timeout=$timeout, no_prompt=$no_prompt\n";
 	while (1) {
 		eval {
 			local $SIG{ALRM} = sub { die "timeout"; };
