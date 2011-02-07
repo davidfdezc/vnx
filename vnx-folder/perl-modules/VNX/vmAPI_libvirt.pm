@@ -379,7 +379,7 @@ sub defineVM {
 		#                                port="port_num" (optional)  -> defines the host port where the console can
 		#                                                               be accessed. If not specified, VNX chooses a free port.
         # For windows vm's only the graphical console is defined (id=0). Other consoles defined with ids different from 0 are ignored 
-		my $consFile = $dh->get_vm_dir($vmName) . "/console";
+		my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
 		open (CONS_FILE, ">> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
 
 		# Go through <consoles> tag list to get attributes (display, port) and value  
@@ -412,7 +412,7 @@ sub defineVM {
 		my $ip_host = "";
 		$graphics_tag->addChild(
 			$init_xml->createAttribute( listen => $ip_host ) );
-		# Write the vnc console entry in "./vnx/.../vms/$vmName/console" file
+		# Write the vnc console entry in "./vnx/.../vms/$vmName/run/console" file
 		# We do not know yet the vnc display (known when the machine is started in startVM)
 		# By now, we just write 'UNK_VNC_DISPLAY'
 		print CONS_FILE "con0=$cons0Display,vnc_display,UNK_VNC_DISPLAY\n";
@@ -725,7 +725,7 @@ sub defineVM {
 		#                                port="port_num" (optional)  -> defines the host port where the console can
 		#                                                               be accessed. If not specified, VNX chooses a free port.
         # By now ther consoles defined with ids different from 0-1 are ignored 
-		my $consFile = $dh->get_vm_dir($vmName) . "/console";
+		my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
 		open (CONS_FILE, ">> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
 
 		# Go through <consoles> tag list to get attributes (display, port) and value  
@@ -741,11 +741,7 @@ sub defineVM {
 			my $id      = $consTag->getAttribute("id");
 			my $display = $consTag->getAttribute("display");
        		#print "** console: id=$id, value=$value\n" if ($exemode == $EXE_VERBOSE);
-			if ( $id eq "0" ) {
-				print "WARNING (vm=$vmName): value $value ignored for <console id='0'> tag (only 'vnc' allowed).\n" 
-				   if ( ($value ne "") && ($value ne "vnc") && ($type ne "libvirt-kvm-olive") ); 
-				print "WARNING (vm=$vmName): <console id='0'> cannot be defined for libvirt-kvm-olive virtual machines. Tag ignored.\n" 
-				   if ($type eq "libvirt-kvm-olive");
+			if (  $id eq "0" ) {
 				if ($display ne '') { $cons0Display = $display }
 			}
 			if ( $id eq "1" ) {
@@ -804,8 +800,8 @@ sub defineVM {
 			# We write the pts console entry in "./vnx/.../vms/$vmName/console" file
 			# We do not know yet the pts device assigned (known when the machine is started in startVM)
 			# By now, we just write 'UNK_PTS_DEV'
-			print CONS_FILE "con1=$cons1Display,pts,UNK_PTS_DEV\n";
-			#print "$consFile: con1=$cons1Display,pts,UNK_PTS_DEV\n" if ($exemode == $EXE_VERBOSE);
+			print CONS_FILE "con1=$cons1Display,libvirt_pts,UNK_PTS_DEV\n";
+			#print "$consFile: con1=$cons1Display,libvirt_pts,UNK_PTS_DEV\n" if ($exemode == $EXE_VERBOSE);
 			
 		} elsif ($consType eq "telnet") {
 
@@ -1256,7 +1252,7 @@ sub startVM {
    				# First, we have to change the 'UNK_VNC_DISPLAY' and 'UNK_PTS_DEV' tags 
 				# we temporarely wrote to console files (./vnx/.../vms/$vmName/console) 
 				# by the correct values assigned by libvirt to the virtual machine
-				my $consFile = $dh->get_vm_dir($vmName) . "/console";
+				my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
   	
 				# Graphical console (id=0)
 				if ($type ne "libvirt-kvm-olive" ) { # Olive routers do not have graphical consoles
@@ -1270,12 +1266,12 @@ sub startVM {
 			
 				# Text console (id=1)
 			    if ($type ne "libvirt-kvm-windows")  { # Windows does not have text console
-			    	# Check if con1 is of type "pts"
+			    	# Check if con1 is of type "libvirt_pts"
 			    	#my $conData= &get_conf_value ($consFile, "con1", $execution);
 			    	my $conData= &get_conf_value ($consFile, "con1");
 					if ( $conData ne '') {
 					    my @consField = split(/,/, $conData);
-					    if ($consField[1] eq 'pts') {
+					    if ($consField[1] eq 'libvirt_pts') {
 			        		my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system ttyconsole $vmName";
 			           		my $ptsDev=`$cmd`;
 			           		$ptsDev =~ s/\s+$//;    # Delete linefeed at the end		

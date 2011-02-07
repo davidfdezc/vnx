@@ -127,7 +127,7 @@
     <xs:complexType>
       <xs:sequence>
         <xs:element ref="version" />
-        <xs:element ref="scenario_name" />
+        <xs:element ref="scenario_name"/>
         <xs:element ref="ssh_version" minOccurs="0" />
         <xs:element ref="ssh_key" minOccurs="0" maxOccurs="unbounded" />
         <xs:element ref="automac" minOccurs="0" />
@@ -384,8 +384,8 @@
         <xs:element ref="basedir" minOccurs="0" />
         <xs:element ref="mng_if" minOccurs="0" />
         <xs:element ref="console" minOccurs="0" maxOccurs="unbounded" />
-        <xs:element ref="display_console" minOccurs="0" />
-        <xs:element ref="xterm" minOccurs="0" />
+        <!--xs:element ref="display_console" minOccurs="0" /-->
+        <!--xs:element ref="xterm" minOccurs="0" /-->
         <xs:element ref="if" minOccurs="0" maxOccurs="unbounded" />
         <xs:element ref="route" minOccurs="0" maxOccurs="unbounded" />
         <xs:element ref="forwarding" minOccurs="0" />
@@ -420,12 +420,12 @@
         <xs:element ref="basedir" minOccurs="0" />
         <xs:element ref="mng_if" minOccurs="0" />
         <xs:element ref="console" minOccurs="0" maxOccurs="unbounded" />
-        <xs:element ref="display_console" minOccurs="0" />
-        <xs:element ref="xterm" minOccurs="0" />
-        <xs:element ref="route" minOccurs="0" maxOccurs="unbounded" />
+        <!-- DFC xs:element ref="display_console" minOccurs="0" /-->
+        <!--xs:element ref="xterm" minOccurs="0" /-->
+        <!-- DFC xs:element ref="route" minOccurs="0" maxOccurs="unbounded" /-->
         <xs:element ref="forwarding" minOccurs="0" />
         <xs:element ref="user" minOccurs="0" maxOccurs="unbounded" />
-        <xs:element ref="filetree" minOccurs="0" maxOccurs="unbounded" />
+        <!-- DFC xs:element ref="filetree" minOccurs="0" maxOccurs="unbounded" /-->
       </xs:sequence>
       <xs:attribute name="exec_mode" use="optional" default="net">
         <xs:simpleType>
@@ -471,8 +471,8 @@
     </xs:complexType>
   </xs:element>
 
-  <xs:element name="xterm">
+  <!--xs:element name="xterm">
     <xs:complexType mixed="true" />
-  </xs:element>
+  </xs:element-->
 
 </xs:schema>

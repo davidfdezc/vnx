@@ -149,8 +149,10 @@ sub start_consoles_from_console_file {
 	    if ($consField[0] eq 'yes') {  # console with display='yes'
 	   		if ($consField[1] eq 'vnc_display') {
 				$execution->execute("virt-viewer $vmName &");  			
-	   		} elsif ($consField[1] eq 'pts') {
+	   		} elsif ($consField[1] eq 'libvirt_pts') {
 				VNX::vmAPICommon->start_console ($vmName, "virsh console $vmName", $execution);
+	   		} elsif ($consField[1] eq 'uml_pts') {
+				VNX::vmAPICommon->start_console ($vmName, "screen -t $vmName $consField[2]", $execution);
 	   		} elsif ($consField[1] eq 'telnet') {
 				VNX::vmAPICommon->start_console ($vmName, "telnet localhost $consField[2]", $execution);						
 			} else {
