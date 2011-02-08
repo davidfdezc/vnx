@@ -14,6 +14,10 @@ Just one Ubuntu virtual machine. Use this specification for testing
     <scenario_name>simple_ubuntu-gui</scenario_name>
     <automac offset="5"/>
     <vm_mgmt type="none" />
+    <vm_defaults>
+	    <console id="0" display="yes"/>
+	    <console id="1" display="no"/>
+    </vm_defaults>
   </global>
     
   <net name="Net0" mode="virtual_bridge" />

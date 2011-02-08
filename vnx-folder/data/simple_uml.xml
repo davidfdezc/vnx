@@ -25,7 +25,7 @@ Just one Linux virtual machine. Use this specification for testing
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
     <mem>64M</mem>
     <kernel>/usr/share/vnx/kernels/linux</kernel>
-    <console id="0">xterm</console>
+    <console id="0" display="yes">xterm</console>
     <if id="1" net="Net0">
       <ipv4>10.0.0.2/24</ipv4>
     </if>

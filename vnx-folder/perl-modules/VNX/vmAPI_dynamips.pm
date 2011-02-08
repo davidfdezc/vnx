@@ -51,7 +51,7 @@ package vmAPI_dynamips;
 use strict;
 use XML::LibXML;
 use XML::DOM;
-use XML::DOM::ValParser;
+#use XML::DOM::ValParser;
 
 use VNX::Globals;
 use VNX::Execution;
