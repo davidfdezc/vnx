@@ -134,7 +134,7 @@ use lib "/usr/share/perl5";
 use strict;
 use warnings;
 use XML::DOM;
-use XML::DOM::ValParser;
+#use XML::DOM::ValParser;
 use File::Basename;
 use File::Path;
 use Cwd 'abs_path';
@@ -584,13 +584,16 @@ sub main {
    my $modeparser;
       
    if ($input_file_string =~ /<!DOCTYPE vnx SYSTEM "(.*)">/) { 
-      unless (-f $1) {
-         &vnx_die ("DTD file $1 is not valid (perhaps does not exists)\n");	  
-      }
-      $modeparser = "dtd"
-   }else{
-   	$modeparser = "xsd"
+# DFC: Use of DTD eliminated
+#      unless (-f $1) {
+#         &vnx_die ("DTD file $1 is not valid (perhaps does not exists)\n");	  
+#      }
+#      $modeparser = "dtd"
+         &vnx_die ("parsing based on DTD not supported; use XSD instead\n");	  
    }
+#   else{
+   	$modeparser = "xsd";
+#   }
 
    # 8. To check version number
    if ($input_file_string =~ /<version>\s*(\d\.\d+)(\.\d+)?\s*<\/version>/) {
@@ -616,28 +619,29 @@ sub main {
    $valid_fail = 0;
    my $parser;
    my $doc;
-   if($modeparser eq 'dtd'){
-
-	   if ($opt_k) {
-	      # No longer implemented 
-	      #$parser = new XML::DOM::Parser;
-	      &vnx_die ("-k switch is no longer supported since version 1.3.2\n");
-	   }
-	   else {
-	      # Validator parser
-	      $parser = new XML::DOM::ValParser;
-	   }
-	   eval {
-	      local $XML::Checker::FAIL = \&validation_fail;
-	      $doc = $parser->parsefile($input_file);
-	   } || throw Vnx::Exception( error=>"XML parsing of $input_file error: "
-	      . $@, show_trace=>1 );
-	
-	   if ($valid_fail) {
-	      # Validation errors
-	      &vnx_die("$input_file is not a well-formed VNX file\n");
-	   }
-   }
+# DFC: Use of DTD eliminated
+#   if($modeparser eq 'dtd'){
+#
+#	   if ($opt_k) {
+#	      # No longer implemented 
+#	      #$parser = new XML::DOM::Parser;
+#	      &vnx_die ("-k switch is no longer supported since version 1.3.2\n");
+#	   }
+#	   else {
+#	      # Validator parser
+#	      $parser = new XML::DOM::ValParser;
+#	   }
+#	   eval {
+#	      local $XML::Checker::FAIL = \&validation_fail;
+#	      $doc = $parser->parsefile($input_file);
+#	   } || throw Vnx::Exception( error=>"XML parsing of $input_file error: "
+#	      . $@, show_trace=>1 );
+#	
+#	   if ($valid_fail) {
+#	      # Validation errors
+#	      &vnx_die("$input_file is not a well-formed VNX file\n");
+#	   }
+#   }
    if($modeparser eq "xsd"){
    		my $schemalocation;
 
@@ -3173,7 +3177,7 @@ sub automac {
       # las vm tienen conectividad con el host pero no entre ellas.
       # Parece que tienen que ver con la elección de las direcciones MAC en los interfaces
       # tun/tap (ver https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/579892)
-      # Una solución temporal es cambiar las direcciones aun número más bajo: fe:fd -> 02:fd
+      # Una solución temporal es cambiar las direcciones a un número más bajo: fe:fd -> 02:fd
       # return ",fe:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
       return ",02:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
 
@@ -3753,13 +3757,13 @@ sub mgmt_sock_destroy {
 #
 # This function is a handler that triggers XML validator parser
 # when errors are detected.
-sub validation_fail {
-   my $code = shift;
-   # To set flag
-   $valid_fail = 1;
-   # To print error message
-   XML::Checker::print_error ($code, @_);
-}
+#sub validation_fail {
+#   my $code = shift;
+#   # To set flag
+#   $valid_fail = 1;
+#   # To print error message
+#   XML::Checker::print_error ($code, @_);
+#}
 
 # vnuml_die
 #
