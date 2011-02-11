@@ -237,6 +237,13 @@ exit(0);
 sub main {
 	
    $ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
+
+   # Check the existance of the VNX configuration file 
+   unless(-e $VNX::Globals::MAIN_CONF_FILE) {
+   	 print "\nERROR: $VNX::Globals::MAIN_CONF_FILE not found\n\n";
+   	 exit(1);
+   }
+
    my $vnx_dir = &do_path_expansion("~/.vnx");
 #   my $tmp_dir = "@VNUML_TMP@";[JSF]
 #   my $uid = $> == 0 ? getpwnam("@VNUML_USER@") : $>;[JSF]

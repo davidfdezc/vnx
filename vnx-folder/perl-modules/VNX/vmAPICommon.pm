@@ -112,15 +112,15 @@ sub start_console {
 	my $self      = shift;
 	my $vmName    = shift;
 	my $command   = shift;
-#    my $execution = shift;
 
-	#my $console_exe=&get_conf_value ($VNX::Globals::MAIN_CONF_FILE, 'console_exe', $execution);
 	my $console_exe=&get_conf_value ($VNX::Globals::MAIN_CONF_FILE, 'console_exe');
 	#print "*** console_exe = $console_exe\n";
 	if ($console_exe eq 'gnome-terminal') {
-		$execution->execute("gnome-terminal --title '$vmName - console #1' -e '$command' >/dev/null 2>&1 &");
+		$execution->execute("gnome-terminal --title '$vmName - console' -e '$command' >/dev/null 2>&1 &");
 	} elsif ($console_exe eq 'xterm') {
-		$execution->execute("xterm -title '$vmName - console #1' -e '$command' >/dev/null 2>&1 &");
+		$execution->execute("xterm -title '$vmName - console' -e '$command' >/dev/null 2>&1 &");
+	} elsif ($console_exe eq 'roxterm') {
+		$execution->execute("roxterm --title '$vmName - console' -e $command >/dev/null 2>&1 &");
 	} else {
 		$execution->smartdie ("unknown value ($console_exe) of console_exe entry in VNX_CONFFILE");
 	}
@@ -135,7 +135,6 @@ sub start_consoles_from_console_file {
 	my $self      = shift;
 	my $vmName    = shift;
 	my $consFile  = shift;
-#    my $execution = shift;
 
 	# Then, we just read the console file and start the active consoles
 	open (CONS_FILE, "< $consFile") || $execution->smartdie("Could not open $consFile file.");
@@ -150,11 +149,11 @@ sub start_consoles_from_console_file {
 	   		if ($consField[1] eq 'vnc_display') {
 				$execution->execute("virt-viewer $vmName &");  			
 	   		} elsif ($consField[1] eq 'libvirt_pts') {
-				VNX::vmAPICommon->start_console ($vmName, "virsh console $vmName", $execution);
+				VNX::vmAPICommon->start_console ($vmName, "virsh console $vmName");
 	   		} elsif ($consField[1] eq 'uml_pts') {
-				VNX::vmAPICommon->start_console ($vmName, "screen -t $vmName $consField[2]", $execution);
+				VNX::vmAPICommon->start_console ($vmName, "screen -t $vmName $consField[2]");
 	   		} elsif ($consField[1] eq 'telnet') {
-				VNX::vmAPICommon->start_console ($vmName, "telnet localhost $consField[2]", $execution);						
+				VNX::vmAPICommon->start_console ($vmName, "telnet localhost $consField[2]");						
 			} else {
 				print "WARNING (vm=$vmName): unknown console type ($consField[0])\n"
 			}
