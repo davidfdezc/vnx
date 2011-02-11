@@ -113,7 +113,7 @@ sub get_conf_value {
 #    my $execution=shift;
     my $result="";
     
-	unless(-e $confFile){ return $result }
+	#unless(-e $confFile){ return $result }
 	open FILE, "< $confFile" or $execution->smartdie("$confFile not found");
 	my @lines = <FILE>;
 	foreach my $line (@lines){
