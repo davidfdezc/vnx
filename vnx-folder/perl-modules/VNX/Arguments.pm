@@ -74,6 +74,25 @@ sub new {
    
    $self->{'6'} = shift;
    $self->{'Z'} = shift;
+
+   $self->{'create'} = shift;
+   $self->{'shutdown'} = shift;
+   $self->{'destroy'} = shift;
+   $self->{'define'} = shift;
+   $self->{'undefine'} = shift;
+   $self->{'start'} = shift;
+   $self->{'save'} = shift;
+   $self->{'restore'} = shift;
+   $self->{'suspend'} = shift;
+   $self->{'resume'} = shift;
+   $self->{'reboot'} = shift;
+   $self->{'reset'} = shift;
+   $self->{'execute'} = shift;
+   $self->{'f'} = shift;
+   $self->{'show-map'} = shift;
+   $self->{'console'} = shift;
+   $self->{'cid'} = shift;
+   $self->{'console-info'} = shift;
    
    return $self;
 }

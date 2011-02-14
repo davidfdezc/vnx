@@ -525,7 +525,7 @@ sub startVM {
     print $line if ($exemode == $EXE_VERBOSE);
 
     # Display consoles 
-	VNX::vmAPICommon->start_consoles_from_console_file ($vmName, $dh->get_vm_dir($vmName) . "/run/console");
+	VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
 
 }
 
@@ -915,7 +915,7 @@ sub reload_conf {
    	$t->print("vm start $vmName");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     sleep (3);    
-	VNX::vmAPICommon->start_consoles_from_console_file ($vmName, $consFile);
+	VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
 }
 
 

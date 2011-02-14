@@ -50,10 +50,6 @@ sub exec_command_host {
 
 	my $self = shift;
 	my $seq  = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
-	
 
 	my $doc = $dh->get_doc;
 
@@ -107,23 +103,76 @@ sub exec_command_host {
 # Starts the console of a virtual machine using the application
 # defined in VNX_CONFFILE console_exe entry
 #
+sub open_console {
+	
+	my $self      = shift;
+	my $vmName    = shift;
+	my $con_id    = shift;
+	my $consType  = shift;
+	my $consPar   = shift;
+
+	my $command;
+	if ($consType eq 'vnc_display') {
+		$execution->execute("virt-viewer $vmName &");
+		return;  			
+   	} elsif ($consType eq 'libvirt_pts') {
+		$command = "virsh console $vmName";
+   	} elsif ($consType eq 'uml_pts') {
+		$command = "screen -t $vmName $consPar";
+   	} elsif ($consType eq 'telnet') {
+		$command = "telnet localhost $consPar";						
+	} else {
+		print "WARNING (vm=$vmName): unknown console type ($consType)\n"
+	}
+	
+	my $console_exe=&get_conf_value ($VNX::Globals::MAIN_CONF_FILE, 'console_exe');
+	print "*** start_console: $vmName $command console_exe = $console_exe\n";
+	if ($console_exe eq 'gnome-terminal') {
+		$execution->execute("gnome-terminal --title '$vmName - console #$con_id' -e '$command' >/dev/null 2>&1 &");
+	} elsif ($console_exe eq 'xterm') {
+		$execution->execute("xterm -title '$vmName - console #$con_id' -e '$command' >/dev/null 2>&1 &");
+	} elsif ($console_exe eq 'roxterm') {
+		$execution->execute("roxterm --title '$vmName - console #$con_id' -e $command >/dev/null 2>&1 &");
+	} else {
+		$execution->smartdie ("unknown value ($console_exe) of console_exe entry in VNX_CONFFILE");
+	}
+}
+
+#
+# Start a specific console of a virtual machine
+#
+# Parameters:
+# - vmName
+# - consId   (con0, con1, etc)
+#
 sub start_console {
 	
 	my $self      = shift;
 	my $vmName    = shift;
-	my $command   = shift;
+	my $consId    = shift;
 
-	my $console_exe=&get_conf_value ($VNX::Globals::MAIN_CONF_FILE, 'console_exe');
-	#print "*** console_exe = $console_exe\n";
-	if ($console_exe eq 'gnome-terminal') {
-		$execution->execute("gnome-terminal --title '$vmName - console' -e '$command' >/dev/null 2>&1 &");
-	} elsif ($console_exe eq 'xterm') {
-		$execution->execute("xterm -title '$vmName - console' -e '$command' >/dev/null 2>&1 &");
-	} elsif ($console_exe eq 'roxterm') {
-		$execution->execute("roxterm --title '$vmName - console' -e $command >/dev/null 2>&1 &");
-	} else {
-		$execution->smartdie ("unknown value ($console_exe) of console_exe entry in VNX_CONFFILE");
+	# Read the console file and start the console with id $consId 
+	my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
+	open (CONS_FILE, "< $consFile") || $execution->smartdie("Could not open $consFile file.");
+	foreach my $line (<CONS_FILE>) {
+	    chomp($line);               # remove the newline from $line.
+	    my $con_id = $line;
+		#$con_id =~ s/con(\d)=.*/$1/;   # get the console id
+		$con_id =~ s/=.*//;             # get the console name
+	    $line =~ s/con.=//;  		    # eliminate the "conX=" part of the line
+		if ($con_id eq $consId) {	
+		    #print "** CONS_FILE: $line\n";
+		    my @consField = split(/,/, $line);
+		    print "** CONS_FILE: $consField[0] $consField[1] $consField[2]\n";
+		    #if ($consField[0] eq 'yes') {  # console with display='yes'
+		    # We open the console independently of display value
+		    open_console ($self, $vmName, $con_id, $consField[1], $consField[2]);
+		    return;
+			#}
+		} 
 	}
+	print "ERROR: console $consId of virtual machine $vmName does not exist\n";	
+
 }
 
 #
@@ -134,29 +183,20 @@ sub start_consoles_from_console_file {
 	
 	my $self      = shift;
 	my $vmName    = shift;
-	my $consFile  = shift;
 
 	# Then, we just read the console file and start the active consoles
+	my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
 	open (CONS_FILE, "< $consFile") || $execution->smartdie("Could not open $consFile file.");
 	foreach my $line (<CONS_FILE>) {
 	    chomp($line);               # remove the newline from $line.
+	    my $con_id = $line;
+		$con_id =~ s/con(\d)=.*/$1/;    # get the console id
 	    $line =~ s/con.=//;  		# eliminate the "conX=" part of the line
-	    # do line-by-line processing.
 	    #print "** CONS_FILE: $line\n";
 	    my @consField = split(/,/, $line);
-	    #print "** CONS_FILE: $consField[0] $consField[1] $consField[2]\n";
+	    print "** CONS_FILE: $consField[0] $consField[1] $consField[2]\n";
 	    if ($consField[0] eq 'yes') {  # console with display='yes'
-	   		if ($consField[1] eq 'vnc_display') {
-				$execution->execute("virt-viewer $vmName &");  			
-	   		} elsif ($consField[1] eq 'libvirt_pts') {
-				VNX::vmAPICommon->start_console ($vmName, "virsh console $vmName");
-	   		} elsif ($consField[1] eq 'uml_pts') {
-				VNX::vmAPICommon->start_console ($vmName, "screen -t $vmName $consField[2]");
-	   		} elsif ($consField[1] eq 'telnet') {
-				VNX::vmAPICommon->start_console ($vmName, "telnet localhost $consField[2]");						
-			} else {
-				print "WARNING (vm=$vmName): unknown console type ($consField[0])\n"
-			}
+	        open_console ($self, $vmName, $con_id, $consField[1], $consField[2]);
 		} 
 	}	
 
