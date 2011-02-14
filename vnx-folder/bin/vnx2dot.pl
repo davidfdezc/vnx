@@ -7,7 +7,6 @@
 
 use strict;
 use XML::DOM;
-use XML::DOM::ValParser;
 
 #my $colorscheme="rdbu9";
 my $colorscheme="set39";

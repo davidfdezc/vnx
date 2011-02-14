@@ -1294,7 +1294,7 @@ sub mode_showmap {
    if ($gnome ne "") { $viewapp="gnome-open" }
                 else { $viewapp="xdg-open" }
    #$execution->execute("eog ${scedir}/${scename}.png");
-   $execution->execute("$viewapp ${scedir}/${scename}.png");
+   $execution->execute("$viewapp ${scedir}/${scename}.png &");
 
 }
 
@@ -4057,6 +4057,7 @@ sub make_vm_API_doc {
 
 #####
 
+=BEGIN
    # To get display_console tag from scenario
    my $display_console_list = $vm->getElementsByTagName("display_console");
    my $display_console = "yes";
@@ -4067,6 +4068,8 @@ sub make_vm_API_doc {
    my $display_console_tag = $dom->createElement('display_console');
    $vm_tag->addChild($display_console_tag);
    $display_console_tag->addChild($dom->createTextNode($display_console)); 
+=END
+=cut
    
    # To process all interfaces
    # To get UML's interfaces list

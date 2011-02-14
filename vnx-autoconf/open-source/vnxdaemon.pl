@@ -497,7 +497,7 @@ sub autoconfigure {
 			$command = "echo \"\" > $rules_file";
 			system $command;
 			open RULES, ">" . $rules_file or print "error opening $rules_file";
-				my $interfaces_file = "/etc/network/interfaces";
+			my $interfaces_file = "/etc/network/interfaces";
 			$command = "cp $interfaces_file $interfaces_file.backup";
 			system $command;
 			$command = "echo \"\" > $interfaces_file";
@@ -513,6 +513,7 @@ sub autoconfigure {
 				my $net   = $ifTag->getAttribute("net");
 				my $mac   = $ifTag->getAttribute("mac");
 				$mac =~ s/,//g;
+				# IPv4 addresses
 				my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
 				my $ipv4Tag = $ipv4Taglist->item(0);
 				my $mask    = $ipv4Tag->getAttribute("mask");
@@ -527,6 +528,39 @@ sub autoconfigure {
 				print INTERFACES "   address " . $ip . "\n";
 				print INTERFACES "   netmask " . $mask . "\n\n";
 
+=BEGIN
+				# IPv6 addresses
+				my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
+				for ( my $j = 0 ; $j < $ipv6Taglist->getLength ; $j++ ) {
+
+					my $ip = &text_tag( $ipv6Taglist->item($j) );
+					if ( &valid_ipv6_with_mask($ip) ) {
+						# Implicit slashed mask in the address
+						#$execution->execute( "ifconfig $if_name add $ip", *CONFILE );
+					}
+					else {
+						# Check the value of the mask attribute
+						my $ipv6_effective_mask = "/64";    # Default mask value
+						my $ipv6_mask_attr = $ipv6Taglist->item($j)->getAttribute("mask");
+						if ( $ipv6_mask_attr ne "" ) {
+						   # Note that, in the case of IPv6, mask are always slashed
+							$ipv6_effective_mask = $ipv6_mask_attr;
+						}
+						#$execution->execute( "ifconfig $if_name add $ip$ipv6_effective_mask", *CONFILE );
+					}
+					
+					# interface eth1 inet6 static
+					# address 2001:470:801f::1
+					# netmask 64
+					# gateway 2001:470:1f05:15a::1
+					print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
+					print INTERFACES "auto eth" . $id . "\n";
+					print INTERFACES "iface eth" . $id . " inet static\n";
+					print INTERFACES "   address " . $ip . "\n";
+					print INTERFACES "   netmask " . $mask . "\n\n";
+				}
+=END
+=cut				
 			}
 
 			my $routeTaglist       = $virtualmTag->getElementsByTagName("route");

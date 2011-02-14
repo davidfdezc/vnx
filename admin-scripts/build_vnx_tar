@@ -89,3 +89,21 @@ ln -s ${FNAME}.tgz vnx-latest.tgz
 echo "** "
 echo "** ...done"
 echo "** "
+
+#
+# Copy new version to idefix webserver (only if this script is executed from idefix)
+#
+HNAME=$( hostname -f )
+if [ $HNAME = 'idefix.dit.upm.es' ]; then
+  if [ -d /var/www/download/vnx ]; then 
+    echo "Copying new version to http://idefix.dit.upm.es/download/vnx..."
+    cp -v ${FNAME}.tgz /var/www/download/vnx
+    rm -v /var/www/download/vnx/vnx-latest.tgz
+    ln -s /var/www/download/vnx/${FNAME}.tgz /var/www/download/vnx/vnx-latest.tgz
+    echo "...done"
+  fi  
+fi
+
+
+
+
