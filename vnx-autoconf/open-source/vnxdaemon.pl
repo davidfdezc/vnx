@@ -116,30 +116,20 @@ sub listen {
 			foreach my $file (@files){
 				my @files2 = <$file/*>;
 				foreach my $file2 (@files2){
-					if ($file2 eq "/media/cdrom/filetree.xml"){
-						unless (&check_if_new_file($file2,"filetrees")){
-
+					if ($file2 eq "/media/cdrom/command.xml"){
+						unless (&check_if_new_file($file2,"command")){
 							next;				
 						}
 						my $path = $file;
 						my $command = "date +%X";
 						chomp (my $now = `$command`);						
 						print LOG "   $now\n";
-						print LOG "   filetree received in $file2\n";
-						&filetree($path);
-						print LOG "   sending 'done' signal to host...\n\n";
-						system "echo 1 > " . LINUX_TTY;
-					}elsif ($file2 eq "/media/cdrom/command.xml"){
-						unless (&check_if_new_file($file2,"command")){
-							next;				
-						}
-						my $command = "date +%X";
-						chomp (my $now = `$command`);						
-						print LOG "   $now\n";
 						print LOG "   command received in $file2\n";
+						&filetree($path);
 						&execute_commands($file2);
 						print LOG "   sending 'done' signal to host...\n\n";
 						system "echo 1 > " . LINUX_TTY;
+						
 					}elsif ($file2 eq "/media/cdrom/vnxboot"){
 						unless (&check_if_new_file($file2,"create_conf")){
 							next;				
@@ -194,32 +184,21 @@ sub listen {
 				my @files2 = <$file/*>;
 
 				foreach my $file2 (@files2){
-
-					if ($file2 eq "/cdrom/filetree.xml"){
-						unless (&check_if_new_file($file2,"filetrees")){
+					
+					if ($file2 eq "/media/cdrom/command.xml"){
+						unless (&check_if_new_file($file2,"command")){
 							next;				
 						}
 						my $path = $file;
 						my $command = "date +%X";
 						chomp (my $now = `$command`);						
 						print LOG "   $now\n";
-						print LOG "   filetree received in $file2\n";
-						&filetree($path);
-						print LOG "   sending 'done' signal to host....\n\n";
-						system "echo 1 > " . FREEBSD_TTY;
-
-					}elsif ($file2 eq "/cdrom/command.xml"){
-						unless (&check_if_new_file($file2,"command")){
-							next;				
-						}
-						my $command = "date +%X";
-						chomp (my $now = `$command`);						
-						print LOG "   $now\n";
 						print LOG "   command received in $file2\n";
+						&filetree($path);
 						&execute_commands($file2);
 						print LOG "   sending 'done' signal to host...\n\n";
 						system "echo 1 > " . FREEBSD_TTY;
-
+					
 					}elsif ($file2 eq "/cdrom/vnxboot"){
 						unless (&check_if_new_file($file2,"create_conf")){
 							next;				
@@ -762,12 +741,11 @@ sub filetree {
 	my $path = shift;
 
 	open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
-	print LOG "   parsing filetree file...\n";
-	my $filetree_file = $path . "/filetree.xml";
+	my $filetree_file = $path . "/command.xml";
 	my @files_array = <$path/*>;
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($filetree_file);
-	my $globalNode   = $dom->getElementsByTagName("filetrees")->item(0);
+	my $globalNode   = $dom->getElementsByTagName("command")->item(0);
 	my $filetreeTagList = $globalNode->getElementsByTagName("filetree");
 	my $numfiletree        = $filetreeTagList->getLength;
 	for (my $j = 0 ; $j < $numfiletree ; $j++){

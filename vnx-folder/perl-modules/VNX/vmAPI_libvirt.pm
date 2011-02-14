@@ -1690,7 +1690,7 @@ sub rebootVM {
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
-				$listDom->reboot($Sys::Virt::Domain::REBOOT_RESTART);
+				$listDom->reboot(&Sys::Virt::Domain::REBOOT_RESTART);
 				print "Domain rebooting\n" if ($exemode == $EXE_VERBOSE);
 				return $error;
 			}
@@ -2488,7 +2488,7 @@ sub executeCMD {
 		}
 
 		$execution->set_verb_prompt("$name> ");
-		my $command = $bd->get_binaries_path_ref->{"date"};
+		$command = $bd->get_binaries_path_ref->{"date"};
 		chomp( my $now = `$command` );
 
 		# We process exec tags matching the commands sequence string ($sec)
@@ -2563,7 +2563,7 @@ sub executeCMD {
 			#$execution->execute( "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/destination" );
 			$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
 			$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
-			print "Sending command to client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket' if ($exemode == $EXE_VERBOSE);
+			print "Sending command to client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket'."... " if ($exemode == $EXE_VERBOSE);
 			waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
 			# mount empty iso, while waiting for new command	
 			$execution->execute("touch /tmp/empty.iso");
