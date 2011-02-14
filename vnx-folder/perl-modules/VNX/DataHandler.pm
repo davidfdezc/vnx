@@ -722,6 +722,8 @@ sub get_vm_to_use {
 	      ($self->{'mode'} eq "suspend") ||
 	      ($self->{'mode'} eq "resume") ||
 	      ($self->{'mode'} eq "undefine") ||
+	      ($self->{'mode'} eq "console") ||
+	      ($self->{'mode'} eq "console-info") ||
           (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || (exists $plugins_vms{$name} && $plugins_vms{$name} eq "1") ) && ($self->{'mode'} eq "x") || (exists $plugins_vms{$name} && $plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") )  
 	  ) {
 	  	# En proceso de construccion, hay que quitar los plugins en caso de que %plugins_vms no tenga nada.

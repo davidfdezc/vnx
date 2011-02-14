@@ -1283,8 +1283,7 @@ sub startVM {
 				}
 			   
 				# Then, we just read the console file and start the active consoles
-				#VNX::vmAPICommon->start_consoles_from_console_file ($vmName, $consFile, $execution);
-				VNX::vmAPICommon->start_consoles_from_console_file ($vmName, $consFile);
+				VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
 						    
 					    
 =BEGIN                        

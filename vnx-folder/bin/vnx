@@ -271,7 +271,7 @@ sub main {
       $opt_start,$opt_save,$opt_restore,
       $opt_suspend, $opt_resume,$opt_reboot,
       $opt_reset,$opt_execute,$opt_f,$opt_showmap,
-      $opt_console,$opt_info);
+      $opt_console,$opt_consoleinfo,$opt_cid);
       
    Getopt::Long::Configure ("bundling"); # case sensitive single-character options
    GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
@@ -291,9 +291,9 @@ sub main {
               'suspend' => \$opt_suspend, 'resume' => \$opt_resume,
               'reboot' => \$opt_reboot, 'reset' => \$opt_reset,
               'execute=s' => \$opt_execute, 'f=s' => \$opt_f,
-              'showmap' => \$opt_showmap, 'console' => \$opt_console,
-              'info' => \$opt_info);
-  
+              'show-map' => \$opt_showmap, 'console' => \$opt_console,
+              'cid=s' => \$opt_cid, 'console-info' => \$opt_consoleinfo);
+
    # Build the argument object
    $args = new Arguments(
       $opt_t,$opt_s,$opt_p,$opt_r,$opt_d,
@@ -305,7 +305,8 @@ sub main {
       $opt_destroy,$opt_define,$opt_undefine,
       $opt_start,$opt_save,$opt_restore,
       $opt_suspend,$opt_resume,$opt_reboot,
-      $opt_reset,$opt_execute,$opt_f,$opt_showmap,$opt_console,$opt_info);
+      $opt_reset,$opt_execute,$opt_f,$opt_showmap,
+      $opt_console,$opt_cid,$opt_consoleinfo);
       
 
 
@@ -322,7 +323,7 @@ sub main {
    }
 
    # 1. To use -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start,
-   # --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --console, --info at the same time
+   # --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --console, --console-info at the same time
    
    my $how_many_args;
    my $mode;
@@ -405,19 +406,17 @@ sub main {
    }
    if ($opt_showmap) {
       $how_many_args++;
-      $mode = "showmap";
+      $mode = "show-map";
    }
    if ($opt_console) {
       $how_many_args++;
       $mode = "console";
    }
-   if ($opt_info) {
+   if ($opt_consoleinfo) {
       $how_many_args++;
-      $mode = "info";
+      $mode = "console-info";
    }
-   
-   
-
+      
    if ($opt_m) {
       &vnx_die ("-m switch is no longer supported since version 1.6.0\n");
    }
@@ -428,7 +427,7 @@ sub main {
    }
    if ($how_many_args lt 1) {
       &usage;
-      &vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --showmap, -V or -H\n");
+      &vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, --show-map, --console, --console-info, -V or -H\n");
    }
    if (($opt_F) && (!($opt_d||$opt_shutdown))) { 
       &usage; 
@@ -688,6 +687,7 @@ sub main {
    my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
    # Build the VNX::DataHandler object
+   print "*** mode=$mode\n";
    $dh = new DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
    $dh->set_boot_timeout($boot_timeout);
    $dh->set_vnx_dir($vnx_dir);
@@ -931,10 +931,10 @@ sub main {
    }
    
    elsif ($opt_console) {
-   &mode_console;
+		&mode_console;
    }
-   elsif ($opt_info) {
-   &mode_info;
+   elsif ($opt_consoleinfo) {
+   		&mode_consoleinfo;
    }
    
    
@@ -1300,45 +1300,51 @@ sub mode_showmap {
 
 sub mode_console {
 	
-	my $opt_M = $args->get('M');
-
 	my @vm_ordered = $dh->get_vm_ordered;
+	my %vm_hash = $dh->get_vm_to_use(@plugins);
 
  	my $scename = $dh->get_scename;
 	for ( my $i = 0; $i < @vm_ordered; $i++) {
 		my $vm = $vm_ordered[$i];
 			
-		my $name = $vm->getAttribute("name");
+		my $vmName = $vm->getAttribute("name");
 		
-		unless ($opt_M eq $name){
-			next;
-		}
-		
-		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
-			
-		if ( ($vm->getAttribute("type") eq "libvirt") || ( $vm->getAttribute("type") eq "dynamips") ) {
-			my $command = "virt-viewer $name &";
-			system $command;
+      	# We have to process it?
+      	unless ($vm_hash{$vmName}) {
+      		next;
+      	}
 
+		my $cid = $args->get('cid');
+		print "*** cid=$cid\n";     
+		
+		if ($cid eq '') {		
+			VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
+		} else {
+			VNX::vmAPICommon->start_console ($vmName, $cid);
+		}
+
+=BEGIN      			
+		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+		if ( ($vm->getAttribute("type") eq "libvirt") || ( $vm->getAttribute("type") eq "dynamips") ) {
+			my $command = "virt-viewer $vmName &";
+			system $command;
 		} elsif ( $vm->getAttribute("type") eq "uml") {
 			my $vnx_dir = $dh->get_vnx_dir;
-			my $pts=`cat $vnx_dir/scenarios/$scename/vms/$name/run/pts`;
+			my $pts=`cat $vnx_dir/scenarios/$scename/vms/$vmName/run/pts`;
 			$pts =~ s/\s+$//;        # Delete linefeed at the end
-			my $command = "xterm -T $name -e screen -t $name $pts &";
+			my $command = "xterm -T $vmName -e screen -t $vmName $pts &";
 			system $command;
-			
-
-			}
 		}
+=END
+=cut
+	}
         
-
 }
 
-sub mode_info {
+sub mode_consoleinfo {
 	
 	&print_consoles_info;
         
-
 }
 
 
@@ -4361,37 +4367,50 @@ sub print_console_table_entry {
 
 sub print_consoles_info{
 	
-        # Print information about vm consoles
-        my @vm_ordered = $dh->get_vm_ordered;
-        my $first = 1;
-        my $scename = $dh->get_scename;
-        for ( my $i = 0; $i < @vm_ordered; $i++) {
-			my $vm = $vm_ordered[$i];
+	my $opt_M = $args->get('M');
+#	if ($opt_M ne '') {
+#		print "*** $opt_M\n";
+#	}
+
+	# Print information about vm consoles
+    my @vm_ordered = $dh->get_vm_ordered;
+	my %vm_hash = $dh->get_vm_to_use;
+    
+    my $first = 1;
+    my $scename = $dh->get_scename;
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+		my $vm = $vm_ordered[$i];
+		
+		my $vmName = $vm->getAttribute("name");
+
+      	# Do we have to process it?
+      	unless ($vm_hash{$vmName}) {
+      		next;
+      	}    
+
+		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 			
-			my $name = $vm->getAttribute("name");
-			my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
-			
-			if ($first eq 1){
-				&print_console_table_header ($scename);
-				$first = 0;
-			}
+		if ($first eq 1){
+			&print_console_table_header ($scename);
+			$first = 0;
+		}
 
 #			if ( ($vm->getAttribute("type") eq "libvirt") || ( $vm->getAttribute("type") eq "dynamips") ) {
-				my $port;
-				my $cons0Cmd;
-				my $cons1Cmd;
-				my $consFile = $dh->get_run_dir($name) . "/console";
-				&print_console_table_entry ($name, $merged_type, $consFile, $vm->getAttribute("type"));
+		my $port;
+		my $cons0Cmd;
+		my $cons1Cmd;
+		my $consFile = $dh->get_run_dir($vmName) . "/console";
+		&print_console_table_entry ($vmName, $merged_type, $consFile, $vm->getAttribute("type"));
 
 
 #			} elsif ( $vm->getAttribute("type") eq "uml") {
 #			    # xterm -T uml -e screen -t uml /dev/pts/0
 #			    my $vnx_dir = $dh->get_vnx_dir;
-#			    my $pts=`cat $vnx_dir/scenarios/$scename/vms/$name/run/pts`;
+#			    my $pts=`cat $vnx_dir/scenarios/$scename/vms/$vmName/run/pts`;
 #			    $pts =~ s/\s+$//;        # Delete linefeed at the end
-#				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $name, $merged_type, $name, $name, $pts;
+#				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $vmName, $merged_type, $vmName, $vmName, $pts;
 #			}
-		}
+	}
 	
 }  
 
