@@ -27,6 +27,12 @@
     <interface type='network'>
       <source network='default'/>
     </interface>
+    <serial type="pty">
+      <target port="1"/>
+    </serial>
+    <console type="pty">
+      <target port="1"/>
+    </console>
     <graphics type='vnc'/>
   </devices>
 </domain>

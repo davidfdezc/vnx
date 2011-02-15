@@ -513,54 +513,46 @@ sub autoconfigure {
 				my $net   = $ifTag->getAttribute("net");
 				my $mac   = $ifTag->getAttribute("mac");
 				$mac =~ s/,//g;
-				# IPv4 addresses
-				my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
-				my $ipv4Tag = $ipv4Taglist->item(0);
-				my $mask    = $ipv4Tag->getAttribute("mask");
-				my $ip    = $ipv4Tag->getFirstChild->getData;
 
 				#print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac . 	"\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"eth" . $id . "\"\n\n";
-
 				print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
-
 				print INTERFACES "auto eth" . $id . "\n";
-				print INTERFACES "iface eth" . $id . " inet static\n";
-				print INTERFACES "   address " . $ip . "\n";
-				print INTERFACES "   netmask " . $mask . "\n\n";
 
-=BEGIN
+				# IPv4 addresses
+				my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
+				for ( my $j = 0 ; $j < $ipv4Taglist->getLength ; $j++ ) {
+
+					my $ipv4Tag = $ipv4Taglist->item($j);
+					my $mask    = $ipv4Tag->getAttribute("mask");
+					my $ip      = $ipv4Tag->getFirstChild->getData;
+
+					if ($j == 0) {
+						print INTERFACES "iface eth" . $id . " inet static\n";
+						print INTERFACES "   address " . $ip . "\n";
+						print INTERFACES "   netmask " . $mask . "\n\n";
+					} else {
+						print INTERFACES "   up /sbin/ifconfig eth" . $id . " inet add " . $ip . " netmask " . $mask . "\n";
+					}
+				}
+
 				# IPv6 addresses
 				my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
 				for ( my $j = 0 ; $j < $ipv6Taglist->getLength ; $j++ ) {
 
-					my $ip = &text_tag( $ipv6Taglist->item($j) );
-					if ( &valid_ipv6_with_mask($ip) ) {
-						# Implicit slashed mask in the address
-						#$execution->execute( "ifconfig $if_name add $ip", *CONFILE );
+					my $ipv6Tag = $ipv6Taglist->item($j);
+					my $ip    = $ipv6Tag->getFirstChild->getData;
+              		my $mask = $ip;
+                	$mask =~ s/.*\///;
+                	$ip =~ s/\/.*//;
+
+					if ($j == 0) {
+						print INTERFACES "iface eth" . $id . " inet6 static\n";
+						print INTERFACES "   address " . $ip . "\n";
+						print INTERFACES "   netmask " . $mask . "\n\n";
+					} else {
+						print INTERFACES "   up /sbin/ifconfig eth" . $id . " inet6 add " . $ip . "/" . $mask . "\n";
 					}
-					else {
-						# Check the value of the mask attribute
-						my $ipv6_effective_mask = "/64";    # Default mask value
-						my $ipv6_mask_attr = $ipv6Taglist->item($j)->getAttribute("mask");
-						if ( $ipv6_mask_attr ne "" ) {
-						   # Note that, in the case of IPv6, mask are always slashed
-							$ipv6_effective_mask = $ipv6_mask_attr;
-						}
-						#$execution->execute( "ifconfig $if_name add $ip$ipv6_effective_mask", *CONFILE );
-					}
-					
-					# interface eth1 inet6 static
-					# address 2001:470:801f::1
-					# netmask 64
-					# gateway 2001:470:1f05:15a::1
-					print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
-					print INTERFACES "auto eth" . $id . "\n";
-					print INTERFACES "iface eth" . $id . " inet static\n";
-					print INTERFACES "   address " . $ip . "\n";
-					print INTERFACES "   netmask " . $mask . "\n\n";
 				}
-=END
-=cut				
 			}
 
 			my $routeTaglist       = $virtualmTag->getElementsByTagName("route");
@@ -674,25 +666,55 @@ sub autoconfigure {
 			print RC "hostname=\"$vmName\"\n";
 			print RC "sendmail_enable=\"NONE\"\n"; #avoids some startup errors
 
+
 			# configure network
 			my $numif        = $ifTaglist->getLength;
-			for (my $j = 0 ; $j < $numif ; $j++){
-				my $ifTag = $ifTaglist->item($j);
+			for (my $i = 0 ; $i < $numif ; $i++){
+				my $ifTag = $ifTaglist->item($i);
 				my $id    = $ifTag->getAttribute("id");
 				my $net   = $ifTag->getAttribute("net");
 				my $mac   = $ifTag->getAttribute("mac");
 				$mac =~ s/,//g;
-				my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
-				my $ipv4Tag = $ipv4Taglist->item(0);
-				my $mask    = $ipv4Tag->getAttribute("mask");
-				my $ip    = $ipv4Tag->getFirstChild->getData;
 
-
-				print RC "ifconfig_re". $j . "_name=\"net" . $id . "\"\n";
+				print RC "ifconfig_re". $i . "_name=\"net" . $id . "\"\n";
 	#			print RC "ifconfig_net" . $id . "=\"inet " . $ip . " netmask " . $mask . " ether " . $mac . "\"\n";
-				print RC "ifconfig_net" . $id . "=\"inet " . $ip . " netmask " . $mask . "\"\n";
-				system "echo 'ifconfig net$id ether $mask' > /etc/start_if.net$id";
-			
+				#system "echo 'ifconfig net$id ether $mask' > /etc/start_if.net$id";
+	
+				my $alias_num=-1;
+				
+				# IPv4 addresses
+				my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
+				for ( my $j = 0 ; $j < $ipv4Taglist->getLength ; $j++ ) {
+
+					my $ipv4Tag = $ipv4Taglist->item($j);
+					my $mask    = $ipv4Tag->getAttribute("mask");
+					my $ip      = $ipv4Tag->getFirstChild->getData;
+
+					if ($alias_num == -1) {
+						print RC "ifconfig_net" . $id . "=\"inet " . $ip . " netmask " . $mask . "\"\n";
+					} else {
+						print RC "ifconfig_net" . $id . "_alias" . $alias_num . "=\"inet " . $ip . " netmask " . $mask . "\"\n";
+					}
+					$alias_num++;
+				}
+
+				# IPv6 addresses
+				my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
+				for ( my $j = 0 ; $j < $ipv6Taglist->getLength ; $j++ ) {
+
+					my $ipv6Tag = $ipv6Taglist->item($j);
+					my $ip    = $ipv6Tag->getFirstChild->getData;
+              		my $mask = $ip;
+                	$mask =~ s/.*\///;
+                	$ip =~ s/\/.*//;
+
+					if ($alias_num == -1) {
+						print RC "ifconfig_net" . $id . "=\"inet6 " . $ip . " prefixlen " . $mask . "\"\n";
+					} else {
+						print RC "ifconfig_net" . $id . "_alias" . $alias_num . "=\"inet6 " . $ip . " prefixlen " . $mask . "\"\n";
+					}
+					$alias_num++;
+				}
 			}
 		
 			my $routeTaglist       = $virtualmTag->getElementsByTagName("route");
