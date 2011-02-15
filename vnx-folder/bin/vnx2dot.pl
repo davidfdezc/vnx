@@ -46,7 +46,9 @@ for (my $i = 0; $i < $n; $i++)
 {
     my $net = $nets->item ($i);
     my $name = $net->getAttribute ("name");
-    print "$name [label=\"$name\", shape=\"ellipse\", fontcolor=\"$fontcolor\", " . 
+    my $name2 = $name;
+    $name2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
+    print "$name2 [label=\"$name\", shape=\"ellipse\", fontcolor=\"$fontcolor\", " . 
           "colorscheme=\"$colorscheme\", color=\"$netcolor\", style=\"filled\" ] ;\n" ;
 }
 
@@ -59,6 +61,8 @@ $n = $vms->getLength;
 for (my $i = 0; $i < $n; $i++) {
     my $vm = $vms->item ($i);
     my $vmname = $vm->getAttribute ("name");
+    my $vmname2 = $vmname;
+    $vmname2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
     my $type = $vm->getAttribute ("type");
     my $subtype = $vm->getAttribute ("subtype");
     my $os = $vm->getAttribute ("os");
@@ -71,8 +75,10 @@ for (my $i = 0; $i < $n; $i++) {
         $ctype="$type-$os";
     } 
     print "\n// Virtual machine $vmname\n" ;
-    print "$vmname [label=\"$vmname \\n($ctype)\", shape=\"box\", fontcolor=\"$fontcolor\", " . 
-          "colorscheme=\"$colorscheme\", color=\"$vmcolor\", style=\"filled\" ] ;\n" ;
+    print "$vmname2 [label=\"$vmname \\n($ctype)\", shape=\"circle\", fontcolor=\"$fontcolor\", " . 
+          "colorscheme=\"$colorscheme\", color=\"$vmcolor\", style=\"filled\", margin=\"0\" ] ;\n" ;
+#    print "$vmname2 [label=\"$vmname\", shape=\"circle\", fontcolor=\"$fontcolor\", " . 
+#          "colorscheme=\"$colorscheme\", color=\"$vmcolor\", style=\"filled\" ] ;\n" ;
 
     my $ifs = $vm->getElementsByTagName ("if");
     my $n = $ifs->getLength;
@@ -80,16 +86,24 @@ for (my $i = 0; $i < $n; $i++) {
         my $if = $ifs->item ($j);
         my $id = $if->getAttribute ("id");
         my $net = $if->getAttribute ("net");
+	    my $net2 = $net;
+    	$net2 =~ tr/-/_/;        
         #print "  if: $id $net \n";
+        my $ipaddrs;
         my $ipv4s = $if->getElementsByTagName ("ipv4");
         my $n = $ipv4s->getLength;
         for (my $k = 0; $k < $n; $k++) {
             my $ipv4 = $ipv4s->item ($k)->getChildNodes->item(0);
-            my $ip = $ipv4->getNodeValue;
-	    # print "    ipv4: $ip\n"; 
-            print "//   if $id with IP address $ip connected to network $net\n" ;
-            print "$vmname -- $net  [ label = \"$ip\", fontsize=\"9\", style=\"bold\" ];\n" ;
+            $ipaddrs = $ipaddrs . ' \n' . $ipv4->getNodeValue;
         }
+        my $ipv6s = $if->getElementsByTagName ("ipv6");
+        $n = $ipv6s->getLength;
+        for (my $k = 0; $k < $n; $k++) {
+            my $ipv6 = $ipv6s->item ($k)->getChildNodes->item(0);
+            $ipaddrs = $ipaddrs . ' \n' . $ipv6->getNodeValue;
+        }
+        print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
+        print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"9\", style=\"bold\" ];\n" ;
     }
 }
 
@@ -106,6 +120,8 @@ for (my $j = 0; $j < $n; $j++) {
     my $hostif = $hostifs->item ($j);
     my $id = $hostif->getAttribute ("id");
     my $net = $hostif->getAttribute ("net");
+    my $net2 = $net;
+   	$net2 =~ tr/-/_/;        
     #print "  if: $id $net \n";
     my $ipv4s = $hostif->getElementsByTagName ("ipv4");
     my $n = $ipv4s->getLength;
@@ -114,7 +130,7 @@ for (my $j = 0; $j < $n; $j++) {
         my $ip = $ipv4->getNodeValue;
         # print "    ipv4: $ip\n";
         print "//   if $id with IP address $ip connected to network $net\n" ;
-        print "host -- $net  [ label = \"$ip\", fontsize=\"9\", style=\"bold\" ];\n" ;
+        print "host -- $net2  [ label = \"$ip\", fontsize=\"9\", style=\"bold\" ];\n" ;
     }
 }
 
