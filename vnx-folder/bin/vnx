@@ -147,6 +147,9 @@ use Data::Dumper;
 
 use XML::LibXML;
 
+use AppConfig;         					# Config files management library
+use AppConfig qw(:expand :argcount);    # AppConfig module constants import
+
 use VNX::Globals;
 use VNX::DataHandler;
 use VNX::Execution;
@@ -227,6 +230,10 @@ my $curr_uml;
 # VNX scenario file
 my $input_file;
 
+# To be read from vnx.conf file
+my $console_exe;
+my $dynamips_port;
+my $dynamips_idle_pc;
 
 &main;
 exit(0);
@@ -687,7 +694,6 @@ sub main {
    my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
    # Build the VNX::DataHandler object
-   print "*** mode=$mode\n";
    $dh = new DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
    $dh->set_boot_timeout($boot_timeout);
    $dh->set_vnx_dir($vnx_dir);
@@ -753,6 +759,10 @@ sub main {
    # Complete fields in Execution object that need the DataHandler and
    # the binaries_path hash built
    $execution->set_mconsole_binary($bd->get_binaries_path_ref->{"uml_mconsole"});
+   
+   # Read global variables from vnx.conf file
+   &get_vnx_config;
+  
    
    ###########################################################
    # Initialize plugins
@@ -4415,7 +4425,53 @@ sub print_consoles_info{
 #			}
 	}
 	
-}  
+}
+
+sub get_vnx_config {
+	
+	my $vnx_config = AppConfig->new(
+		{
+			CASE  => 0,                     # Case insensitive
+#			ERROR => \&error_management,    # Error control function
+			CREATE => 1,    				# Variables that weren't previously defined, are created
+			GLOBAL => {
+				DEFAULT  => "<unset>",		# Default value for all variables
+				ARGCOUNT => ARGCOUNT_ONE,	# All variables contain a single value...
+			}
+		}
+	);
+	my $vnxconf_file;
+	$vnxconf_file = "/etc/vnx.conf";
+	open(FILEHANDLE, $vnxconf_file) or undef $vnxconf_file;
+	close(FILEHANDLE);
+
+	# Uncomment to make vnx.conf file obligatory, and to add a fallback path.
+	#	if ($vnxconf_file eq undef){
+	#		$vnxconf_file = "*path*/cluster.conf";
+	#		open(FILEHANDLE, $vnxconf) or die "The vnx configuration file doesn't exist in /etc/ or in *path*... Aborting";
+	#		close(FILEHANDLE);
+	#	}
+	
+	# read the vnx config file
+	$vnx_config->file($vnxconf_file);
+	
+	# Create corresponding objects
+	$console_exe = $vnx_config->get("general_console_exe");
+	$dynamips_port = $vnx_config->get("dynamips_port");
+	$dynamips_idle_pc = $vnx_config->get("dynamips_idle_pc");
+	
+	# NOTE: The block name and an underscore are then prefixed
+	# to the names of all variables subsequently referenced in that block. 
+	# In order to read from the file the variable 'var1' of block 'block2', e.g.:
+	# ...
+	# [block2]
+    # var1 = 20
+	# ...
+	# The line would be:
+	# $XXX = $vnx_config->get("block2_var1");
+
+}
+  
 
 
 ####################
