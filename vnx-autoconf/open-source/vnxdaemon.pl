@@ -128,7 +128,7 @@ sub listen {
 						&filetree($path);
 						&execute_commands($file2);
 						print LOG "   sending 'done' signal to host...\n\n";
-						system "echo 1 > " . LINUX_TTY;
+						system "echo finished! > " . LINUX_TTY;
 						
 					}elsif ($file2 eq "/media/cdrom/vnxboot"){
 						unless (&check_if_new_file($file2,"create_conf")){
@@ -197,7 +197,7 @@ sub listen {
 						&filetree($path);
 						&execute_commands($file2);
 						print LOG "   sending 'done' signal to host...\n\n";
-						system "echo 1 > " . FREEBSD_TTY;
+						system "echo finished! > " . FREEBSD_TTY;
 					
 					}elsif ($file2 eq "/cdrom/vnxboot"){
 						unless (&check_if_new_file($file2,"create_conf")){
@@ -325,9 +325,9 @@ sub execute_commands {
 					# parent does nothing
 				}else{
 					# child executes command and dies
-					#exec "xterm -display :0.0 -e $command2";
+					#exec "xterm -display :0.0 -e $command2";					
 					exec "DISPLAY=:0.0 $command2";
-					#exec $command2;
+
 				}
 			}elsif($mode eq "system"){
 					print LOG "   executing: '$command2'\n   in mode: 'system'\n";
