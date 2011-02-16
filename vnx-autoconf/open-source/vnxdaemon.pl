@@ -518,42 +518,51 @@ sub autoconfigure {
 				print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
 				print INTERFACES "auto eth" . $id . "\n";
 
-				# IPv4 addresses
 				my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
-				for ( my $j = 0 ; $j < $ipv4Taglist->getLength ; $j++ ) {
-
-					my $ipv4Tag = $ipv4Taglist->item($j);
-					my $mask    = $ipv4Tag->getAttribute("mask");
-					my $ip      = $ipv4Tag->getFirstChild->getData;
-
-					if ($j == 0) {
-						print INTERFACES "iface eth" . $id . " inet static\n";
-						print INTERFACES "   address " . $ip . "\n";
-						print INTERFACES "   netmask " . $mask . "\n\n";
-					} else {
-						print INTERFACES "   up /sbin/ifconfig eth" . $id . " inet add " . $ip . " netmask " . $mask . "\n";
-					}
-				}
-
-				# IPv6 addresses
 				my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
-				for ( my $j = 0 ; $j < $ipv6Taglist->getLength ; $j++ ) {
 
-					my $ipv6Tag = $ipv6Taglist->item($j);
-					my $ip    = $ipv6Tag->getFirstChild->getData;
-              		my $mask = $ip;
-                	$mask =~ s/.*\///;
-                	$ip =~ s/\/.*//;
 
-					if ($j == 0) {
-						print INTERFACES "iface eth" . $id . " inet6 static\n";
-						print INTERFACES "   address " . $ip . "\n";
-						print INTERFACES "   netmask " . $mask . "\n\n";
-					} else {
-						print INTERFACES "   up /sbin/ifconfig eth" . $id . " inet6 add " . $ip . "/" . $mask . "\n";
+				if ( ($ipv4Taglist->getLength == 0 ) && ( $ipv6Taglist->getLength == 0 ) ) {
+					# No addresses configured for the interface. We include the following commands to 
+					# have the interface active on start
+					print INTERFACES "iface eth" . $id . " inet manual\n";
+					print INTERFACES '  up ifconfig $IFACE 0.0.0.0 up\n';
+				} else {
+					# Config IPv4 addresses
+					for ( my $j = 0 ; $j < $ipv4Taglist->getLength ; $j++ ) {
+	
+						my $ipv4Tag = $ipv4Taglist->item($j);
+						my $mask    = $ipv4Tag->getAttribute("mask");
+						my $ip      = $ipv4Tag->getFirstChild->getData;
+	
+						if ($j == 0) {
+							print INTERFACES "iface eth" . $id . " inet static\n";
+							print INTERFACES "   address " . $ip . "\n";
+							print INTERFACES "   netmask " . $mask . "\n\n";
+						} else {
+							print INTERFACES "   up /sbin/ifconfig eth" . $id . " inet add " . $ip . " netmask " . $mask . "\n";
+						}
+					}
+					# Config IPv6 addresses
+					for ( my $j = 0 ; $j < $ipv6Taglist->getLength ; $j++ ) {
+	
+						my $ipv6Tag = $ipv6Taglist->item($j);
+						my $ip    = $ipv6Tag->getFirstChild->getData;
+	              		my $mask = $ip;
+	                	$mask =~ s/.*\///;
+	                	$ip =~ s/\/.*//;
+	
+						if ($j == 0) {
+							print INTERFACES "iface eth" . $id . " inet6 static\n";
+							print INTERFACES "   address " . $ip . "\n";
+							print INTERFACES "   netmask " . $mask . "\n\n";
+						} else {
+							print INTERFACES "   up /sbin/ifconfig eth" . $id . " inet6 add " . $ip . "/" . $mask . "\n";
+						}
 					}
 				}
 			}
+			
 
 			my $routeTaglist       = $virtualmTag->getElementsByTagName("route");
 			my $routeTag = $routeTaglist->item(0);
