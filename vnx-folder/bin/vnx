@@ -231,9 +231,9 @@ my $curr_uml;
 my $input_file;
 
 # To be read from vnx.conf file
-my $console_exe;
-my $dynamips_port;
-my $dynamips_idle_pc;
+#my $console_exe;
+#my $dynamips_port;
+#my $dynamips_idle_pc;
 
 &main;
 exit(0);
@@ -761,7 +761,7 @@ sub main {
    $execution->set_mconsole_binary($bd->get_binaries_path_ref->{"uml_mconsole"});
    
    # Read global variables from vnx.conf file
-   &get_vnx_config;
+   #&get_vnx_config;
   
    
    ###########################################################
@@ -4350,14 +4350,13 @@ sub print_console_table_entry {
 	my @consDesc;
 	
 	foreach $con (@cons) {
-		#my $conData= &get_conf_value ($consFile, $con, $execution);
-		my $conData= &get_conf_value ($consFile, $con);
+		my $conData= &get_conf_value ($consFile, '', $con);
 		#print "** $consFile $con conData=$conData\n";
-		if ($conData ne "") {
+		if (defined $conData) {
 			#print "** conData=$conData\n";
 		    my @consField = split(/,/, $conData);
 		    if ($consField[1] eq "vnc_display") {
- 				push (@consDesc, "$con:  'virt-viewer $vmName' or 'vncviewer $consField[2]'");		    	
+ 				push (@consDesc, "$con:  'virt-viewer -c $hypervisor $vmName' or 'vncviewer $consField[2]'");		    	
 		    } elsif ($consField[1] eq "telnet") {
  				push (@consDesc, "$con:  'telnet localhost $consField[2]'");		    	   	
 		    } elsif ($consField[1] eq "libvirt_pts") {
@@ -4427,6 +4426,7 @@ sub print_consoles_info{
 	
 }
 
+=BEGIN
 sub get_vnx_config {
 	
 	my $vnx_config = AppConfig->new(
@@ -4471,7 +4471,8 @@ sub get_vnx_config {
 	# $XXX = $vnx_config->get("block2_var1");
 
 }
-  
+=END
+=cut  
 
 
 ####################
