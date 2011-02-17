@@ -113,7 +113,7 @@ sub open_console {
 
 	my $command;
 	if ($consType eq 'vnc_display') {
-		$execution->execute("virt-viewer $vmName &");
+		$execution->execute("virt-viewer -c $hypervisor $vmName &");
 		return;  			
    	} elsif ($consType eq 'libvirt_pts') {
 		$command = "virsh console $vmName";
@@ -125,7 +125,7 @@ sub open_console {
 		print "WARNING (vm=$vmName): unknown console type ($consType)\n"
 	}
 	
-	my $console_exe=&get_conf_value ($VNX::Globals::MAIN_CONF_FILE, 'console_exe');
+	my $console_exe=&get_conf_value ($MAIN_CONF_FILE, 'general', 'console_exe');
 	print "*** start_console: $vmName $command console_exe = $console_exe\n";
 	if ($console_exe eq 'gnome-terminal') {
 		$execution->execute("gnome-terminal --title '$vmName - console #$con_id' -e '$command' >/dev/null 2>&1 &");
@@ -201,6 +201,5 @@ sub start_consoles_from_console_file {
 	}	
 
 }
-
 
 1;

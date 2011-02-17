@@ -45,10 +45,8 @@ package vmAPI_libvirt;
 
 use strict;
 use warnings;
-
 use Sys::Virt;
 use Sys::Virt::Domain;
-
 use VNX::Globals;
 use VNX::DataHandler;
 use VNX::Execution;
@@ -60,24 +58,17 @@ use VNX::NetChecks;
 use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
-
 #needed for UML_bootfile
 use File::Basename;
-
 use XML::DOM;
-
 #use XML::LibXML;
 #use XML::DOM::ValParser;
-
-
 use IO::Socket::UNIX qw( SOCK_STREAM );
 
-# Global objects
 
-#my $execution;    # the VNX::Execution object
-#my $dh;           # the VNX::DataHandler object
-#my $bd;           # the VNX::BinariesData object
-
+$hypervisor = &get_conf_value ($MAIN_CONF_FILE, 'libvirt', 'hypervisor');
+if (!defined $hypervisor) { $hypervisor = $LIBVIRT_DEFAULT_HYPERVISOR };
+print "*** hypervisor = $hypervisor \n";
 
 
 ###################################################################
@@ -432,11 +423,11 @@ sub defineVM {
 		$serial_tag->addChild($target_tag);
 		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
 
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my $format    = 1;
@@ -962,11 +953,11 @@ sub defineVM {
 #   ############
 
 		# We connect with libvirt to define the virtual machine
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my $format    = 1;
@@ -1036,11 +1027,11 @@ sub undefineVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_defined_domains();
@@ -1092,11 +1083,11 @@ sub destroyVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
@@ -1158,10 +1149,10 @@ sub startVM {
 	###################################################################
 	if ( $type eq "libvirt-kvm-windows" ) {
 
-		my $addr = "qemu:///system";
+		#my $hypervisor = "qemu:///system";
 
-		print "Connecting to $addr...";
-		my $con = Sys::Virt->new( address => $addr, readonly => 0 );
+		print "Connecting to $hypervisor...";
+		my $con = Sys::Virt->new( address => $hypervisor, readonly => 0 );
 		print "OK\n";
 
 		my @doms = $con->list_defined_domains();
@@ -1222,11 +1213,11 @@ sub startVM {
 	if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
 	        ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_defined_domains();
@@ -1267,9 +1258,8 @@ sub startVM {
 				# Text console (id=1)
 			    if ($type ne "libvirt-kvm-windows")  { # Windows does not have text console
 			    	# Check if con1 is of type "libvirt_pts"
-			    	#my $conData= &get_conf_value ($consFile, "con1", $execution);
-			    	my $conData= &get_conf_value ($consFile, "con1");
-					if ( $conData ne '') {
+			    	my $conData= &get_conf_value ($consFile, '', 'con1');
+					if ( defined $conData) {
 					    my @consField = split(/,/, $conData);
 					    if ($consField[1] eq 'libvirt_pts') {
 			        		my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system ttyconsole $vmName";
@@ -1379,11 +1369,11 @@ sub shutdownVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
@@ -1442,11 +1432,11 @@ sub saveVM {
 
 	if ( $type eq "libvirt-kvm" ) {
 
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
@@ -1471,11 +1461,11 @@ sub saveVM {
     elsif ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
              ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") )   {
 
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
@@ -1529,11 +1519,11 @@ sub restoreVM {
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) 
     {
 	    
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my $dom = $con->restore_domain($filename);
@@ -1573,11 +1563,11 @@ sub suspendVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
@@ -1627,11 +1617,11 @@ sub resumeVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
@@ -1678,11 +1668,11 @@ sub rebootVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
@@ -1733,11 +1723,11 @@ sub resetVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		my $addr = "qemu:///system";
-		print "Connecting to $addr hypervisor..." if ($exemode == $EXE_VERBOSE);
+		#my $hypervisor = "qemu:///system";
+		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
-		eval { $con = Sys::Virt->new( address => $addr, readonly => 0 ) };
-		if ($@) { $execution->smartdie ("error connecting to $addr hypervisor.\n" . $@->stringify() ); }
+		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
+		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();

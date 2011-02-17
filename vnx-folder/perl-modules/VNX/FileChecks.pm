@@ -46,6 +46,9 @@ use File::Glob ':glob';
 use VNX::Globals;
 use VNX::Execution;
 use VNX::TextManipulation;
+use AppConfig;
+use AppConfig qw(:expand :argcount);    # AppConfig module constants import
+
 
 # valid_absolute_directoryname
 #
@@ -103,16 +106,57 @@ sub do_path_expansion {
 
 # get_conf_value 
 #
-# Returns a value from a configuration file made of 'param=value' lines
-# Dies (smartly) if the file is not found.
+# Returns the value from a configuration file with the following format:
+#     
+#    param1=value
+#    param2=value
+#
+#    [section1]
+#    param1=value
+#    param2=value
+#
+#    [section2]
+#    param1=value
+#    param2=value
+#
+# Returns undef if the value is not found
+# 
+# Parameters:
+# - confFile: confifuration file
+# - section:  the section name where the parameter is ('' if global parameter)
+# - param:    the parameter name
 #
 sub get_conf_value {
 
-    my $confFile=shift;
-    my $param=shift;
-#    my $execution=shift;
-    my $result="";
-    
+    my $confFile = shift;
+    my $section  = shift;
+    my $param    = shift;
+
+    my $result;
+
+	sub error_management {
+		#print "** error reading config value: $section $param\n";
+	}
+   
+	my $vnx_config = AppConfig->new(
+		{	CASE  => 0,                     # Case insensitive
+			ERROR => \&error_management,    # Error control function
+			CREATE => 1,    				# Variables that weren't previously defined, are created
+			GLOBAL => {
+				DEFAULT  => "<undef>",		# Default value for all variables
+				ARGCOUNT => ARGCOUNT_ONE,	# All variables contain a single value...
+			}
+		}
+	);
+
+	# read the vnx config file
+	$vnx_config->file($confFile);
+	if ($section eq '' ) {
+    	return $result = $vnx_config->get($param);	
+	} else {
+    	return $result = $vnx_config->get($section . "_" . $param );			
+	}
+=BEGIN
 	#unless(-e $confFile){ return $result }
 	open FILE, "< $confFile" or $execution->smartdie("$confFile not found");
 	my @lines = <FILE>;
@@ -125,7 +169,8 @@ sub get_conf_value {
 			$result =~ s/\s+//g;
 	    }
 	}
- 	return $result;
+=END
+=cut
 }
 
 # get_abs_path

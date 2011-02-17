@@ -73,9 +73,12 @@ use File::Basename;
 use File::Spec;
 
          
-my $dynamipsHost="localhost";
-my $dynamipsPort=get_dynamips_port_conf();
-
+my $dynamipsHost = "localhost";
+#my $dynamipsPort=get_dynamips_port_conf();
+my $dynamipsPort = &get_conf_value ($MAIN_CONF_FILE, 'dynamips', 'port');
+if (!defined $dynamipsPort) { $dynamipsPort = $DYNAMIPS_DEFAULT_PORT };
+#print "*** dynamipsPort = $dynamipsPort \n";
+    
 
 ####################################################################
 ##                                                                 #
@@ -376,7 +379,11 @@ sub defineVM {
     }
     
     # Set IDLEPC
-    my $idlepc = get_idle_pc_conf($vmName);
+    #my $idlepc = get_idle_pc_conf($vmName);
+    my $idlepc = &get_conf_value ($MAIN_CONF_FILE, 'dynamips', 'idle_pc');
+    if (!defined $idlepc) { $idlepc = $DYNAMIPS_DEFAULT_IDLE_PC };
+    print "*** idlepc = $idlepc \n";
+    
 	print("vm set_idle_pc $vmName $idlepc\n");
 	$t->print("vm set_idle_pc $vmName $idlepc");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
@@ -759,11 +766,9 @@ sub executeCMD{
 	open (PORT_CISCO, "< $consFile") || $execution->smartdie ("ERROR: cannot open $vmName console file ($consFile)");
 	my $conData;
 	if ($merged_type eq 'dynamips-7200') { # we use con2 (aux port)
-		#$conData = &get_conf_value ($consFile, 'con2', $execution);
-		$conData = &get_conf_value ($consFile, 'con2');
+		$conData = &get_conf_value ($consFile, '', 'con2');
 	} else { # we use con1 (console port)
-		#$conData = &get_conf_value ($consFile, 'con1', $execution);			
-		$conData = &get_conf_value ($consFile, 'con1');			
+		$conData = &get_conf_value ($consFile, '', 'con1');			
 	}
 	$conData =~ s/con.=//;  		# eliminate the "conX=" part of the line
 	my @consField = split(/,/, $conData);
@@ -1532,6 +1537,7 @@ sub get_cards_conf {
  	return @slotarray;
 }
 
+=BEGIN
 #
 # get_dynamips_port_conf
 #
@@ -1585,7 +1591,8 @@ sub get_idle_pc_conf {
 	}
  	return $result;
 }
-
+=END
+=cut
 
 ###################################################################
 #                                                                 
