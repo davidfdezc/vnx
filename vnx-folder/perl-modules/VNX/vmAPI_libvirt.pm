@@ -66,9 +66,9 @@ use XML::DOM;
 use IO::Socket::UNIX qw( SOCK_STREAM );
 
 
-$hypervisor = &get_conf_value ($MAIN_CONF_FILE, 'libvirt', 'hypervisor');
+$hypervisor = &get_conf_value ($vnxConfigFile, 'libvirt', 'hypervisor');
 if (!defined $hypervisor) { $hypervisor = $LIBVIRT_DEFAULT_HYPERVISOR };
-print "*** hypervisor = $hypervisor \n";
+#print "*** hypervisor = $hypervisor \n";
 
 
 ###################################################################
@@ -85,9 +85,6 @@ sub defineVM {
 	my $vmName = shift;
 	my $type   = shift;
 	my $doc    = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 	my $sock    = shift;
 	my $counter = shift;
 	
