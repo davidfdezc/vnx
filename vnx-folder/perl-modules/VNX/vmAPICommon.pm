@@ -125,7 +125,7 @@ sub open_console {
 		print "WARNING (vm=$vmName): unknown console type ($consType)\n"
 	}
 	
-	my $console_exe=&get_conf_value ($MAIN_CONF_FILE, 'general', 'console_exe');
+	my $console_exe=&get_conf_value ($vnxConfigFile, 'general', 'console_exe');
 	print "*** start_console: $vmName $command console_exe = $console_exe\n";
 	if ($console_exe eq 'gnome-terminal') {
 		$execution->execute("gnome-terminal --title '$vmName - console #$con_id' -e '$command' >/dev/null 2>&1 &");
@@ -134,7 +134,7 @@ sub open_console {
 	} elsif ($console_exe eq 'roxterm') {
 		$execution->execute("roxterm --title '$vmName - console #$con_id' -e $command >/dev/null 2>&1 &");
 	} else {
-		$execution->smartdie ("unknown value ($console_exe) of console_exe entry in VNX_CONFFILE");
+		$execution->smartdie ("unknown value ($console_exe) of console_exe parameter in $vnxConfigFile");
 	}
 }
 

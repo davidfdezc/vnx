@@ -75,7 +75,7 @@ use File::Spec;
          
 my $dynamipsHost = "localhost";
 #my $dynamipsPort=get_dynamips_port_conf();
-my $dynamipsPort = &get_conf_value ($MAIN_CONF_FILE, 'dynamips', 'port');
+my $dynamipsPort = &get_conf_value ($vnxConfigFile, 'dynamips', 'port');
 if (!defined $dynamipsPort) { $dynamipsPort = $DYNAMIPS_DEFAULT_PORT };
 #print "*** dynamipsPort = $dynamipsPort \n";
     
@@ -380,7 +380,7 @@ sub defineVM {
     
     # Set IDLEPC
     #my $idlepc = get_idle_pc_conf($vmName);
-    my $idlepc = &get_conf_value ($MAIN_CONF_FILE, 'dynamips', 'idle_pc');
+    my $idlepc = &get_conf_value ($vnxConfigFile, 'dynamips', 'idle_pc');
     if (!defined $idlepc) { $idlepc = $DYNAMIPS_DEFAULT_IDLE_PC };
     print "*** idlepc = $idlepc \n";
     

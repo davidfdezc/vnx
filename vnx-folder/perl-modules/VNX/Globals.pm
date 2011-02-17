@@ -19,8 +19,9 @@ our @EXPORT = qw(
 	@plugins
 	$exemode
 	$hypervisor
+	$vnxConfigFile
 
-	$MAIN_CONF_FILE
+	$DEFAULT_CONF_FILE
 	$CONS_DISPLAY_DEFAULT
 	$CONS_BASE_PORT
 	$CONS1_DEFAULT_TYPE
@@ -46,19 +47,20 @@ my $branch;
 ###########################################################
 # Global objects
 
-our $execution;   # the VNX::Execution object
-our $dh;          # the VNX::DataHandler object
-our $bd;          # the VNX::BinariesData object
-our $args;        # the VNX::Arguments object
-our @plugins;     # plugins array
-our $exemode;     # Execution mode. It stores the value of $execution->get_exe_mode()
-                  # Used just to shorter the print sentences:
-                  #    print "..." if ($exemode == $EXE_VERBOSE)
-our $hypervisor;  # Hypervisor used for libvirt 	
+our $execution;     # the VNX::Execution object
+our $dh;            # the VNX::DataHandler object
+our $bd;            # the VNX::BinariesData object
+our $args;          # the VNX::Arguments object
+our @plugins;       # plugins array
+our $exemode;       # Execution mode. It stores the value of $execution->get_exe_mode()
+                    # Used just to shorter the print sentences:
+                    #    print "..." if ($exemode == $EXE_VERBOSE)
+our $hypervisor;    # Hypervisor used for libvirt 	
+our $vnxConfigFile; # VNX Configuration file 
 
 
 # Configuration files
-Readonly::Scalar our $MAIN_CONF_FILE => '/etc/vnx.conf';
+Readonly::Scalar our $DEFAULT_CONF_FILE => '/etc/vnx.conf';
 
 # Console Management
 Readonly::Scalar our $CONS_DISPLAY_DEFAULT => 'yes';    # By default consoles are displayed at startup

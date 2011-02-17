@@ -93,6 +93,7 @@ sub new {
    $self->{'console'} = shift;
    $self->{'cid'} = shift;
    $self->{'console-info'} = shift;
+   $self->{'config'} = shift;
    
    return $self;
 }

@@ -245,12 +245,6 @@ sub main {
 	
    $ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
 
-   # Check the existance of the VNX configuration file 
-   unless(-e $VNX::Globals::MAIN_CONF_FILE) {
-   	 print "\nERROR: $VNX::Globals::MAIN_CONF_FILE not found\n\n";
-   	 exit(1);
-   }
-
    my $vnx_dir = &do_path_expansion("~/.vnx");
 #   my $tmp_dir = "@VNUML_TMP@";[JSF]
 #   my $uid = $> == 0 ? getpwnam("@VNUML_USER@") : $>;[JSF]
@@ -278,7 +272,8 @@ sub main {
       $opt_start,$opt_save,$opt_restore,
       $opt_suspend, $opt_resume,$opt_reboot,
       $opt_reset,$opt_execute,$opt_f,$opt_showmap,
-      $opt_console,$opt_consoleinfo,$opt_cid);
+      $opt_console,$opt_consoleinfo,$opt_cid,
+      $opt_C, $opt_config);
       
    Getopt::Long::Configure ("bundling"); # case sensitive single-character options
    GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
@@ -299,7 +294,8 @@ sub main {
               'reboot' => \$opt_reboot, 'reset' => \$opt_reset,
               'execute=s' => \$opt_execute, 'f=s' => \$opt_f,
               'show-map' => \$opt_showmap, 'console' => \$opt_console,
-              'cid=s' => \$opt_cid, 'console-info' => \$opt_consoleinfo);
+              'cid=s' => \$opt_cid, 'console-info' => \$opt_consoleinfo,
+              'C|config=s' => \$opt_config);
 
    # Build the argument object
    $args = new Arguments(
@@ -313,14 +309,32 @@ sub main {
       $opt_start,$opt_save,$opt_restore,
       $opt_suspend,$opt_resume,$opt_reboot,
       $opt_reset,$opt_execute,$opt_f,$opt_showmap,
-      $opt_console,$opt_cid,$opt_consoleinfo);
-      
+      $opt_console,$opt_cid,$opt_consoleinfo,
+      $opt_config);
 
 
    # FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
    # it by default
    $args->set('Z',1);
 
+   print "----------------------------------------------------------------------------------\n";
+   print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es          \n";
+   print "Version: $version" . "$branch (build on $release)\n";
+   print "----------------------------------------------------------------------------------\n";
+
+   # Set configuration file 
+   if ($opt_config) {
+   	  	$vnxConfigFile = $opt_config; 
+   } else {
+   		$vnxConfigFile = $DEFAULT_CONF_FILE;
+   }
+   print ("Using configuration file: $vnxConfigFile\n");
+
+   # Check the existance of the VNX configuration file 
+   unless(-e $vnxConfigFile) {
+   	 print "\nERROR: VNX configuration file $vnxConfigFile not found\n\n";
+   	 exit(1);
+   }
 
    # To check arguments consistency
    # 0. Check if -f is present
@@ -423,6 +437,7 @@ sub main {
       $how_many_args++;
       $mode = "console-info";
    }
+
       
    if ($opt_m) {
       &vnx_die ("-m switch is no longer supported since version 1.6.0\n");
@@ -476,7 +491,7 @@ sub main {
       print "                        `888'       8       `888    d8'  `888b   \n";
       print "                         `8'       o8o        `8  o888o  o88888o \n";
       print "\n";
-      print "                       Virtual Network over X virtualization \n";
+      print "                             Virtual Networks over LinuX\n";
       print "                              http://www.dit.upm.es/vnx      \n";
       print "                                    vnx\@dit.upm.es          \n";
       print "\n";
