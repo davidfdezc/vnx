@@ -30,7 +30,9 @@
 package vmAPI_libvirt;
 
 @ISA    = qw(Exporter);
-@EXPORT = qw(defineVM
+@EXPORT = qw(
+  init
+  defineVM
   undefineVM
   destroyVM
   startVM
@@ -66,9 +68,27 @@ use XML::DOM;
 use IO::Socket::UNIX qw( SOCK_STREAM );
 
 
-$hypervisor = &get_conf_value ($vnxConfigFile, 'libvirt', 'hypervisor');
-if (!defined $hypervisor) { $hypervisor = $LIBVIRT_DEFAULT_HYPERVISOR };
-#print "*** hypervisor = $hypervisor \n";
+#
+# Module vmAPI_libvirt initialization code
+#
+sub init {
+
+	# get hypervisor from config file
+	$hypervisor = &get_conf_value ($vnxConfigFile, 'libvirt', 'hypervisor');
+	if (!defined $hypervisor) { $hypervisor = $LIBVIRT_DEFAULT_HYPERVISOR };
+	#print "*** hypervisor = $hypervisor \n";
+	
+	# load kvm modules
+	# TODO: it should be done only if
+	#   - not previously load
+	#   - the scenario contains KVM virtual machine
+	#
+	$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm");
+	$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-intel");
+	$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-amd");
+
+}
+
 
 
 ###################################################################

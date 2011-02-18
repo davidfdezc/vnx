@@ -30,7 +30,9 @@
 
 #
 #@ISA    = qw(Exporter);
-@EXPORT = qw(defineVM
+@EXPORT = qw(
+  init
+  defineVM
   undefineVM
   destroyVM
   startVM
@@ -67,18 +69,27 @@ use VNX::CiscoExeCmd;
 use VNX::vmAPICommon;
 use Net::Telnet;
 use NetAddr::IP;
-#use Net::IP;
-#use Net::Telnet::Cisco;
+use Net::IP;
 use File::Basename;
 use File::Spec;
 
-         
-my $dynamipsHost = "localhost";
-#my $dynamipsPort=get_dynamips_port_conf();
-my $dynamipsPort = &get_conf_value ($vnxConfigFile, 'dynamips', 'port');
-if (!defined $dynamipsPort) { $dynamipsPort = $DYNAMIPS_DEFAULT_PORT };
-#print "*** dynamipsPort = $dynamipsPort \n";
-    
+
+my $dynamipsHost;
+my $dynamipsPort;
+
+
+#
+# Module vmAPI_uml initialization code
+#
+sub init {      
+	$dynamipsHost = "localhost";
+	#my $dynamipsPort=get_dynamips_port_conf();
+	$dynamipsPort = &get_conf_value ($vnxConfigFile, 'dynamips', 'port');
+	if (!defined $dynamipsPort) { $dynamipsPort = $DYNAMIPS_DEFAULT_PORT };
+	#print "*** dynamipsPort = $dynamipsPort \n";
+}    
+
+
 
 ####################################################################
 ##                                                                 #
@@ -202,8 +213,9 @@ sub defineVM {
  			$destination = "0.0.0.0";
  			$maskdestination = "0.0.0.0";
  		}else {
- 			#my $ip = new Net::IP ($destination) or $execution->smartdie (Net::IP::Error());
- 			my $ip = new NetAddr::IP ($destination) or $execution->smartdie (NetAddr::IP::Error());
+ 			print "****** $destination\n";
+ 			my $ip = new Net::IP ($destination) or $execution->smartdie (Net::IP::Error());
+ 			#my $ip = new NetAddr::IP ($destination) or $execution->smartdie (NetAddr::IP::Error());
  			$maskdestination = $ip->mask();
  			$destination = $ip->ip();
  		}

@@ -10,21 +10,19 @@
        <slot id="0">NM-4E</slot>
        <slot id="1">NM-4T</slot>
      </hw>
-
   </global>
 
 
-  <vm name="cisco">
-     <conf>conf/cisco.conf</conf>
-     <hw>
-       <chassis>c3640</chassis>
-       <slot id="0">NM-4E</slot>
-       <slot id="1">NM-4T</slot>
-     </hw>
-     <!--login password="xxxx"/-->
+  <vm name="r1">
+     <conf>conf/r1.conf</conf>
      <login user="root" password="xxxx"/>
      <enable password="xxxx"/>
   </vm>
 
+  <vm name="r2">
+     <conf>conf/r2.conf</conf>
+     <login user="root" password="xxxx"/>
+     <enable password="xxxx"/>
+  </vm>
 
 </vnx_dynamips>

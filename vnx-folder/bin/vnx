@@ -778,6 +778,11 @@ sub main {
    # Read global variables from vnx.conf file
    #&get_vnx_config;
   
+   # Initialize vmAPI modules
+   vmAPI_uml->init;
+   vmAPI_libvirt->init;
+   vmAPI_dynamips->init;
+  
    
    ###########################################################
    # Initialize plugins

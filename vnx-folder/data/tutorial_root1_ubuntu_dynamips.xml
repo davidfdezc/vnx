@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+VNUML Root Scenario (1)
+See the tutorial/index.html document for details
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.95.xsd">
+  <global>
+    <version>1.92</version>
+    <scenario_name>tutorial-r1_all</scenario_name>
+    <automac/>
+    <vm_mgmt type="private" network="10.250.0.0" mask="24">
+       <host_mapping />
+    </vm_mgmt> 
+    <vm_defaults exec_mode="mconsole">
+    	<console id="0" display="no"/>
+	    <console id="1" display="yes"/>
+    </vm_defaults>
+    <dynamips_ext>tutorial_root1_ubuntu_dynamips-dn.xml</dynamips_ext>
+  </global>
+
+  <net name="Net0" mode="virtual_bridge" />
+  <net name="Net1" mode="virtual_bridge" />
+  <net name="Net2" mode="virtual_bridge" />
+  <net name="Net3" mode="virtual_bridge" />
+
+  <vm name="h1" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <mem>128M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.1/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.0.3">default</route>
+  </vm>
+
+  <vm name="h2" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <mem>128M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.2/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.0.3">default</route>
+  </vm>
+
+  <vm name="r1" type="dynamips" subtype="3600" os="">
+    <filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
+    <mem>96M</mem>
+    <if id="1" net="Net0" name="e0/0">
+      <ipv4>10.0.0.3/24</ipv4>
+    </if>
+    <if id="2" net="Net1" name="e0/1">
+      <ipv4>10.0.1.1/24</ipv4>
+    </if>
+    <if id="3" net="Net3" name="e0/2">
+      <ipv4>10.0.3.1/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
+    <exec seq="brief" type="verbatim">show ip interface brief</exec>
+  </vm>
+
+  <vm name="r2" type="dynamips" subtype="3600" os="">
+    <filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
+    <mem>96M</mem>
+    <if id="1" net="Net1" name="e0/0">
+      <ipv4>10.0.1.2/24</ipv4>
+    </if>
+    <if id="2" net="Net2" name="e0/1">
+      <ipv4>10.0.2.1/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>
+    <exec seq="brief" type="verbatim">show ip interface brief</exec>
+  </vm>
+
+  <vm name="h3" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+   <mem>128M</mem>
+   <if id="1" net="Net2">
+      <ipv4>10.0.2.2/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.2.1">default</route>
+  </vm>
+  
+  <vm name="h4" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <mem>128M</mem>
+    <if id="1" net="Net2">
+      <ipv4>10.0.2.3/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.2.1">default</route>    
+  </vm>
+  
+  <host>
+    <hostif net="Net3">
+       <ipv4>10.0.3.2/24</ipv4>
+    </hostif>
+    <route type="ipv4" gw="10.0.3.1">10.0.0.0/16</route>
+  </host>
+
+</vnx>
