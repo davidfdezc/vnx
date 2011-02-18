@@ -11,7 +11,7 @@ use constant LINUX_TTY => '/dev/ttyS1';
 use constant FREEBSD_TTY => '/dev/cuau1';
 
 
-sleep 15;
+#sleep 15;
 &main;
 exit(0);
 
@@ -514,8 +514,8 @@ sub autoconfigure {
 				my $mac   = $ifTag->getAttribute("mac");
 				$mac =~ s/,//g;
 
-				#print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac . 	"\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"eth" . $id . "\"\n\n";
-				print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
+				print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac . 	"\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"eth" . $id . "\"\n\n";
+				#print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
 				print INTERFACES "auto eth" . $id . "\n";
 
 				my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
