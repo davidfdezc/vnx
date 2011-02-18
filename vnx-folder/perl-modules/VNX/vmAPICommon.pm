@@ -116,7 +116,7 @@ sub open_console {
 		$execution->execute("virt-viewer -c $hypervisor $vmName &");
 		return;  			
    	} elsif ($consType eq 'libvirt_pts') {
-		$command = "virsh console $vmName";
+		$command = "virsh -c $hypervisor console $vmName";
    	} elsif ($consType eq 'uml_pts') {
 		$command = "screen -t $vmName $consPar";
    	} elsif ($consType eq 'telnet') {

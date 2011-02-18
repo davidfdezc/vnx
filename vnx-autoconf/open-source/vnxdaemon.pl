@@ -11,7 +11,7 @@ use constant LINUX_TTY => '/dev/ttyS1';
 use constant FREEBSD_TTY => '/dev/cuau1';
 
 
-#sleep 15;
+sleep 10;
 &main;
 exit(0);
 

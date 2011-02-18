@@ -30,7 +30,9 @@
 package vmAPI_uml;
 
 @ISA    = qw(Exporter);
-@EXPORT = qw(defineVM
+@EXPORT = qw(
+  init
+  defineVM
   undefineVM
   destroyVM
   startVM
@@ -79,6 +81,15 @@ my $curr_uml;
 my $F_flag;       # passed from createVM to halt
 my $M_flag;       # passed from createVM to halt
 
+
+
+
+#
+# Module vmAPI_uml initialization code
+#
+sub init {
+	
+}
 
 
 ###################################################################
