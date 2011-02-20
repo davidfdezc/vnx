@@ -1051,7 +1051,6 @@ sub mode_undefine{
       }
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      #my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type, $dh,$bd,$execution);
       my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
@@ -1203,7 +1202,6 @@ sub mode_reset {
       }
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      #my $error = "vmAPI_$vmType"->resetVM($name, $merged_type, $execution, $bd,$dh);
       my $error = "vmAPI_$vmType"->resetVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
@@ -1230,7 +1228,6 @@ sub mode_save {
 
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      #my $error = "vmAPI_$vmType"->saveVM($name, $merged_type, $filename,$dh,$bd,$execution);
       my $error = "vmAPI_$vmType"->saveVM($name, $merged_type, $filename);
       if (!($error eq 0)){print $error}
 
@@ -1257,7 +1254,6 @@ sub mode_restore {
       $filename = $dh->get_vm_dir($name) . "/" . $name . "_savefile";
       #     call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      #my $error = "vmAPI_$vmType"->restoreVM($name, $merged_type, $filename, $dh,$bd,$execution);
       my $error = "vmAPI_$vmType"->restoreVM($name, $merged_type, $filename);
       if (!($error eq 0)){print $error}
    }
@@ -1281,7 +1277,6 @@ sub mode_suspend {
       
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      #my $error = "vmAPI_$vmType"->suspendVM($name, $merged_type,$dh,$bd,$execution);
       my $error = "vmAPI_$vmType"->suspendVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
@@ -1304,7 +1299,6 @@ sub mode_resume {
       }
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      #my $error = "vmAPI_$vmType"->resumeVM($name, $merged_type,$dh,$bd,$execution);
       my $error = "vmAPI_$vmType"->resumeVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
@@ -2035,7 +2029,6 @@ sub define_VMs {
         
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      #my $error = "vmAPI_$vmType"->defineVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
       my $error = "vmAPI_$vmType"->defineVM($name, $merged_type, $docstring, $sock, $manipcounter);
       if (!($error eq 0)){print $error}
       $manipcounter++;
@@ -2194,7 +2187,7 @@ sub mode_x {
 	}
 
 	#vmAPI_uml->exec_command_host($seq,$execution,$bd,$dh);
-	exec_command_host($seq);
+	vmAPICommon->exec_command_host($seq);
 }
 
 
@@ -2591,7 +2584,6 @@ sub mode_P {
         # call the corresponding vmAPI
         my $vmType = $vm->getAttribute("type");
         
-        #my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type, $dh,$bd,$execution);
         my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type);
         if (!($error eq 0)){print $error}
  
@@ -4372,6 +4364,7 @@ sub print_console_table_entry {
 	foreach $con (@cons) {
 		my $conData= &get_conf_value ($consFile, '', $con);
 		#print "** $consFile $con conData=$conData\n";
+		my $console_exe=&get_conf_value ($vnxConfigFile, 'general', 'console_exe');
 		if (defined $conData) {
 			#print "** conData=$conData\n";
 		    my @consField = split(/,/, $conData);
@@ -4382,7 +4375,9 @@ sub print_console_table_entry {
 		    } elsif ($consField[1] eq "libvirt_pts") {
  				push (@consDesc, "$con:  'virsh console $vmName' or 'screen $consField[2]'");		    	   		    	
 		    } elsif ($consField[1] eq "uml_pts") {
- 				push (@consDesc, "$con:  'xterm -T $vmName -e screen -t $vmName $consField[2]'");
+		    	my $conLine = VNX::vmAPICommon->open_console ($vmName, $con, $consField[1], $consField[2], 'yes');
+ 				#push (@consDesc, "$con:  '$console_exe -T $vmName -e screen -t $vmName $consField[2]'");
+ 				push (@consDesc, "$con:  '$conLine'");
 		    } else {
 		    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
 		    }
