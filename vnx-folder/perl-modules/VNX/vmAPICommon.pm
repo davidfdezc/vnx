@@ -39,6 +39,7 @@ our @ISA    = qw(Exporter);
 our @EXPORT = qw(	
 
 	exec_command_host
+	open_console
 	start_console
 	start_consoles_from_console_file
 );
@@ -105,11 +106,12 @@ sub exec_command_host {
 #
 sub open_console {
 	
-	my $self      = shift;
-	my $vmName    = shift;
-	my $con_id    = shift;
-	my $consType  = shift;
-	my $consPar   = shift;
+	my $self        = shift;
+	my $vmName      = shift;
+	my $con_id      = shift;
+	my $consType    = shift;
+	my $consPar     = shift;
+	my $getLineOnly = shift;
 
 	my $command;
 	if ($consType eq 'vnc_display') {
@@ -126,16 +128,21 @@ sub open_console {
 	}
 	
 	my $console_exe=&get_conf_value ($vnxConfigFile, 'general', 'console_exe');
-	print "*** start_console: $vmName $command console_exe = $console_exe\n";
+	my $exeLine;
+	#print "*** start_console: $vmName $command console_exe = $console_exe\n";
 	if ($console_exe eq 'gnome-terminal') {
-		$execution->execute("gnome-terminal --title '$vmName - console #$con_id' -e '$command' >/dev/null 2>&1 &");
+		$exeLine = "gnome-terminal --title '$vmName - console #$con_id' -e '$command'";
 	} elsif ($console_exe eq 'xterm') {
-		$execution->execute("xterm -title '$vmName - console #$con_id' -e '$command' >/dev/null 2>&1 &");
+		$exeLine = "xterm -title '$vmName - console #$con_id' -e '$command'";
 	} elsif ($console_exe eq 'roxterm') {
-		$execution->execute("roxterm --title '$vmName - console #$con_id' -e $command >/dev/null 2>&1 &");
+		$exeLine = "roxterm --title '$vmName - console #$con_id' -e $command";
 	} else {
 		$execution->smartdie ("unknown value ($console_exe) of console_exe parameter in $vnxConfigFile");
 	}
+	if (!defined $getLineOnly) {
+		$execution->execute($exeLine .  ">/dev/null 2>&1 &");
+	}
+	return $exeLine;
 }
 
 #

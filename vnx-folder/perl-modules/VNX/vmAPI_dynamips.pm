@@ -69,7 +69,7 @@ use VNX::CiscoExeCmd;
 use VNX::vmAPICommon;
 use Net::Telnet;
 use NetAddr::IP;
-use Net::IP;
+#use Net::IP;
 use File::Basename;
 use File::Spec;
 
@@ -214,10 +214,10 @@ sub defineVM {
  			$maskdestination = "0.0.0.0";
  		}else {
  			print "****** $destination\n";
- 			my $ip = new Net::IP ($destination) or $execution->smartdie (Net::IP::Error());
- 			#my $ip = new NetAddr::IP ($destination) or $execution->smartdie (NetAddr::IP::Error());
+ 			#my $ip = new Net::IP ($destination) or $execution->smartdie (Net::IP::Error());
+ 			my $ip = new NetAddr::IP ($destination) or $execution->smartdie (NetAddr::IP::Error());
  			$maskdestination = $ip->mask();
- 			$destination = $ip->ip();
+ 			$destination = $ip->addr();
  		}
  		print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
  		
