@@ -2082,7 +2082,13 @@ sub start_VMs {
       # search for <on_boot> tag and if found then process it
       my $on_boot; 
       eval {$on_boot = $vm->getElementsByTagName("on_boot")->item(0)->getFirstChild->getData};
-      if ($on_boot eq "define" && $opt_M ne $name){ next; }
+	  if ($on_boot eq "define"){
+	  	# do not start vm unless specified in -M
+      	unless ($opt_M =~ /^$name,|,$name,|,$name$|^$name$/) {
+			next;
+	    }
+	  }
+
       
       $curr_uml = $name;
       
