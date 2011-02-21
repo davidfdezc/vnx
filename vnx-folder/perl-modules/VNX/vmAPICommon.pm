@@ -103,6 +103,14 @@ sub exec_command_host {
 #
 # Starts the console of a virtual machine using the application
 # defined in VNX_CONFFILE console_exe entry
+# 
+# Parameters:
+#   - vmName
+#   - con_id
+#   - consType
+#   - consPar
+#   - getLineOnly:   if defined, it just returns the command to open de console but it does 
+#                    not execute it
 #
 sub open_console {
 	
@@ -132,6 +140,8 @@ sub open_console {
 	#print "*** start_console: $vmName $command console_exe = $console_exe\n";
 	if ($console_exe eq 'gnome-terminal') {
 		$exeLine = "gnome-terminal --title '$vmName - console #$con_id' -e '$command'";
+	} elsif ($console_exe eq 'konsole') {
+		$exeLine = "konsole --title '$vmName - console #$con_id' -e $command";
 	} elsif ($console_exe eq 'xterm') {
 		$exeLine = "xterm -title '$vmName - console #$con_id' -e '$command'";
 	} elsif ($console_exe eq 'roxterm') {
