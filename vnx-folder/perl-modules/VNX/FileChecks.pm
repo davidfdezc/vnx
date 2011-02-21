@@ -196,7 +196,6 @@ sub get_abs_path {
     } else {
         # Relative pathname; we convert it to absolute
    		my $basedir = $dh->get_default_basedir;
-		print "**** basedir: $basedir\n";
 		if ( $basedir eq "" ) {
 			# No <basedir> tag defined: relative to xml_dir
 			$path = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$path" );

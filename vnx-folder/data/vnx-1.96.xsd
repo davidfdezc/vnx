@@ -1,0 +1,483 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  
+  <xs:element name="dynamips_conf">
+    <xs:complexType mixed="true" />
+  </xs:element>
+  <xs:element name="dynamips_ext">
+    <xs:complexType mixed="true" />
+  </xs:element>
+  <xs:element name="automac">
+    <xs:complexType>
+      <xs:attribute name="offset" type="xs:string" use="optional" default="0" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="basedir">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="bw">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="console">
+    <xs:complexType mixed="true">
+      <xs:attribute name="id" type="xs:string" use="required" />
+      <xs:attribute name="display" type="xs:string" use="optional" />
+      <xs:attribute name="port" type="xs:string" use="optional" />
+    </xs:complexType>
+  </xs:element>
+  
+  <xs:element name="on_boot">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="display_console">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="exec">
+    <xs:complexType mixed="true">
+      <xs:attribute name="user" type="xs:string" use="optional" />
+      <xs:attribute name="gui" use="optional">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="yes" />
+            <xs:enumeration value="no" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="seq" type="xs:string" use="required" />
+      <xs:attribute name="type" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="verbatim" />
+            <xs:enumeration value="file" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="mode" use="optional">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="mconsole" />
+            <xs:enumeration value="net" />
+            <xs:enumeration value="pts" />
+            <xs:enumeration value="system" />
+            <xs:enumeration value="processn" />
+            <xs:enumeration value="processy" />
+            <xs:enumeration value="exec" />
+            <xs:enumeration value="cdrom" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="ostype" use="optional">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="show" />
+            <xs:enumeration value="set" />
+            <xs:enumeration value="load" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="extension">
+    <xs:complexType>
+      <xs:attribute name="conf" type="xs:string" use="required" />
+      <xs:attribute name="plugin" type="xs:string" use="required" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="filesystem">
+    <xs:complexType mixed="true">
+      <xs:attribute name="type" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="direct" />
+            <xs:enumeration value="cow" />
+            <xs:enumeration value="hostfs" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="filetree">
+    <xs:complexType mixed="true">
+      <xs:attribute name="root" type="xs:string" use="required" />
+      <xs:attribute name="user" type="xs:string" use="optional" />
+      <xs:attribute name="seq" type="xs:string" use="required" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="forwarding">
+    <xs:complexType>
+      <xs:attribute name="type" use="optional" default="ip">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="ip" />
+            <xs:enumeration value="ipv4" />
+            <xs:enumeration value="ipv6" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="global">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="version" />
+        <xs:element ref="scenario_name"/>
+        <xs:element ref="ssh_version" minOccurs="0" />
+        <xs:element ref="ssh_key" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="automac" minOccurs="0" />
+        <xs:element ref="netconfig" minOccurs="0" />
+        <xs:element ref="vm_mgmt" minOccurs="0" />
+        <xs:element ref="tun_device" minOccurs="0" />
+        <xs:element ref="vm_defaults" minOccurs="0" />
+        <xs:element ref="extension" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="dynamips_ext" minOccurs="0" />
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="group">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="host">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="hostif" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="physicalif" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="route" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="forwarding" minOccurs="0" />
+        <xs:element ref="exec" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="host_mapping" type="xs:string" />
+
+  <xs:element name="hostif">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="ipv4" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="ipv6" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="net" type="xs:string" use="required" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="if">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="mac" minOccurs="0" />
+        <xs:element ref="ipv4" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="ipv6" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="net" type="xs:string" use="required" />
+      <xs:attribute name="id" type="xs:string" use="required" />
+      <xs:attribute name="name" type="xs:string"  />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="ipv4">
+    <xs:complexType mixed="true">
+      <xs:attribute name="mask" type="xs:string" use="optional" default="255.255.255.0" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="ipv6">
+    <xs:complexType mixed="true">
+      <xs:attribute name="mask" type="xs:string" use="optional" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="kernel">
+    <xs:complexType mixed="true">
+      <xs:attribute name="root" type="xs:string" use="optional" />
+      <xs:attribute name="devfs" use="optional">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="mount" />
+            <xs:enumeration value="nomount" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="modules" type="xs:string" use="optional" />
+      <xs:attribute name="initrd" type="xs:string" use="optional" />
+      <xs:attribute name="trace" use="optional" default="off">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="on" />
+            <xs:enumeration value="off" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="mac">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="mem">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="mgmt_net">
+    <xs:complexType>
+      <xs:attribute name="sock" type="xs:string" use="required" />
+      <xs:attribute name="hostip" type="xs:string" use="required" />
+      <xs:attribute name="autoconfigure" type="xs:string" use="optional" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="mng_if">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="net">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="bw" minOccurs="0" />
+      </xs:sequence>
+      <xs:attribute name="capture_dev" type="xs:string" use="optional" />
+      <xs:attribute name="sock" type="xs:string" use="optional" />
+      <xs:attribute name="name" type="xs:string" use="required" />
+      <xs:attribute name="uml_switch_binary" type="xs:string" use="optional" />
+      <xs:attribute name="vlan" type="xs:string" use="optional" />
+      <xs:attribute name="capture_file" type="xs:string" use="optional" />
+      <xs:attribute name="mode" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="virtual_bridge" />
+            <xs:enumeration value="uml_switch" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="external" type="xs:string" use="optional" />
+      <xs:attribute name="hub" use="optional" default="no">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="yes" />
+            <xs:enumeration value="no" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="type" use="optional" default="lan">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="lan" />
+            <xs:enumeration value="ppp" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="capture_expression" type="xs:string" use="optional" />
+      <xs:attribute name="scope" use="optional" default="no-shared">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="shared" />
+            <xs:enumeration value="no-shared" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="netconfig">
+    <xs:complexType>
+      <xs:attribute name="promisc" use="optional" default="on">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="on" />
+            <xs:enumeration value="off" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="stp" use="optional" default="off">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="on" />
+            <xs:enumeration value="off" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="physicalif">
+    <xs:complexType>
+      <xs:attribute name="mask" type="xs:string" use="optional" />
+      <xs:attribute name="name" type="xs:string" use="required" />
+      <xs:attribute name="type" use="optional" default="ipv4">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="ipv4" />
+            <xs:enumeration value="ipv6" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="gw" type="xs:string" use="optional" />
+      <xs:attribute name="ip" type="xs:string" use="required" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="route">
+    <xs:complexType mixed="true">
+      <xs:attribute name="type" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="ipv4" />
+            <xs:enumeration value="ipv6" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="gw" type="xs:string" use="required" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="shell">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="scenario_name">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="ssh_key">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="ssh_version">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="tun_device">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="user">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="group" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="ssh_key" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="group" type="xs:string" use="optional" />
+      <xs:attribute name="username" type="xs:string" use="required" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="version">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="vm">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="filesystem" minOccurs="0" />
+        <xs:element ref="dynamips_conf" minOccurs="0" />
+        <xs:element ref="mem" minOccurs="0" />
+        <xs:element ref="kernel" minOccurs="0" />
+        <xs:element ref="shell" minOccurs="0" />
+        <xs:element ref="basedir" minOccurs="0" />
+        <xs:element ref="mng_if" minOccurs="0" />
+        <xs:element ref="console" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="on_boot" minOccurs="0" />
+        <!--xs:element ref="display_console" minOccurs="0" /-->
+        <!--xs:element ref="xterm" minOccurs="0" /-->
+        <xs:element ref="if" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="route" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="forwarding" minOccurs="0" />
+        <xs:element ref="user" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="filetree" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="exec" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+      <xs:attribute name="name" type="xs:string" use="required" />
+      <xs:attribute name="type" type="xs:string" use="required" />
+      <xs:attribute name="subtype" type="xs:string" use="optional" />
+      <xs:attribute name="os" type="xs:string" use="optional" />
+      <xs:attribute name="order" type="xs:string" use="optional" />
+      <xs:attribute name="exec_mode" use="optional" default="net">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="net" />
+            <xs:enumeration value="mconsole" />
+            <xs:enumeration value="pst" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+     </xs:complexType>
+  </xs:element>
+
+  <xs:element name="vm_defaults">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="filesystem" minOccurs="0" />
+        <xs:element ref="mem" minOccurs="0" />
+        <xs:element ref="kernel" minOccurs="0" />
+        <xs:element ref="shell" minOccurs="0" />
+        <xs:element ref="basedir" minOccurs="0" />
+        <xs:element ref="mng_if" minOccurs="0" />
+        <xs:element ref="console" minOccurs="0" maxOccurs="unbounded" />
+        <!-- DFC xs:element ref="display_console" minOccurs="0" /-->
+        <!--xs:element ref="xterm" minOccurs="0" /-->
+        <!-- DFC xs:element ref="route" minOccurs="0" maxOccurs="unbounded" /-->
+        <xs:element ref="forwarding" minOccurs="0" />
+        <xs:element ref="user" minOccurs="0" maxOccurs="unbounded" />
+        <!-- DFC xs:element ref="filetree" minOccurs="0" maxOccurs="unbounded" /-->
+      </xs:sequence>
+      <xs:attribute name="exec_mode" use="optional" default="net">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="net" />
+            <xs:enumeration value="mconsole" />
+            <xs:enumeration value="pst" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="vm_mgmt">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="mgmt_net" minOccurs="0" />
+        <xs:element ref="host_mapping" minOccurs="0" />
+      </xs:sequence>
+      <xs:attribute name="mask" type="xs:string" use="optional" default="24" />
+      <xs:attribute name="type" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="private" />
+            <xs:enumeration value="net" />
+            <xs:enumeration value="none" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="network" type="xs:string" use="optional" default="192.168.0.0" />
+      <xs:attribute name="offset" type="xs:string" use="optional" default="0" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="vnx">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="global" />
+        <xs:element ref="net" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="vm" minOccurs="0" maxOccurs="unbounded" />
+        <xs:element ref="host" minOccurs="0" />
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!--xs:element name="xterm">
+    <xs:complexType mixed="true" />
+  </xs:element-->
+
+</xs:schema>
