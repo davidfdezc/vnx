@@ -250,8 +250,11 @@ sub main {
 #   my $uid = $> == 0 ? getpwnam("@VNUML_USER@") : $>;[JSF]
    my $tmp_dir = "/tmp";
 #   my $uid = $> == 0 ? getpwnam("vnuml") : $>;
-   my $uid = $> == 0 ? getpwnam("vnx") : $>;
-   
+
+
+   # DFC 21/2/2011 my $uid = $> == 0 ? getpwnam("vnx") : $>; # uid=vnx if executed as root; userid if executed as user
+   my $uid = $>;
+   print "***** uid=$uid\n";
 
 #   my $boot_timeout = 30;		  # by default, 30 seconds for boot timeout
    my $boot_timeout = 60; #[JSF]: las uml daban timeout con windows en el escenario
@@ -523,7 +526,7 @@ sub main {
    $tmp_dir = "$pwd/$tmp_dir"
 	   unless (&valid_absolute_directoryname($tmp_dir));
 
-   $uid = getpwnam($opt_u) if ($> == 0 && $opt_u);
+   # DFC 21/2/2011 $uid = getpwnam($opt_u) if ($> == 0 && $opt_u);
    $boot_timeout = $opt_w if (defined($opt_w));
    unless ($boot_timeout =~ /^\d+$/) {
       &vnx_die ("-w value ($opt_w) is not a valid timeout (positive integer)\n");  
@@ -572,15 +575,21 @@ sub main {
 	   	if (! -d $vnx_dir ) {
 		   	mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
 	   	}
-		if ($> == 0) { # vnx executed as root
+
+# DFC 21/2/2011: changed to simplify the user which executes vnx:
+#                   - option -u ignored
+# 					- no owner changes in any directory
+#					- vnx is executed always as the user that starts it (root if the command is preceded by sudo)
+#		if ($> == 0) { # vnx executed as root
+#			 my $uid_name = getpwuid($uid);
+#			 system("chown $uid $vnx_dir");
+#			 $> = $uid;
 			 my $uid_name = getpwuid($uid);
-			 system("chown $uid $vnx_dir");
-			 $> = $uid;
 			 &vnx_die ("vnx_dir $vnx_dir does not exist or is not readable/executable (user $uid_name)\n") unless (-r $vnx_dir && -x _);
 			 &vnx_die ("vnx_dir $vnx_dir is not writeable (user $uid_name)\n") unless ( -w _);
 			 &vnx_die ("vnx_dir $vnx_dir is not a valid directory\n") unless (-d _);
-			 $> = 0;
-		}
+#			 $> = 0;
+#		}
 
 
 	   	if (! -d "$vnx_dir/scenarios") {
@@ -833,7 +842,7 @@ sub main {
    # Lock management
    if (-f $dh->get_vnx_dir . "/LOCK") {
       my $basename = basename $0;
-      &vnx_die($dh->get_vnx_dir . "/LOCK exists: another instance of $basename seems to be in execution\nIf you are sure that this cann't be happening in your system, do 'rm " . $dh->get_vnx_dir . "/LOCK' and try again\n");
+      &vnx_die($dh->get_vnx_dir . "/LOCK exists: another instance of $basename seems to be in execution\nIf you are sure that this can't be happening in your system, do 'rm " . $dh->get_vnx_dir . "/LOCK' and try again\n");
    }
    else {
       $execution->execute($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_vnx_dir . "/LOCK");
@@ -1002,7 +1011,7 @@ sub mode_define {
         # 6. Initialize the notify socket
         my ($sock,$notify_ctl) = &UML_notify_init if ($execution->get_exe_mode() ne $EXE_DEBUG);
         # 7. Set appropriate permissions and boot each UML
-        &chown_working_dir;
+        # DFC 21/2/2011 &chown_working_dir;
         &xauth_add;
 
         &define_VMs($sock,$notify_ctl); #,$only_vm_to_define);    
@@ -3913,7 +3922,7 @@ sub build_topology{
             &host_config;
 
             # 3. Set appropriate permissions and perform configuration for switched virtual networks and uml_switches creation (<net mode="uml_switch">)
-            &chown_working_dir;
+            # DFC 21/2/2011 &chown_working_dir;
             &configure_switched_networks;
 	   
             # 4. To link TUN/TAP to the bridges (for bridged virtual networks only, <net mode="virtual_bridge">)
@@ -4376,7 +4385,7 @@ sub print_console_table_entry {
 		    } elsif ($consField[1] eq "telnet") {
  				push (@consDesc, "$con:  'telnet localhost $consField[2]'");		    	   	
 		    } elsif ($consField[1] eq "libvirt_pts") {
- 				push (@consDesc, "$con:  'virsh console $vmName' or 'screen $consField[2]'");		    	   		    	
+ 				push (@consDesc, "$con:  'virsh -c $hypervisor console $vmName' or 'screen $consField[2]'");		    	   		    	
 		    } elsif ($consField[1] eq "uml_pts") {
 		    	my $conLine = VNX::vmAPICommon->open_console ($vmName, $con, $consField[1], $consField[2], 'yes');
  				#push (@consDesc, "$con:  '$console_exe -T $vmName -e screen -t $vmName $consField[2]'");

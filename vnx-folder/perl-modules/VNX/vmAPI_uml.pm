@@ -498,6 +498,7 @@ sub startVM {
 		if ( ( !-f $dh->get_fs_dir($vmName) . "/build-stamp" ) && ( !$Z_flag ) )
 		{
 
+            print "*** You should not see this message as VNUML-ize process has been eliminated\n"; 
 			push( @build_params, "root=/dev/root" );
 			push( @build_params, "rootflags=/" );
 			push( @build_params, "rootfstype=hostfs" );
