@@ -143,7 +143,7 @@ sub open_console {
 	} elsif ($console_exe eq 'konsole') {
 		$exeLine = "konsole --title '$vmName - console #$con_id' -e $command";
 	} elsif ($console_exe eq 'xterm') {
-		$exeLine = "xterm -title '$vmName - console #$con_id' -e '$command'";
+		$exeLine = "xterm -rv -sb -rightbar -fa monospace -fs 10 -title '$vmName - console #$con_id' -e '$command'";
 	} elsif ($console_exe eq 'roxterm') {
 		$exeLine = "roxterm --title '$vmName - console #$con_id' -e $command";
 	} else {
