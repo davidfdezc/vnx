@@ -1394,11 +1394,9 @@ sub shutdownVM {
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
-
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
-
 				$listDom->shutdown();
 				#&change_vm_status( $dh, $vmName, "REMOVE" );
 				&change_vm_status( $vmName, "REMOVE" );
@@ -2438,6 +2436,7 @@ sub executeCMD {
 
 		# create destination dir
 		$execution->execute("mkdir " . $filetree_host ."/destination");
+		
 
 		my @filetree_list = $dh->merge_filetree($vm);
 		foreach my $filetree (@filetree_list) {
@@ -2447,14 +2446,13 @@ sub executeCMD {
 			# Accept several commands in the same seq tag, separated by spaces
 			my @filetree_seqs = split(' ',$filetree_seq_string);
 			foreach my $filetree_seq (@filetree_seqs) {
-			
+		
 				# To install subtree (only in the right momment)
 				# FIXME: think again the "always issue"; by the moment deactivated
 				if ( $filetree_seq eq $seq ) {
 					$countfiletree++;
 					my $src;
 					my $filetree_value = &text_tag($filetree);
-
 					$src = &get_abs_path ($filetree_value);
 =BEGIN
 					if ( $filetree_value =~ /^\// ) {
@@ -2482,8 +2480,7 @@ sub executeCMD {
 =cut
 
 					$src = &chompslash($src);
-					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
-					
+					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";					
 					$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
 					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
 					my %file_perms = &save_dir_permissions($filetree_host);
