@@ -2137,7 +2137,7 @@ sub mode_x {
          sleep($dh->get_delay);
          my $time_f = time();
          my $interval = $time_f - $time_0;
-         print "$interval seconds eslapsed...\n" if ($execution->get_exe_mode() eq $EXE_VERBOSE);
+         print "$interval seconds elapsed...\n" if ($execution->get_exe_mode() eq $EXE_VERBOSE);
          %vm_ips = &get_UML_command_ip($seq);
       }
    }
