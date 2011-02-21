@@ -6,7 +6,7 @@ See the tutorial/index.html document for details
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.94.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.96.xsd">
   <global>
     <version>1.92</version>
     <scenario_name>tutorial-r1_all</scenario_name>
@@ -14,7 +14,7 @@ See the tutorial/index.html document for details
     <vm_mgmt type="private" network="10.250.0.0" mask="24">
        <host_mapping />
     </vm_mgmt> 
-    <vm_defaults exec_mode="mconsole">
+    <vm_defaults >
        <display_console>yes</display_console>
     </vm_defaults>
   </global>
@@ -36,8 +36,8 @@ See the tutorial/index.html document for details
     <exec seq="stop" type="verbatim">killall hello</exec> 
   </vm>
 
-  <vm name="h2" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
+  <vm name="h2" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu-gui</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.2</ipv4>
@@ -50,8 +50,8 @@ See the tutorial/index.html document for details
     <exec seq="deg" type="verbatim">shutdown -a</exec>
   </vm>
 
-  <vm name="r1" type="uml" subtype="" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
+  <vm name="r1" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu-gui</filesystem>
     <mem>64M</mem>
     <kernel>/usr/share/vnx/kernels/linux</kernel>
     <console id="0">xterm</console>
@@ -69,8 +69,8 @@ See the tutorial/index.html document for details
     <forwarding type="ip" />
   </vm>
 
-  <vm name="r2" type="uml" subtype="" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
+  <vm name="r2" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu-gui</filesystem>
     <mem>256M</mem>
     <kernel>/usr/share/vnx/kernels/linux</kernel>
     <console id="0">xterm</console>

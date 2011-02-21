@@ -134,7 +134,8 @@ sub new {
          $global_data{'default_exec_mode'} = $vm_defaults_list->item(0)->getAttribute("exec_mode");
       }
       else {
-         $global_data{'default_exec_mode'} = "net";
+          #$global_data{'default_exec_mode'} = "net";
+         $global_data{'default_exec_mode'} = "cdrom";
       }
       
    }
