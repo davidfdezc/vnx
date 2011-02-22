@@ -33,6 +33,7 @@ use strict;
 no strict "subs";	# Needed in deamonize subrutine
 use POSIX qw(setsid setuid setgid);	# Needed in deamonize subrutine
 use Term::ReadKey;
+use VNX::Globals;
 
 # TODO: constant should be included in a .pm that would be loaded from each module
 # that needs them
@@ -189,6 +190,13 @@ sub execute {
 
 }
 
+sub execute_root {
+   	my $self = shift;
+	$>=0; print "** Changed to ROOT\n";
+	execute ($self, @_);
+    $>=$uid; print "** Back to user $uid_name\n";
+}
+
 # execute_bg
 #
 # Execute a command, daemoned.
@@ -224,6 +232,13 @@ sub execute_bg {
          &pulse_a_key;
       }
    }
+}
+
+sub execute_bg_root {
+   	my $self = shift;
+	$>=0; print "** Changed to ROOT\n";
+	execute_bg ($self, @_);
+    $>=$uid; print "** Back to user $uid_name\n";
 }
 
 # execute_mconsole

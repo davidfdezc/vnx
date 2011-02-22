@@ -83,9 +83,9 @@ sub init {
 	#   - not previously load
 	#   - the scenario contains KVM virtual machine
 	#
-	$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm");
-	$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-intel");
-	$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-amd");
+	$execution->execute_root ($bd->get_binaries_path_ref->{"modprobe"} . " kvm");
+	$execution->execute_root ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-intel");
+	$execution->execute_root ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-amd");
 
 }
 
@@ -238,6 +238,7 @@ sub defineVM {
 					  . " create -b $filesystem -f qcow2 "
 					  . $dh->get_fs_dir($vmName)
 					  . "/root_cow_fs" );
+				#$execution->execute( "chown " . $uid_name . " " . $dh->get_fs_dir($vmName) . "/root_cow_fs" );
 			}
 			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
 		}
@@ -441,11 +442,14 @@ sub defineVM {
 		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
 
 		#my $hypervisor = "qemu:///system";
+		
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		my $format    = 1;
 		my $xmlstring = $init_xml->toString($format);
@@ -458,7 +462,9 @@ sub defineVM {
 		close XML_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
 		# check that the domain is not already defined or started
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
         my @doms = $con->list_defined_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
@@ -466,7 +472,9 @@ sub defineVM {
 				return $error;
 			}
 		}
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		@doms = $con->list_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
@@ -475,7 +483,9 @@ sub defineVM {
 			}
 		}
 		
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		my $domain = $con->define_domain($xmlstring);
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		return $error;
 
@@ -511,11 +521,12 @@ sub defineVM {
 
      		# Create the COW filesystem if it does not exist
 			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
-
 				$execution->execute( "qemu-img"
 					  . " create -b $filesystem -f qcow2 "
 					  . $dh->get_fs_dir($vmName)
 					  . "/root_cow_fs" );
+				$execution->execute( "chown " . $uid_name . " " . $dh->get_fs_dir($vmName) . "/root_cow_fs" );
+				system "ls -al " . $dh->get_fs_dir($vmName) . "/root_cow_fs";
 			}
 			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
 		}
@@ -626,8 +637,11 @@ sub defineVM {
 
 			# Create the iso filesystem for the cdrom
 			my $filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
+			print "*** user=$>\n";
 			$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
 				  . " -l -R -quiet -o $filesystem_small $path" );
+			$execution->execute_root( $bd->get_binaries_path_ref->{"chown"} . " $uid_name $filesystem_small" );
+			system ("ls -al $filesystem_small");
 			$execution->execute(
 				$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
 
@@ -971,11 +985,13 @@ sub defineVM {
 
 		# We connect with libvirt to define the virtual machine
 		#my $hypervisor = "qemu:///system";
+		$>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		my $format    = 1;
 		my $xmlstring = $init_xml->toString($format);
@@ -989,7 +1005,9 @@ sub defineVM {
 		close XML_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
         # check that the domain is not already defined or started
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
         my @doms = $con->list_defined_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
@@ -997,7 +1015,9 @@ sub defineVM {
 				return $error;
 			}
 		}
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		@doms = $con->list_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
@@ -1006,7 +1026,11 @@ sub defineVM {
 			}
 		}
 		
+		system "ls -al " . $dh->get_fs_dir($vmName) . "/root_cow_fs";
+		$>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		my $domain = $con->define_domain($xmlstring);
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
+		system "ls -al " . $dh->get_fs_dir($vmName) . "/root_cow_fs";
 
 		return $error;
 
@@ -1045,6 +1069,7 @@ sub undefineVM {
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
 		#my $hypervisor = "qemu:///system";
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -1052,6 +1077,7 @@ sub undefineVM {
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_defined_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1101,6 +1127,7 @@ sub destroyVM {
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
 		#my $hypervisor = "qemu:///system";
+		$>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -1108,6 +1135,7 @@ sub destroyVM {
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		$error = "Domain does not exist\n";
 		foreach my $listDom (@doms) {
@@ -1231,13 +1259,17 @@ sub startVM {
 	        ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
 		#my $hypervisor = "qemu:///system";
+		system "ls -al " . $dh->get_fs_dir($vmName) . "/root_cow_fs";
+		$>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
+		system "ls -al " . $dh->get_fs_dir($vmName) . "/root_cow_fs";
 
 		my @doms = $con->list_defined_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1266,7 +1298,9 @@ sub startVM {
 				if ($type ne "libvirt-kvm-olive" ) { # Olive routers do not have graphical consoles
 					# TODO: use $execution->execute
 					my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system vncdisplay $vmName";
+	    			$>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 			       	my $vncDisplay=`$cmd`;
+    				$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 			       	$vncDisplay =~ s/\s+$//;    # Delete linefeed at the end		
 					$execution->execute ($bd->get_binaries_path_ref->{"sed"}." -i -e 's/UNK_VNC_DISPLAY/$vncDisplay/' $consFile");
 					#print "****** sed -i -e 's/UNK_VNC_DISPLAY/$vncDisplay/' $consFile\n";
@@ -1280,7 +1314,9 @@ sub startVM {
 					    my @consField = split(/,/, $conData);
 					    if ($consField[1] eq 'libvirt_pts') {
 			        		my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system ttyconsole $vmName";
+	    					$>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 			           		my $ptsDev=`$cmd`;
+    						$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 			           		$ptsDev =~ s/\s+$//;    # Delete linefeed at the end		
 							$execution->execute ($bd->get_binaries_path_ref->{"sed"}." -i -e 's#UNK_PTS_DEV#$ptsDev#' $consFile");
 					    }
@@ -1386,7 +1422,7 @@ sub shutdownVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -1394,6 +1430,8 @@ sub shutdownVM {
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
+
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
@@ -1447,7 +1485,7 @@ sub saveVM {
 
 	if ( $type eq "libvirt-kvm" ) {
 
-		#my $hypervisor = "qemu:///system";
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -1455,6 +1493,7 @@ sub saveVM {
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1476,7 +1515,7 @@ sub saveVM {
     elsif ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
              ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") )   {
 
-		#my $hypervisor = "qemu:///system";
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -1484,6 +1523,7 @@ sub saveVM {
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1534,7 +1574,7 @@ sub restoreVM {
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) 
     {
 	    
-		#my $hypervisor = "qemu:///system";
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -1542,6 +1582,7 @@ sub restoreVM {
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my $dom = $con->restore_domain($filename);
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 		print("Domain restored from file $filename\n");
 		#&change_vm_status( $dh, $vmName, "running" );
 		&change_vm_status( $vmName, "running" );
@@ -1578,7 +1619,7 @@ sub suspendVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -1586,6 +1627,7 @@ sub suspendVM {
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1632,7 +1674,7 @@ sub resumeVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -1640,6 +1682,7 @@ sub resumeVM {
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1683,7 +1726,7 @@ sub rebootVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -1691,6 +1734,7 @@ sub rebootVM {
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1738,7 +1782,7 @@ sub resetVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
+	    $>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -1746,6 +1790,7 @@ sub resetVM {
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();

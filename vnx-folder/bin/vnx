@@ -252,20 +252,39 @@ sub main {
 #   my $uid = $> == 0 ? getpwnam("vnuml") : $>;
 
 
-   # DFC 21/2/2011 my $uid = $> == 0 ? getpwnam("vnx") : $>; # uid=vnx if executed as root; userid if executed as user
-   my $uid = $>;
-   print "***** uid=$uid\n";
+   	# DFC 21/2/2011 my $uid = $> == 0 ? getpwnam("vnx") : $>; # uid=vnx if executed as root; userid if executed as user
+   	if ($> ne 0) {
+   		my $uname = getpwuid($>);
+     	print "*** ERROR: VNX needs to be executed as root or, better, sudoed root (current user=$uname,$>)\n";
+       	exit (1);
+	}
 
-#   my $boot_timeout = 30;		  # by default, 30 seconds for boot timeout
-   my $boot_timeout = 60; #[JSF]: las uml daban timeout con windows en el escenario
+	$uid=$ENV{'SUDO_UID'};
+	$uid_name=$ENV{'SUDO_USER'};
    
-   my $start_time;                   # the moment when the parsers start operation
+    if (defined $uid) {
+  		print "*** Executed as root by sudoing from $uid,$uid_name\n";
+    } else {
+  		print "*** Executed as root from a root shell\n";
+  		$uid = 0;
+  		$uid_name = 'root';  	
+    }
+    
+    # We change to non-root user. If vnx is invoked using 'sudo', most of the code 
+    # is executed with the user id of the user that issued the sudo.
+    # We will change to root after the parts that need root priviledges (ex. calls 
+    # to libvirt, calls to create bridges with brctl, etc)
+    $>=$uid;   # Change to non-root user
+ 
+   	my $boot_timeout = 60; # by default, 60 seconds for boot timeout
+   
+   	my $start_time;                   # the moment when the parsers start operation
 
-   ###########################################################
-   # To get the invocation arguments
+   	###########################################################
+   	# To get the invocation arguments
 
 
-   our($opt_t,$opt_s,$opt_p,$opt_r,$opt_d,
+   	our($opt_t,$opt_s,$opt_p,$opt_r,$opt_d,
       $opt_m,$opt_c,$opt_g,$opt_v,$opt_F,
       $opt_V,$opt_T,$opt_o,$opt_M,$opt_k,
       $opt_i,$opt_B,$opt_S,$opt_w,$opt_e,
@@ -278,8 +297,8 @@ sub main {
       $opt_console,$opt_consoleinfo,$opt_cid,
       $opt_C, $opt_config);
       
-   Getopt::Long::Configure ("bundling"); # case sensitive single-character options
-   GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
+   	Getopt::Long::Configure ("bundling"); # case sensitive single-character options
+   	GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
               'r=s' => \$opt_r, 'd' => \$opt_d, 'm=s' => \$opt_m,
               'c=s' => \$opt_c,'T=s' => \$opt_T, 'g' => \$opt_g,
               'v' => \$opt_v, 'F' => \$opt_F, 'V' => \$opt_V, 'version' => \$opt_V,
@@ -300,8 +319,8 @@ sub main {
               'cid=s' => \$opt_cid, 'console-info' => \$opt_consoleinfo,
               'C|config=s' => \$opt_config);
 
-   # Build the argument object
-   $args = new Arguments(
+   	# Build the argument object
+   	$args = new Arguments(
       $opt_t,$opt_s,$opt_p,$opt_r,$opt_d,
       $opt_m,$opt_c,$opt_g,$opt_v,$opt_F,
       $opt_V,$opt_T,$opt_o,$opt_M,$opt_k,
@@ -316,264 +335,265 @@ sub main {
       $opt_config);
 
 
-   # FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
-   # it by default
-   $args->set('Z',1);
+   	# FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
+   	# it by default
+   	$args->set('Z',1);
 
-   print "----------------------------------------------------------------------------------\n";
-   print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es          \n";
-   print "Version: $version" . "$branch (build on $release)\n";
-   print "----------------------------------------------------------------------------------\n";
+   	print "----------------------------------------------------------------------------------\n";
+   	print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es          \n";
+   	print "Version: $version" . "$branch (build on $release)\n";
+   	print "----------------------------------------------------------------------------------\n";
 
-   # Set configuration file 
-   if ($opt_config) {
-   	  	$vnxConfigFile = $opt_config; 
-   } else {
+   	# Set configuration file 
+   	if ($opt_config) {
+   		$vnxConfigFile = $opt_config; 
+   	} else {
    		$vnxConfigFile = $DEFAULT_CONF_FILE;
-   }
-   print ("Using configuration file: $vnxConfigFile\n");
+   	}
+   	print ("Using configuration file: $vnxConfigFile\n");
 
-   # Check the existance of the VNX configuration file 
-   unless(-e $vnxConfigFile) {
-   	 print "\nERROR: VNX configuration file $vnxConfigFile not found\n\n";
-   	 exit(1);
-   }
+   	# Check the existance of the VNX configuration file 
+    $>=0;   # Change to root
+   	unless(-e $vnxConfigFile) {
+   	 	print "\nERROR: VNX configuration file $vnxConfigFile not found\n\n";
+   	 	exit(1);
+   	}
+    $>=$uid; # Back to non-root user
 
-   # To check arguments consistency
-   # 0. Check if -f is present
-   if (!($opt_f) && !($opt_V) && !($opt_H) ) {
-   	  &usage;
-      &vnx_die ("Option -f missing\n");
-   }
+   	# To check arguments consistency
+   	# 0. Check if -f is present
+   	if (!($opt_f) && !($opt_V) && !($opt_H) ) {
+   	  	&usage;
+      	&vnx_die ("Option -f missing\n");
+   	}
 
-   # 1. To use -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start,
-   # --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --console, --console-info at the same time
+   	# 1. To use -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start,
+   	# --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --console, --console-info at the same time
    
-   my $how_many_args;
-   my $mode;
-   if ($opt_t||$opt_create) {
+   	my $how_many_args;
+   	my $mode;
+   	if ($opt_t||$opt_create) {
       $how_many_args++;
       $mode = "t";
-   }
-   if ($opt_s) {
-      # Deprecated, not supported since 1.7.0
-      &vnx_die ("-s mode is no longer supported since version 1.7.0, use -x instead\n");
-   }
-   if ($opt_p) {
-      # Deprecated, not supported since 1.7.0
-      &vnx_die ("-p mode is no longer supported since version 1.7.0, use -x instead\n");
-   }
-   if ($opt_S) {
-      # Deprecated, not supported since 1.8.0
-      &vnx_die ("-S is no longer supported since version 1.8.0\n");
-   }   
-   if ($opt_x||$opt_execute) {
-      $how_many_args++;
-      $mode = "x";
-   }
-   if ($opt_r) {
-      # Deprecated, not supported since 1.7.0
-      &vnx_die ("-r mode is no longer supported since version 1.7.0, use -x instead\n");
-   }
-   if ($opt_d||$opt_shutdown) {
-      $how_many_args++;
-      $mode = "d";
-   }
-   if ($opt_P||$opt_destroy) {
-      $how_many_args++;
-      $mode = "P";
-      
-   }
-   if ($opt_V) {
-      $how_many_args++;
-      $mode = "V";      
-   }
-   if ($opt_H) {
-      $how_many_args++;
-      $mode = "H";
-   }
-   if ($opt_define) {
-      $how_many_args++;
-      $mode = "define";
-   }
-   if ($opt_start) {
-      $how_many_args++;
-      $mode = "start";
-   }
-   if ($opt_undefine) {
-      $how_many_args++;
-      $mode = "undefine";
-   }
-   if ($opt_save) {
-      $how_many_args++;
-      $mode = "save";
-   }
-   if ($opt_restore) {
-      $how_many_args++;
-      $mode = "restore";
-   }
-   if ($opt_suspend) {
-      $how_many_args++;
-      $mode = "suspend";
-   }
-   if ($opt_resume) {
-      $how_many_args++;
-      $mode = "resume";
-   }
-   if ($opt_reboot) {
-      $how_many_args++;
-      $mode = "reboot";
-   }
-   if ($opt_reset) {
-      $how_many_args++;
-      $mode = "reset";
-   }
-   if ($opt_showmap) {
-      $how_many_args++;
-      $mode = "show-map";
-   }
-   if ($opt_console) {
-      $how_many_args++;
-      $mode = "console";
-   }
-   if ($opt_consoleinfo) {
-      $how_many_args++;
-      $mode = "console-info";
-   }
+   	}
+   	if ($opt_s) {
+      	# Deprecated, not supported since 1.7.0
+      	&vnx_die ("-s mode is no longer supported since version 1.7.0, use -x instead\n");
+   	}
+   	if ($opt_p) {
+      	# Deprecated, not supported since 1.7.0
+      	&vnx_die ("-p mode is no longer supported since version 1.7.0, use -x instead\n");
+   	}
+   	if ($opt_S) {
+      	# Deprecated, not supported since 1.8.0
+      	&vnx_die ("-S is no longer supported since version 1.8.0\n");
+   	}   
+   	if ($opt_x||$opt_execute) {
+      	$how_many_args++;
+      	$mode = "x";
+   	}
+   	if ($opt_r) {
+      	# Deprecated, not supported since 1.7.0
+      	&vnx_die ("-r mode is no longer supported since version 1.7.0, use -x instead\n");
+   	}
+   	if ($opt_d||$opt_shutdown) {
+      	$how_many_args++;
+      	$mode = "d";
+   	}
+   	if ($opt_P||$opt_destroy) {
+      	$how_many_args++;
+      	$mode = "P";
+   	}
+   	if ($opt_V) {
+      	$how_many_args++;
+      	$mode = "V";      
+   	}
+   	if ($opt_H) {
+      	$how_many_args++;
+      	$mode = "H";
+   	}
+   	if ($opt_define) {
+      	$how_many_args++;
+      	$mode = "define";
+   	}
+   	if ($opt_start) {
+      	$how_many_args++;
+      	$mode = "start";
+   	}
+   	if ($opt_undefine) {
+      	$how_many_args++;
+      	$mode = "undefine";
+   	}
+   	if ($opt_save) {
+      	$how_many_args++;
+      	$mode = "save";
+   	}
+   	if ($opt_restore) {
+      	$how_many_args++;
+      	$mode = "restore";
+   	}
+   	if ($opt_suspend) {
+      	$how_many_args++;
+      	$mode = "suspend";
+   	}
+   	if ($opt_resume) {
+      	$how_many_args++;
+      	$mode = "resume";
+   	}
+   	if ($opt_reboot) {
+      	$how_many_args++;
+      	$mode = "reboot";
+   	}
+   	if ($opt_reset) {
+      	$how_many_args++;
+      	$mode = "reset";
+   	}
+   	if ($opt_showmap) {
+      	$how_many_args++;
+      	$mode = "show-map";
+   	}
+   	if ($opt_console) {
+      	$how_many_args++;
+      	$mode = "console";
+   	}
+   	if ($opt_consoleinfo) {
+      	$how_many_args++;
+      	$mode = "console-info";
+   	}
 
       
-   if ($opt_m) {
-      &vnx_die ("-m switch is no longer supported since version 1.6.0\n");
-   }
+   	if ($opt_m) {
+      	&vnx_die ("-m switch is no longer supported since version 1.6.0\n");
+   	}
 
-   if ($how_many_args gt 1) {
-      &usage;
-      &vnx_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --showmap or -H\n");
-   }
-   if ($how_many_args lt 1) {
-      &usage;
-      &vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, --show-map, --console, --console-info, -V or -H\n");
-   }
-   if (($opt_F) && (!($opt_d||$opt_shutdown))) { 
-      &usage; 
-      &vnx_die ("Option -F only makes sense with -d|--shutdown mode\n"); 
-   }
-   if (($opt_B) && ($opt_F) && ($opt_d||$opt_shutdown)) {
-      &vnx_die ("Option -F and -B are incompabible\n");
-   }
+   	if ($how_many_args gt 1) {
+      	&usage;
+      	&vnx_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --showmap or -H\n");
+   	}
+   	if ($how_many_args lt 1) {
+      	&usage;
+      	&vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, --show-map, --console, --console-info, -V or -H\n");
+   	}
+   	if (($opt_F) && (!($opt_d||$opt_shutdown))) { 
+      	&usage; 
+      	&vnx_die ("Option -F only makes sense with -d|--shutdown mode\n"); 
+   	}
+   	if (($opt_B) && ($opt_F) && ($opt_d||$opt_shutdown)) {
+      	&vnx_die ("Option -F and -B are incompabible\n");
+   	}
     if (($opt_o) && (!($opt_t||$opt_create))) {
-      &usage;
-      &vnx_die ("Option -o only makes sense with -t|--create mode\n");
-   }
-   if (($opt_w) && (!($opt_t||$opt_create))) {
-      &usage;
-      &vnx_die ("Option -w only makes sense with -t|--create mode\n");
-   }
-      if (($opt_e) && (!($opt_t||$opt_create))) {
-      &usage;
-      &vnx_die ("Option -e only makes sense with -t|--create mode\n");
-   }
-   if (($opt_Z) && (!($opt_t||$opt_create))) {
-      &usage;
-      &vnx_die ("Option -Z only makes sense with -t|--create mode\n");
-   }
-   if (($opt_4) && ($opt_6)) {
-      &usage;
-      &vnx_die ("-4 and -6 can not be used at the same time\n");
-   }
+      	&usage;
+      	&vnx_die ("Option -o only makes sense with -t|--create mode\n");
+   	}
+   	if (($opt_w) && (!($opt_t||$opt_create))) {
+      	&usage;
+      	&vnx_die ("Option -w only makes sense with -t|--create mode\n");
+   	}
+  	if (($opt_e) && (!($opt_t||$opt_create))) {
+      	&usage;
+      	&vnx_die ("Option -e only makes sense with -t|--create mode\n");
+   	}
+   	if (($opt_Z) && (!($opt_t||$opt_create))) {
+      	&usage;
+      	&vnx_die ("Option -Z only makes sense with -t|--create mode\n");
+   	}
+   	if (($opt_4) && ($opt_6)) {
+      	&usage;
+      	&vnx_die ("-4 and -6 can not be used at the same time\n");
+   	}
 
-   # Version pseudomode
-   if ($opt_V) {
-   	  my $basename = basename $0;
-      print "\n";
-      print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
-      print "                    `888.     .8'  `888b.     `8'  `8888    d8'  \n";
-      print "                     `888.   .8'    8 `88b.    8     Y888..8P    \n";
-      print "                      `888. .8'     8   `88b.  8      `8888'     \n";
-      print "                       `888.8'      8     `88b.8     .8PY888.    \n";
-      print "                        `888'       8       `888    d8'  `888b   \n";
-      print "                         `8'       o8o        `8  o888o  o88888o \n";
-      print "\n";
-      print "                             Virtual Networks over LinuX\n";
-      print "                              http://www.dit.upm.es/vnx      \n";
-      print "                                    vnx\@dit.upm.es          \n";
-      print "\n";
-      print "                 Departamento de Ingeniería de Sistemas Telemáticos\n";
-      print "                              E.T.S.I. Telecomunicación\n";
-      print "                          Universidad Politécnica de Madrid\n";
-      print "\n";
-      print "                   Version: $version" . "$branch (build on $release)\n";
-      print "\n";
-      #print "Fermin Galan Marquez. galan\@dit.upm.es\n";
-      exit(0);
-   }
+   	# Version pseudomode
+   	if ($opt_V) {
+   	  	my $basename = basename $0;
+      	print "\n";
+      	print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
+      	print "                    `888.     .8'  `888b.     `8'  `8888    d8'  \n";
+      	print "                     `888.   .8'    8 `88b.    8     Y888..8P    \n";
+      	print "                      `888. .8'     8   `88b.  8      `8888'     \n";
+      	print "                       `888.8'      8     `88b.8     .8PY888.    \n";
+      	print "                        `888'       8       `888    d8'  `888b   \n";
+      	print "                         `8'       o8o        `8  o888o  o88888o \n";
+      	print "\n";
+      	print "                             Virtual Networks over LinuX\n";
+      	print "                              http://www.dit.upm.es/vnx      \n";
+      	print "                                    vnx\@dit.upm.es          \n";
+      	print "\n";
+      	print "                 Departamento de Ingeniería de Sistemas Telemáticos\n";
+      	print "                              E.T.S.I. Telecomunicación\n";
+      	print "                          Universidad Politécnica de Madrid\n";
+      	print "\n";
+      	print "                   Version: $version" . "$branch (build on $release)\n";
+      	print "\n";
+      	#print "Fermin Galan Marquez. galan\@dit.upm.es\n";
+      	exit(0);
+   	}
 
-   # Help pseudomode
-   if ($opt_H) {
-      &usage;
-      exit(0);
-   }
+   	# Help pseudomode
+   	if ($opt_H) {
+      	&usage;
+      	exit(0);
+   	}
 
-   # 2. Optional arguments
-   $exemode = $EXE_NORMAL;
-   $exemode = $EXE_VERBOSE if ($opt_v);
-   $exemode = $EXE_DEBUG if ($opt_g);
-   chomp(my $pwd = `pwd`);
-   $vnx_dir = &chompslash($opt_c) if ($opt_c);
-   $vnx_dir = "$pwd/$vnx_dir"
+   	# 2. Optional arguments
+   	$exemode = $EXE_NORMAL;
+   	$exemode = $EXE_VERBOSE if ($opt_v);
+   	$exemode = $EXE_DEBUG if ($opt_g);
+   	chomp(my $pwd = `pwd`);
+   	$vnx_dir = &chompslash($opt_c) if ($opt_c);
+   	$vnx_dir = "$pwd/$vnx_dir"
 	   unless (&valid_absolute_directoryname($vnx_dir));
-   $tmp_dir = &chompslash($opt_T) if ($opt_T);
-   $tmp_dir = "$pwd/$tmp_dir"
+   	$tmp_dir = &chompslash($opt_T) if ($opt_T);
+   	$tmp_dir = "$pwd/$tmp_dir"
 	   unless (&valid_absolute_directoryname($tmp_dir));
 
-   # DFC 21/2/2011 $uid = getpwnam($opt_u) if ($> == 0 && $opt_u);
-   $boot_timeout = $opt_w if (defined($opt_w));
-   unless ($boot_timeout =~ /^\d+$/) {
-      &vnx_die ("-w value ($opt_w) is not a valid timeout (positive integer)\n");  
-   }
+   	# DFC 21/2/2011 $uid = getpwnam($opt_u) if ($> == 0 && $opt_u);
+   	$boot_timeout = $opt_w if (defined($opt_w));
+   	unless ($boot_timeout =~ /^\d+$/) {
+    	&vnx_die ("-w value ($opt_w) is not a valid timeout (positive integer)\n");  
+   	}
 
-   # FIXME: $enabld_4 and $enable_6 are not necessary, use $args object
-   # instead and avoid redundance
-   my $enable_4 = 1;
-   my $enable_6 = 1;
-   $enable_4 = 0 if ($opt_6);
-   $enable_6 = 0 if ($opt_4);   
+   	# FIXME: $enabld_4 and $enable_6 are not necessary, use $args object
+   	# instead and avoid redundance
+   	my $enable_4 = 1;
+   	my $enable_6 = 1;
+   	$enable_4 = 0 if ($opt_6);
+   	$enable_6 = 0 if ($opt_4);   
 
-   # 3. To extract and check input
-   my $input;
-   $input = $opt_f if ($opt_f);
-   ##$input = $opt_t if ($opt_t); [JSF]
-   ##$input = $opt_x if ($opt_x);
-   ##$input = $opt_d if ($opt_d);
-   ##$input = $opt_P if ($opt_P);
+   	# 3. To extract and check input
+   	my $input;
+   	$input = $opt_f if ($opt_f);
+   	##$input = $opt_t if ($opt_t); [JSF]
+   	##$input = $opt_x if ($opt_x);
+   	##$input = $opt_d if ($opt_d);
+   	##$input = $opt_P if ($opt_P);
 
-   # Check for file and cmd_seq, depending the mode
-   my $cmdseq = '';
+   	# Check for file and cmd_seq, depending the mode
+   	my $cmdseq = '';
 #   my $input_file;
 
-   if ($opt_x) {
-      $cmdseq = $opt_x;
-   }elsif ($opt_execute){
-   	  $cmdseq = $opt_execute;
-   }
+   	if ($opt_x) {
+      	$cmdseq = $opt_x;
+   	}elsif ($opt_execute){
+   	  	$cmdseq = $opt_execute;
+   	}
    
-   $input_file = $input;
+   	$input_file = $input;
  
-   # Reserved words for cmd_seq
-   #if ($cmdseq eq "always") {
-   #   &vnuml_die ("\"always\" is a reserved word and can not be used as cmd_seq\n");
-   #}
+   	# Reserved words for cmd_seq
+   	#if ($cmdseq eq "always") {
+   	#   &vnuml_die ("\"always\" is a reserved word and can not be used as cmd_seq\n");
+   	#}
 
-   # Check input file
-   if (! -f $input_file) {
-      &vnx_die ("file $input_file is not valid (perhaps does not exists)\n");
-   }
+   	# Check input file
+   	if (! -f $input_file) {
+      	&vnx_die ("file $input_file is not valid (perhaps does not exists)\n");
+   	}
 
-   # 4. To check vnuml_dir and tmp_dir
-   # Create the working directory, if it doesn't already exist
-   if ($exemode ne $EXE_DEBUG) {
-	   	if (! -d $vnx_dir ) {
-		   	mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
+   	# 4. To check vnuml_dir and tmp_dir
+   	# Create the working directory, if it doesn't already exist
+   	if ($exemode ne $EXE_DEBUG) {
+		if (! -d $vnx_dir ) {
+			mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
 	   	}
 
 # DFC 21/2/2011: changed to simplify the user which executes vnx:
@@ -584,13 +604,12 @@ sub main {
 #			 my $uid_name = getpwuid($uid);
 #			 system("chown $uid $vnx_dir");
 #			 $> = $uid;
-			 my $uid_name = getpwuid($uid);
-			 &vnx_die ("vnx_dir $vnx_dir does not exist or is not readable/executable (user $uid_name)\n") unless (-r $vnx_dir && -x _);
-			 &vnx_die ("vnx_dir $vnx_dir is not writeable (user $uid_name)\n") unless ( -w _);
-			 &vnx_die ("vnx_dir $vnx_dir is not a valid directory\n") unless (-d _);
+#		my $uid_name = getpwuid($uid);
+		&vnx_die ("vnx_dir $vnx_dir does not exist or is not readable/executable (user $uid_name)\n") unless (-r $vnx_dir && -x _);
+		&vnx_die ("vnx_dir $vnx_dir is not writeable (user $uid_name)\n") unless ( -w _);
+		&vnx_die ("vnx_dir $vnx_dir is not a valid directory\n") unless (-d _);
 #			 $> = 0;
 #		}
-
 
 	   	if (! -d "$vnx_dir/scenarios") {
 		   	mkdir "$vnx_dir/scenarios" or &vnx_die("Unable to create scenarios directory $vnx_dir/scenarios: $!\n");
@@ -598,29 +617,29 @@ sub main {
 	   	if (! -d "$vnx_dir/networks") {
 		   	mkdir "$vnx_dir/networks" or &vnx_die("Unable to create networks directory $vnx_dir/networks: $!\n");
 	   	}
-   }
-   &vnx_die ("tmp_dir $tmp_dir does not exist or is not readable/executable\n") unless (-r $tmp_dir && -x _);
-   &vnx_die ("tmp_dir $tmp_dir is not writeable\n") unless (-w _);
-   &vnx_die ("tmp_dir $tmp_dir is not a valid directory\n") unless (-d _);
+   	}
+   	&vnx_die ("tmp_dir $tmp_dir does not exist or is not readable/executable\n") unless (-r $tmp_dir && -x _);
+   	&vnx_die ("tmp_dir $tmp_dir is not writeable\n") unless (-w _);
+   	&vnx_die ("tmp_dir $tmp_dir is not a valid directory\n") unless (-d _);
 
-   # 5. To build the VNX::BinariesData object
-   $bd = new BinariesData($exemode);
+   	# 5. To build the VNX::BinariesData object
+   	$bd = new BinariesData($exemode);
 
-   # 6a. To check mandatory binaries # [JSF] to be updated with new ones
-   if ($bd->check_binaries_mandatory != 0) {
-      &vnx_die ("some required binary files are missing\n");
-   }
+   	# 6a. To check mandatory binaries # [JSF] to be updated with new ones
+   	if ($bd->check_binaries_mandatory != 0) {
+      	&vnx_die ("some required binary files are missing\n");
+   	}
    
-   # We need the file to perform some manipulations
-   open INPUTFILE, "$input_file";
-   my @input_file_array = <INPUTFILE>;
-   my $input_file_string = join("",@input_file_array);
-   close INPUTFILE;
+   	# We need the file to perform some manipulations
+   	open INPUTFILE, "$input_file";
+   	my @input_file_array = <INPUTFILE>;
+   	my $input_file_string = join("",@input_file_array);
+   	close INPUTFILE;
    
-   # 7. To check if the DTD file is present
-   my $modeparser;
+   	# 7. To check if the DTD file is present
+   	my $modeparser;
       
-   if ($input_file_string =~ /<!DOCTYPE vnx SYSTEM "(.*)">/) { 
+   	if ($input_file_string =~ /<!DOCTYPE vnx SYSTEM "(.*)">/) { 
 # DFC: Use of DTD eliminated
 #      unless (-f $1) {
 #         &vnx_die ("DTD file $1 is not valid (perhaps does not exists)\n");	  
@@ -632,30 +651,30 @@ sub main {
    	$modeparser = "xsd";
 #   }
 
-   # 8. To check version number
-   if ($input_file_string =~ /<version>\s*(\d\.\d+)(\.\d+)?\s*<\/version>/) {
-      my $version_in_file = $1;
-      $version =~ /^(\d\.\d+)/;
-      my $version_in_parser = $1;
-      unless ($version_in_file eq $version_in_parser) {
-      	&vnx_die("mayor version numbers of source file ($version_in_file) and parser ($version_in_parser) do not match");
-		exit;
-      }
-   }
-   else {
-      &vnx_die("can not find VNX version in $input_file");
-   }
+   	# 8. To check version number
+   	if ($input_file_string =~ /<version>\s*(\d\.\d+)(\.\d+)?\s*<\/version>/) {
+      	my $version_in_file = $1;
+      	$version =~ /^(\d\.\d+)/;
+      	my $version_in_parser = $1;
+      	unless ($version_in_file eq $version_in_parser) {
+      		&vnx_die("mayor version numbers of source file ($version_in_file) and parser ($version_in_parser) do not match");
+			exit;
+      	}
+   	}
+   	else {
+      	&vnx_die("can not find VNX version in $input_file");
+   	}
 
-   # Interactive execution (press a key after each command)
-   my $exeinteractive = $opt_v && $opt_i;
+   	# Interactive execution (press a key after each command)
+   	my $exeinteractive = $opt_v && $opt_i;
 
-   # Before building the DOM tree, perform text patern-based version
-   # checking   
+   	# Before building the DOM tree, perform text patern-based version
+   	# checking   
 
-   # To build DOM tree parsing file
-   $valid_fail = 0;
-   my $parser;
-   my $doc;
+   	# To build DOM tree parsing file
+   	$valid_fail = 0;
+   	my $parser;
+   	my $doc;
 # DFC: Use of DTD eliminated
 #   if($modeparser eq 'dtd'){
 #
@@ -679,7 +698,7 @@ sub main {
 #	      &vnx_die("$input_file is not a well-formed VNX file\n");
 #	   }
 #   }
-   if($modeparser eq "xsd"){
+   	if($modeparser eq "xsd"){
    		my $schemalocation;
 
 #jsf	if ($input_file_string =~ /="(.*).xsd"/) {
@@ -709,287 +728,280 @@ sub main {
 	
 		my $parser2 = new XML::DOM::Parser;
         $doc = $parser2->parsefile($input_file);
-   }
+   	}
    
-   # Build the VNX::Execution object
-   $execution = new Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
+   	# Build the VNX::Execution object
+   	$execution = new Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
 
-   # Calculate the directory where the input_file lives
-   my $xml_dir = (fileparse(abs_path($input_file)))[1];
+   	# Calculate the directory where the input_file lives
+   	my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
-   # Build the VNX::DataHandler object
-   $dh = new DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
-   $dh->set_boot_timeout($boot_timeout);
-   $dh->set_vnx_dir($vnx_dir);
-   $dh->set_tmp_dir($tmp_dir);
-   $dh->enable_ipv6($enable_6);
-   $dh->enable_ipv4($enable_4);   
+   	# Build the VNX::DataHandler object
+   	$dh = new DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
+   	$dh->set_boot_timeout($boot_timeout);
+   	$dh->set_vnx_dir($vnx_dir);
+   	$dh->set_tmp_dir($tmp_dir);
+   	$dh->enable_ipv6($enable_6);
+   	$dh->enable_ipv4($enable_4);   
 
-   # User check
-   if (my $err_msg = &check_user) {
-      &vnx_die("$err_msg\n");
-   }
+# Not needed anymore (always executed as root)
+#   	# User check
+#   	if (my $err_msg = &check_user) {
+#      	&vnx_die("$err_msg\n");
+#   	}
 
-   # Deprecation warnings
-   &check_deprecated;
+   	# Deprecation warnings
+   	&check_deprecated;
 
 
-   # Semantic check (in addition to validation)
-   #if (my $err_msg = &check_doc($dh,$bd->get_binaries_path_ref,$execution->get_uid)) {
-   if (my $err_msg = &check_doc($bd->get_binaries_path_ref,$execution->get_uid)) {
-      &vnx_die ("$err_msg\n");
-   }
+   	# Semantic check (in addition to validation)
+   	#if (my $err_msg = &check_doc($dh,$bd->get_binaries_path_ref,$execution->get_uid)) {
+   	if (my $err_msg = &check_doc($bd->get_binaries_path_ref,$execution->get_uid)) {
+      	&vnx_die ("$err_msg\n");
+   	}
 
-   # 6b (delayed because it required the $dh object constructed)
-   # To check optional screen binaries
-   #$bd->add_additional_screen_binaries($dh);
-   $bd->add_additional_screen_binaries();
-   if (($opt_e) && ($bd->check_binaries_screen != 0)) {
-      &vnx_die ("screen related binary is missing\n");
-   }
+   	# 6b (delayed because it required the $dh object constructed)
+   	# To check optional screen binaries
+   	#$bd->add_additional_screen_binaries($dh);
+   	$bd->add_additional_screen_binaries();
+   	if (($opt_e) && ($bd->check_binaries_screen != 0)) {
+   	   	&vnx_die ("screen related binary is missing\n");
+   	}
 
-   # 6c (delayed because it required the $dh object constructed)
-   # To check optional uml_switch binaries 
-   #$bd->add_additional_uml_switch_binaries($dh);
-   $bd->add_additional_uml_switch_binaries();
-   if (($bd->check_binaries_switch != 0)) {
-      &vnx_die ("uml_switch related binary is missing\n");
-   }
+	# 6c (delayed because it required the $dh object constructed)
+   	# To check optional uml_switch binaries 
+   	#$bd->add_additional_uml_switch_binaries($dh);
+   	$bd->add_additional_uml_switch_binaries();
+   	if (($bd->check_binaries_switch != 0)) {
+      	&vnx_die ("uml_switch related binary is missing\n");
+   	}
 
-   # 6d (delayed because it required the $dh object constructed)
-   # To check optional binaries for virtual bridge
-   #$bd->add_additional_bridge_binaries($dh);   
-   $bd->add_additional_bridge_binaries();   
-   if ($bd->check_binaries_bridge != 0) {
-      &vnx_die ("virtual bridge related binary is missing\n");  
-   }
+   	# 6d (delayed because it required the $dh object constructed)
+   	# To check optional binaries for virtual bridge
+   	#$bd->add_additional_bridge_binaries($dh);   
+   	$bd->add_additional_bridge_binaries();   
+   	if ($bd->check_binaries_bridge != 0) {
+      	&vnx_die ("virtual bridge related binary is missing\n");  
+   	}
 
-   # 6e (delayed because it required the $dh object constructed)
-   # To check xterm binaries
-   #$bd->add_additional_xterm_binaries($dh);
-   $bd->add_additional_xterm_binaries();
-   if (($bd->check_binaries_xterm != 0)) {
-      &vnx_die ("xterm related binary is missing\n");
-   }
+   	# 6e (delayed because it required the $dh object constructed)
+   	# To check xterm binaries
+   	#$bd->add_additional_xterm_binaries($dh);
+   	$bd->add_additional_xterm_binaries();
+   	if (($bd->check_binaries_xterm != 0)) {
+      	&vnx_die ("xterm related binary is missing\n");
+   	}
 
-   # 6f (delayed because it required the $dh object constructed)
-   # To check optional binaries for VLAN support
-   #$bd->add_additional_vlan_binaries($dh);   
-   $bd->add_additional_vlan_binaries();   
-   if ($bd->check_binaries_vlan != 0) {
-      &vnx_die ("VLAN related binary is missing\n");  
-   }   
+   	# 6f (delayed because it required the $dh object constructed)
+   	# To check optional binaries for VLAN support
+   	#$bd->add_additional_vlan_binaries($dh);   
+   	$bd->add_additional_vlan_binaries();   
+   	if ($bd->check_binaries_vlan != 0) {
+      	&vnx_die ("VLAN related binary is missing\n");  
+   	}   
 
-   # Complete fields in Execution object that need the DataHandler and
-   # the binaries_path hash built
-   $execution->set_mconsole_binary($bd->get_binaries_path_ref->{"uml_mconsole"});
+   	# Complete fields in Execution object that need the DataHandler and
+   	# the binaries_path hash built
+   	$execution->set_mconsole_binary($bd->get_binaries_path_ref->{"uml_mconsole"});
    
-   # Read global variables from vnx.conf file
-   #&get_vnx_config;
+   	# Read global variables from vnx.conf file
+   	#&get_vnx_config;
   
-   # Initialize vmAPI modules
-   vmAPI_uml->init;
-   vmAPI_libvirt->init;
-   vmAPI_dynamips->init;
+   	# Initialize vmAPI modules
+   	vmAPI_uml->init;
+   	vmAPI_libvirt->init;
+   	vmAPI_dynamips->init;
   
    
-   ###########################################################
-   # Initialize plugins
+   	###########################################################
+   	# Initialize plugins
  
-   # push (@INC, "@DATADIR@/vnuml/plugins");[JSF]
-   push (@INC, "/usr/share/vnx/plugins");
+   	# push (@INC, "@DATADIR@/vnuml/plugins");[JSF]
+   	push (@INC, "/usr/share/vnx/plugins");
   
-   my $extension_list = $dh->get_doc->getElementsByTagName("extension");
-   for ( my $i = 0; $i < $extension_list->getLength; $i++ ) {
-      my $plugin = $extension_list->item($i)->getAttribute("plugin");
-      my $conf = $extension_list->item($i)->getAttribute("conf");
+   	my $extension_list = $dh->get_doc->getElementsByTagName("extension");
+   	for ( my $i = 0; $i < $extension_list->getLength; $i++ ) {
+      	my $plugin = $extension_list->item($i)->getAttribute("plugin");
+      	my $conf = $extension_list->item($i)->getAttribute("conf");
       
-      # Check configuration file
-      my $effective_conf;
-      if ($conf =~ /^\//) {
-         # Absolute pathname
-         $effective_conf = $conf;
-      }
-      else {
-         # Pathname relative to the place where the VNX spec is ($xml_dir)
-         $effective_conf = "$xml_dir/$conf";
-      }
+      	# Check configuration file
+      	my $effective_conf;
+      	if ($conf =~ /^\//) {
+         	# Absolute pathname
+         	$effective_conf = $conf;
+      	}
+      	else {
+         	# Pathname relative to the place where the VNX spec is ($xml_dir)
+         	$effective_conf = "$xml_dir/$conf";
+      	}
       
-      # Check input file
-      if (! -f $effective_conf) {
-         &vnx_die ("plugin $plugin configuration file $effective_conf is not valid (perhaps does not exists)\n");
-      }
+      	# Check input file
+      	if (! -f $effective_conf) {
+         	&vnx_die ("plugin $plugin configuration file $effective_conf is not valid (perhaps does not exists)\n");
+      	}
             
-      print "Loading pluging $plugin...\n";      
-      # Why we are not using 'use'? See the following thread: 
-      # http://www.mail-archive.com/beginners%40perl.org/msg87441.html)   
+      	print "Loading pluging $plugin...\n";      
+      	# Why we are not using 'use'? See the following thread: 
+      	# http://www.mail-archive.com/beginners%40perl.org/msg87441.html)   
       
-      eval "require $plugin";
-      eval "import $plugin";      
-      if (my $err_msg = $plugin->createPlugin($mode,$effective_conf)) {
-         &vnx_die ("plugin $plugin reports error: $err_msg\n");
-      }
-      push (@plugins,$plugin);
-   }
+      	eval "require $plugin";
+      	eval "import $plugin";      
+      	if (my $err_msg = $plugin->createPlugin($mode,$effective_conf)) {
+         	&vnx_die ("plugin $plugin reports error: $err_msg\n");
+      	}
+      	push (@plugins,$plugin);
+   	}
    
-   ###########################################################
-   # Command execution
+   	###########################################################
+   	# Command execution
 
-   if ($exeinteractive) {
-      print "interactive execution is on: pulse a key after each command\n";
-   }
+   	if ($exeinteractive) {
+      	print "interactive execution is on: pulse a key after each command\n";
+   	}
 
-   # Lock management
-   if (-f $dh->get_vnx_dir . "/LOCK") {
-      my $basename = basename $0;
-      &vnx_die($dh->get_vnx_dir . "/LOCK exists: another instance of $basename seems to be in execution\nIf you are sure that this can't be happening in your system, do 'rm " . $dh->get_vnx_dir . "/LOCK' and try again\n");
-   }
-   else {
-      $execution->execute($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_vnx_dir . "/LOCK");
-      $start_time = time();
-   }
+   	# Lock management
+   	if (-f $dh->get_vnx_dir . "/LOCK") {
+      	my $basename = basename $0;
+      	&vnx_die($dh->get_vnx_dir . "/LOCK exists: another instance of $basename seems to be in execution\nIf you are sure that this can't be happening in your system, do 'rm " . $dh->get_vnx_dir . "/LOCK' and try again\n");
+   	}
+   	else {
+      	$execution->execute($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_vnx_dir . "/LOCK");
+      	$start_time = time();
+   	}
 
-   # Mode selection
+   	# Mode selection
 
-   if ($opt_t||$opt_create) {
-	   if ($exemode != $EXE_DEBUG && !$opt_M && !$opt_start) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
-            if &scenario_exists($dh->get_scename);
-      }
-      &mode_define;
-      &mode_start;
-   }
-   elsif ($opt_x||$opt_execute) {
-      if ($exemode != $EXE_DEBUG) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " does not exists: create it with -t before\n")
-           unless &scenario_exists($dh->get_scename);
-      }
+   	if ($opt_t||$opt_create) {
+	   	if ($exemode != $EXE_DEBUG && !$opt_M && !$opt_start) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
+            	if &scenario_exists($dh->get_scename);
+      	}
+      	&mode_define;
+      	&mode_start;
+   	}
+   	elsif ($opt_x||$opt_execute) {
+      	if ($exemode != $EXE_DEBUG) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exists: create it with -t before\n")
+           		unless &scenario_exists($dh->get_scename);
+      	}
 
-      &mode_x($cmdseq);
-   }
-   elsif ($opt_d||$opt_shutdown) {
-      if ($exemode != $EXE_DEBUG) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-           unless &scenario_exists($dh->get_scename);
-      }
-      &mode_d;
+      	&mode_x($cmdseq);
+   	}
+   	elsif ($opt_d||$opt_shutdown) {
+      	if ($exemode != $EXE_DEBUG) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           		unless &scenario_exists($dh->get_scename);
+      	}
+      	&mode_d;
 #      my $do_not_build_topology = 1;
-
-      
-   }
-   elsif ($opt_P||$opt_destroy) {  # elsif ($opt_P) { [JSF]
-      if ($exemode != $EXE_DEBUG) {
-      #   $execution->smartdie ("scenario $scename does not exist\n")
-      #     unless &scenario_exists($scename);
-      }
-      $args->set('F',1);
-      &mode_d;		# First, call destroy mode with force flag activated
-      &mode_P;		# Second, purge other things
-      #&mode_undefine;
-   }
-   elsif ($opt_define){
-      if ($exemode != $EXE_DEBUG && !$opt_M) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
-            if &scenario_exists($dh->get_scename);
-      }
-      &mode_define;
-   }
-   elsif ($opt_undefine){
-      if ($exemode != $EXE_DEBUG && !$opt_M) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-           unless &scenario_exists($dh->get_scename);
-      }
-      &mode_undefine;
-   }
-   elsif ($opt_start) {
-      if ($exemode != $EXE_DEBUG) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-           unless &scenario_exists($dh->get_scename);
-      }
-      &mode_start;
-   }
-   elsif ($opt_reset) {
-      if ($exemode != $EXE_DEBUG) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-           unless &scenario_exists($dh->get_scename);
-      }
-      $args->set('F',1);
-      &mode_d;		# First, call destroy mode with force flag activated
-      &mode_P;		# Second, purge other things
-      sleep(1);     # Let it finish
-      &mode_define;
-      &mode_start;
-   }
-   
-   elsif ($opt_reboot) {
-     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        unless &scenario_exists($dh->get_scename);
-     }
-     &mode_d;
-     &mode_start;
-   }
-   
-   elsif ($opt_save) {
-     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        unless &scenario_exists($dh->get_scename);
-     }
-     &mode_save;
-   }
-   elsif ($opt_restore) {
-     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        unless &scenario_exists($dh->get_scename);
-     }
-     &mode_restore;
-   }
-   
-   elsif ($opt_suspend) {
-     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        unless &scenario_exists($dh->get_scename);
-     }
-     &mode_suspend;
-   }
-   
-   elsif ($opt_resume) {
-     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        unless &scenario_exists($dh->get_scename);
-     }
-     &mode_resume;
-   }
-   
-   elsif ($opt_showmap) {
+     
+   	}
+   	elsif ($opt_P||$opt_destroy) {  # elsif ($opt_P) { [JSF]
+      	if ($exemode != $EXE_DEBUG) {
+      	#   $execution->smartdie ("scenario $scename does not exist\n")
+      	#     unless &scenario_exists($scename);
+      	}
+      	$args->set('F',1);
+      	&mode_d;		# First, call destroy mode with force flag activated
+      	&mode_P;		# Second, purge other things
+      	#&mode_undefine;
+   	}
+   	elsif ($opt_define){
+      	if ($exemode != $EXE_DEBUG && !$opt_M) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
+            	if &scenario_exists($dh->get_scename);
+      	}
+      	&mode_define;
+   	}
+   	elsif ($opt_undefine){
+      	if ($exemode != $EXE_DEBUG && !$opt_M) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           		unless &scenario_exists($dh->get_scename);
+      	}
+      	&mode_undefine;
+   	}
+   	elsif ($opt_start) {
+      	if ($exemode != $EXE_DEBUG) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           		unless &scenario_exists($dh->get_scename);
+      	}
+      	&mode_start;
+   	}
+   	elsif ($opt_reset) {
+      	if ($exemode != $EXE_DEBUG) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           		unless &scenario_exists($dh->get_scename);
+      	}
+      	$args->set('F',1);
+      	&mode_d;		# First, call destroy mode with force flag activated
+      	&mode_P;		# Second, purge other things
+      	sleep(1);     # Let it finish
+      	&mode_define;
+      	&mode_start;
+   	}
+	elsif ($opt_reboot) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        		unless &scenario_exists($dh->get_scename);
+     	}
+     	&mode_d;
+     	&mode_start;
+   	}
+   	elsif ($opt_save) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        		unless &scenario_exists($dh->get_scename);
+     	}
+     	&mode_save;
+   	}
+   	elsif ($opt_restore) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        		unless &scenario_exists($dh->get_scename);
+     	}
+     	&mode_restore;
+   	}
+ 	elsif ($opt_suspend) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        		unless &scenario_exists($dh->get_scename);
+     	}
+     	&mode_suspend;
+   	}
+   	elsif ($opt_resume) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        		unless &scenario_exists($dh->get_scename);
+     	}
+     	&mode_resume;
+   	}
+   	elsif ($opt_showmap) {
 #     if ($exemode != $EXE_DEBUG) {
 #        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
 #        unless &scenario_exists($dh->get_scename);
 #     }
-     &mode_showmap;
-   }
-   
-   elsif ($opt_console) {
+     	&mode_showmap;
+   	}
+   	elsif ($opt_console) {
 		&mode_console;
-   }
-   elsif ($opt_consoleinfo) {
+   	}
+   	elsif ($opt_consoleinfo) {
    		&mode_consoleinfo;
-   }
+   	}
    
+   	else {
+      	$execution->smartdie("if you are seeing this text something terribly horrible has happened...\n");
+   	}
    
-   else {
-      $execution->smartdie("if you are seeing this text something terribly horrible has happened...\n");
-   }
+   	# Call the finalize subrutine in plugins
+   	foreach my $plugin (@plugins) {
+      	$plugin->finalizePlugin;
+   	}
    
-   # Call the finalize subrutine in plugins
-   foreach my $plugin (@plugins) {
-      $plugin->finalizePlugin;
-   }
-   
-   # Remove lock
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vnx_dir . "/LOCK");
-   my $total_time = time() - $start_time;
-   print "Total time elapsed: $total_time seconds\n";
+   	# Remove lock
+   	$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vnx_dir . "/LOCK");
+   	my $total_time = time() - $start_time;
+   	print "Total time elapsed: $total_time seconds\n";
 
 }
 
@@ -1084,7 +1096,6 @@ sub mode_start {
         my $lines = join "\n", @host_lines;
 #        &host_mapping_patch ($lines, $dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != $EXE_DEBUG));
         &host_mapping_patch ($dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != $EXE_DEBUG)); # lines in the temp file
-
 
         # If -B, block until ready
         if ($args->get('B')) {
@@ -1569,7 +1580,7 @@ sub configure_virtual_bridged_networks {
       
       if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
          my $tun_if = $name . "-e0";
-         $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
+         $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
       }
 
       # To get UML's interfaces list
@@ -1591,10 +1602,10 @@ sub configure_virtual_bridged_networks {
 	        my $tun_if = $name . "-e" . $id;
 
             # To create TUN device
-	        $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
+	        $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
 
             # To set up device
-            $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if 0.0.0.0 " . $dh->get_promisc . " up");
+            $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if 0.0.0.0 " . $dh->get_promisc . " up");
             
 	     }
       }
@@ -1618,15 +1629,15 @@ sub configure_virtual_bridged_networks {
 
          # If bridged does not exists, we create and set up it
          unless (&vnet_exists_br($name)) {
-            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addbr $name");
+            $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " addbr $name");
 	        if ($dh->get_stp) {
-               $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " stp $name on");
+               $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " stp $name on");
 	        }
 	        else {
-               $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " stp $name off");
+               $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " stp $name off");
 	        }
 	        sleep 1;    # needed in SuSE 8.2
-	        $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $name 0.0.0.0 " . $dh->get_promisc . " up");
+	        $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $name 0.0.0.0 " . $dh->get_promisc . " up");
          }
 
          # Is there an external interface associated with the network?
@@ -1635,12 +1646,12 @@ sub configure_virtual_bridged_networks {
 	        unless ($vlan =~ /^$/ ) {
 	           # If there is not any configured VLAN at this interface, we have to enable it
 	           unless (&check_vlan($external_if,"*")) {
-                  $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
+                  $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
 	           }
 	           # If VLAN is already configured at this interface, we haven't to configure it
 	           unless (&check_vlan($external_if,$vlan)) {
-	              $execution->execute($bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
-	              $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
+	              $execution->execute_root($bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
+	              $execution->execute_root($bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
 	           }
 	           $external_if .= ".$vlan";
 	        }
@@ -1649,9 +1660,10 @@ sub configure_virtual_bridged_networks {
 	        my @if_list = &vnet_ifs($name);
 	        $_ = "@if_list";
 	        unless (/\b($external_if)\b/) {
-               $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
-	           $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addif $name $external_if");
+               $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
+	           $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " addif $name $external_if");
 	        }
+	        
 	        # We increase interface use counter
 	        &inc_cter($external_if);
          }
@@ -1691,7 +1703,7 @@ sub tun_connect {
 	        my $net_if = $name . "-e" . $id;
 
             # We link TUN/TAP device 
-	        $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
+	        $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
 	     }
 
       }
@@ -1721,7 +1733,7 @@ sub host_config {
       my $net = $if->getAttribute("net");
 
 	  # Create TUN device
-	  $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -t $net -u " . $execution->get_uid . " -f " . $dh->get_tun_device);
+	  $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -t $net -u " . $execution->get_uid . " -f " . $dh->get_tun_device);
 
       # Interface configuration
       # 1a. To process interface IPv4 addresses
@@ -1756,8 +1768,7 @@ sub host_config {
                   	 print "WARNING (host): no mask defined for $ip address of host interface. Using default mask ($ipv4_effective_mask)\n";
 	           }
 	        }
-	       
-            $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net $command $ip netmask $ipv4_effective_mask " . $dh->get_promisc);
+    	    $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $net $command $ip netmask $ipv4_effective_mask " . $dh->get_promisc);
 		    $command = "add";
          }
       }
@@ -1769,7 +1780,7 @@ sub host_config {
             my $ip = &text_tag($ipv6_list->item($j));
             if (&valid_ipv6_with_mask($ip)) {
 	           # Implicit slashed mask in the address
-	           $execution->execute("ifconfig $net add $ip",*CONFILE);
+    	       $execution->execute_root("ifconfig $net add $ip",*CONFILE);
 	        }
 	        else {
 	           # Check the value of the mask attribute
@@ -1779,7 +1790,7 @@ sub host_config {
 	              # Note that, in the case of IPv6, mask are always slashed
                   $ipv6_effective_mask = $ipv6_mask_attr;
 	           }
-	           $execution->execute("ifconfig $net add $ip$ipv6_effective_mask",*CONFILE);
+	           $execution->execute_root("ifconfig $net add $ip$ipv6_effective_mask",*CONFILE);
 	        }
 	     }
       }
@@ -1795,15 +1806,15 @@ sub host_config {
        if ($route_type eq "ipv4") {
           if ($dh->is_ipv4_enabled) {
              if ($route_dest eq "default") {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add default gw $route_gw");
+                $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " -A inet add default gw $route_gw");
              } 
              elsif ($route_dest =~ /\/32$/) {
 	        # Special case: X.X.X.X/32 destinations are not actually nets, but host. The syntax of
 		# route command changes a bit in this case
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -host $route_dest gw $route_gw");
+                $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " -A inet add -host $route_dest gw $route_gw");
 	     }
 	     else {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -net $route_dest gw $route_gw");
+                $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " -A inet add -net $route_dest gw $route_gw");
              }
              #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add $route_dest gw $route_gw");
           }
@@ -1812,10 +1823,10 @@ sub host_config {
        else {
           if ($dh->is_ipv6_enabled) {
              if ($route_dest eq "default") {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $route_gw");
+                $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $route_gw");
              }
              else {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add $route_dest gw $route_gw");
+                $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " -A inet6 add $route_dest gw $route_gw");
              }
           }
        }
@@ -1827,10 +1838,10 @@ sub host_config {
        my $f_type = $forwarding->item(0)->getAttribute("type");
        $f_type = "ip" if ($f_type =~ /^$/);
        if ($dh->is_ipv4_enabled) {
-          $execution->execute($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv4/ip_forward") if ($f_type eq "ip" or $f_type eq "ipv4");
+          $execution->execute_root($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv4/ip_forward") if ($f_type eq "ip" or $f_type eq "ipv4");
        }
        if ($dh->is_ipv6_enabled) {
-          $execution->execute($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv6/conf/all/forwarding") if ($f_type eq "ip" or $f_type eq "ipv6");
+          $execution->execute_root($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv6/conf/all/forwarding") if ($f_type eq "ip" or $f_type eq "ipv6");
        }
     }
 
@@ -1854,11 +1865,11 @@ sub uml_switch_wait {
 
 ######################################################
 # Chown all vnx working files to a non-privileged user (if user is root)
-sub chown_working_dir {
-	if ($> == 0) {
-		$execution->execute($bd->get_binaries_path_ref->{"chown"} . " -R " . $execution->get_uid . " " . $dh->get_vnx_dir);
-	}
-}
+#sub chown_working_dir {
+#	if ($> == 0) {
+#		$execution->execute($bd->get_binaries_path_ref->{"chown"} . " -R " . $execution->get_uid . " " . $dh->get_vnx_dir);
+#	}
+#}
 
 ######################################################
 # Check to see if any of the UMLs use xterm in console tags
@@ -2186,7 +2197,6 @@ sub mode_x {
 		# call the corresponding vmAPI
     	my $vmType = $vm->getAttribute("type");
 
-    	#my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $execution, $bd, $dh, $vm, $name);
     	my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $vm, $name, %vm_ips);
      	if (!($error eq 0)){
      		print $error
@@ -2350,15 +2360,15 @@ sub host_unconfig {
        if ($route_type eq "ipv4") {
           if ($dh->is_ipv4_enabled) {
              if ($route_dest eq "default") {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del $route_dest gw $route_gw");
+                $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " -A inet del $route_dest gw $route_gw");
              } 
              elsif ($route_dest =~ /\/32$/) {
 	        # Special case: X.X.X.X/32 destinations are not actually nets, but host. The syntax of
 		# route command changes a bit in this case
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del -host $route_dest gw $route_gw");
+                $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " -A inet del -host $route_dest gw $route_gw");
 	     }
              else {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del -net $route_dest gw $route_gw");
+                $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " -A inet del -net $route_dest gw $route_gw");
              }
              #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del $route_dest gw $route_gw");
           }
@@ -2367,10 +2377,10 @@ sub host_unconfig {
        else {
           if ($dh->is_ipv6_enabled) {
              if ($route_dest eq "default") {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 del 2000::/3 gw $route_gw");
+                $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " -A inet6 del 2000::/3 gw $route_gw");
              }
              else {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 del $route_dest gw $route_gw");
+                $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " -A inet6 del $route_dest gw $route_gw");
              }
           }
        }
@@ -2387,8 +2397,8 @@ sub host_unconfig {
 	   my $net = $if->getAttribute("net");
 
 	   # Destroy the tun device
-	   $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net down");
-	   $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $net -f " . $dh->get_tun_device);
+	   $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $net down");
+	   $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -d $net -f " . $dh->get_tun_device);
    }
 
 }
@@ -2425,10 +2435,10 @@ sub external_if_remove {
 
       # To clean up not in use physical interfaces
       if (&get_cter($external_if) == 0) {
-         $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $name 0.0.0.0 " . $dh->get_promisc . " up");
-         $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delif $name $external_if");
+         $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $name 0.0.0.0 " . $dh->get_promisc . " up");
+         $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " delif $name $external_if");
 	 unless ($vlan =~ /^$/) {
-	    $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " rem $external_if");
+	    $execution->execute_root($bd->get_binaries_path_ref->{"vconfig"} . " rem $external_if");
 	 }
 	 else {
 	    # Note that now the interface has no IP address nor mask assigned, it is
@@ -2451,7 +2461,7 @@ sub tun_destroy_switched {
    # Remove the symbolic link to the management switch socket
    if ($dh->get_vmmgmt_type eq 'net') {
 		my $socket_file = $dh->get_networks_dir . "/" . $dh->get_vmmgmt_netname . ".ctl";
-		$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
+		$execution->execute_root($bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
 	}
 
    my $net_list = $doc->getElementsByTagName("net");
@@ -2480,10 +2490,10 @@ sub tun_destroy_switched {
 			if ($sock eq '' && -S $socket_file) {
 				$cmd = $bd->get_binaries_path_ref->{"kill"} . " `" .
 					$bd->get_binaries_path_ref->{"lsof"} . " -t $socket_file`";
-				$execution->execute($cmd);
+				$execution->execute_root($cmd);
 				sleep 1;
 			}
-	        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
+	        $execution->execute_root($bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
          }
       }
    }
@@ -2508,8 +2518,8 @@ sub tun_destroy {
       
       if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
          my $tun_if = $name . "-e0";
-         $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
-         $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
+         $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
+         $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
       }
 
       # To get UML's interfaces list
@@ -2530,10 +2540,10 @@ sub tun_destroy {
             my $tun_if = $name . "-e" . $id;
 
             # To throw away TUN device
-            $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
+            $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
 
             # To remove TUN device
-            $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
+            $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
 
          }
 
@@ -2565,8 +2575,8 @@ sub bridges_destroy {
 
          # Set bridge down and remove it only in the case there isn't any associated interface 
          if (&vnet_ifs($name) == 0) {
-            $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $name down");
-            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delbr $name");
+            $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $name down");
+            $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " delbr $name");
          }
       }
    }
@@ -2612,12 +2622,14 @@ sub mode_P {
 
 # Additional functions
 
+
+=BEGIN
 # check_user
 #
 # Check if the user that runs the script will have suitables privileges
 # 
 # - root users always can run vnumlparser.pl
-# - no-root users can run vnumlparser.pl if:
+# - non-root users can run vnumlparser.pl if:
 #      + using only uml_switch networks
 #      + not using <vm_mgmt type="private">
 #      + not using <host>
@@ -2629,19 +2641,19 @@ sub check_user {
 	
     my $doc = $dh->get_doc;
     my $basename = basename $0;
-	
+
 	# In debug mode, anyone can run the script
 	return 0 if ($execution->get_exe_mode() == $EXE_DEBUG);
 	
 	# Root user alwais can run the script
 	return 0 if ($> == 0);
-	
+
 	# Search for not uml_switch networks
 	my $net_list = $doc->getElementsByTagName("net");
 	for (my $i = 0; $i < $net_list->getLength; $i++) {
 		if ($net_list->item($i)->getAttribute("mode") ne "uml_switch") {
 			my $name = $net_list->item($i)->getAttribute("name");
-			return "$name is a bridge_virtual net and only uml_switch virtual networks can be used by no-root users when running $basename";
+			return "$name is a bridge_virtual net and only uml_switch virtual networks can be used by non-root users when running $basename";
 		}
 	}
 	
@@ -2669,6 +2681,8 @@ sub check_user {
 	return 0;
 
 }
+=END
+=cut
 
 # check_deprecated
 #
@@ -2851,10 +2865,9 @@ sub host_mapping_patch {
    my $dir_name = dirname $file_name;
    my $basename = basename $file_name;
    my $file_bk = "$dir_name/$basename.vnx.old";
-   $execution->execute($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
-   $execution->execute($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
-
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
+   $execution->execute_root($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
+   $execution->execute_root($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
+   $execution->execute_root($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
 
 }
 
@@ -2972,9 +2985,9 @@ sub host_mapping_unpatch {
    my $dir_name = dirname $file_name;
    my $basename = basename $file_name;
    my $file_bk = "$dir_name/$basename.vnx.old";
-   $execution->execute($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
-   $execution->execute($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
+   $execution->execute_root($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
+   $execution->execute_root($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
+   $execution->execute_root($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
 
 }
 
@@ -3302,9 +3315,9 @@ sub physicalif_config {
       	 	#IPv6 configuration
       	 	my $ip = $phyif->getAttribute("ip");
       	 	my $gw = $phyif->getAttribute("gw");
-      	 	$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $interface add $ip");
+      	 	$execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $interface add $ip");
       	 	unless ($gw =~ /^$/ ) {
-               $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $gw");	        
+               $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $gw");	        
       	 	}
       	 }
       	 else {
@@ -3313,9 +3326,9 @@ sub physicalif_config {
 	        my $gw = $phyif->getAttribute("gw");
    	        my $mask = $phyif->getAttribute("mask");
             $mask="255.255.255.0" if ($mask =~ /^$/);
-	        $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $interface $ip netmask $mask");
+	        $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $interface $ip netmask $mask");
        	 	unless ($gw =~ /^$/ ) {
-	           $execution->execute($bd->get_binaries_path_ref->{"route"} . " add default gw $gw");
+	           $execution->execute_root($bd->get_binaries_path_ref->{"route"} . " add default gw $gw");
        	 	}
       	 }
       }
@@ -3773,12 +3786,12 @@ sub mgmt_sock_create {
       $effective_mask = &slashed_to_dotted_mask($mask);
    }
 
-   $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u $user -t $tap");
-   $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tap $hostip netmask $effective_mask up");
+   $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -u $user -t $tap");
+   $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $tap $hostip netmask $effective_mask up");
    #$execution->execute_bg($bd->get_binaries_path_ref->{"su"} . " -pc '".$bd->get_binaries_path_ref->{"uml_switch"}." -tap $tap -unix $socket < /dev/null > /dev/null &' $user");
-   $execution->execute_bg($bd->get_binaries_path_ref->{"uml_switch"}." -tap $tap -unix $socket",'/dev/null');
+   $execution->execute_bg_root($bd->get_binaries_path_ref->{"uml_switch"}." -tap $tap -unix $socket",'/dev/null');
    sleep 1;
-   $execution->execute($bd->get_binaries_path_ref->{"chmod"} . " g+rw $socket");
+   $execution->execute_root($bd->get_binaries_path_ref->{"chmod"} . " g+rw $socket");
 }
 
 # mgmt_sock_destroy
@@ -3793,10 +3806,10 @@ sub mgmt_sock_destroy {
    my $socket = shift;
    my $tap = shift;
    
-   $execution->execute($bd->get_binaries_path_ref->{"kill"} . " `".$bd->get_binaries_path_ref->{"lsof"}." -t $socket`");
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " $socket");
-   $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tap down");
-   $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tap");
+   $execution->execute_root($bd->get_binaries_path_ref->{"kill"} . " `".$bd->get_binaries_path_ref->{"lsof"}." -t $socket`");
+   $execution->execute_root($bd->get_binaries_path_ref->{"rm"} . " $socket");
+   $execution->execute_root($bd->get_binaries_path_ref->{"ifconfig"} . " $tap down");
+   $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -d $tap");
 }
 
 
@@ -3876,10 +3889,9 @@ sub build_topology{
    my $opt_M = shift;
     try {
             # To load tun module if needed
-            #if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
             if (&tundevice_needed($dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
                 if (! -e "/dev/net/tun") {
-                    !$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
+                    !$execution->execute_root ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
                 }
             }
 
@@ -4507,6 +4519,10 @@ sub get_vnx_config {
 #
 # Prints program usage message
 sub usage {
+	print "----------------------------------------------------------------------------------\n";
+   	print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es          \n";
+   	print "Version: $version" . "$branch (build on $release)\n";
+   	print "----------------------------------------------------------------------------------\n";
 	my $basename = basename $0;
 	print "Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnx_dir] [-u user]\n";
 	print "                 [-T tmp_dir] [-i] [-w timeout] [-B] [-Z]\n";

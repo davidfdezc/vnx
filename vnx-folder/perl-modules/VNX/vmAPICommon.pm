@@ -123,7 +123,7 @@ sub open_console {
 
 	my $command;
 	if ($consType eq 'vnc_display') {
-		$execution->execute("virt-viewer -c $hypervisor $vmName &");
+		$execution->execute_root("virt-viewer -c $hypervisor $vmName &");
 		return;  			
    	} elsif ($consType eq 'libvirt_pts') {
 		$command = "virsh -c $hypervisor console $vmName";
@@ -150,7 +150,7 @@ sub open_console {
 		$execution->smartdie ("unknown value ($console_exe) of console_exe parameter in $vnxConfigFile");
 	}
 	if (!defined $getLineOnly) {
-		$execution->execute($exeLine .  ">/dev/null 2>&1 &");
+		$execution->execute_root($exeLine .  ">/dev/null 2>&1 &");
 	}
 	return $exeLine;
 }
