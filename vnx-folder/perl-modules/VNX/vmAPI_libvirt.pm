@@ -1370,9 +1370,6 @@ sub shutdownVM {
 	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 	my $F_flag = shift; # Not used here, only in vmAPI_uml
 
 	my $error = 0;
@@ -1398,12 +1395,11 @@ sub shutdownVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 				$listDom->shutdown();
-				#&change_vm_status( $dh, $vmName, "REMOVE" );
 				&change_vm_status( $vmName, "REMOVE" );
 
 				# remove run directory (de momento no se puede porque necesitamos saber a que pid esperar)
 				# lo habilito para la demo
-				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) );
+				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) . "/*" );
 
 				print "Domain shut down\n" if ($exemode == $EXE_VERBOSE);
 				return $error;
