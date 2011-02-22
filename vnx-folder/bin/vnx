@@ -230,11 +230,6 @@ my $curr_uml;
 # VNX scenario file
 my $input_file;
 
-# To be read from vnx.conf file
-#my $console_exe;
-#my $dynamips_port;
-#my $dynamips_idle_pc;
-
 &main;
 exit(0);
 
@@ -245,7 +240,9 @@ sub main {
 	
    $ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
 
-   my $vnx_dir = &do_path_expansion("~/.vnx");
+   #my $vnx_dir = &do_path_expansion("~/.vnx");
+   my $vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
+   
 #   my $tmp_dir = "@VNUML_TMP@";[JSF]
 #   my $uid = $> == 0 ? getpwnam("@VNUML_USER@") : $>;[JSF]
    my $tmp_dir = "/tmp";
@@ -254,7 +251,7 @@ sub main {
 
    # DFC 21/2/2011 my $uid = $> == 0 ? getpwnam("vnx") : $>; # uid=vnx if executed as root; userid if executed as user
    my $uid = $>;
-   print "***** uid=$uid\n";
+   #print "***** uid=$uid\n";
 
 #   my $boot_timeout = 30;		  # by default, 30 seconds for boot timeout
    my $boot_timeout = 60; #[JSF]: las uml daban timeout con windows en el escenario
@@ -2198,7 +2195,7 @@ sub mode_x {
 	}
 
 	#vmAPI_uml->exec_command_host($seq,$execution,$bd,$dh);
-	vmAPICommon->exec_command_host($seq);
+	exec_command_host($seq);
 }
 
 
@@ -4376,7 +4373,7 @@ sub print_console_table_entry {
 	foreach $con (@cons) {
 		my $conData= &get_conf_value ($consFile, '', $con);
 		#print "** $consFile $con conData=$conData\n";
-		my $console_exe=&get_conf_value ($vnxConfigFile, 'general', 'console_exe');
+		my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term');
 		if (defined $conData) {
 			#print "** conData=$conData\n";
 		    my @consField = split(/,/, $conData);
@@ -4388,7 +4385,7 @@ sub print_console_table_entry {
  				push (@consDesc, "$con:  'virsh -c $hypervisor console $vmName' or 'screen $consField[2]'");		    	   		    	
 		    } elsif ($consField[1] eq "uml_pts") {
 		    	my $conLine = VNX::vmAPICommon->open_console ($vmName, $con, $consField[1], $consField[2], 'yes');
- 				#push (@consDesc, "$con:  '$console_exe -T $vmName -e screen -t $vmName $consField[2]'");
+ 				#push (@consDesc, "$con:  '$console_term -T $vmName -e screen -t $vmName $consField[2]'");
  				push (@consDesc, "$con:  '$conLine'");
 		    } else {
 		    	print ("ERROR: unknown console type ($consField[1]) in $consFile");

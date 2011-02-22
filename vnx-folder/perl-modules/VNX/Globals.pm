@@ -21,6 +21,7 @@ our @EXPORT = qw(
 	$hypervisor
 	$vnxConfigFile
 
+	$DEFAULT_VNX_DIR
 	$DEFAULT_CONF_FILE
 	$CONS_DISPLAY_DEFAULT
 	$CONS_BASE_PORT
@@ -59,8 +60,9 @@ our $hypervisor;    # Hypervisor used for libvirt
 our $vnxConfigFile; # VNX Configuration file 
 
 
-# Configuration files
+# Configuration files and directories
 Readonly::Scalar our $DEFAULT_CONF_FILE => '/etc/vnx.conf';
+Readonly::Scalar our $DEFAULT_VNX_DIR => '~/.vnx';
 
 # Console Management
 Readonly::Scalar our $CONS_DISPLAY_DEFAULT => 'yes';    # By default consoles are displayed at startup
