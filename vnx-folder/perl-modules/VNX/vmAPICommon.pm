@@ -102,7 +102,7 @@ sub exec_command_host {
 
 #
 # Starts the console of a virtual machine using the application
-# defined in VNX_CONFFILE console_exe entry
+# defined in VNX_CONFFILE console_term entry
 # 
 # Parameters:
 #   - vmName
@@ -135,19 +135,19 @@ sub open_console {
 		print "WARNING (vm=$vmName): unknown console type ($consType)\n"
 	}
 	
-	my $console_exe=&get_conf_value ($vnxConfigFile, 'general', 'console_exe');
+	my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term');
 	my $exeLine;
-	#print "*** start_console: $vmName $command console_exe = $console_exe\n";
-	if ($console_exe eq 'gnome-terminal') {
+	#print "*** start_console: $vmName $command console_term = $console_term\n";
+	if ($console_term eq 'gnome-terminal') {
 		$exeLine = "gnome-terminal --title '$vmName - console #$con_id' -e '$command'";
-	} elsif ($console_exe eq 'konsole') {
+	} elsif ($console_term eq 'konsole') {
 		$exeLine = "konsole --title '$vmName - console #$con_id' -e $command";
-	} elsif ($console_exe eq 'xterm') {
+	} elsif ($console_term eq 'xterm') {
 		$exeLine = "xterm -rv -sb -rightbar -fa monospace -fs 10 -title '$vmName - console #$con_id' -e '$command'";
-	} elsif ($console_exe eq 'roxterm') {
+	} elsif ($console_term eq 'roxterm') {
 		$exeLine = "roxterm --title '$vmName - console #$con_id' -e $command";
 	} else {
-		$execution->smartdie ("unknown value ($console_exe) of console_exe parameter in $vnxConfigFile");
+		$execution->smartdie ("unknown value ($console_term) of console_term parameter in $vnxConfigFile");
 	}
 	if (!defined $getLineOnly) {
 		$execution->execute($exeLine .  ">/dev/null 2>&1 &");
