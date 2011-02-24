@@ -80,6 +80,7 @@ cp -v data/*.xsd /usr/share/xml/vnx/
 cp -v data/*.xml data/*.net /usr/share/vnx/examples/
 cp -vr data/conf /usr/share/vnx/examples/
 chmod 644 /usr/share/vnx/examples/*
+chmod +x /usr/share/vnx/examples/conf
 
 #
 # Copy other utils

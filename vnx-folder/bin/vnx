@@ -1342,7 +1342,7 @@ sub mode_console {
       	}
 
 		my $cid = $args->get('cid');
-		print "*** cid=$cid\n";     
+		#print "*** cid=$cid\n";     
 		
 		if ($cid eq '') {		
 			VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
@@ -1592,7 +1592,7 @@ sub configure_virtual_bridged_networks {
 
             # To set up device
             $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if 0.0.0.0 " . $dh->get_promisc . " up");
-            
+                        
 	     }
       }
    }
@@ -1712,52 +1712,67 @@ sub host_config {
 
    # To process list
    for ( my $i = 0; $i < $if_list->getLength; $i++) {
-      my $if = $if_list->item($i);
+      	my $if = $if_list->item($i);
 
-      # To get name attribute
-      my $net = $if->getAttribute("net");
+      	# To get name attribute
+      	my $net = $if->getAttribute("net");
+      
+	  	my $net_mode;
+	  	# To get list of defined <net>
+   	  	my $net_list = $doc->getElementsByTagName("net");
+   	  	for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+      		my $neti = $net_list->item($i);
+      		# To get name attribute
+		    my $net_name = $neti->getAttribute("name");
+		    if ($net_name eq $net) {
+		    	$net_mode = $neti->getAttribute("mode");
+		    	#print "**** hostif:   $net_name, $net_mode\n"
+		    }
+   	  	}
 
-	  # Create TUN device
-	  $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -t $net -u " . $execution->get_uid . " -f " . $dh->get_tun_device);
+		if ($net_mode eq 'uml_switch') {
+	  		# Create TUN device
+	  		$execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -t $net -u " . $execution->get_uid . " -f " . $dh->get_tun_device);
+		}
 
-      # Interface configuration
-      # 1a. To process interface IPv4 addresses
-      # The first address have to be assigned without "add" to avoid creating subinterfaces
-      if ($dh->is_ipv4_enabled) {
-         my $ipv4_list = $if->getElementsByTagName("ipv4");
-         my $command = "";
-         for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
-            my $ip = &text_tag($ipv4_list->item($j));
-	        my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
-	        if (&valid_ipv4_with_mask($ip)) {
-	           # Implicit slashed mask in the address
-	           $ip =~ /.(\d+)$/;
-	           $ipv4_effective_mask = &slashed_to_dotted_mask($1);
-	           # The IP need to be chomped of the mask suffix
-	           $ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
-	           $ip = "$1.$2.$3.$4";
-	        }
-	        else {
-	           # Check the value of the mask attribute
-	           my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
-	           if ($ipv4_mask_attr ne "") {
-	              # Slashed or dotted?
-	              if (&valid_dotted_mask($ipv4_mask_attr)) {
-	                 $ipv4_effective_mask = $ipv4_mask_attr;
-	              }
-	              else {
-	                 $ipv4_mask_attr =~ /.(\d+)$/;
-	                 $ipv4_effective_mask = &slashed_to_dotted_mask($1);
-	              }
-	           } else {
-                  	 print "WARNING (host): no mask defined for $ip address of host interface. Using default mask ($ipv4_effective_mask)\n";
-	           }
-	        }
+      	# Interface configuration
+      	# 1a. To process interface IPv4 addresses
+      	# The first address have to be assigned without "add" to avoid creating subinterfaces
+      	if ($dh->is_ipv4_enabled) {
+         	my $ipv4_list = $if->getElementsByTagName("ipv4");
+         	my $command = "";
+         	for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
+            	my $ip = &text_tag($ipv4_list->item($j));
+	        	my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
+	        	if (&valid_ipv4_with_mask($ip)) {
+	           		# Implicit slashed mask in the address
+	           		$ip =~ /.(\d+)$/;
+	           		$ipv4_effective_mask = &slashed_to_dotted_mask($1);
+	           		# The IP need to be chomped of the mask suffix
+	           		$ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
+	           		$ip = "$1.$2.$3.$4";
+	        	}
+	        	else {
+	           		# Check the value of the mask attribute
+	           		my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
+	           		if ($ipv4_mask_attr ne "") {
+	              		# Slashed or dotted?
+	              		if (&valid_dotted_mask($ipv4_mask_attr)) {
+	                 	$ipv4_effective_mask = $ipv4_mask_attr;
+	              	}
+	              	else {
+	                 	$ipv4_mask_attr =~ /.(\d+)$/;
+	                 	$ipv4_effective_mask = &slashed_to_dotted_mask($1);
+	              	}
+	           	} else {
+                  	 	print "WARNING (host): no mask defined for $ip address of host interface. Using default mask ($ipv4_effective_mask)\n";
+	           	}
+	       	}
 	       
             $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net $command $ip netmask $ipv4_effective_mask " . $dh->get_promisc);
 		    $command = "add";
-         }
-      }
+      	}
+   	}
 
       # 2a. To process interface IPv6 addresses
       my $ipv6_list = $if->getElementsByTagName("ipv6");
@@ -2378,14 +2393,30 @@ sub host_unconfig {
 
    # To process list
    for ( my $i = 0; $i < $if_list->getLength; $i++) {
-	   my $if = $if_list->item($i);
+	   	my $if = $if_list->item($i);
 
-	   # To get name attribute
-	   my $net = $if->getAttribute("net");
+	   	# To get name attribute
+	   	my $net = $if->getAttribute("net");
 
-	   # Destroy the tun device
-	   $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net down");
-	   $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $net -f " . $dh->get_tun_device);
+	  	my $net_mode;
+	  	# To get list of defined <net>
+   	  	my $net_list = $doc->getElementsByTagName("net");
+   	  	for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+      		my $neti = $net_list->item($i);
+      		# To get name attribute
+		    my $net_name = $neti->getAttribute("name");
+		    if ($net_name eq $net) {
+		    	$net_mode = $neti->getAttribute("mode");
+		    	#print "**** hostif:   $net_name, $net_mode\n"
+		    }
+   	  	}
+
+	   	# Destroy the tun device
+	   	#print "*** host_unconfig\n";
+		if ($net_mode eq 'uml_switch') {
+	   		$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net down");
+			$execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $net -f " . $dh->get_tun_device);
+		}
    }
 
 }
@@ -2530,6 +2561,7 @@ sub tun_destroy {
             $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
 
             # To remove TUN device
+            #print "*** tun_destroy\n";
             $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
 
          }
