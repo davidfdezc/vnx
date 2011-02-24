@@ -11,7 +11,7 @@
 #			      Universidad Politecnica de Madrid
 #			      SPAIN
 #			
-# Available at:	  http://www.dit.upm.es/vnuml 
+# Available at:	  http://www.dit.upm.es/vnx 
 #
 # ----------------------------------------------------------------------------------
 #
@@ -243,12 +243,12 @@ exit(0);
 #
 sub main {
 	
-   $ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
+   	$ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
 
-   my $vnx_dir = &do_path_expansion("~/.vnx");
+	$vm_fs_dir = '/tmp/.vnx';
+
 #   my $tmp_dir = "@VNUML_TMP@";[JSF]
 #   my $uid = $> == 0 ? getpwnam("@VNUML_USER@") : $>;[JSF]
-   my $tmp_dir = "/tmp";
 #   my $uid = $> == 0 ? getpwnam("vnuml") : $>;
 
 
@@ -264,11 +264,16 @@ sub main {
    
     if (defined $uid) {
   		print "*** Executed as root by sudoing from $uid,$uid_name\n";
+    	$>=$uid; # Change to non-root user
     } else {
   		print "*** Executed as root from a root shell\n";
   		$uid = 0;
   		$uid_name = 'root';  	
     }
+
+   	my $vnx_dir = &do_path_expansion("~/.vnx");
+   	print "*** $>    $vnx_dir\n";
+   	my $tmp_dir = "/tmp";
     
     # We change to non-root user. If vnx is invoked using 'sudo', most of the code 
     # is executed with the user id of the user that issued the sudo.
@@ -595,6 +600,13 @@ sub main {
 		if (! -d $vnx_dir ) {
 			mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
 	   	}
+	   	if (defined $vm_fs_dir) {
+			$>=0;
+			if (! -d $vm_fs_dir ) {
+				mkdir $vm_fs_dir or &vnx_die("Unable to create vm fs directory $vm_fs_dir: $!\n");
+	   		}
+	   		$>=$uid;
+	   	}
 
 # DFC 21/2/2011: changed to simplify the user which executes vnx:
 #                   - option -u ignored
@@ -617,6 +629,17 @@ sub main {
 	   	if (! -d "$vnx_dir/networks") {
 		   	mkdir "$vnx_dir/networks" or &vnx_die("Unable to create networks directory $vnx_dir/networks: $!\n");
 	   	}
+	   	if (defined $vm_fs_dir) {
+			$>=0;
+			if (! -d "$vm_fs_dir/scenarios" ) {
+		   		mkdir "$vm_fs_dir/scenarios" or &vnx_die("Unable to create vm fs scenarios directory $vm_fs_dir/scenarios: $!\n");
+	   		}
+	   		if (! -d "$vm_fs_dir/networks") {
+		   		mkdir "$vm_fs_dir/networks" or &vnx_die("Unable to create networks directory $vm_fs_dir/networks: $!\n");
+	   		}
+	   		$>=$uid;
+	   	}
+	   	
    	}
    	&vnx_die ("tmp_dir $tmp_dir does not exist or is not readable/executable\n") unless (-r $tmp_dir && -x _);
    	&vnx_die ("tmp_dir $tmp_dir is not writeable\n") unless (-w _);
@@ -3871,8 +3894,15 @@ sub create_dirs {
 
 		  }
 		  mkdir $dh->get_vm_dir($name);
-		  mkdir $dh->get_fs_dir($name);
+		  if (defined $vm_fs_dir) {
+		  	$>=0;
+		  	system ("mkdir -p $vm_fs_dir" . "/scenarios/" . $dh->get_scename . "/vms/" .  $name . "/fs" );
+		  	system "tree /tmp/.vnx/";
+		  	$>=$uid;
+		  }
 		  mkdir $dh->get_hostfs_dir($name);
+		  mkdir $dh->get_fs_dir($name);
+		  print "**** " . $dh->get_fs_dir($name) . "\n";
 		  mkdir $dh->get_run_dir($name);
 		  mkdir $dh->get_mnt_dir($name);
 		  mkdir $dh->get_vm_tmp_dir($name);		  

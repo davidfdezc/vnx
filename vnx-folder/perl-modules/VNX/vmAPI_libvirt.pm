@@ -234,7 +234,7 @@ sub defineVM {
 
 			# If cow file does not exist, we create it
 			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
-				$execution->execute( "qemu-img"
+				$execution->execute_root( "qemu-img"
 					  . " create -b $filesystem -f qcow2 "
 					  . $dh->get_fs_dir($vmName)
 					  . "/root_cow_fs" );
@@ -521,11 +521,11 @@ sub defineVM {
 
      		# Create the COW filesystem if it does not exist
 			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
-				$execution->execute( "qemu-img"
+				$execution->execute_root( "qemu-img"
 					  . " create -b $filesystem -f qcow2 "
 					  . $dh->get_fs_dir($vmName)
 					  . "/root_cow_fs" );
-				$execution->execute( "chown " . $uid_name . " " . $dh->get_fs_dir($vmName) . "/root_cow_fs" );
+				#$execution->execute( "chown " . $uid_name . " " . $dh->get_fs_dir($vmName) . "/root_cow_fs" );
 				system "ls -al " . $dh->get_fs_dir($vmName) . "/root_cow_fs";
 			}
 			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
@@ -1152,7 +1152,9 @@ sub destroyVM {
 		}
 
 		# Remove vm fs directory (cow and iso filesystems)
+		$>=0; print "*** Changed to root user\n" if ($exemode == $EXE_VERBOSE);
 		$execution->execute( "rm " . $dh->get_fs_dir($vmName) . "/*" );
+    	$>=$uid; print "*** Back to non-root user ($uid_name)\n" if ($exemode == $EXE_VERBOSE);
 		return $error;
 
 	}
