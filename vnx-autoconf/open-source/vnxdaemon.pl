@@ -185,7 +185,7 @@ sub listen {
 
 				foreach my $file2 (@files2){
 					
-					if ($file2 eq "/media/cdrom/command.xml"){
+					if ($file2 eq "/cdrom/command.xml"){
 						unless (&check_if_new_file($file2,"command")){
 							next;				
 						}
