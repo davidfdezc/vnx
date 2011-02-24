@@ -22,6 +22,7 @@ our @EXPORT = qw(
 	$vnxConfigFile
 	$uid
 	$uid_name
+	$vm_fs_dir
 	
 	$DEFAULT_CONF_FILE
 	$CONS_DISPLAY_DEFAULT
@@ -61,6 +62,7 @@ our $hypervisor;    # Hypervisor used for libvirt
 our $vnxConfigFile; # VNX Configuration file 
 our $uid;			# User id of the user that issue the "sudo vnx..." command 
 our $uid_name;		# User name associated to $uid 
+our $vm_fs_dir;		# If defined indicates the directory where the vm fs's are stored
 
 
 # Configuration files

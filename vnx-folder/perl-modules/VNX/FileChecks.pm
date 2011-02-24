@@ -48,6 +48,7 @@ use VNX::Execution;
 use VNX::TextManipulation;
 use AppConfig;
 use AppConfig qw(:expand :argcount);    # AppConfig module constants import
+use File::HomeDir;
 
 
 # valid_absolute_directoryname
@@ -100,7 +101,15 @@ sub valid_absolute_filename {
 #
 
 sub do_path_expansion {
-	my @list = bsd_glob(shift, GLOB_TILDE | GLOB_NOCHECK | GLOB_ERR );
+	
+	my $path = shift;
+
+	# Note: we manually substitute the ~/ to avoid using /root/.vnx directory
+	#       when vnx is invoked from a user shell where a "sudo su" has been issued
+	my $home    = File::HomeDir->users_home($uid_name);
+	$path =~ s#~/#$home/#;
+	
+	my @list = bsd_glob($path, GLOB_TILDE | GLOB_NOCHECK | GLOB_ERR );
 	return $list[0];
 }
 

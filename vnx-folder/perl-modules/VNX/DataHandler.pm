@@ -34,6 +34,7 @@ use strict;
 use VNX::TextManipulation;
 use VNX::DocumentChecks;
 use VNX::FileChecks;
+use VNX::Globals;
 
 ###########################################################################
 # CLASS CONSTRUCTOR
@@ -847,7 +848,12 @@ sub get_vm_dir {
 sub get_fs_dir {
    my $self = shift;
    my $name = shift;
-   return $self->get_vm_dir($name) . "/fs";
+
+   if (defined $vm_fs_dir) {
+   	    return $vm_fs_dir . "/scenarios/" . $self->get_scename . "/vms/" . $name . "/fs";
+   } else {
+   		return $self->get_vm_dir($name) . "/fs";
+   }
 }
 
 # get_hostfs_dir
