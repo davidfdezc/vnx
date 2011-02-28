@@ -161,6 +161,10 @@ sub defineVM {
 	# Hostname
 	print CONF_CISCO "hostname " . $vmName ."\n";
 
+	# Enable IPv4 and IPv6 routing
+	print CONF_CISCO "ip routing\n";	
+	print CONF_CISCO "ipv6 unicast-routing\n";	
+
 	# Network interface configuration
 	$ifTagList = $virtualm->getElementsByTagName("if");
 	my $numif = $ifTagList->getLength;
@@ -189,6 +193,8 @@ sub defineVM {
 			my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
 			my $subnetv4 = $ipv4_Tag->getAttribute("mask");
 			print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
+		} else {
+			print CONF_CISCO " no ip address\n";	
 		}
 		# Damos direccion IPv6
 		my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
