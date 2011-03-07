@@ -2014,8 +2014,13 @@ sub define_VMs {
          or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
    }
 
-   #management ip counter needed in API
+   #management ip counter
    my $manipcounter = 0;
+   
+   #passed as parameter to API
+   #   equal to $manipcounter if no mng_if file found
+   #   value "file" if mng_if file found in run dir
+   my $manipdata;
    
    my $docstring;
    
@@ -2037,12 +2042,19 @@ sub define_VMs {
 		    unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 	  print XML_CCFILE "$docstring\n";
 	  close XML_CCFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+	  
+	  # check for existing management ip file stored in run dir
+	  if (-f $dh->get_run_dir($name) . '/mng_ip'){
+	  	$manipdata = "file";	  	
+	  }else{
+	  	$manipdata = $manipcounter;
+	  }
         
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->defineVM($name, $merged_type, $docstring, $sock, $manipcounter);
+      my $error = "vmAPI_$vmType"->defineVM($name, $merged_type, $docstring, $sock, $manipdata);
       if (!($error eq 0)){print $error}
-      $manipcounter++;
+      $manipcounter++ unless ($manipdata eq "file"); #update only if current value has been used
       undef($curr_uml);
       &change_vm_status($name,"defined");
 

@@ -2199,35 +2199,60 @@ sub get_admin_address {
    my $seed = shift;
    my $vmmgmt_type = shift;
    my $hostnum = shift;
+   my $vmName = shift;
    my $ip;
+   
 
    my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
    if ($vmmgmt_type eq 'private') {
-	   # check to make sure that the address space won't wrap
-	   if ($dh->get_vmmgmt_offset + ($seed << 2) > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
-		   $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-	   }
+      if ($seed eq "file"){
+         #read management ip value from file
+         my $addr = &get_conf_value ($dh->get_run_dir($vmName) . '/mng_ip', '', 'addr');
+         my $mask = &get_conf_value ($dh->get_run_dir($vmName) . '/mng_ip', '', 'mask');
+         $ip = NetAddr::IP->new($addr.$mask);
+      }else{
+         # check to make sure that the address space won't wrap
+         if ($dh->get_vmmgmt_offset + ($seed << 2) > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
+            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
+         }
+         # create a private subnet from the seed
+         $net += $dh->get_vmmgmt_offset + ($seed << 2);
+         $ip = NetAddr::IP->new($net->addr()."/30") + $hostnum;
 
-	   # create a private subnet from the seed
-	   $net += $dh->get_vmmgmt_offset + ($seed << 2);
-	   $ip = NetAddr::IP->new($net->addr()."/30") + $hostnum;
+         # create mng_ip file in run dir
+         my $addr_line = "addr=" . $ip->addr();
+         my $mask_line = "addr=" . $ip->mask();
+         my $mngip_file = $dh->get_run_dir($vmName) . '/mng_ip';
+         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
+         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
+      }     
    } else {
-	   # vmmgmt type is 'net'
+	  # vmmgmt type is 'net'
+      if ($seed eq "file"){
+         #read management ip value from file
+         $ip= &get_conf_value ($dh->get_run_dir($vmName) . '/mng_ip', '', 'management_ip');
+      }else{
+         # don't assign the hostip
+         my $hostip = NetAddr::IP->new($dh->get_vmmgmt_hostip."/".$dh->get_vmmgmt_mask);
+         if ($hostip > $net + $dh->get_vmmgmt_offset &&
+            $hostip <= $net + $dh->get_vmmgmt_offset + $seed + 1) {
+         $seed++;
+         }
 
-	   # don't assign the hostip
-	   my $hostip = NetAddr::IP->new($dh->get_vmmgmt_hostip."/".$dh->get_vmmgmt_mask);
-	   if ($hostip > $net + $dh->get_vmmgmt_offset &&
-		   $hostip <= $net + $dh->get_vmmgmt_offset + $seed + 1) {
-		   $seed++;
-	   }
+         # check to make sure that the address space won't wrap
+         if ($dh->get_vmmgmt_offset + $seed > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
+            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
+         }
 
-	   # check to make sure that the address space won't wrap
-	   if ($dh->get_vmmgmt_offset + $seed > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
-		   $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-	   }
-
-	   # return an address in the vmmgmt subnet
-	   $ip = $net + $dh->get_vmmgmt_offset + $seed + 1;
+         # return an address in the vmmgmt subnet
+         $ip = $net + $dh->get_vmmgmt_offset + $seed + 1;
+         
+         # create mng_ip file in run dir
+         my $addr_line = "addr=" . $ip->addr();
+         my $mask_line = "addr=" . $ip->mask();
+         my $mngip_file = $dh->get_run_dir($vmName) . '/mng_ip';
+         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
+         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
    }
    return $ip;
 }
@@ -2306,7 +2331,7 @@ sub UML_bootfile {
 	#my $mng_if_value = &mng_if_value( $dh, $vm );
 	my $mng_if_value = &mng_if_value( $vm );
 	unless ( $mng_if_value eq "no" || $dh->get_vmmgmt_type eq 'none' ) {
-		my $net = &get_admin_address( $number, $dh->get_vmmgmt_type, 2 );
+		my $net = &get_admin_address( $number, $dh->get_vmmgmt_type, 2, $vm_name );
 
 		$execution->execute(
 			"ifconfig eth0 "
