@@ -1783,7 +1783,7 @@ sub executeCMD {
 	my $name = shift;
 
 	#Commands sequence (start, stop or whatever).
-
+<STDIN>;
 	# Previous checkings and warnings
 #	my @vm_ordered = $dh->get_vm_ordered;
 #	my %vm_hash    = $dh->get_vm_to_use(@plugins);
@@ -1796,7 +1796,7 @@ sub executeCMD {
 	#   executeCMD for WINDOWS                #
 	###########################################
 
-	if ( $merged_type eq "libvirt-kvm-windows" ) {
+	if ( $merged_type eq "libvirt-kvm-windows_OLD" ) {
 		############ WINDOWS ##############
 		############ FILETREE ##############
 		my @filetree_list = $dh->merge_filetree($vm);
@@ -2090,10 +2090,342 @@ sub executeCMD {
 		}
 
 	###########################################
+	#   executeCMD for WINDOWS                #
+	###########################################
+	#### NEW VERSION same CD for filetree and exec
+			
+	}elsif ( $merged_type eq "libvirt-kvm-windows" ) {
+		############ WINDOWS ##############
+		############ FILETREE ##############
+		my @filetree_list = $dh->merge_filetree($vm);
+		my $user   = &get_user_in_seq( $vm, $seq );
+		my $mode   = &get_vm_exec_mode($vm);
+		my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name)  . " filetree.XXXXXX";
+# AHORA SE LLAMARA COMMAND.XML Y LO PONGO EN OTRO DIR
+#		open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+		open COMMAND_FILE, ">" . $dh->get_vm_tmp_dir($name) . "/command.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/command.xml $!" ) unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+		
+		my $verb_prompt_bk = $execution->get_verb_prompt();
+		# FIXME: consider to use a different new VNX::Execution object to perform this
+		# actions (avoiding this nasty verb_prompt backup)
+		$execution->set_verb_prompt("$name> ");
+		my $shell      = $dh->get_default_shell;
+		my $shell_list = $vm->getElementsByTagName("shell");
+		if ( $shell_list->getLength == 1 ) {
+			$shell = &text_tag( $shell_list->item(0) );
+		}
+		my $date_command = $bd->get_binaries_path_ref->{"date"};
+		chomp( my $now = `$date_command` );
+		my $basename = basename $0;
+# AHORA EL NODO PRINCIPAL SE LLAMARA COMMAND
+#		$execution->execute( "<filetrees>", *COMMAND_FILE );
+		$execution->execute( "<command>", *COMMAND_FILE );
+		
+		# Insert random id number for the command file
+		my $fileid = $name . "-" . &generate_random_string(6);
+		$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
+		my $countfiletree = 0;
+		chomp( my $filetree_host = `$command` );
+		$filetree_host =~ /filetree\.(\w+)$/;
+		$execution->execute("mkdir " . $filetree_host ."/destination");
+		foreach my $filetree (@filetree_list) {
+			# To get momment
+			my $filetree_seq_string = $filetree->getAttribute("seq");
+			# To install subtree (only in the right momment)
+			# FIXME: think again the "always issue"; by the moment deactivated
+
+			# JSF 01/12/10: we accept several commands in the same seq tag,
+			# separated by spaces
+			my @filetree_seqs = split(' ',$filetree_seq_string);
+			foreach my $filetree_seq (@filetree_seqs) {
+				if ( $filetree_seq eq $seq ) {
+					$countfiletree++;
+					my $src;
+					my $filetree_value = &text_tag($filetree);
+
+					$src = &get_abs_path ($filetree_value);
+
+=BEGIN
+					if ( $filetree_value =~ /^\// ) {
+						# Absolute pathname
+						$src = &do_path_expansion($filetree_value);
+					}
+					else {
+						
+				      	# Calculate the efective basedir
+      					my $basedir = $dh->get_default_basedir;
+      					# Comentado por DFC: esta parte sobre, es el mismo código de get_default_basedir
+      					#my $basedir_list = $vm->getElementsByTagName("basedir");
+      					#if ($basedir_list->getLength == 1) {
+					    #     $basedir = &text_tag($basedir_list->item(0));
+				      	#}
+						# Relative pathname
+						if ( $basedir eq "" ) {
+							# Relative to xml_dir
+							$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
+						}
+						else {
+							# Relative to basedir
+							$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
+						}
+					}
+=END
+=cut
+
+					$src = &chompslash($src);
+					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
+					
+					$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
+					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
+					my %file_perms = &save_dir_permissions($filetree_host);
+					my $dest = $filetree->getAttribute("root");
+					my $filetreetxt = $filetree->toString(1); 
+					print "$filetreetxt" if ($exemode == $EXE_VERBOSE);
+					$execution->execute( "$filetreetxt", *COMMAND_FILE );
+				}
+			}
+		}
+#		$execution->execute( "</filetrees>", *COMMAND_FILE );
+
+# NO CERRAMOS COMMAND_FILE PORQUE VAMOS A SEGUIR ESCRIBIENDO LOS COMANDOS A CONTINUACION DE LOS FILETREES
+#		close COMMAND_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+
+
+
+
+=BEGIN		
+		open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |") || die "Failed: $!\n";
+		my $dimension = <DU>;
+		$dimension = $dimension + 20;
+		my $dimensiondisk = $dimension + 30;
+		close DU unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+		open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var3 = substr(var,length(var),length(var)+1); print var3} ' |") || die "Failed: $!\n";
+		my $unit = <DU>;
+		close DU unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+=END
+=cut
+
+# ESTO NO VEO QUE SE USE :-m
+		# Calculate dimension and units of hostfs_dir
+#		my $cmd = "du -hs0c " . $dh->get_hostfs_dir($name); 
+#		my $dures = `$cmd`;
+#		my @dures = split (/\t| /,$dures);
+#		my $dimension=$dures[0];	$dimension=~ s/[B|K|M|G]//;
+#		my $unit=$dures[0];		$unit=~ s/\d*//;
+#		print "**** dimension=$dimension, unit=$unit\n" if ($exemode == $EXE_VERBOSE);
+#		$dimension = $dimension + 20;
+#		my $dimensiondisk = $dimension + 30;
+#
+#		if ($countfiletree > 0){
+#			if (   ( $unit eq "K\n" || $unit eq "B\n" )|| ( ( $unit eq "M\n" ) && ( $dimension <= 32 ) ) ){
+#				$unit          = 'M';
+#				$dimension     = 32;
+#				$dimensiondisk = 50;
+#			}
+# Y ESTO AHORA NO HACE FALTA AQUI
+#			$execution->execute("mkdir /tmp/disk.$random_id");
+#			$execution->execute("mkdir  /tmp/disk.$random_id/destination");
+#			$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "$filetree_host" );
+			#$execution->execute( "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/destination" );
+
+# TODAVIA NO HACEMOS EL ISO, PORQUE HABRA QUE METER LOS COMANDOS
+#			$execution->execute("mkisofs -R -nobak -follow-links -max-iso9660-filename -allow-leading-dots " . 
+#			                    "-pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
+
+
+# TAMPOCO CREAMOS EL XML DEL DISPOSITIVO TODAVIA							
+#			my $disk_filetree_windows_xml;
+#			$disk_filetree_windows_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
+#			
+#			my $disk_filetree_windows_tag = $disk_filetree_windows_xml->createElement('disk');
+#			$disk_filetree_windows_xml->addChild($disk_filetree_windows_tag);
+#			$disk_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( type => "file" ) );
+#			$disk_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( device => "cdrom" ) );
+#			
+#			my $driver_filetree_windows_tag =$disk_filetree_windows_xml->createElement('driver');
+#			$disk_filetree_windows_tag->addChild($driver_filetree_windows_tag);
+#			$driver_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( name => "qemu" ) );
+#			$driver_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( cache => "default" ) );
+#			
+#			my $source_filetree_windows_tag =$disk_filetree_windows_xml->createElement('source');
+#			$disk_filetree_windows_tag->addChild($source_filetree_windows_tag);
+#			$source_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( file => "/tmp/disk.$random_id.iso" ) );
+#			
+#			my $target_filetree_windows_tag =$disk_filetree_windows_xml->createElement('target');
+#			$disk_filetree_windows_tag->addChild($target_filetree_windows_tag);
+#			$target_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( dev => "hdb" ) );
+#			
+#			my $readonly_filetree_windows_tag =$disk_filetree_windows_xml->createElement('readonly');
+#			$disk_filetree_windows_tag->addChild($readonly_filetree_windows_tag);
+#			my $format_filetree_windows   = 1;
+#			my $xmlstring_filetree_windows = $disk_filetree_windows_xml->toString($format_filetree_windows );
+#			
+#			$execution->execute("rm -f ". $dh->get_hostfs_dir($name) . "/filetree_libvirt.xml"); 
+#			open XML_FILETREE_WINDOWS_FILE, ">" . $dh->get_hostfs_dir($name) . '/' . 'filetree_libvirt.xml'
+#	 			or $execution->smartdie("can not open " . $dh->get_hostfs_dir . '/' . 'filetree_libvirt.xml' )
+#	  			unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+#			print XML_FILETREE_WINDOWS_FILE "$xmlstring_filetree_windows\n";
+#			close XML_FILETREE_WINDOWS_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+#			
+#			#$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
+#			$execution->execute("virsh -c qemu:///system 'attach-device \"$name\" ". $dh->get_hostfs_dir($name) . "/filetree_libvirt.xml'");
+#			print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket' if ($exemode == $EXE_VERBOSE);
+#			waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
+#			sleep(4);
+#			# 3d. Cleaning
+#			$execution->execute("rm /tmp/disk.$random_id.iso");
+#			$execution->execute("rm -r /tmp/disk.$random_id");
+#			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" );
+#			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" );
+#			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf $filetree_host" );
+#			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id" );
+#			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree.xml" );
+#			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id.end" );
+#		}
+		############ COMMAND_FILE ########################
+		# We open file
+
+# VAMOS A USAR EL COMMAND_FILE DEL FILETREE, YA ABIERTO, AL QUE AÑADIREMOS LOS COMANDOS
+#		open COMMAND_FILE,">" . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" or $execution->smartdie("can not open " . $dh->get_tmp_dir . "/vnx.$name.$seq: $!" )
+#		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+
+		# FIXME: consider to use a different new VNX::Execution object to perform this
+		# actions (avoiding this nasty verb_prompt backup)
+#		$execution->set_verb_prompt("$name> ");
+#		$cmd = $bd->get_binaries_path_ref->{"date"};
+#		chomp( $now = `$cmd` );
+
+		# To process exec tags of matching commands sequence
+		my $command_list = $vm->getElementsByTagName("exec");
+
+# EL COMMAND_FILE YA ESTA CREADO
+		# To process list, dumping commands to file
+#		$execution->execute( "<command>", *COMMAND_FILE );
+		
+		# Insert random id number for the command file
+#		$fileid = $name . "-" . &generate_random_string(6);
+#		$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
+
+		my $countcommand = 0;
+		for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
+			my $command = $command_list->item($j);	
+			# To get attributes
+			my $cmd_seq_string = $command->getAttribute("seq");
+			
+			# JSF 01/12/10: we accept several commands in the same seq tag,
+			# separated by spaces
+			my @cmd_seqs = split(' ',$cmd_seq_string);
+			foreach my $cmd_seq (@cmd_seqs) {
+			
+				if ( $cmd_seq eq $seq ) {
+					my $type = $command->getAttribute("type");
+					# Case 1. Verbatim type
+					if ( $type eq "verbatim" ) {
+						# Including command "as is"
+						my $comando = $command->toString(1);
+						$execution->execute( $comando, *COMMAND_FILE );
+						$countcommand = $countcommand + 1;
+					}
+
+					# Case 2. File type
+					elsif ( $type eq "file" ) {
+						# We open the file and write commands line by line
+						my $include_file =  &do_path_expansion( &text_tag($command) );
+						open INCLUDE_FILE, "$include_file"
+						  or $execution->smartdie("can not open $include_file: $!");
+						while (<INCLUDE_FILE>) {
+							chomp;
+							$execution->execute(
+								#"<exec seq=\"file\" type=\"file\">" 
+								  #. $_
+								  #. "</exec>",
+								  $_,
+								*COMMAND_FILE
+							);
+							$countcommand = $countcommand + 1;
+						}
+						close INCLUDE_FILE;
+					}
+
+			 # Other case. Don't do anything (it would be and error in the XML!)
+				}
+			}
+		}
+		$execution->execute( "</command>", *COMMAND_FILE );
+		# We close file and mark it executable
+		close COMMAND_FILE
+		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+		$execution->set_verb_prompt($verb_prompt_bk);
+
+# AHORA EL FICHERO ES COMMAND.XML
+#		$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_tmp_dir  . "/vnx.$name.$seq.$random_id" );
+		$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_vm_tmp_dir($name) . "/command.xml");
+		############# INSTALL COMMAND FILES #############
+		# Nothing to do in libvirt mode
+		############# EXEC_COMMAND_FILE #################
+		
+		if ( $countcommand != 0 ) {
+			$execution->execute("mkdir /tmp/diskc.$seq.$random_id");
+# REESCRIBIMOS ESTAS LINEAS CON LAS NUEVAS COSAS QUE USAMOS
+#			$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
+            $execution->execute( "cp " . $dh->get_vm_tmp_dir($name) . "/command.xml" . " " . "$filetree_host" );
+#			$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
+			$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
+			my $disk_command_windows_xml;
+			$disk_command_windows_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
+			
+			my $disk_command_windows_tag = $disk_command_windows_xml->createElement('disk');
+			$disk_command_windows_xml->addChild($disk_command_windows_tag);
+			$disk_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( type => "file" ) );
+			$disk_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( device => "cdrom" ) );
+			
+			my $driver_command_windows_tag =$disk_command_windows_xml->createElement('driver');
+			$disk_command_windows_tag->addChild($driver_command_windows_tag);
+			$driver_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( name => "qemu" ) );
+			$driver_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( cache => "default" ) );
+			
+			my $source_command_windows_tag =$disk_command_windows_xml->createElement('source');
+			$disk_command_windows_tag->addChild($source_command_windows_tag);
+		#	$source_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( file => "/tmp/diskc.$seq.$random_id.iso" ) );
+			$source_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( file => "/tmp/disk.$random_id.iso" ) );
+			
+			
+			my $target_command_windows_tag =$disk_command_windows_xml->createElement('target');
+			$disk_command_windows_tag->addChild($target_command_windows_tag);
+			$target_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( dev => "hdb" ) );
+			
+			my $readonly_command_windows_tag =$disk_command_windows_xml->createElement('readonly');
+			$disk_command_windows_tag->addChild($readonly_command_windows_tag);
+			my $format_command_windows   = 1;
+			my $xmlstring_command_windows = $disk_command_windows_xml->toString($format_command_windows );
+			
+			$execution->execute("rm ". $dh->get_hostfs_dir($name) . "/command_libvirt.xml"); 
+			
+			open XML_COMMAND_WINDOWS_FILE, ">" . $dh->get_hostfs_dir($name) . '/' . 'command_libvirt.xml'
+	 			 or $execution->smartdie("can not open " . $dh->get_hostfs_dir . '/' . 'command_libvirt.xml' )
+	  		unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+			print XML_COMMAND_WINDOWS_FILE "$xmlstring_command_windows\n";
+			close XML_COMMAND_WINDOWS_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+			$execution->execute("virsh -c qemu:///system 'attach-device \"$name\" ". $dh->get_hostfs_dir($name) . "/command_libvirt.xml'");
+			#$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
+			print "Sending command to client... \n" if ($exemode == $EXE_VERBOSE);
+			
+print $dh->get_hostfs_dir($name) . "/command_libvirt.xml";<STDIN>;
+			
+			waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
+			$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
+			$execution->execute("rm -r /tmp/diskc.$seq.$random_id");
+			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" );
+		    sleep(2);
+		}
+
+	###########################################
 	#   executeCMD for LINUX & FREEBSD        #
 	###########################################
 	#### OLD VERSION separate CD for filetree and exec
 			
+	
+
 	}elsif (($merged_type eq "libvirt-kvm-linux-OLD") || ($merged_type eq "libvirt-kvm-freebsd-OLD") ) {
 		          	          	
 		############### LINUX ####################
