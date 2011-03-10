@@ -1783,7 +1783,7 @@ sub executeCMD {
 	my $name = shift;
 
 	#Commands sequence (start, stop or whatever).
-<STDIN>;
+
 	# Previous checkings and warnings
 #	my @vm_ordered = $dh->get_vm_ordered;
 #	my %vm_hash    = $dh->get_vm_to_use(@plugins);
@@ -2410,7 +2410,6 @@ sub executeCMD {
 			#$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 			print "Sending command to client... \n" if ($exemode == $EXE_VERBOSE);
 			
-print $dh->get_hostfs_dir($name) . "/command_libvirt.xml";<STDIN>;
 			
 			waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
 			$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
