@@ -2238,6 +2238,7 @@ sub get_admin_address {
             $hostip <= $net + $dh->get_vmmgmt_offset + $seed + 1) {
          $seed++;
          }
+      }
 
          # check to make sure that the address space won't wrap
          if ($dh->get_vmmgmt_offset + $seed > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
