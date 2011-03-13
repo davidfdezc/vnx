@@ -273,7 +273,7 @@ sub main {
       $opt_suspend, $opt_resume,$opt_reboot,
       $opt_reset,$opt_execute,$opt_f,$opt_showmap,
       $opt_console,$opt_consoleinfo,$opt_cid,
-      $opt_C, $opt_config);
+      $opt_C, $opt_config, $opt_D);
       
    Getopt::Long::Configure ("bundling"); # case sensitive single-character options
    GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
@@ -295,7 +295,8 @@ sub main {
               'execute=s' => \$opt_execute, 'f=s' => \$opt_f,
               'show-map' => \$opt_showmap, 'console' => \$opt_console,
               'cid=s' => \$opt_cid, 'console-info' => \$opt_consoleinfo,
-              'C|config=s' => \$opt_config);
+              'C|config=s' => \$opt_config,
+              'D' => \$opt_D);
 
    # Build the argument object
    $args = new Arguments(
@@ -329,7 +330,7 @@ sub main {
    		$vnxConfigFile = $DEFAULT_CONF_FILE;
    }
    print ("Using configuration file: $vnxConfigFile\n");
-
+   
    # Check the existance of the VNX configuration file 
    unless(-e $vnxConfigFile) {
    	 print "\nERROR: VNX configuration file $vnxConfigFile not found\n\n";
@@ -338,7 +339,7 @@ sub main {
 
    # To check arguments consistency
    # 0. Check if -f is present
-   if (!($opt_f) && !($opt_V) && !($opt_H) ) {
+   if (!($opt_f) && !($opt_V) && !($opt_H) && !($opt_D)) {
    	  &usage;
       &vnx_die ("Option -f missing\n");
    }
@@ -346,7 +347,7 @@ sub main {
    # 1. To use -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start,
    # --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --console, --console-info at the same time
    
-   my $how_many_args;
+   my $how_many_args = 0;
    my $mode;
    if ($opt_t||$opt_create) {
       $how_many_args++;
@@ -447,7 +448,7 @@ sub main {
       &usage;
       &vnx_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --showmap or -H\n");
    }
-   if ($how_many_args lt 1) {
+   if ( ($how_many_args lt 1) && (!$opt_D) ) {
       &usage;
       &vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, --show-map, --console, --console-info, -V or -H\n");
    }
@@ -522,6 +523,15 @@ sub main {
    $tmp_dir = &chompslash($opt_T) if ($opt_T);
    $tmp_dir = "$pwd/$tmp_dir"
 	   unless (&valid_absolute_directoryname($tmp_dir));
+
+   # Delete LOCK file if -D option included
+   if ($opt_D) {
+   	  print "Deleting ". $vnx_dir . "/LOCK file\n";
+	  system "rm -f $vnx_dir/LOCK"; 
+	  if ($how_many_args lt 1) {
+	     exit(0);
+	  }  
+   }	
 
    # DFC 21/2/2011 $uid = getpwnam($opt_u) if ($> == 0 && $opt_u);
    $boot_timeout = $opt_w if (defined($opt_w));
@@ -607,7 +617,7 @@ sub main {
    if ($bd->check_binaries_mandatory != 0) {
       &vnx_die ("some required binary files are missing\n");
    }
-   
+  
    # We need the file to perform some manipulations
    open INPUTFILE, "$input_file";
    my @input_file_array = <INPUTFILE>;
@@ -1781,7 +1791,7 @@ sub host_config {
             my $ip = &text_tag($ipv6_list->item($j));
             if (&valid_ipv6_with_mask($ip)) {
 	           # Implicit slashed mask in the address
-	           $execution->execute("ifconfig $net add $ip",*CONFILE);
+	           $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip");
 	        }
 	        else {
 	           # Check the value of the mask attribute
@@ -1791,7 +1801,8 @@ sub host_config {
 	              # Note that, in the case of IPv6, mask are always slashed
                   $ipv6_effective_mask = $ipv6_mask_attr;
 	           }
-	           $execution->execute("ifconfig $net add $ip$ipv6_effective_mask",*CONFILE);
+	           $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip$ipv6_effective_mask");
+	           
 	        }
 	     }
       }
@@ -4551,7 +4562,7 @@ sub usage {
 	my $basename = basename $0;
 	print "Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnx_dir] [-u user]\n";
 	print "                 [-T tmp_dir] [-i] [-w timeout] [-B] [-Z]\n";
-	print "                 [-e screen_file] [-4] [-6] [-v] [-g] [-M vm_list]\n";
+	print "                 [-e screen_file] [-4] [-6] [-v] [-g] [-M vm_list] [-D]\n";
 	print "       vnx -f VNX_file [-x|--execute cmd_seq] [-T tmp_dir] [-M vm_list] [-i] [-B] [-4] [-6] [-v] [-g]\n";
 	print "       vnx -f VNX_file [-d|--shutdown] [-c vnx_dir] [-F] [-T tmp_dir] [-i] [-B] [-4] [-6] [-v] [-g]\n";
 	print "       vnx -f VNX_file [-P|--destroy] [-T tmp_file] [-i] [-v] [-u user] [-g]\n";
@@ -4603,6 +4614,9 @@ sub usage {
 	print "       -g, debug mode on (overrides verbose)\n";
 	print "       -T tmp_dir, temporal files directory (default is /tmp)\n";
 	print "       -M vm_list, start/stop/restart scenario in vm_list UMLs (a list of names separated by ,)\n";
+   	print "       -C|--config config_file, use config_file as configuration file instead of default one (/etc/vnx.conf)\n";
+   	print "       -D, delete LOCK file\n";
+   	print "\n";
    
 
 }

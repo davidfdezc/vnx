@@ -487,7 +487,7 @@ sub defineVM {
 	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")||
 	        ($type eq "libvirt-kvm-olive") ) {
 
-		print "*** $path\n" if ($exemode == $EXE_VERBOSE); 
+		#print "*** $path\n" if ($exemode == $EXE_VERBOSE); 
 		open CONFILE, ">$path" . "vnxboot"
 		  or $execution->smartdie("can not open ${path}vnxboot: $!")
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
@@ -1901,7 +1901,7 @@ sub executeCMD {
 		my @dures = split (/\t| /,$dures);
 		my $dimension=$dures[0];	$dimension=~ s/[B|K|M|G]//;
 		my $unit=$dures[0];		$unit=~ s/\d*//;
-		print "**** dimension=$dimension, unit=$unit\n" if ($exemode == $EXE_VERBOSE);
+		#print "**** dimension=$dimension, unit=$unit\n" if ($exemode == $EXE_VERBOSE);
 		$dimension = $dimension + 20;
 		my $dimensiondisk = $dimension + 30;
 
@@ -2531,7 +2531,7 @@ sub executeCMD {
 		my @dures = split (/\t| /,$dures);
 		my $dimension=$dures[0];	$dimension=~ s/[B|K|M|G]//;
 		my $unit=$dures[0];		$unit=~ s/\d*//;
-		print "**** dimension=$dimension, unit=$unit\n" if ($exemode == $EXE_VERBOSE);
+		#print "**** dimension=$dimension, unit=$unit\n" if ($exemode == $EXE_VERBOSE);
 		$dimension = $dimension + 20;
 		my $dimensiondisk = $dimension + 30;
 

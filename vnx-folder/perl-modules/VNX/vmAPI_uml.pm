@@ -2238,7 +2238,6 @@ sub get_admin_address {
             $hostip <= $net + $dh->get_vmmgmt_offset + $seed + 1) {
          $seed++;
          }
-      }
 
          # check to make sure that the address space won't wrap
          if ($dh->get_vmmgmt_offset + $seed > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
@@ -2254,6 +2253,7 @@ sub get_admin_address {
          my $mngip_file = $dh->get_run_dir($vmName) . '/mng_ip';
          $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
          $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
+      }
    }
    return $ip;
 }
