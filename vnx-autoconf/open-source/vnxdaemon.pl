@@ -541,7 +541,7 @@ sub autoconfigureUbuntu {
 				# No addresses configured for the interface. We include the following commands to 
 				# have the interface active on start
 				print INTERFACES "iface eth" . $id . " inet manual\n";
-				print INTERFACES '  up ifconfig $IFACE 0.0.0.0 up\n';
+				print INTERFACES "  up ifconfig eth" . $id . " 0.0.0.0 up\n";
 			} else {
 				# Config IPv4 addresses
 				for ( my $j = 0 ; $j < $ipv4Taglist->getLength ; $j++ ) {
@@ -553,7 +553,7 @@ sub autoconfigureUbuntu {
 					if ($j == 0) {
 						print INTERFACES "iface eth" . $id . " inet static\n";
 						print INTERFACES "   address " . $ip . "\n";
-						print INTERFACES "   netmask " . $mask . "\n\n";
+						print INTERFACES "   netmask " . $mask . "\n";
 					} else {
 						print INTERFACES "   up /sbin/ifconfig eth" . $id . " inet add " . $ip . " netmask " . $mask . "\n";
 					}
