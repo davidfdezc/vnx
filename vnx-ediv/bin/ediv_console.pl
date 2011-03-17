@@ -47,6 +47,7 @@ my $db_connection_info;
 my $mode = $ARGV[0];
 my $scenario_name = $ARGV[1];
 my $vm_name = $ARGV[2];	
+my $con_name = $ARGV[3];	
 
 #
 # Main	
@@ -264,7 +265,7 @@ sub build_display_command {
 	
 	$filename = "/tmp/$scenario_name" . "_" . "$vm_host".".xml";
 	
-    return "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename -v -u root --console -M $vm_name'"; 
+    return "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename -v -u root --console --cid $con_name -M $vm_name'"; 
 }
 
 	###########################################################

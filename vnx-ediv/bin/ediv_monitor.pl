@@ -217,8 +217,8 @@ sub monitor{
 			} else {
 				my $scenarios = `ssh -2 -o 'StrictHostKeyChecking no' root\@$ip /tmp/vn console | grep available`;
 
-				push (@output, sprintf "  %-30s%-30s\n", "Scenario", "Virtual machines" );
-				push (@output, "  --------------------------------------------------\n");
+				push (@output, sprintf "  %-40s%-30s\n", "Scenario", "Virtual machines" );
+				push (@output, "  --------------------------------------------------------------------------------\n");
 				for (my $i=3; $i<=$numScenarios; $i++){
 					
 					my $scenario = `echo "$scenarios" | awk '{print \$$i}'`;
@@ -228,8 +228,8 @@ sub monitor{
 					my $vms = `ssh -2 -o 'StrictHostKeyChecking no' root\@$ip /tmp/vn console $scenario | grep available`;
 					$vms =~ s/.*available vms://;
 					chomp $vms;
-					push (@output, sprintf "  %-30s%-30s\n", $scenario, color('bold') . $vms . color('reset'));
-					push (@output, "  --------------------------------------------------\n");
+					push (@output, sprintf "  %-40s%-30s\n", $scenario, color('bold') . $vms . color('reset'));
+					push (@output, "  --------------------------------------------------------------------------------\n");
 				}
 			}	
 			push (@output, "\n");

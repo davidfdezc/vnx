@@ -1185,7 +1185,7 @@ sub sendScenarios {
 #VNX		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnumlparser.pl -Z -u root -v -t $filename -o /dev/null\'";
 		my $option_M = "";
 		if ($vm_name){$option_M="-M $vm_name";}
-		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename -u root -v -t -o /dev/null\ " . $option_M . "'";
+		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename -v -t -o /dev/null\ " . $option_M . "'";
 		&daemonize($ssh_command, "/tmp/$host_name"."_log");		
 	}
 	$dbh->disconnect;
@@ -1306,7 +1306,7 @@ sub purgeScenario {
 #VNX		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnumlparser.pl -u root -v -P $scenario_name'";
 		my $option_M = "";
 		if ($vm_name){$option_M="-M $vm_name";}
-		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -u root -v -P -f $scenario_name " . $option_M . "'";
+		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -P -f $scenario_name " . $option_M . "'";
 		&daemonize($ssh_command, "/tmp/$host_name"."_log");	
 
 
@@ -1390,7 +1390,7 @@ sub destroyScenario {
 #VNX		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnumlparser.pl -u root -v -d $scenario_name'";
 		my $option_M = "";
 		if ($vm_name){$option_M="-M $vm_name";}
-		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -u root -v -d -f $scenario_name " . $option_M . "'";
+		my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -d -f $scenario_name " . $option_M . "'";
 		&daemonize($ssh_command, "/tmp/$host_name"."_log");	
 		
 		
@@ -1462,7 +1462,7 @@ sub deleteTMP {
 			&daemonize($rm_command, "/tmp/$host_name"."_log");
 		}else {
 			my $rm_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'rm -rf /tmp/$simulation_name"."_$host_name.xml /tmp/conf.tgz'";
-			&daemonize($rm_command, "/tmp/$host_name"."_log");
+			# DFC comentado temporalmente...  &daemonize($rm_command, "/tmp/$host_name"."_log");
 		}
 	}			
 }
@@ -1669,7 +1669,7 @@ print "scenario name:'$scenario_name'\n";
 #VNX	my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnumlparser.pl -u root -v -x $execution_mode\@$scenario_name'";
 		my $option_M = "";
 		if ($vm_name){$option_M="-M $vm_name";}
-		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnx -f $scenario_name -v -u root -x $execution_mode " . $option_M . "'"; 
+		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnx -f $scenario_name -v -x $execution_mode " . $option_M . "'"; 
 		&daemonize($execution_command, "/tmp/$host_name"."_log");
 	}
 	$dbh->disconnect;
@@ -1830,7 +1830,7 @@ sub processMode {
 #VNX	my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnumlparser.pl -u root -v -x $execution_mode\@$scenario_name'";
 		my $option_M = "";
 		if ($vm_name){$option_M="-M $vm_name";}
-		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnx -f $scenario_name -v -u root $mode " . $option_M . "'"; 
+		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$hostIP \'vnx -f $scenario_name -v $mode " . $option_M . "'"; 
 		&daemonize($execution_command, "/tmp/$hostname"."_log");
 	}
 	$dbh->disconnect;
