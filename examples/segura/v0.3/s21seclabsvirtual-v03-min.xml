@@ -18,15 +18,12 @@ S21SecLabs scenario v0.3
 		<ssh_version>2</ssh_version>
 		<ssh_key>~/.ssh/identity.pub</ssh_key>
 		<automac offset="0"/>
-		<vm_mgmt type="private" network="10.255.0.0" mask="16" offset="0">
-		    <host_mapping/>
-        </vm_mgmt>
-		<!--vm_mgmt type="none"/-->
-		<vm_defaults exec_mode="mconsole">
+		<vm_mgmt type="none"/>
+    	<vm_defaults exec_mode="mconsole">
 			<filesystem type="cow">&VNXDIR;filesystems/root_fs_light</filesystem>
 			<kernel>/usr/share/vnx/kernels/linux</kernel>
-			<console id="1">xterm</console>
-			<!--basedir>/home/jorge/workspace/ediv_testing/</basedir-->
+		    <console id="0" display="no"/>
+		    <console id="1" display="no"/>
 		</vm_defaults>
 		<!--dynamips_ext>simple_dynamips-dn.xml</dynamips_ext-->
 	</global>
@@ -71,7 +68,7 @@ S21SecLabs scenario v0.3
 	<vm name="fw" type="uml" subtype="" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
         <mem>64M</mem>
-		<console id="1">xterm</console>
+		<console id="1" display="yes">xterm</console>
 		<if id="1" net="ExtNet">
 			<ipv4 mask="255.255.255.0">192.168.0.1</ipv4>
 	    </if>
@@ -100,6 +97,7 @@ S21SecLabs scenario v0.3
 	 <vm name="R1" type="dynamips" subtype="3600" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
 		<mem>96M</mem>
+		<console id="1" display="yes"/>
 		<if id="1" net="IntNet" name="e0/0">
 			<ipv4 mask="255.255.255.0">10.0.0.2</ipv4>
 	    	</if>
@@ -116,34 +114,12 @@ S21SecLabs scenario v0.3
 	    <exec seq="brief" type="verbatim">show ip interface brief</exec>
 	    <!--exec seq="reload" type="verbatim">reload /home/jrodriguez/R1.txt</exec-->
     </vm>	
-	
-<!--
-	<vm name="r1" type="uml" subtype="" os="">
-		<console id="1">xterm</console>
-		<if id="1" net="IntNet">
-			<ipv4 mask="255.255.255.0">10.0.0.2</ipv4>
-	    	</if>
-		<if id="2" net="SubNet1">
-			<ipv4 mask="255.255.255.0">10.0.1.1</ipv4>
-	    	</if>
-		<if id="3" net="SubNet2">
-			<ipv4 mask="255.255.255.0">10.0.2.1</ipv4>
-	    	</if>
-		<if id="4" net="SubNet3">
-			<ipv4 mask="255.255.255.0">10.0.3.1</ipv4>
-	    	</if>
-		<route type="ipv4" gw="10.0.0.1">default</route>
-		<forwarding type="ip"/>
-
-		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> 
-	</vm>
--->
 
 	<!--ROUTER externo con NAT (R2) -->
 	<vm name="r2" type="uml" subtype="" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
         <mem>48M</mem>
-		<console id="1">xterm</console>
+		<console id="1" display="no">xterm</console>
 		<if id="1" net="br0">
 			<ipv4 mask="255.255.255.0">10.1.1.81</ipv4>
 	    	</if>
@@ -174,7 +150,7 @@ S21SecLabs scenario v0.3
 
 	<!--Internet VMs-->
 	<vm name="h-1" type="uml" subtype="" os="">
-	    <console id="1">pts</console>
+	    <console id="1" display="no">pts</console>
 		<if id="1" net="br0">
 			<ipv4 mask="255.255.255.0">10.1.1.83</ipv4>
 	    </if>
@@ -191,12 +167,13 @@ S21SecLabs scenario v0.3
         <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
         <mem>256M</mem>
     	<if id="1" net="ExtNet">
-		    <ipv4 mask="255.255.255.0">192.168.0.11</ipv4>
-	    </if>
-	    <route type="ipv4" gw="192.168.0.1">default</route>
+	    <ipv4 mask="255.255.255.0">192.168.0.11</ipv4>
+    	</if>
+	<console id="0" display="yes"/>
+	<route type="ipv4" gw="192.168.0.1">default</route>
         <!--filetree seq="vlc" root="c:\temp">conf/vlc/smplayer-portable-0.6.9</filetree-->
         <!--filetree seq="vlc" root="c:\temp">conf/vlc/video</filetree-->
-        <exec seq="start" type="verbatim" mode="system">netsh interface ip set dns eth0 static 10.0.10.2</exec>
+        <!--exec seq="start" type="verbatim" mode="system">netsh interface ip set dns eth0 static 10.0.10.2</exec-->
         <exec seq="www" type="verbatim" mode="system">start http://www.s21seclabsvirtual.com</exec>
         <exec seq="nmap" type="verbatim" mode="processn">"c:\Archivos de programa\nmap\zenmap.exe"</exec>
         <exec seq="nmap2" type="verbatim" mode="processy">cmd /k "c:\Archivos de programa\nmap\nmap.exe" -F -PN 10.0.10.0-10</exec>
@@ -213,9 +190,10 @@ S21SecLabs scenario v0.3
     <vm name="ext-2" type="libvirt" subtype="kvm" os="windows">
         <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_win7</filesystem>
         <mem>512M</mem>
+	<console id="0" display="yes"/>
     	<if id="1" net="ExtNet">
-		    <ipv4 mask="255.255.255.0">192.168.0.12</ipv4>
-	    </if>
+	    <ipv4 mask="255.255.255.0">192.168.0.12</ipv4>
+	</if>
 	<route type="ipv4" gw="192.168.0.1">default</route>
         <!--filetree seq="vlc" root="c:\temp">conf/smplayer-portable-0.6.9</filetree!-->
         <!--filetree seq="vlc" root="c:\temp">conf/video</filetree!-->
@@ -235,6 +213,7 @@ S21SecLabs scenario v0.3
       <vm name="ext-3" type="libvirt" subtype="kvm" os="linux">
         <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
         <mem>256M</mem>
+	<console id="0" display="yes"/>
     	<if id="1" net="ExtNet">
 		    <ipv4 mask="255.255.255.0">192.168.0.13</ipv4>
 	    </if>
@@ -256,7 +235,7 @@ S21SecLabs scenario v0.3
 	<vm name="www" type="uml" subtype="" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
         <mem>64M</mem>
-		<console id="1">xterm</console>
+		<console id="1" display="yes">xterm</console>
 		<if id="1" net="DMZ">
 		    <ipv4 mask="255.255.255.0">10.0.10.4</ipv4>
 	    </if>
@@ -277,7 +256,7 @@ S21SecLabs scenario v0.3
 	<vm name="mail" type="uml" subtype="" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
         <mem>64M</mem>
-		<console id="1">xterm</console>
+		<console id="1" display="no">xterm</console>
 		<if id="1" net="DMZ">
 			<ipv4 mask="255.255.255.0">10.0.10.3</ipv4>
 	    </if>
@@ -290,7 +269,7 @@ S21SecLabs scenario v0.3
 	<vm name="dns" type="uml" subtype="" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
         <mem>64M</mem>
-		<console id="1">xterm</console>
+		<console id="1" display="yes">xterm</console>
 		<if id="1" net="DMZ">
 			<ipv4 mask="255.255.255.0">10.0.10.2</ipv4>
 	    </if>
@@ -311,7 +290,7 @@ S21SecLabs scenario v0.3
 	<vm name="vpn" type="uml" subtype="" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
         <mem>64M</mem>
-		<console id="1">pts</console>
+		<console id="1" display="no">pts</console>
 		<if id="1" net="SubNet1">
 			<ipv4 mask="255.255.255.0">10.0.1.2</ipv4>
 	    	</if>
@@ -324,7 +303,7 @@ S21SecLabs scenario v0.3
 	<vm name="bbdd" type="uml" subtype="" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
         <mem>64M</mem>
-		<console id="1">pts</console>
+		<console id="1" display="no">pts</console>
 		<if id="1" net="SubNet1">
 			<ipv4 mask="255.255.255.0">10.0.1.3</ipv4>
 	    	</if>
@@ -337,7 +316,7 @@ S21SecLabs scenario v0.3
 	<vm name="tomcat" type="uml" subtype="" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
         <mem>128M</mem>
-		<console id="1">pts</console>
+		<console id="1" display="no">pts</console>
 		<if id="1" net="SubNet1">
 			<ipv4 mask="255.255.255.0">10.0.1.4</ipv4>
 	    </if>
@@ -354,7 +333,7 @@ S21SecLabs scenario v0.3
 	<vm name="gfish" type="uml" subtype="" os="">
 		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
         <mem>128M</mem>
-		<console id="1">pts</console>
+		<console id="1" display="no">pts</console>
 		<if id="1" net="SubNet1">
 			<ipv4 mask="255.255.255.0">10.0.1.5</ipv4>
 	    </if>
@@ -365,7 +344,7 @@ S21SecLabs scenario v0.3
 	<!--2 generic VMs-->
 
 	<vm name="net1-1" type="uml" subtype="" os="">
-		<console id="1">pts</console>
+		<console id="1" display="no">pts</console>
 		<if id="1" net="SubNet1">
 			<ipv4 mask="255.255.255.0">10.0.1.11</ipv4>
     	</if>
@@ -374,7 +353,7 @@ S21SecLabs scenario v0.3
 	</vm>
 
 	<vm name="net1-2" type="uml" subtype="" os="">
-		<console id="1">pts</console>
+		<console id="1" display="no">pts</console>
 		<if id="1" net="SubNet1">
 			<ipv4 mask="255.255.255.0">10.0.1.12</ipv4>
 	    	</if>

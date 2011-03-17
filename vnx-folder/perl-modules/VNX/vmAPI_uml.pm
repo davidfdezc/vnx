@@ -581,17 +581,23 @@ sub startVM {
 		my @console_list = $dh->merge_console($virtualm);
 
 		my $xterm_used = 0;
-		foreach my $console (@console_list) {
-			my $console_id    = $console->getAttribute("id");
-			my $console_value = &text_tag($console);
-			if ( $console_value eq "xterm" ) {
-
-# xterms are treated like pts, to avoid unstabilities
-# (see https://lists.dit.upm.es/pipermail/vnuml-users/2007-July/000651.html for details)
-				$console_value = "pts";
-			}
-			if ( $console_value ne "" ) {
-				push( @params, "con$console_id=$console_value" );
+		if (scalar(@console_list) == 0) {
+			# No consoles defined; use default configuration 
+			push( @params, "con0=pts" );
+		} else{
+			foreach my $console (@console_list) {
+				my $console_id    = $console->getAttribute("id");
+				my $console_value = &text_tag($console);
+				if ($console_value eq '') { $console_value = 'xterm' } # Default value
+				if ( $console_value eq "xterm" ) {
+	
+	# xterms are treated like pts, to avoid unstabilities
+	# (see https://lists.dit.upm.es/pipermail/vnuml-users/2007-July/000651.html for details)
+					$console_value = "pts";
+				}
+				if ( $console_value ne "" ) {
+					push( @params, "con$console_id=$console_value" );
+				}
 			}
 		}
 
@@ -714,7 +720,7 @@ sub startVM {
 	       		my $value   = &text_tag($consTag);
 				my $id      = $consTag->getAttribute("id");
 				my $display = $consTag->getAttribute("display");
-	       		#print "** console: id=$id, value=$value\n" if ($exemode == $EXE_VERBOSE);
+	       		print "** console: id=$id, display=$display, value=$value\n" if ($exemode == $EXE_VERBOSE);
 				if ($display ne '') {
 					if (  $id eq "0" ) {
 						$cons0Display = $display 
@@ -724,126 +730,117 @@ sub startVM {
 				}
 			}
 							
-			my @console_list = $dh->merge_console($virtualm);
-			my $get_screen_pts;
 			my $consFile = $dh->get_run_dir($vmName) . "/console";
-			foreach my $console (@console_list) {
-				my $console_id    = $console->getAttribute("id");
-				my $console_value = &text_tag($console);
-				my $display = $console->getAttribute("display");
-				print "**** console: id=$console_id, display=$display, value=$console_value\n";
-				if ( $display eq '' ) { # set default value
-					if ( $console_id eq "0" )    { $display = $cons0Display } 
-					elsif ( $console_id eq "1" ) { $display = $cons1Display } 					
-				}
-				if ( $console_value eq "pts" ) {
-					my $pts = "";
-					while ( $pts =~ /^$/ )
-					{ # I'm sure that this loop could be smarter, but it works :)
-						print "Trying to get console $console_id pts...\n"
+			my @console_list = $dh->merge_console($virtualm);
+			
+			if (scalar(@console_list) == 0) { 
+				# Nothing defined for the consoles. 
+				# Default configuration: con0=no,uml_pts,/dev/pts/9 
+				my $pts = "";
+				while ( $pts =~ /^$/ )
+				{ # I'm sure that this loop could be smarter, but it works :)
+					print "Trying to get console 0 pts...\n"
+					  if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
+					sleep 1;    # Needed to avoid  syncronization problems
+					my $command = $bd->get_binaries_path_ref->{"uml_mconsole"} . " " 
+					           . $dh->get_run_dir($vmName) . "/mconsole config con0 2> /dev/null";
+					my $mconsole_output = `$command`;
+					if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
+						$pts = $1;
+						print "...pts is $pts\n"
 						  if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
-						sleep 1;    # Needed to avoid  syncronization problems
-						my $command =
-						    $bd->get_binaries_path_ref->{"uml_mconsole"} . " "
-						  . $dh->get_run_dir($vmName)
-						  . "/mconsole config con$console_id 2> /dev/null";
-						my $mconsole_output = `$command`;
-						if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
-							$pts = $1;
-							print "...pts is $pts\n"
+						$execution->execute( $bd->get_binaries_path_ref->{"echo"}
+							  .	 " $pts > " . $dh->get_run_dir($vmName)	. "/pts" );
+						$execution->execute( $bd->get_binaries_path_ref->{"echo"}
+							  	. " con0=no,uml_pts,$pts >> " . $consFile );
+					}
+				}
+				
+			} else {
+			
+				my $get_screen_pts;
+				foreach my $console (@console_list) {
+					my $console_id    = $console->getAttribute("id");
+					my $console_value = &text_tag($console);
+					if ($console_value eq '') { $console_value = 'xterm' } # Default value
+					my $display = $console->getAttribute("display");
+					print "**** console: id=$console_id, display=$display, value=$console_value\n";
+					if ( $display eq '' ) { # set default value
+						if ( $console_id eq "0" )    { $display = $cons0Display } 
+						elsif ( $console_id eq "1" ) { $display = $cons1Display } 					
+					}
+					if ( $console_value eq "pts" ) {
+						my $pts = "";
+						while ( $pts =~ /^$/ )
+						{ # I'm sure that this loop could be smarter, but it works :)
+							print "Trying to get console $console_id pts...\n"
 							  if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
-							$execution->execute(
-								    $bd->get_binaries_path_ref->{"echo"}
-								  . " $pts > "
-								  . $dh->get_run_dir($vmName)
-								  . "/pts" );
-							$execution->execute(
-								    $bd->get_binaries_path_ref->{"echo"}
-								  . " con$console_id=$display,uml_pts,$pts >> "
-								  . $consFile );
+							sleep 1;    # Needed to avoid  syncronization problems
+							my $command =
+							    $bd->get_binaries_path_ref->{"uml_mconsole"} . " "
+							  . $dh->get_run_dir($vmName)
+							  . "/mconsole config con$console_id 2> /dev/null";
+							my $mconsole_output = `$command`;
+							if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
+								$pts = $1;
+								print "...pts is $pts\n"
+								  if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
+								$execution->execute(
+									    $bd->get_binaries_path_ref->{"echo"}
+									  . " $pts > "
+									  . $dh->get_run_dir($vmName)
+									  . "/pts" );
+								$execution->execute(
+									    $bd->get_binaries_path_ref->{"echo"}
+									  . " con$console_id=$display,uml_pts,$pts >> "
+									  . $consFile );
+							}
 						}
-					}
-					if ($e_flag) {
-
-						# Optionally (if -e is being used) put the value in a
-						# screen.conf file
-						# FIXME: this would be obsolete in the future with the
-						# 'vn console' tool
-						print SCREEN_CONF "screen -t $vmName $pts\n";
-					}
-				}
-
-				# xterm processing is quite similar to pts since 1.8.3, but
-				# the difference is that the descriptor will be internally
-				# used by VNUML itself, instead of recording to a file
-				elsif ( $console_value eq "xterm" ) {
-					my $xterm_pts = "";
-					while ( $xterm_pts =~ /^$/ )
-					{ # I'm sure that this loop could be smarter, but it works :)
-						print "Trying to get console $console_id pts...\n"
-						  if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
-						sleep 1;    # Needed to avoid  syncronization problems
-						my $command =
-						    $bd->get_binaries_path_ref->{"uml_mconsole"} . " "
-						  . $dh->get_run_dir($vmName)
-						  . "/mconsole config con$console_id 2> /dev/null";
-						my $mconsole_output = `$command`;
-						if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
-							$xterm_pts = $1;
-							print "...xterm pts is $xterm_pts\n"
-							  if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
-							$execution->execute(
-								    $bd->get_binaries_path_ref->{"echo"}
-								  . " $xterm_pts > "
-								  . $dh->get_run_dir($vmName)
-								  . "/pts" );
-							# Write console spec to vms/$name/run/console file
-							$execution->execute(
-								    $bd->get_binaries_path_ref->{"echo"}
-								  . " con$console_id=yes,uml_pts,$xterm_pts >> "
-								  . $consFile );
-
-=BEGIN
-			  # Get the xterm binary to use and parse it (it is supossed to be a
-			  # comma separated string with three fields)
-							my $xterm = $dh->get_default_xterm;
-							my $xterm_list =
-							  $virtualm->getElementsByTagName("xterm");
-							if ( $xterm_list->getLength == 1 ) {
-								$xterm = &text_tag( $xterm_list->item(0) );
-							}
-
-			# Decode a <xterm> string (first argument) like "xterm,-T title,-e"
-			# or "gnome-terminal,-t title,-x". The former is assumed as default.
-							my $xterm_cmd = "xterm -T $vmName -e screen -t $vmName $xterm_pts";
-							$xterm =~ /^(.+),(.+),(.+)$/;
-							if ( ( $1 ne "" ) && ( $2 ne "" ) && ( $3 ne "" ) )
-							{
-								my $s1 = $1;
-								my $s2 = $2;
-								my $s3 = $3;
-
-					   # If the second attribute is empty, we add the vm name as
-					   # title
-								if ( $s2 =~ /\W+\w+\W+/ ) {
-									$xterm_cmd = "$s1 $s2 $s3 screen -t $vmName $xterm_pts";
-								}
-								else {
-									$xterm_cmd = "$s1 $s2 $vmName $s3 screen -t $vmName $xterm_pts";
-								}
-							}
-												
-							# display console if required
-							my $display_console   = $dom->getElementsByTagName("display_console")->item(0)->getFirstChild->getData;
-							unless ($display_console eq "no") {
-								$execution->execute_bg( "$xterm_cmd", "/dev/null", "" );
-							}
-=END
-=cut	
+						if ($e_flag) {
 	
+							# Optionally (if -e is being used) put the value in a
+							# screen.conf file
+							# FIXME: this would be obsolete in the future with the
+							# 'vn console' tool
+							print SCREEN_CONF "screen -t $vmName $pts\n";
+						}
+					}
+	
+					# xterm processing is quite similar to pts since 1.8.3, but
+					# the difference is that the descriptor will be internally
+					# used by VNUML itself, instead of recording to a file
+					elsif ( $console_value eq "xterm" ) {
+						my $xterm_pts = "";
+						while ( $xterm_pts =~ /^$/ )
+						{ # I'm sure that this loop could be smarter, but it works :)
+							print "Trying to get console $console_id pts...\n"
+							  if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
+							sleep 1;    # Needed to avoid  syncronization problems
+							my $command =
+							    $bd->get_binaries_path_ref->{"uml_mconsole"} . " "
+							  . $dh->get_run_dir($vmName)
+							  . "/mconsole config con$console_id 2> /dev/null";
+							my $mconsole_output = `$command`;
+							if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
+								$xterm_pts = $1;
+								print "...xterm pts is $xterm_pts\n"
+								  if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
+								$execution->execute(
+									    $bd->get_binaries_path_ref->{"echo"}
+									  . " $xterm_pts > "
+									  . $dh->get_run_dir($vmName)
+									  . "/pts" );
+								# Write console spec to vms/$name/run/console file
+								$execution->execute(
+									    $bd->get_binaries_path_ref->{"echo"}
+									  . " con$console_id=$display,uml_pts,$xterm_pts >> "
+									  . $consFile );
+		
+							}
 						}
 					}
 				}
+				
 			}
 			# Then, we just read the console file and start the active consoles
 			VNX::vmAPICommon->start_consoles_from_console_file ($vmName);		

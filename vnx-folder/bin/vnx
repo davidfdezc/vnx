@@ -1354,10 +1354,10 @@ sub mode_console {
 		my $cid = $args->get('cid');
 		#print "*** cid=$cid\n";     
 		
-		if ($cid eq '') {		
-			VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
-		} else {
+		if (defined $cid) {		
 			VNX::vmAPICommon->start_console ($vmName, $cid);
+		} else {
+			VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
 		}
 
 =BEGIN      			
