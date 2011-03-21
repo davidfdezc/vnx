@@ -21,6 +21,7 @@ our @EXPORT = qw(
 	$hypervisor
 	$vnxConfigFile
 
+	$DEFAULT_TMP_DIR
 	$DEFAULT_VNX_DIR
 	$DEFAULT_CONF_FILE
 	$CONS_DISPLAY_DEFAULT
@@ -61,6 +62,7 @@ our $vnxConfigFile; # VNX Configuration file
 
 
 # Configuration files and directories
+Readonly::Scalar our $DEFAULT_TMP_DIR => '/tmp';
 Readonly::Scalar our $DEFAULT_CONF_FILE => '/etc/vnx.conf';
 Readonly::Scalar our $DEFAULT_VNX_DIR => '~/.vnx';
 
