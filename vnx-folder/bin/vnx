@@ -238,28 +238,23 @@ exit(0);
 #
 sub main {
 	
-   print "----------------------------------------------------------------------------------\n";
-   print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es          \n";
-   print "Version: $version" . "$branch (build on $release)\n";
-   print "----------------------------------------------------------------------------------\n";
+   	print "----------------------------------------------------------------------------------\n";
+   	print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es          \n";
+   	print "Version: $version" . "$branch (build on $release)\n";
+   	print "----------------------------------------------------------------------------------\n";
 
-   $ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
+   	$ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
 
-   my $vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
-   my $tmp_dir = "/tmp";
+   	# DFC 21/2/2011 my $uid = $> == 0 ? getpwnam("vnx") : $>; # uid=vnx if executed as root; userid if executed as user
+   	my $uid = $>;
+   	my $boot_timeout = 60; # by default, 60 seconds for boot timeout 
+   	my $start_time;                   # the moment when the parsers start operation
 
-   # DFC 21/2/2011 my $uid = $> == 0 ? getpwnam("vnx") : $>; # uid=vnx if executed as root; userid if executed as user
-   my $uid = $>;
-   #print "***** uid=$uid\n";
 
-   my $boot_timeout = 60; # by default, 60 seconds for boot timeout
-   
-   my $start_time;                   # the moment when the parsers start operation
+   	###########################################################
+   	# To get the invocation arguments
 
-   ###########################################################
-   # To get the invocation arguments
-
-   our($opt_t,$opt_s,$opt_p,$opt_r,$opt_d,
+   	our($opt_t,$opt_s,$opt_p,$opt_r,$opt_d,
       $opt_m,$opt_c,$opt_g,$opt_v,$opt_F,
       $opt_V,$opt_T,$opt_o,$opt_M,$opt_k,
       $opt_i,$opt_B,$opt_S,$opt_w,$opt_e,
@@ -272,8 +267,8 @@ sub main {
       $opt_console,$opt_consoleinfo,$opt_cid,
       $opt_C, $opt_config, $opt_D);
       
-   Getopt::Long::Configure ("bundling"); # case sensitive single-character options
-   GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
+   	Getopt::Long::Configure ("bundling"); # case sensitive single-character options
+   	GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
               'r=s' => \$opt_r, 'd' => \$opt_d, 'm=s' => \$opt_m,
               'c=s' => \$opt_c,'T=s' => \$opt_T, 'g' => \$opt_g,
               'v' => \$opt_v, 'F' => \$opt_F, 'V' => \$opt_V, 'version' => \$opt_V,
@@ -295,282 +290,296 @@ sub main {
               'C|config=s' => \$opt_config,
               'D' => \$opt_D);
 
-   # Build the argument object
-   $args = new Arguments(
-      $opt_t,$opt_s,$opt_p,$opt_r,$opt_d,
-      $opt_m,$opt_c,$opt_g,$opt_v,$opt_F,
-      $opt_V,$opt_T,$opt_o,$opt_M,$opt_k,
-      $opt_i,$opt_B,$opt_S,$opt_w,$opt_e,
-      $opt_P,$opt_H,$opt_x,$opt_u,$opt_4,
-      $opt_6,$opt_Z,$opt_create,$opt_shutdown,
-      $opt_destroy,$opt_define,$opt_undefine,
-      $opt_start,$opt_save,$opt_restore,
-      $opt_suspend,$opt_resume,$opt_reboot,
-      $opt_reset,$opt_execute,$opt_f,$opt_showmap,
-      $opt_console,$opt_cid,$opt_consoleinfo,
-      $opt_config);
+   	# Build the argument object
+   	$args = new Arguments(
+      	$opt_t,$opt_s,$opt_p,$opt_r,$opt_d,
+      	$opt_m,$opt_c,$opt_g,$opt_v,$opt_F,
+      	$opt_V,$opt_T,$opt_o,$opt_M,$opt_k,
+      	$opt_i,$opt_B,$opt_S,$opt_w,$opt_e,
+      	$opt_P,$opt_H,$opt_x,$opt_u,$opt_4,
+      	$opt_6,$opt_Z,$opt_create,$opt_shutdown,
+      	$opt_destroy,$opt_define,$opt_undefine,
+      	$opt_start,$opt_save,$opt_restore,
+      	$opt_suspend,$opt_resume,$opt_reboot,
+      	$opt_reset,$opt_execute,$opt_f,$opt_showmap,
+      	$opt_console,$opt_cid,$opt_consoleinfo,
+      	$opt_config);
 
+   	# FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
+   	# it by default
+   	$args->set('Z',1);
 
-   # FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
-   # it by default
-   $args->set('Z',1);
-
-   # Set configuration file 
-   if ($opt_config) {
+   	# Set configuration file 
+   	if ($opt_config) {
    	  	$vnxConfigFile = $opt_config; 
-   } else {
+   	} else {
    		$vnxConfigFile = $DEFAULT_CONF_FILE;
-   }
-   print ("Using configuration file: $vnxConfigFile\n");
+   	}
+   	print ("Using configuration file: $vnxConfigFile\n");
    
-   # Check the existance of the VNX configuration file 
-   unless(-e $vnxConfigFile) {
-   	 print "\nERROR: VNX configuration file $vnxConfigFile not found\n\n";
-   	 exit(1);
-   }
-
-   # To check arguments consistency
-   # 0. Check if -f is present
-   if (!($opt_f) && !($opt_V) && !($opt_H) && !($opt_D)) {
-   	  &usage;
-      &vnx_die ("Option -f missing\n");
-   }
-
-   # 1. To use -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start,
-   # --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --console, --console-info at the same time
+   	# Check the existance of the VNX configuration file 
+   	unless(-e $vnxConfigFile) {
+   	 	print "\nERROR: VNX configuration file $vnxConfigFile not found\n\n";
+   	 	exit(1);   	 
+   	}
    
-   my $how_many_args = 0;
-   my $mode;
-   if ($opt_t||$opt_create) {
-      $how_many_args++;
-      $mode = "t";
-   }
-   if ($opt_s) {
-      # Deprecated, not supported since 1.7.0
-      &vnx_die ("-s mode is no longer supported since version 1.7.0, use -x instead\n");
-   }
-   if ($opt_p) {
-      # Deprecated, not supported since 1.7.0
-      &vnx_die ("-p mode is no longer supported since version 1.7.0, use -x instead\n");
-   }
-   if ($opt_S) {
-      # Deprecated, not supported since 1.8.0
-      &vnx_die ("-S is no longer supported since version 1.8.0\n");
-   }   
-   if ($opt_x||$opt_execute) {
-      $how_many_args++;
-      $mode = "x";
-   }
-   if ($opt_r) {
-      # Deprecated, not supported since 1.7.0
-      &vnx_die ("-r mode is no longer supported since version 1.7.0, use -x instead\n");
-   }
-   if ($opt_d||$opt_shutdown) {
-      $how_many_args++;
-      $mode = "d";
-   }
-   if ($opt_P||$opt_destroy) {
-      $how_many_args++;
-      $mode = "P";
-      
-   }
-   if ($opt_V) {
-      $how_many_args++;
-      $mode = "V";      
-   }
-   if ($opt_H) {
-      $how_many_args++;
-      $mode = "H";
-   }
-   if ($opt_define) {
-      $how_many_args++;
-      $mode = "define";
-   }
-   if ($opt_start) {
-      $how_many_args++;
-      $mode = "start";
-   }
-   if ($opt_undefine) {
-      $how_many_args++;
-      $mode = "undefine";
-   }
-   if ($opt_save) {
-      $how_many_args++;
-      $mode = "save";
-   }
-   if ($opt_restore) {
-      $how_many_args++;
-      $mode = "restore";
-   }
-   if ($opt_suspend) {
-      $how_many_args++;
-      $mode = "suspend";
-   }
-   if ($opt_resume) {
-      $how_many_args++;
-      $mode = "resume";
-   }
-   if ($opt_reboot) {
-      $how_many_args++;
-      $mode = "reboot";
-   }
-   if ($opt_reset) {
-      $how_many_args++;
-      $mode = "reset";
-   }
-   if ($opt_showmap) {
-      $how_many_args++;
-      $mode = "show-map";
-   }
-   if ($opt_console) {
-      $how_many_args++;
-      $mode = "console";
-   }
-   if ($opt_consoleinfo) {
-      $how_many_args++;
-      $mode = "console-info";
-   }
+   	# Set VNX and TMP directories
+   	my $tmp_dir=&get_conf_value ($vnxConfigFile, 'general', 'tmp_dir');
+   	if (!defined $tmp_dir) {
+   		$tmp_dir = $DEFAULT_TMP_DIR;
+   	}
+   	print ("  TMP dir=$tmp_dir\n");
+   	my $vnx_dir=&get_conf_value ($vnxConfigFile, 'general', 'vnx_dir');
+   	if (!defined $vnx_dir) {
+   		$vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
+   	} else {
+   		$vnx_dir = &do_path_expansion($vnx_dir);
+   	}
+   	print ("  VNX dir=$vnx_dir\n");
+   	print "----------------------------------------------------------------------------------\n";
+   	
+
+   	# To check arguments consistency
+   	# 0. Check if -f is present
+   	if (!($opt_f) && !($opt_V) && !($opt_H) && !($opt_D)) {
+   	  	&usage;
+      	&vnx_die ("Option -f missing\n");
+   	}
+
+   	# 1. To use -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start,
+   	# --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --console, --console-info at the same time
+   
+   	my $how_many_args = 0;
+   	my $mode;
+   	if ($opt_t||$opt_create) {
+      	$how_many_args++;
+      	$mode = "t";
+   	}
+   	if ($opt_s) {
+      	# Deprecated, not supported since 1.7.0
+      	&vnx_die ("-s mode is no longer supported since version 1.7.0, use -x instead\n");
+   	}
+   	if ($opt_p) {
+      	# Deprecated, not supported since 1.7.0
+      	&vnx_die ("-p mode is no longer supported since version 1.7.0, use -x instead\n");
+   	}
+   	if ($opt_S) {
+      	# Deprecated, not supported since 1.8.0
+      	&vnx_die ("-S is no longer supported since version 1.8.0\n");
+   	}   
+   	if ($opt_x||$opt_execute) {
+      	$how_many_args++;
+      	$mode = "x";
+   	}
+   	if ($opt_r) {
+      	# Deprecated, not supported since 1.7.0
+      	&vnx_die ("-r mode is no longer supported since version 1.7.0, use -x instead\n");
+   	}
+   	if ($opt_d||$opt_shutdown) {
+      	$how_many_args++;
+      	$mode = "d";
+   	}
+   	if ($opt_P||$opt_destroy) {
+      	$how_many_args++;
+      	$mode = "P";
+   	}
+   	if ($opt_V) {
+      	$how_many_args++;
+      	$mode = "V";      
+   	}
+   	if ($opt_H) {
+      	$how_many_args++;
+      	$mode = "H";
+   	}
+   	if ($opt_define) {
+      	$how_many_args++;
+      	$mode = "define";
+   	}
+   	if ($opt_start) {
+      	$how_many_args++;
+      	$mode = "start";
+   	}
+   	if ($opt_undefine) {
+      	$how_many_args++;
+      	$mode = "undefine";
+   	}
+   	if ($opt_save) {
+      	$how_many_args++;
+      	$mode = "save";
+   	}
+   	if ($opt_restore) {
+      	$how_many_args++;
+      	$mode = "restore";
+   	}
+   	if ($opt_suspend) {
+      	$how_many_args++;
+      	$mode = "suspend";
+   	}
+   	if ($opt_resume) {
+      	$how_many_args++;
+      	$mode = "resume";
+   	}
+   	if ($opt_reboot) {
+      	$how_many_args++;
+      	$mode = "reboot";
+   	}
+   	if ($opt_reset) {
+      	$how_many_args++;
+      	$mode = "reset";
+   	}
+   	if ($opt_showmap) {
+      	$how_many_args++;
+      	$mode = "show-map";
+   	}
+   	if ($opt_console) {
+      	$how_many_args++;
+      	$mode = "console";
+   	}
+   	if ($opt_consoleinfo) {
+      	$how_many_args++;
+      	$mode = "console-info";
+   	}
 
       
-   if ($opt_m) {
-      &vnx_die ("-m switch is no longer supported since version 1.6.0\n");
-   }
+   	if ($opt_m) {
+      	&vnx_die ("-m switch is no longer supported since version 1.6.0\n");
+   	}
 
-   if ($how_many_args gt 1) {
-      &usage;
-      &vnx_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --showmap or -H\n");
-   }
-   if ( ($how_many_args lt 1) && (!$opt_D) ) {
-      &usage;
-      &vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, --show-map, --console, --console-info, -V or -H\n");
-   }
-   if (($opt_F) && (!($opt_d||$opt_shutdown))) { 
-      &usage; 
-      &vnx_die ("Option -F only makes sense with -d|--shutdown mode\n"); 
-   }
-   if (($opt_B) && ($opt_F) && ($opt_d||$opt_shutdown)) {
-      &vnx_die ("Option -F and -B are incompabible\n");
-   }
+   	if ($how_many_args gt 1) {
+      	&usage;
+      	&vnx_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --showmap or -H\n");
+   	}
+   	if ( ($how_many_args lt 1) && (!$opt_D) ) {
+      	&usage;
+      	&vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, --show-map, --console, --console-info, -V or -H\n");
+   	}
+   	if (($opt_F) && (!($opt_d||$opt_shutdown))) { 
+      	&usage; 
+      	&vnx_die ("Option -F only makes sense with -d|--shutdown mode\n"); 
+   	}
+   	if (($opt_B) && ($opt_F) && ($opt_d||$opt_shutdown)) {
+      	&vnx_die ("Option -F and -B are incompabible\n");
+   	}
     if (($opt_o) && (!($opt_t||$opt_create))) {
-      &usage;
-      &vnx_die ("Option -o only makes sense with -t|--create mode\n");
-   }
-   if (($opt_w) && (!($opt_t||$opt_create))) {
-      &usage;
-      &vnx_die ("Option -w only makes sense with -t|--create mode\n");
-   }
-      if (($opt_e) && (!($opt_t||$opt_create))) {
-      &usage;
-      &vnx_die ("Option -e only makes sense with -t|--create mode\n");
-   }
-   if (($opt_Z) && (!($opt_t||$opt_create))) {
-      &usage;
-      &vnx_die ("Option -Z only makes sense with -t|--create mode\n");
-   }
-   if (($opt_4) && ($opt_6)) {
-      &usage;
-      &vnx_die ("-4 and -6 can not be used at the same time\n");
-   }
+      	&usage;
+      	&vnx_die ("Option -o only makes sense with -t|--create mode\n");
+   	}
+   	if (($opt_w) && (!($opt_t||$opt_create))) {
+      	&usage;
+      	&vnx_die ("Option -w only makes sense with -t|--create mode\n");
+   	}
+  	if (($opt_e) && (!($opt_t||$opt_create))) {
+      	&usage;
+      	&vnx_die ("Option -e only makes sense with -t|--create mode\n");
+   	}
+   	if (($opt_Z) && (!($opt_t||$opt_create))) {
+      	&usage;
+      	&vnx_die ("Option -Z only makes sense with -t|--create mode\n");
+   	}
+   	if (($opt_4) && ($opt_6)) {
+      	&usage;
+      	&vnx_die ("-4 and -6 can not be used at the same time\n");
+   	}
 
-   # Version pseudomode
-   if ($opt_V) {
-   	  my $basename = basename $0;
-      print "\n";
-      print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
-      print "                    `888.     .8'  `888b.     `8'  `8888    d8'  \n";
-      print "                     `888.   .8'    8 `88b.    8     Y888..8P    \n";
-      print "                      `888. .8'     8   `88b.  8      `8888'     \n";
-      print "                       `888.8'      8     `88b.8     .8PY888.    \n";
-      print "                        `888'       8       `888    d8'  `888b   \n";
-      print "                         `8'       o8o        `8  o888o  o88888o \n";
-      print "\n";
-      print "                             Virtual Networks over LinuX\n";
-      print "                              http://www.dit.upm.es/vnx      \n";
-      print "                                    vnx\@dit.upm.es          \n";
-      print "\n";
-      print "                 Departamento de Ingeniería de Sistemas Telemáticos\n";
-      print "                              E.T.S.I. Telecomunicación\n";
-      print "                          Universidad Politécnica de Madrid\n";
-      print "\n";
-      print "                   Version: $version" . "$branch (build on $release)\n";
-      print "\n";
-      #print "Fermin Galan Marquez. galan\@dit.upm.es\n";
-      exit(0);
-   }
+   	# Version pseudomode
+   	if ($opt_V) {
+   	  	my $basename = basename $0;
+      	print "\n";
+      	print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
+      	print "                    `888.     .8'  `888b.     `8'  `8888    d8'  \n";
+      	print "                     `888.   .8'    8 `88b.    8     Y888..8P    \n";
+      	print "                      `888. .8'     8   `88b.  8      `8888'     \n";
+      	print "                       `888.8'      8     `88b.8     .8PY888.    \n";
+      	print "                        `888'       8       `888    d8'  `888b   \n";
+      	print "                         `8'       o8o        `8  o888o  o88888o \n";
+      	print "\n";
+      	print "                             Virtual Networks over LinuX\n";
+      	print "                              http://www.dit.upm.es/vnx      \n";
+      	print "                                    vnx\@dit.upm.es          \n";
+      	print "\n";
+      	print "                 Departamento de Ingeniería de Sistemas Telemáticos\n";
+      	print "                              E.T.S.I. Telecomunicación\n";
+      	print "                          Universidad Politécnica de Madrid\n";
+      	print "\n";
+      	print "                   Version: $version" . "$branch (build on $release)\n";
+      	print "\n";
+      	#print "Fermin Galan Marquez. galan\@dit.upm.es\n";
+      	exit(0);
+   	}
 
-   # Help pseudomode
-   if ($opt_H) {
-      &usage;
-      exit(0);
-   }
+   	# Help pseudomode
+   	if ($opt_H) {
+      	&usage;
+      	exit(0);
+   	}
 
-   # 2. Optional arguments
-   $exemode = $EXE_NORMAL;
-   $exemode = $EXE_VERBOSE if ($opt_v);
-   $exemode = $EXE_DEBUG if ($opt_g);
-   chomp(my $pwd = `pwd`);
-   $vnx_dir = &chompslash($opt_c) if ($opt_c);
-   $vnx_dir = "$pwd/$vnx_dir"
-	   unless (&valid_absolute_directoryname($vnx_dir));
-   $tmp_dir = &chompslash($opt_T) if ($opt_T);
-   $tmp_dir = "$pwd/$tmp_dir"
-	   unless (&valid_absolute_directoryname($tmp_dir));
+   	# 2. Optional arguments
+   	$exemode = $EXE_NORMAL;
+   	$exemode = $EXE_VERBOSE if ($opt_v);
+   	$exemode = $EXE_DEBUG if ($opt_g);
+   	chomp(my $pwd = `pwd`);
+   	$vnx_dir = &chompslash($opt_c) if ($opt_c);
+   	$vnx_dir = "$pwd/$vnx_dir"
+		   unless (&valid_absolute_directoryname($vnx_dir));
+   	$tmp_dir = &chompslash($opt_T) if ($opt_T);
+   	$tmp_dir = "$pwd/$tmp_dir"
+		   unless (&valid_absolute_directoryname($tmp_dir));	
 
-   # Delete LOCK file if -D option included
-   if ($opt_D) {
-   	  print "Deleting ". $vnx_dir . "/LOCK file\n";
-	  system "rm -f $vnx_dir/LOCK"; 
-	  if ($how_many_args lt 1) {
-	     exit(0);
-	  }  
-   }	
+   	# Delete LOCK file if -D option included
+   	if ($opt_D) {
+   	  	print "Deleting ". $vnx_dir . "/LOCK file\n";
+	  	system "rm -f $vnx_dir/LOCK"; 
+	  	if ($how_many_args lt 1) {
+	     	exit(0);
+	  	}  
+   	}	
 
-   # DFC 21/2/2011 $uid = getpwnam($opt_u) if ($> == 0 && $opt_u);
-   $boot_timeout = $opt_w if (defined($opt_w));
-   unless ($boot_timeout =~ /^\d+$/) {
-      &vnx_die ("-w value ($opt_w) is not a valid timeout (positive integer)\n");  
-   }
+   	# DFC 21/2/2011 $uid = getpwnam($opt_u) if ($> == 0 && $opt_u);
+   	$boot_timeout = $opt_w if (defined($opt_w));
+   	unless ($boot_timeout =~ /^\d+$/) {
+      	&vnx_die ("-w value ($opt_w) is not a valid timeout (positive integer)\n");  
+   	}
 
-   # FIXME: $enable_4 and $enable_6 are not necessary, use $args object
-   # instead and avoid redundance
-   my $enable_4 = 1;
-   my $enable_6 = 1;
-   $enable_4 = 0 if ($opt_6);
-   $enable_6 = 0 if ($opt_4);   
+   	# FIXME: $enable_4 and $enable_6 are not necessary, use $args object
+   	# instead and avoid redundance
+   	my $enable_4 = 1;
+   	my $enable_6 = 1;
+   	$enable_4 = 0 if ($opt_6);
+   	$enable_6 = 0 if ($opt_4);   
 
-   # 3. To extract and check input
-   my $input;
-   $input = $opt_f if ($opt_f);
-   ##$input = $opt_t if ($opt_t); [JSF]
-   ##$input = $opt_x if ($opt_x);
-   ##$input = $opt_d if ($opt_d);
-   ##$input = $opt_P if ($opt_P);
+   	# 3. To extract and check input
+   	my $input;
+   	$input = $opt_f if ($opt_f);
+   	##$input = $opt_t if ($opt_t); [JSF]
+   	##$input = $opt_x if ($opt_x);
+   	##$input = $opt_d if ($opt_d);
+   	##$input = $opt_P if ($opt_P);
 
-   # Check for file and cmd_seq, depending the mode
-   my $cmdseq = '';
+   	# Check for file and cmd_seq, depending the mode
+   	my $cmdseq = '';
 #   my $input_file;
 
-   if ($opt_x) {
-      $cmdseq = $opt_x;
-   }elsif ($opt_execute){
-   	  $cmdseq = $opt_execute;
-   }
+   	if ($opt_x) {
+      	$cmdseq = $opt_x;
+   	}elsif ($opt_execute){
+   	  	$cmdseq = $opt_execute;
+   	}
    
-   $input_file = $input;
+   	$input_file = $input;
  
-   # Reserved words for cmd_seq
-   #if ($cmdseq eq "always") {
-   #   &vnuml_die ("\"always\" is a reserved word and can not be used as cmd_seq\n");
-   #}
+   	# Reserved words for cmd_seq
+   	#if ($cmdseq eq "always") {
+   	#   &vnuml_die ("\"always\" is a reserved word and can not be used as cmd_seq\n");
+   	#}
 
-   # Check input file
-   if (! -f $input_file) {
-      &vnx_die ("file $input_file is not valid (perhaps does not exists)\n");
-   }
+   	# Check input file
+   	if (! -f $input_file) {
+      	&vnx_die ("file $input_file is not valid (perhaps does not exists)\n");
+   	}
 
-   # 4. To check vnx_dir and tmp_dir
-   # Create the working directory, if it doesn't already exist
-   if ($exemode ne $EXE_DEBUG) {
+   	# 4. To check vnx_dir and tmp_dir
+   	# Create the working directory, if it doesn't already exist
+   	if ($exemode ne $EXE_DEBUG) {
 	   	if (! -d $vnx_dir ) {
 		   	mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
 	   	}
@@ -3822,7 +3831,7 @@ sub mgmt_sock_destroy {
 #
 sub vnx_die {
    my $mess = shift;
-   printf "%s (%s): %s \n", (caller(1))[3], (caller(0))[2], $mess;
+   printf "ERROR in %s (%s): %s \n", (caller(1))[3], (caller(0))[2], $mess;
    exit 1;
 }
 
