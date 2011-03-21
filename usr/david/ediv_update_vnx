@@ -1,8 +1,8 @@
 #!/bin/bash
 
 HOST=$1
-#VNXSRCDIR=/root/vnx/workspace/vnx/
-VNXSRCDIR=/almacen/vnx/workspace/vnx/
+VNXSRCDIR=/root/vnx/workspace/vnx-unstable/vnx/
+#VNXSRCDIR=/almacen/vnx/workspace/vnx/
 REMOTETMPDIR=vnx-update
 
 #ssh $1 "cd /tmp; mkdir -p $REMOTETMPDIR && rm -rf $REMOTETMPDIR/\*"

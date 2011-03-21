@@ -46,7 +46,8 @@ chmod +x /usr/bin/vnx
 # Copy ediv executables
 #
 cp -v bin/ediv_* bin/vn /usr/bin
-chmod +x /usr/bin/ediv_* /usr/bin/vn
+mv /usr/bin/ediv_ctl_vnx.pl /usr/bin/ediv
+chmod +x /usr/bin/ediv* /usr/bin/vn
 
 #
 # Copy other utilities

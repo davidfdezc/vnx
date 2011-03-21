@@ -29,11 +29,16 @@
 # Explicit declaration of pathname for EDIV modules
 #use lib "/usr/share/perl5";
 
+#use strict;
+#use warnings;
+
 use XML::DOM;          					# XML management library
 use File::Basename;    					# File management library
 use AppConfig;         					# Config files management library
 use AppConfig qw(:expand :argcount);    # AppConfig module constants import
 use POSIX qw(setsid setuid setgid);
+use XML::LibXML;
+use Cwd 'abs_path';
 
 
 use Socket;								# To resolve hostnames to IPs
@@ -42,6 +47,14 @@ use DBI;								# Module to handle databases
 
 use EDIV::cluster_host;                 # Cluster Host class 
 use EDIV::static;  						# Module that process static assignment 
+
+use VNX::CheckSemantics;
+use VNX::Globals;
+use VNX::FileChecks;
+use VNX::BinariesData;
+use VNX::DataHandler;
+use VNX::vmAPI_dynamips;
+
 
 ###########################################################
 # Global variables 
@@ -69,7 +82,7 @@ my $execution_mode;						# Execution command mode
 my $vm_name; # máquina especificada con tag -M
 	
 	# Scenario
-my $vnuml_scenario;						# VNUML scenario to split
+my $vnx_scenario;						# VNX scenario to split
 my %scenarioHash; 						# Scenarios. Every scenario belongs to a host machine
 										# Key -> name of physical hostname, Value -> XML Scenario							
 my $dom_tree;							# Dom Tree with scenario specification
@@ -98,17 +111,25 @@ my $db_connection_info;
 	# Path for dynamips config file
 my $dynamips_ext_path;
 
+my $version = "1.92beta1";
+my $release = "DD/MM/YYYY";
+my $branch = "";
+
 ###########################################################
 # Main	
 ###########################################################
 
-	# Argument handling
-	&parseArguments;	
+
+# Argument handling
+&parseArguments;	
+
+# init global objects and check VNX scenario correctness 
+&initAndCheckVNXScenario ($vnx_scenario); 
 	
-	# Get DB configuration
-	&getDBConfiguration;
-	
-	# Check which running mode is selected
+# Get DB configuration
+&getDBConfiguration;
+
+# Check which running mode is selected
 if ( $mode eq '-t' | $mode eq '--create' ) {
 	# Scenario launching mode
 	print "\n****** You chose mode -t: scenario launching preparation ******\n";
@@ -118,7 +139,7 @@ if ( $mode eq '-t' | $mode eq '--create' ) {
 	
 	# Parse scenario XML.
 	print "\n  **** Parsing scenario ****\n\n";
-	&parseScenario;
+	&parseScenario ($vnx_scenario);
 
 # JSF: movido a parseScenario, borrar
 #	#if dynamips_ext node is present, update path
@@ -215,7 +236,7 @@ unless ($vm_name){
 	#&sendDynConfiguration;
 	
 	print "\n\n  **** Sending scenario to cluster hosts and executing it ****\n\n";
-	# Send scenario files to the hosts and run them with VNUML (-t option)
+	# Send scenario files to the hosts and run them with VNX (-t option)
 	&sendScenarios;
 	
 unless ($vm_name){
@@ -377,8 +398,8 @@ sub parseArguments{
 		# Search for scenario xml file
 		if ($ARGV[$i] eq '-s' | $ARGV[$i] eq '-f'){
 			my $vnunl_scenario_arg = $i+1;
-			$vnuml_scenario = $ARGV[$vnunl_scenario_arg];
-			open(FILEHANDLE, $vnuml_scenario) or die  "The scenario file $vnuml_scenario doesn't exist... Aborting";
+			$vnx_scenario = $ARGV[$vnunl_scenario_arg];
+			open(FILEHANDLE, $vnx_scenario) or die  "The scenario file $vnx_scenario doesn't exist... Aborting";
 			close FILEHANDLE;
 			
 		}
@@ -411,7 +432,7 @@ sub parseArguments{
 	if ($mode eq undef){
 		die ("You didn't specify a valid execution mode (-t, -x, -P, -d)... Aborting");
 	}
-	if ($vnuml_scenario eq undef){
+	if ($vnx_scenario eq undef){
 		die ("You didn't specify a valid scenario xml file... Aborting");
 	}
 	if ($cluster_file eq undef){
@@ -566,7 +587,7 @@ sub getSegmentationModules {
 sub parseScenario {
 	my $dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
 	my $parser = new XML::DOM::Parser;
-	$dom_tree = $parser->parsefile($vnuml_scenario);
+	$dom_tree = $parser->parsefile($vnx_scenario);
 	$globalNode = $dom_tree->getElementsByTagName("vnx")->item(0);
 	my $simulation_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 	
@@ -600,8 +621,8 @@ sub parseScenario {
 		$query->finish();
 	} elsif($mode eq '-P' | $mode eq '--destroy') {
 		
-			# Checking if the simulation is running
-		my $query_string = "SELECT `simulation` FROM hosts WHERE status = 'running' AND simulation = '$simulation_name'";
+		# Checking if the simulation is running
+		my $query_string = "SELECT `simulation` FROM hosts WHERE (status = 'running' OR status = 'creating') AND simulation = '$simulation_name'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		my $contenido = $query->fetchrow_array();
@@ -618,7 +639,7 @@ sub parseScenario {
 		}
 	} elsif($mode eq '-d' | $mode eq '--shutdown') {
 		
-			# Checking if the simulation is running
+		# Checking if the simulation is running
 		my $query_string = "SELECT `simulation` FROM hosts WHERE status = 'running' AND simulation = '$simulation_name'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
@@ -692,7 +713,7 @@ sub assignVLAN {
 	###########################################################
 	# Subroutine to fill the scenario Array.
 	# We clone the original document to perform as a new scenario. 
-	# We create an vnuml node on every scenario and start adding child nodes to it.
+	# We create an vnx node on every scenario and start adding child nodes to it.
 	###########################################################
 sub fillScenarioArray {
 	my $dbh = DBI->connect($db_connection_info,$db_user,$db_pass);	
@@ -700,15 +721,15 @@ sub fillScenarioArray {
 
 	my $nuevoNodo= $dom_tree->cloneNode("true");
 
-    my $nuevoVNUML=$nuevoNodo->getElementsByTagName("vnx")->item(0);
-    for my $kid ($nuevoVNUML->getChildNodes){
-		$nuevoVNUML->removeChild($kid); 
+    my $nuevoVNX=$nuevoNodo->getElementsByTagName("vnx")->item(0);
+    for my $kid ($nuevoVNX->getChildNodes){
+		$nuevoVNX->removeChild($kid); 
 	}
 
 	my $global= $dom_tree->getElementsByTagName("global")->item(0)->cloneNode("true");
 
 #	$global->setOwnerDocument($nuevoNodo);
-	$nuevoVNUML->appendChild($global);
+	$nuevoVNX->appendChild($global);
 
 
 
@@ -776,7 +797,7 @@ sub fillScenarioArray {
 #    			for my $kid ($scenarioNode->getChildNodes){
 #    				
 #					if ($kid->getName eq "dynamips_ext"){
-#						$nuevoVNUML->removeChild($kid); 
+#						$nuevoVNX->removeChild($kid); 
 #					}
 #				}
     			
@@ -825,11 +846,11 @@ sub splitIntoFiles {
 		my $newVirtualM=$virtualm->cloneNode("true");
 		$newVirtualM->setOwnerDocument($scenarioHash{$host_name});
 
-		my $vnumlNode=$scenarioHash{$host_name}->getElementsByTagName("vnx")->item(0);
+		my $vnxNode=$scenarioHash{$host_name}->getElementsByTagName("vnx")->item(0);
 			
-		$vnumlNode->setOwnerDocument($scenarioHash{$host_name});
+		$vnxNode->setOwnerDocument($scenarioHash{$host_name});
 
-		$vnumlNode->appendChild($newVirtualM);
+		$vnxNode->appendChild($newVirtualM);
 
 
 		unless ($vm_name){
@@ -1193,7 +1214,7 @@ sub sendScenarios {
 
 	###########################################################
 	# Subroutine to check propper finishing of launching mode (-t)
-	# Uses /root/.vnuml/simulations/<simulacion>/vms/<vm>/status file
+	# Uses /root/.vnx/simulations/<simulacion>/vms/<vm>/status file
 	###########################################################
 sub checkFinish {
 	my $dbh;
@@ -1480,7 +1501,7 @@ sub getConfiguration {
 	my $currentVMList = $globalNode->getElementsByTagName("vm");
 
 
-my $currentVMListLength = $currentVMList->getLength;
+	my $currentVMListLength = $currentVMList->getLength;
 	for (my $n=0; $n<$currentVMListLength; $n++){
 		
 			my $currentVM=$currentVMList->item($n);
@@ -1489,6 +1510,7 @@ my $currentVMListLength = $currentVMList->getLength;
 			my $filetreeListLength = $filetreeList->getLength;
 			for (my $m=0; $m<$filetreeListLength; $m++){
 			   my $filetree = $filetreeList->item($m)->getFirstChild->getData;
+			   print "*** getConfiguration: added $filetree\n";
 			   push(@directories_list, $filetree);
 			}
 			
@@ -1497,17 +1519,33 @@ my $currentVMListLength = $currentVMList->getLength;
 			my $execListLength = $execList->getLength;
 			for (my $m=0; $m<$execListLength; $m++){
 			   my $exec = $execList->item($m)->getFirstChild->getData;
+			   print "*** getConfiguration: added $exec\n";
 			   push(@exec_list, $exec);
 			}
 		
 	}
+	
+	# Look for configuration files defined for dynamips vms
+	my $extConfFile = $dh->get_default_dynamips();
+	# If the extended config file is defined, look for <conf> tags inside
+	if ($extConfFile ne '0'){
+		my $parser    = new XML::DOM::Parser;
+		my $dom       = $parser->parsefile($extConfFile);
+		my $conf_list = $dom->getElementsByTagName("conf");
+   		for ( my $i = 0; $i < $conf_list->getLength; $i++) {
+      		my $confi = $conf_list->item($i)->getFirstChild->getData;
+			print "*** adding dynamips conf file=$confi\n";
+			push(@directories_list, $confi);		
+	 	}
+	}
+	
 	if (!($basedir eq "")) {
 		chdir $basedir;
 	}
 #	if (!($directories_list[0] eq undef)){
 	if (@directories_list){
 		my $tgz_name = "/tmp/conf.tgz"; 
-		my $tgz_command = "tar czf $tgz_name @directories_list";
+		my $tgz_command = "tar czfv $tgz_name @directories_list";
 		system ($tgz_command);
 		$configuration = 1;	
 	}
@@ -1566,7 +1604,7 @@ sub sendConfiguration {
 		print "\n\n  **** Sending configuration to cluster hosts ****\n\n";
 		
 		my $path;
-		my @scenario_name_split = split("/",$vnuml_scenario);
+		my @scenario_name_split = split("/",$vnx_scenario);
 		my $scenario_name_split_size = @scenario_name_split;
 		
 		for (my $i=1; $i<($scenario_name_split_size -1); $i++){
@@ -1847,4 +1885,108 @@ sub para {
 	   print $var . "\n";	
 	}
 	<STDIN>;
+}
+
+# 
+# checkVNXScenario: checks scenario file semantics using the same code used in VNX
+#
+sub initAndCheckVNXScenario {
+	
+	my $input_file = shift;
+	
+	print "** scenario=$input_file\n";
+
+   	my $vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
+   	my $tmp_dir = "/tmp";
+   	my $uid = $>;
+   
+	my $exemode = $EXE_NORMAL;
+	# Build the VNX::BinariesData object
+	my $bd = new BinariesData($exemode);
+	
+	# We need the file to perform some manipulations
+   	open INPUTFILE, "$input_file";
+   	my @input_file_array = <INPUTFILE>;
+   	my $input_file_string = join("",@input_file_array);
+   	close INPUTFILE;
+   
+   	# To check if the DTD file is present
+   	if ($input_file_string =~ /<!DOCTYPE vnx SYSTEM "(.*)">/) { 
+    	&ediv_die ("parsing based on DTD not supported; use XSD instead\n");	  
+   	}
+
+   	# To check version number
+   	if ($input_file_string =~ /<version>\s*(\d\.\d+)(\.\d+)?\s*<\/version>/) {
+      	my $version_in_file = $1;
+      	$version =~ /^(\d\.\d+)/;
+      	my $version_in_parser = $1;
+      	unless ($version_in_file eq $version_in_parser) {
+      		&ediv_die("mayor version numbers of source file ($version_in_file) and parser ($version_in_parser) do not match");
+			exit;
+      	}
+   	} else {
+      	&ediv_die("can not find VNX version in $input_file");
+   	}
+   
+   	# To build DOM tree parsing file
+   	#$valid_fail = 0;
+   	my $parser;
+   	my $doc;
+   	my $schemalocation;
+
+    if ($input_file_string =~ /="(\S*).xsd"/) {
+       	$schemalocation = $1 .".xsd";
+	}else{
+		print "input_file_string = $input_file_string, $schemalocation=schemalocation\n";
+		&ediv_die("XSD not found");
+	}
+		
+	my $schema = XML::LibXML::Schema->new(location => $schemalocation);
+		
+	$parser = XML::LibXML->new;
+	$doc = $parser->parse_file($input_file);
+	
+	my $parser2 = new XML::DOM::Parser;
+	$doc = $parser2->parsefile($input_file);
+
+	# Build the VNX::Execution object
+	$execution = new Execution($vnx_dir,$exemode,"host> ",'',$uid);
+
+   	# Calculate the directory where the input_file lives
+   	my $xml_dir = (fileparse(abs_path($input_file)))[1];
+
+	# Build the VNX::DataHandler object
+   	$dh = new DataHandler($execution,$doc,'','','',$xml_dir,$input_file);
+   	#$dh->set_boot_timeout($boot_timeout);
+   	$dh->set_vnx_dir($vnx_dir);
+   	$dh->set_tmp_dir($tmp_dir);
+   	#$dh->enable_ipv6($enable_6);
+   	#$dh->enable_ipv4($enable_4);   
+
+   	# Semantic check (in addition to validation)
+   	if (my $err_msg = &check_doc($bd->get_binaries_path_ref,$execution->get_uid)) {
+      	&ediv_die ("$err_msg\n");
+   	}
+
+	# Validate extended XML configuration files
+	# Dynamips
+	my $extConfFile = $dh->get_default_dynamips();
+	#print "*** dynamipsconf=$extConfFile\n";
+	if ($extConfFile ne "0"){
+		$extConfFile = vmAPI_dynamips->validateExtXMLFiles($extConfFile);	
+	}
+	
+}
+
+# ediv_die
+#
+# Wrapper of die Perl function. It is based on the old smartdie, now moved to the
+# VNX::Execution class in Execution.pm. Note that, this funcion does not release
+# the LOCK file (as smartdie does): it is intented to be used in the early stages
+# of vnumlparser.pl execution, when the VNX::Execution object has not been construsted.
+#
+sub ediv_die {
+   my $mess = shift;
+   printf "%s (%s): %s \n", (caller(1))[3], (caller(0))[2], $mess;
+   exit 1;
 }
