@@ -11,7 +11,7 @@
 #			      Universidad Politecnica de Madrid
 #			      SPAIN
 #			
-# Available at:	  http://www.dit.upm.es/vnuml 
+# Available at:	  http://www.dit.upm.es/vnx 
 #
 # ----------------------------------------------------------------------------------
 #
@@ -238,29 +238,26 @@ exit(0);
 #
 sub main {
 	
+   print "----------------------------------------------------------------------------------\n";
+   print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es          \n";
+   print "Version: $version" . "$branch (build on $release)\n";
+   print "----------------------------------------------------------------------------------\n";
+
    $ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
 
-   #my $vnx_dir = &do_path_expansion("~/.vnx");
    my $vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
-   
-#   my $tmp_dir = "@VNUML_TMP@";[JSF]
-#   my $uid = $> == 0 ? getpwnam("@VNUML_USER@") : $>;[JSF]
    my $tmp_dir = "/tmp";
-#   my $uid = $> == 0 ? getpwnam("vnuml") : $>;
-
 
    # DFC 21/2/2011 my $uid = $> == 0 ? getpwnam("vnx") : $>; # uid=vnx if executed as root; userid if executed as user
    my $uid = $>;
    #print "***** uid=$uid\n";
 
-#   my $boot_timeout = 30;		  # by default, 30 seconds for boot timeout
-   my $boot_timeout = 60; #[JSF]: las uml daban timeout con windows en el escenario
+   my $boot_timeout = 60; # by default, 60 seconds for boot timeout
    
    my $start_time;                   # the moment when the parsers start operation
 
    ###########################################################
    # To get the invocation arguments
-
 
    our($opt_t,$opt_s,$opt_p,$opt_r,$opt_d,
       $opt_m,$opt_c,$opt_g,$opt_v,$opt_F,
@@ -317,11 +314,6 @@ sub main {
    # FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
    # it by default
    $args->set('Z',1);
-
-   print "----------------------------------------------------------------------------------\n";
-   print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es          \n";
-   print "Version: $version" . "$branch (build on $release)\n";
-   print "----------------------------------------------------------------------------------\n";
 
    # Set configuration file 
    if ($opt_config) {
@@ -539,7 +531,7 @@ sub main {
       &vnx_die ("-w value ($opt_w) is not a valid timeout (positive integer)\n");  
    }
 
-   # FIXME: $enabld_4 and $enable_6 are not necessary, use $args object
+   # FIXME: $enable_4 and $enable_6 are not necessary, use $args object
    # instead and avoid redundance
    my $enable_4 = 1;
    my $enable_6 = 1;
@@ -576,7 +568,7 @@ sub main {
       &vnx_die ("file $input_file is not valid (perhaps does not exists)\n");
    }
 
-   # 4. To check vnuml_dir and tmp_dir
+   # 4. To check vnx_dir and tmp_dir
    # Create the working directory, if it doesn't already exist
    if ($exemode ne $EXE_DEBUG) {
 	   	if (! -d $vnx_dir ) {
@@ -605,91 +597,59 @@ sub main {
 	   	if (! -d "$vnx_dir/networks") {
 		   	mkdir "$vnx_dir/networks" or &vnx_die("Unable to create networks directory $vnx_dir/networks: $!\n");
 	   	}
-   }
-   &vnx_die ("tmp_dir $tmp_dir does not exist or is not readable/executable\n") unless (-r $tmp_dir && -x _);
-   &vnx_die ("tmp_dir $tmp_dir is not writeable\n") unless (-w _);
-   &vnx_die ("tmp_dir $tmp_dir is not a valid directory\n") unless (-d _);
+   	}
+   	&vnx_die ("tmp_dir $tmp_dir does not exist or is not readable/executable\n") unless (-r $tmp_dir && -x _);
+   	&vnx_die ("tmp_dir $tmp_dir is not writeable\n") unless (-w _);
+   	&vnx_die ("tmp_dir $tmp_dir is not a valid directory\n") unless (-d _);
 
-   # 5. To build the VNX::BinariesData object
-   $bd = new BinariesData($exemode);
+   	# 5. To build the VNX::BinariesData object
+   	$bd = new BinariesData($exemode);
 
-   # 6a. To check mandatory binaries # [JSF] to be updated with new ones
-   if ($bd->check_binaries_mandatory != 0) {
+   	# 6a. To check mandatory binaries # [JSF] to be updated with new ones
+   	if ($bd->check_binaries_mandatory != 0) {
       &vnx_die ("some required binary files are missing\n");
-   }
+   	}
   
-   # We need the file to perform some manipulations
-   open INPUTFILE, "$input_file";
-   my @input_file_array = <INPUTFILE>;
-   my $input_file_string = join("",@input_file_array);
-   close INPUTFILE;
+   	# We need the file to perform some manipulations
+   	open INPUTFILE, "$input_file";
+   	my @input_file_array = <INPUTFILE>;
+   	my $input_file_string = join("",@input_file_array);
+   	close INPUTFILE;
    
-   # 7. To check if the DTD file is present
-   my $modeparser;
+   	# 7. To check if the DTD file is present
+   	my $modeparser;
       
-   if ($input_file_string =~ /<!DOCTYPE vnx SYSTEM "(.*)">/) { 
-# DFC: Use of DTD eliminated
-#      unless (-f $1) {
-#         &vnx_die ("DTD file $1 is not valid (perhaps does not exists)\n");	  
-#      }
-#      $modeparser = "dtd"
+   	if ($input_file_string =~ /<!DOCTYPE vnx SYSTEM "(.*)">/) { 
          &vnx_die ("parsing based on DTD not supported; use XSD instead\n");	  
-   }
-#   else{
-   	$modeparser = "xsd";
-#   }
+   	}
+	$modeparser = "xsd";
 
-   # 8. To check version number
-   if ($input_file_string =~ /<version>\s*(\d\.\d+)(\.\d+)?\s*<\/version>/) {
-      my $version_in_file = $1;
-      $version =~ /^(\d\.\d+)/;
-      my $version_in_parser = $1;
-      unless ($version_in_file eq $version_in_parser) {
-      	&vnx_die("mayor version numbers of source file ($version_in_file) and parser ($version_in_parser) do not match");
-		exit;
-      }
-   }
-   else {
-      &vnx_die("can not find VNX version in $input_file");
-   }
+   	# 8. To check version number
+   	if ($input_file_string =~ /<version>\s*(\d\.\d+)(\.\d+)?\s*<\/version>/) {
+      	my $version_in_file = $1;
+      	$version =~ /^(\d\.\d+)/;
+      	my $version_in_parser = $1;
+      	unless ($version_in_file eq $version_in_parser) {
+      		&vnx_die("mayor version numbers of source file ($version_in_file) and parser ($version_in_parser) do not match");
+			exit;
+      	}
+   	} else {
+      	&vnx_die("can not find VNX version in $input_file");
+   	}
 
-   # Interactive execution (press a key after each command)
-   my $exeinteractive = $opt_v && $opt_i;
+   	# Interactive execution (press a key after each command)
+   	my $exeinteractive = $opt_v && $opt_i;
 
-   # Before building the DOM tree, perform text patern-based version
-   # checking   
+   	# Before building the DOM tree, perform text patern-based version
+   	# checking   
 
-   # To build DOM tree parsing file
-   $valid_fail = 0;
-   my $parser;
-   my $doc;
-# DFC: Use of DTD eliminated
-#   if($modeparser eq 'dtd'){
-#
-#	   if ($opt_k) {
-#	      # No longer implemented 
-#	      #$parser = new XML::DOM::Parser;
-#	      &vnx_die ("-k switch is no longer supported since version 1.3.2\n");
-#	   }
-#	   else {
-#	      # Validator parser
-#	      $parser = new XML::DOM::ValParser;
-#	   }
-#	   eval {
-#	      local $XML::Checker::FAIL = \&validation_fail;
-#	      $doc = $parser->parsefile($input_file);
-#	   } || throw Vnx::Exception( error=>"XML parsing of $input_file error: "
-#	      . $@, show_trace=>1 );
-#	
-#	   if ($valid_fail) {
-#	      # Validation errors
-#	      &vnx_die("$input_file is not a well-formed VNX file\n");
-#	   }
-#   }
+   	# To build DOM tree parsing file
+   	$valid_fail = 0;
+   	my $parser;
+   	my $doc;
    if($modeparser eq "xsd"){
    		my $schemalocation;
 
-#jsf	if ($input_file_string =~ /="(.*).xsd"/) {
 	    if ($input_file_string =~ /="(\S*).xsd"/) {
         	$schemalocation = $1 .".xsd";
 
@@ -703,17 +663,6 @@ sub main {
 		$parser = XML::LibXML->new;
 		#$doc    = $parser->parse_file($document);
 		$doc = $parser->parse_file($input_file);
-		
-=BEGIN		
-		eval { $schema->validate($doc) };
-	
-		if ($@) {
-		  # Validation errors
-		  &vnx_die("$input_file is not a well-formed VNX file:\n$@\n");
-		}
-=END
-=cut	
-	
 		my $parser2 = new XML::DOM::Parser;
         $doc = $parser2->parsefile($input_file);
    }
@@ -740,40 +689,42 @@ sub main {
    # Deprecation warnings
    &check_deprecated;
 
-
    # Semantic check (in addition to validation)
-   #if (my $err_msg = &check_doc($dh,$bd->get_binaries_path_ref,$execution->get_uid)) {
    if (my $err_msg = &check_doc($bd->get_binaries_path_ref,$execution->get_uid)) {
       &vnx_die ("$err_msg\n");
    }
+   
+   	# Validate extended XML configuration files
+	# Dynamips
+	my $extConfFile = $dh->get_default_dynamips();
+	#print "*** dynamipsconf=$extConfFile\n";
+	if ($extConfFile ne "0"){
+		$extConfFile = vmAPI_dynamips->validateExtXMLFiles($extConfFile);	
+	}
 
-   # 6b (delayed because it required the $dh object constructed)
-   # To check optional screen binaries
-   #$bd->add_additional_screen_binaries($dh);
-   $bd->add_additional_screen_binaries();
-   if (($opt_e) && ($bd->check_binaries_screen != 0)) {
-      &vnx_die ("screen related binary is missing\n");
-   }
+   	# 6b (delayed because it required the $dh object constructed)
+   	# To check optional screen binaries
+   	$bd->add_additional_screen_binaries();
+   	if (($opt_e) && ($bd->check_binaries_screen != 0)) {
+      	&vnx_die ("screen related binary is missing\n");
+   	}
 
-   # 6c (delayed because it required the $dh object constructed)
-   # To check optional uml_switch binaries 
-   #$bd->add_additional_uml_switch_binaries($dh);
-   $bd->add_additional_uml_switch_binaries();
-   if (($bd->check_binaries_switch != 0)) {
-      &vnx_die ("uml_switch related binary is missing\n");
-   }
+   	# 6c (delayed because it required the $dh object constructed)
+   	# To check optional uml_switch binaries 
+   	$bd->add_additional_uml_switch_binaries();
+   	if (($bd->check_binaries_switch != 0)) {
+      	&vnx_die ("uml_switch related binary is missing\n");
+   	}
 
-   # 6d (delayed because it required the $dh object constructed)
-   # To check optional binaries for virtual bridge
-   #$bd->add_additional_bridge_binaries($dh);   
-   $bd->add_additional_bridge_binaries();   
-   if ($bd->check_binaries_bridge != 0) {
-      &vnx_die ("virtual bridge related binary is missing\n");  
-   }
+   	# 6d (delayed because it required the $dh object constructed)
+   	# To check optional binaries for virtual bridge
+   	$bd->add_additional_bridge_binaries();   
+   	if ($bd->check_binaries_bridge != 0) {
+      	&vnx_die ("virtual bridge related binary is missing\n");  
+   	}
 
    # 6e (delayed because it required the $dh object constructed)
    # To check xterm binaries
-   #$bd->add_additional_xterm_binaries($dh);
    $bd->add_additional_xterm_binaries();
    if (($bd->check_binaries_xterm != 0)) {
       &vnx_die ("xterm related binary is missing\n");
@@ -781,7 +732,6 @@ sub main {
 
    # 6f (delayed because it required the $dh object constructed)
    # To check optional binaries for VLAN support
-   #$bd->add_additional_vlan_binaries($dh);   
    $bd->add_additional_vlan_binaries();   
    if ($bd->check_binaries_vlan != 0) {
       &vnx_die ("VLAN related binary is missing\n");  
@@ -2139,7 +2089,6 @@ sub start_VMs {
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i); # only needed for uml vms 
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      #my $error = "vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
       my $error = "vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $sock, $manipcounter);
       if (!($error eq 0)){print $error} 
       $manipcounter++;
@@ -3864,7 +3813,7 @@ sub mgmt_sock_destroy {
 #   XML::Checker::print_error ($code, @_);
 #}
 
-# vnuml_die
+# vnx_die
 #
 # Wrapper of die Perl function. It is based on the old smartdie, now moved to the
 # VNX::Execution class in Execution.pm. Note that, this funcion does not release
@@ -4561,7 +4510,8 @@ sub get_vnx_config {
 sub usage {
 	my $basename = basename $0;
 	print "Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnx_dir] [-u user]\n";
-	print "                 [-T tmp_dir] [-i] [-w timeout] [-B] [-Z]\n";
+#	print "                 [-T tmp_dir] [-i] [-w timeout] [-B] [-Z]\n";
+	print "                 [-T tmp_dir] [-i] [-w timeout] [-B]\n";
 	print "                 [-e screen_file] [-4] [-6] [-v] [-g] [-M vm_list] [-D]\n";
 	print "       vnx -f VNX_file [-x|--execute cmd_seq] [-T tmp_dir] [-M vm_list] [-i] [-B] [-4] [-6] [-v] [-g]\n";
 	print "       vnx -f VNX_file [-d|--shutdown] [-c vnx_dir] [-F] [-T tmp_dir] [-i] [-B] [-4] [-6] [-v] [-g]\n";
@@ -4605,7 +4555,7 @@ sub usage {
 	print "       -F, force stopping of UMLs (warning: UML filesystems may be corrupted)\n";
 	print "       -w timeout, waits timeout seconds for a UML to boot before prompting the user for further action; a timeout of 0 indicates no timeout (default is 30)\n";
 	print "       -B, blocking mode\n";
-	print "       -Z, avoids filesystem VNXzation\n";
+#	print "       -Z, avoids filesystem VNXzation\n";
 	print "       -e screen_file, make screen configuration file for pts devices\n";
 	print "       -i, interactive execution (in combination with -v mode)\n";
 	print "       -4, process only IPv4 related tags (and not process IPv6 related tags)\n";

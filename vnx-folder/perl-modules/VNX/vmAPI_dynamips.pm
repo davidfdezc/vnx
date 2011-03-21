@@ -43,7 +43,9 @@
   resumeVM
   rebootVM
   resetVM
-  executeCMD);
+  executeCMD
+  validateExtXMLFiles
+  );
 
 package vmAPI_dynamips;
 
@@ -113,9 +115,9 @@ sub defineVM {
 
 	# Get the extended configuration file if it exists
 	$extConfFile = $dh->get_default_dynamips();
-	print "*** dynamipsconf=$extConfFile\n";
+	#print "*** dynamipsconf=$extConfFile\n";
 	if ($extConfFile ne "0"){
-		$extConfFile = &validate_ext_config_file($extConfFile);	
+		$extConfFile = &validateExtXMLFiles($self, $extConfFile);	
 	}
 	
 	my $doc2       = $dh->get_doc;
@@ -778,7 +780,7 @@ sub executeCMD{
 	# Configuro el fichero de configuracion extendida
 	$extConfFile = $dh->get_default_dynamips();
 	if ($extConfFile ne "0"){
-		$extConfFile = &validate_ext_config_file($extConfFile);	
+		$extConfFile = &validateExtXMLFiles($self, $extConfFile);	
 	}
 	# Get the console port from vm's console file
 	open (PORT_CISCO, "< $consFile") || $execution->smartdie ("ERROR: cannot open $vmName console file ($consFile)");
@@ -943,7 +945,7 @@ sub reload_conf {
 
 
 # 
-# validate_ext_config_file
+# validateExtXMLFiles
 # 
 #   Checks the existence of the extended configuration file and validates it.
 #   Returns the full pathname of the file.
@@ -954,11 +956,11 @@ sub reload_conf {
 # Returns
 #   full path name of file
 #
-sub validate_ext_config_file{
+sub validateExtXMLFiles{
+	
+	my $self = shift;
 	my $tempconf = shift;
-	print "************************************************************************\n";
-	print "*** set_and_validate_ext_config_file: tempconf=$tempconf\n";
-	print "************************************************************************\n";
+	#print "*** vmAPI_dynamips: validateExtXMLFiles tempconf=$tempconf\n";
 
 	$tempconf = &get_abs_path ($tempconf);
 	
@@ -995,7 +997,7 @@ sub validate_ext_config_file{
 		  # Validation errors
 		  $execution->smartdie("$tempconf is not a well-formed Dynamips extended configuration file");
 		}
-    	print "*** set_and_validate_ext_config_file: tempconf=$tempconf\n";
+    	#print "*** validateExtXMLFiles: tempconf=$tempconf\n";
 		return $tempconf;	
 	}else
 	{
