@@ -353,22 +353,41 @@ sub defineVM {
 
 			my $interface_tag = $init_xml->createElement('interface');
 			$devices_tag->addChild($interface_tag);
-			$interface_tag->addChild(
-				$init_xml->createAttribute( type => 'bridge' ) );
-			$interface_tag->addChild(
+			if ($id eq 0){
+				$interface_tag->addChild(
+				$init_xml->createAttribute( type => 'network' ) );
+				$interface_tag->addChild(
 				$init_xml->createAttribute( name => "eth" . $id ) );
-			$interface_tag->addChild(
+				$interface_tag->addChild(
 				$init_xml->createAttribute( onboot => "yes" ) );
-			my $source_tag = $init_xml->createElement('source');
-			$interface_tag->addChild($source_tag);
-			$source_tag->addChild(
+			    my $source_tag = $init_xml->createElement('source');
+			    $interface_tag->addChild($source_tag);
+			    $source_tag->addChild(
+				$init_xml->createAttribute( network => 'default') );
+				my $mac_tag = $init_xml->createElement('mac');
+			    $interface_tag->addChild($mac_tag);
+			    $mac =~ s/,//;
+			    $mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+			}else{
+				$interface_tag->addChild(
+				$init_xml->createAttribute( type => 'bridge' ) );
+				$interface_tag->addChild(
+				$init_xml->createAttribute( name => "eth" . $id ) );
+				$interface_tag->addChild(
+			 	$init_xml->createAttribute( onboot => "yes" ) );
+			    my $source_tag = $init_xml->createElement('source');
+			    $interface_tag->addChild($source_tag);
+			    $source_tag->addChild(
 				$init_xml->createAttribute( bridge => $net ) );
-			my $mac_tag = $init_xml->createElement('mac');
-			$interface_tag->addChild($mac_tag);
-			$mac =~ s/,//;
-			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+				my $mac_tag = $init_xml->createElement('mac');
+			    $interface_tag->addChild($mac_tag);
+			    $mac =~ s/,//;
+			    $mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+			}
 
 		}
+
+		
 
     	#
 		# VM CONSOLES
@@ -690,20 +709,37 @@ sub defineVM {
 
 			my $interface_tag = $init_xml->createElement('interface');
 			$devices_tag->addChild($interface_tag);
-			$interface_tag->addChild(
-				$init_xml->createAttribute( type => 'bridge' ) );
-			$interface_tag->addChild(
+			if ($id eq 0){
+				$interface_tag->addChild(
+				$init_xml->createAttribute( type => 'network' ) );
+				$interface_tag->addChild(
 				$init_xml->createAttribute( name => "eth" . $id ) );
-			$interface_tag->addChild(
+				$interface_tag->addChild(
 				$init_xml->createAttribute( onboot => "yes" ) );
-			my $source_tag = $init_xml->createElement('source');
-			$interface_tag->addChild($source_tag);
-			$source_tag->addChild(
+			    my $source_tag = $init_xml->createElement('source');
+			    $interface_tag->addChild($source_tag);
+			    $source_tag->addChild(
+				$init_xml->createAttribute( network => 'default') );
+				my $mac_tag = $init_xml->createElement('mac');
+			    $interface_tag->addChild($mac_tag);
+			    $mac =~ s/,//;
+			    $mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+			}else{
+				$interface_tag->addChild(
+				$init_xml->createAttribute( type => 'bridge' ) );
+				$interface_tag->addChild(
+				$init_xml->createAttribute( name => "eth" . $id ) );
+				$interface_tag->addChild(
+			 	$init_xml->createAttribute( onboot => "yes" ) );
+			    my $source_tag = $init_xml->createElement('source');
+			    $interface_tag->addChild($source_tag);
+			    $source_tag->addChild(
 				$init_xml->createAttribute( bridge => $net ) );
-			my $mac_tag = $init_xml->createElement('mac');
-			$interface_tag->addChild($mac_tag);
-			$mac =~ s/,//;
-			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+				my $mac_tag = $init_xml->createElement('mac');
+			    $interface_tag->addChild($mac_tag);
+			    $mac =~ s/,//;
+			    $mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+			}			
 
 			# DFC: set interface model to 'i82559er' in olive router interfaces.
 			#      Using e1000 the interfaces are not created correctly (to further investigate) 
@@ -715,6 +751,15 @@ sub defineVM {
 			}
 			
 		}
+		
+#		# configuracion de la interfaz de gestion
+#		my $mngifTagList = $virtualm->getElementsByTagName("mng_if");
+#		my $mngifTag     = $mngifTagList->item(0);
+#		my $mngid    = $mngifTag->getAttribute("id");
+#		my $mngnet   = $mngifTag->getAttribute("net");
+#		my $mngmac   = $mngifTag->getAttribute("mac");
+		#
+		
 
     	#
 		# VM CONSOLES
@@ -1326,7 +1371,7 @@ sub startVM {
 =END
 =cut				
 				
-				my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type,$dh->get_vmmgmt_net,$dh->get_vmmgmt_mask,$dh->get_vmmgmt_offset,$dh->get_vmmgmt_hostip, 2 );
+				my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type,$dh->get_vmmgmt_net,$dh->get_vmmgmt_mask,$dh->get_vmmgmt_offset,$dh->get_vmmgmt_hostip, 2, $vmName);
 
 				# If host_mapping is in use, append trailer to /etc/hosts config file
 
@@ -3221,7 +3266,7 @@ sub change_vm_status {
 # which returns UML ip undefined. Or, if one needs UML ip, function 
 # takes two arguments: $vm object and interface id. Interface id zero 
 # is reserved for management interface, and is default is none is supplied
-sub get_admin_address {
+sub get_admin_address_OLD {
 
    my $seed = shift;
    my $vmmgmt_type = shift;
@@ -3263,7 +3308,74 @@ sub get_admin_address {
    return $ip;
 }
 
+sub get_admin_address {
 
+   my $seed = shift;
+   my $vmmgmt_type = shift;
+   my $vmmgmt_net = shift;
+   my $vmmgmt_mask = shift;
+   my $vmmgmt_offset = shift;
+   my $vmmgmt_hostip = shift;
+   my $hostnum = shift;
+   my $ip;
+   my $vmName = shift;
+
+   my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
+   if ($vmmgmt_type eq 'private') {
+      if ($seed eq "file"){
+         #read management ip value from file
+         my $addr = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'addr');
+         my $mask = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'mask');
+         $ip = NetAddr::IP->new($addr.$mask);
+      }else{
+         # check to make sure that the address space won't wrap
+         if ($vmmgmt_offset + ($seed << 2) > (1 << (32 - $vmmgmt_mask)) - 3) {
+            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
+         }
+         # create a private subnet from the seed
+         $net += $vmmgmt_offset + ($seed << 2);
+         $ip = NetAddr::IP->new($net->addr()."/30") + $hostnum;
+
+         # create mng_ip file in vm dir, unless processing the host
+         unless ($hostnum eq 1){
+         	my $addr_line = "addr=" . $ip->addr();
+            my $mask_line = "mask=" . $ip->mask();
+            my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
+            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
+            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
+         }
+      }     
+   } else {
+	  # vmmgmt type is 'net'
+      if ($seed eq "file"){
+         #read management ip value from file
+         $ip= &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'management_ip');
+      }else{
+         # don't assign the hostip
+         my $hostip = NetAddr::IP->new($vmmgmt_hostip."/".$vmmgmt_mask);
+         if ($hostip > $net + $vmmgmt_offset &&
+            $hostip <= $net + $vmmgmt_offset + $seed + 1) {
+         $seed++;
+         }
+
+         # check to make sure that the address space won't wrap
+         if ($vmmgmt_offset + $seed > (1 << (32 - $vmmgmt_mask)) - 3) {
+            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
+         }
+
+         # return an address in the vmmgmt subnet
+         $ip = $net + $vmmgmt_offset + $seed + 1;
+         
+         # create mng_ip file in run dir
+         my $addr_line = "addr=" . $ip->addr();
+         my $mask_line = "addr=" . $ip->mask();
+         my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
+         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
+         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
+      }
+   }
+   return $ip;
+}
 
 
 ###################################################################
