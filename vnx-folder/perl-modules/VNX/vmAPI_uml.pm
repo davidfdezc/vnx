@@ -554,24 +554,24 @@ sub startVM {
 			}
 		}
 
-		# Management interface
-		my $mng_ifTagList = $virtualm->getElementsByTagName("mng_if");
-		my $mng_ifTag     = $mng_ifTagList->item(0);
-		my $mng_if_value  = $mng_ifTag->getAttribute("value");
-		my $mac           = $mng_ifTag->getAttribute("mac");
-
-		unless ( $mng_if_value eq "no" || $dh->get_vmmgmt_type eq 'none' ) {
-			if ( $dh->get_vmmgmt_type eq 'private' ) {
-				push( @params, "eth0=tuntap,$virtualm_name-e0$mac" );
-			}
-			else {
-
-				# use the switch daemon
-				my $uml_switch_sock = $dh->get_networks_dir . "/"
-				  . $dh->get_vmmgmt_netname . ".ctl";
-				push( @params, "eth0=daemon$mac,unix,$uml_switch_sock" );
-			}
-		}
+#		# Management interface
+#		my $mng_ifTagList = $virtualm->getElementsByTagName("mng_if");
+#		my $mng_ifTag     = $mng_ifTagList->item(0);
+#		my $mng_if_value  = $mng_ifTag->getAttribute("value");
+#		my $mac           = $mng_ifTag->getAttribute("mac");
+#
+#		unless ( $mng_if_value eq "no" || $dh->get_vmmgmt_type eq 'none' ) {
+#			if ( $dh->get_vmmgmt_type eq 'private' ) {
+#				push( @params, "eth0=tuntap,$virtualm_name-e0$mac" );
+#			}
+#			else {
+#
+#				# use the switch daemon
+#				my $uml_switch_sock = $dh->get_networks_dir . "/"
+#				  . $dh->get_vmmgmt_netname . ".ctl";
+#				push( @params, "eth0=daemon$mac,unix,$uml_switch_sock" );
+#			}
+#		}
 
 		# Background UML execution without consoles by default
 		push( @params,
@@ -729,10 +729,11 @@ sub startVM {
 					} 
 				}
 			}
+
 							
 			my $consFile = $dh->get_run_dir($vmName) . "/console";
 			my @console_list = $dh->merge_console($virtualm);
-			
+		
 			if (scalar(@console_list) == 0) { 
 				# Nothing defined for the consoles. 
 				# Default configuration: con0=no,uml_pts,/dev/pts/9 
@@ -754,8 +755,9 @@ sub startVM {
 						$execution->execute( $bd->get_binaries_path_ref->{"echo"}
 							  	. " con0=no,uml_pts,$pts >> " . $consFile );
 					}
+
 				}
-				
+			
 			} else {
 			
 				my $get_screen_pts;
@@ -774,6 +776,7 @@ sub startVM {
 						while ( $pts =~ /^$/ )
 						{ # I'm sure that this loop could be smarter, but it works :)
 							print "Trying to get console $console_id pts...\n"
+
 							  if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
 							sleep 1;    # Needed to avoid  syncronization problems
 							my $command =
@@ -2199,13 +2202,12 @@ sub get_admin_address {
    my $vmName = shift;
    my $ip;
    
-
    my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
    if ($vmmgmt_type eq 'private') {
       if ($seed eq "file"){
          #read management ip value from file
-         my $addr = &get_conf_value ($dh->get_run_dir($vmName) . '/mng_ip', '', 'addr');
-         my $mask = &get_conf_value ($dh->get_run_dir($vmName) . '/mng_ip', '', 'mask');
+         my $addr = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'addr');
+         my $mask = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'mask');
          $ip = NetAddr::IP->new($addr.$mask);
       }else{
          # check to make sure that the address space won't wrap
@@ -2216,18 +2218,20 @@ sub get_admin_address {
          $net += $dh->get_vmmgmt_offset + ($seed << 2);
          $ip = NetAddr::IP->new($net->addr()."/30") + $hostnum;
 
-         # create mng_ip file in run dir
-         my $addr_line = "addr=" . $ip->addr();
-         my $mask_line = "addr=" . $ip->mask();
-         my $mngip_file = $dh->get_run_dir($vmName) . '/mng_ip';
-         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
-         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
+         # create mng_ip file in vm dir, unless processing the host
+         unless ($hostnum eq 1){
+         	my $addr_line = "addr=" . $ip->addr();
+            my $mask_line = "mask=" . $ip->mask();
+            my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
+            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
+            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
+         }
       }     
    } else {
 	  # vmmgmt type is 'net'
       if ($seed eq "file"){
          #read management ip value from file
-         $ip= &get_conf_value ($dh->get_run_dir($vmName) . '/mng_ip', '', 'management_ip');
+         $ip= &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'management_ip');
       }else{
          # don't assign the hostip
          my $hostip = NetAddr::IP->new($dh->get_vmmgmt_hostip."/".$dh->get_vmmgmt_mask);
@@ -2247,15 +2251,52 @@ sub get_admin_address {
          # create mng_ip file in run dir
          my $addr_line = "addr=" . $ip->addr();
          my $mask_line = "addr=" . $ip->mask();
-         my $mngip_file = $dh->get_run_dir($vmName) . '/mng_ip';
+         my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
          $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
          $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
       }
    }
+
    return $ip;
 }
 
+sub get_admin_address_OLD {
 
+   my $seed = shift;
+   my $vmmgmt_type = shift;
+   my $hostnum = shift;
+   my $ip;
+
+   my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
+   if ($vmmgmt_type eq 'private') {
+	   # check to make sure that the address space won't wrap
+	   if ($dh->get_vmmgmt_offset + ($seed << 2) > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
+		   $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
+	   }
+
+	   # create a private subnet from the seed
+	   $net += $dh->get_vmmgmt_offset + ($seed << 2);
+	   $ip = NetAddr::IP->new($net->addr()."/30") + $hostnum;
+   } else {
+	   # vmmgmt type is 'net'
+
+	   # don't assign the hostip
+	   my $hostip = NetAddr::IP->new($dh->get_vmmgmt_hostip."/".$dh->get_vmmgmt_mask);
+	   if ($hostip > $net + $dh->get_vmmgmt_offset &&
+		   $hostip <= $net + $dh->get_vmmgmt_offset + $seed + 1) {
+		   $seed++;
+	   }
+
+	   # check to make sure that the address space won't wrap
+	   if ($dh->get_vmmgmt_offset + $seed > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
+		   $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
+	   }
+
+	   # return an address in the vmmgmt subnet
+	   $ip = $net + $dh->get_vmmgmt_offset + $seed + 1;
+   }
+   return $ip;
+}
 
 ###################################################################
 # get_kernel_pids;
@@ -2328,7 +2369,9 @@ sub UML_bootfile {
 	# Configure management interface internal side, if neeed
 	#my $mng_if_value = &mng_if_value( $dh, $vm );
 	my $mng_if_value = &mng_if_value( $vm );
+
 	unless ( $mng_if_value eq "no" || $dh->get_vmmgmt_type eq 'none' ) {
+#		my $net = &get_admin_address( $number, $dh->get_vmmgmt_type, 2);
 		my $net = &get_admin_address( $number, $dh->get_vmmgmt_type, 2, $vm_name );
 
 		$execution->execute(
@@ -2479,7 +2522,7 @@ sub UML_bootfile {
 			}
 		}
 
-		#}
+		#
 	}
 
 	# 5a. Route configuration
