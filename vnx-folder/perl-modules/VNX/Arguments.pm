@@ -96,6 +96,8 @@ sub new {
    $self->{'config'} = shift;
    $self->{'D'} = shift;
    $self->{'b'} = shift;
+   $self->{'n'} = shift;
+   $self->{'no_console'} = shift;
    
    return $self;
 }

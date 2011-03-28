@@ -265,7 +265,8 @@ sub main {
       $opt_suspend, $opt_resume,$opt_reboot,
       $opt_reset,$opt_execute,$opt_f,$opt_showmap,
       $opt_console,$opt_consoleinfo,$opt_cid,
-      $opt_C, $opt_config, $opt_D, $opt_b);
+      $opt_C, $opt_config, $opt_D, $opt_b, $opt_n,
+      $opt_no_console);
       
    	Getopt::Long::Configure ("bundling"); # case sensitive single-character options
    	GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
@@ -287,8 +288,8 @@ sub main {
               'execute=s' => \$opt_execute, 'f=s' => \$opt_f,
               'show-map' => \$opt_showmap, 'console' => \$opt_console,
               'cid=s' => \$opt_cid, 'console-info' => \$opt_consoleinfo,
-              'C|config=s' => \$opt_config,
-              'D' => \$opt_D, 'b' => \$opt_b);
+              'C|config=s' => \$opt_config, 'D' => \$opt_D, 'b' => \$opt_b,
+              'n' => \$opt_n, 'no_console' => \$opt_no_console);
 
    	# Build the argument object
    	$args = new Arguments(
@@ -303,11 +304,13 @@ sub main {
       	$opt_suspend,$opt_resume,$opt_reboot,
       	$opt_reset,$opt_execute,$opt_f,$opt_showmap,
       	$opt_console,$opt_cid,$opt_consoleinfo,
-      	$opt_config, $opt_D, $opt_b);
+      	$opt_config, $opt_D, $opt_b, $opt_n,
+      	$opt_no_console);
 
    	# FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
    	# it by default
    	$args->set('Z',1);
+
 
    	# Set configuration file 
    	if ($opt_config) {
@@ -479,6 +482,10 @@ sub main {
    	if (($opt_4) && ($opt_6)) {
       	&usage;
       	&vnx_die ("-4 and -6 can not be used at the same time\n");
+   	}
+   	if (($opt_n||$opt_no_console) && (!($opt_t||$opt_create))) {
+      	&usage;
+      	&vnx_die ("Option -n|--no_console only makes sense with -t|--create mode\n");
    	}
 
    	# Version pseudomode
@@ -2008,7 +2015,6 @@ sub define_VMs {
       my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i,$manipcounter);	
-            
       # Save the XML <create_conf> file to .vnx/scenarios/<vscenario_name>/vms/$name_cconf.xml
 	  open XML_CCFILE, ">" . $dh->get_vm_dir($name) . '/' . $name . '_cconf.xml'
 		  or $execution->smartdie("can not open " . $dh->get_vm_dir . '/' . $name . '_cconf.xml' )
@@ -4015,7 +4021,7 @@ sub make_vm_API_doc {
    my $manipcounter = shift;
    my $dom;
 
-print "**** manipcounter=$manipcounter\n";
+
    
    $dom = XML::LibXML->createDocument( "1.0", "UTF-8" );
    
@@ -4141,7 +4147,16 @@ print "**** manipcounter=$manipcounter\n";
             $console_tag->addChild($dom->createAttribute( id => $console_id));
 			# Optional attributes: display and port            
             my $console_display = $console->getAttribute("display");
-            if ($console_display ne "") {
+            
+            # If "no_console" options are found, do not launch consoles,
+            # if not, look for tag "display" for the vm and, if found, process it.
+            
+            my $opt_n = $args->get('n');
+            my $opt_no_console = $args->get('no_console');
+            if ($opt_n||$opt_no_console){
+            	$console_tag->addChild($dom->createAttribute( display => "no"));
+            	para("1");
+            }elsif($console_display ne ""){
                 $console_tag->addChild($dom->createAttribute( display => $console_display));
             }
             my $console_port = $console->getAttribute("port");
@@ -4743,6 +4758,7 @@ sub usage {
 	print "       -M vm_list, start/stop/restart scenario in vm_list UMLs (a list of names separated by ,)\n";
    	print "       -C|--config config_file, use config_file as configuration file instead of default one (/etc/vnx.conf)\n";
    	print "       -D, delete LOCK file\n";
+   	print "       -n|--no_console, do not display the console of any vm. To be used with -t|--create options";
    	print "\n";
    
 
