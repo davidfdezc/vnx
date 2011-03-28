@@ -310,7 +310,8 @@ sub check_doc {
 
       my $external_if = $net->getAttribute("external");
       unless ($external_if =~ /^$/) {
-	    if (system($bp->{"ifconfig"} . " $external_if &> /dev/null")) {
+	    print $bp->{"ifconfig"} . " $external_if &> /dev/null\n";
+	    if (system($bp->{"ifconfig"} . " $external_if 2&> /dev/null")) {
 	      return "in network $name, $external_if does not exist";
 	    } 
 	    # Check the VLAN attribute (to compose the physical name, for 
@@ -660,10 +661,10 @@ sub check_doc {
             $phyif_names_ipv6{$name} = 1;
          }
          
-         # It exists?
-         if (system($bp->{"ifconfig"} . " $name &> /dev/null")) {
+         # It exists?         
+         if (system($bp->{"ifconfig"} . " $name 2&> /dev/null")) {
 	        return "physicalif $name does not exists";
-         }
+         }         
          
          # To get ip attribute
          my $ip = $phyif->getAttribute("ip");
@@ -698,7 +699,7 @@ sub check_doc {
          }
 
          # It exists?
-         if (system($bp->{"ifconfig"} . " $name &> /dev/null")) {
+         if (system($bp->{"ifconfig"} . " $name 2&> /dev/null")) {
 	        return "physicalif $name does not exists";
          }
 

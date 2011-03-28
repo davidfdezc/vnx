@@ -45,9 +45,9 @@ my $db_pass;
 my $db_connection_info;
 
 my $mode = $ARGV[0];
-my $scenario_name = $ARGV[1];
-my $vm_name = $ARGV[2];	
-my $con_name = $ARGV[3];	
+my $scenFName = $ARGV[1];
+my $vmName = $ARGV[2];	
+my $conName = $ARGV[3];	
 
 #
 # Main	
@@ -150,47 +150,60 @@ sub getDBConfiguration {
 sub tunnelsInfo{
 	my $dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
 	
-	if ($scenario_name eq undef){
+	if ($scenFName eq undef){
 		my $query_string = "SELECT `name`,`host`,`ssh_port`,`simulation`,`type` FROM vms";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
-			
-		while (@ports = $query->fetchrow_array()) {
-			if ($ports[4] eq "uml"){
-				print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] use local port $ports[2]\n");
-			}else{
-				print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] execute command 'ediv_console.pl console $ports[3] $ports[0]'\n");
+
+		printf ("\nVirtual machine consoles:\n\n");
+		printf ("%-20s%-13s%-20s%-50s\n", "Scenario", "VM", "Host", "Command");
+		printf ("----------------------------------------------------------------------------------------------------------------\n");	
+		while (@res = $query->fetchrow_array()) {
+			my @vmConsoles =&get_vm_consoles_info ($dbh, $res[0], $res[3]);
+			my $consOpt;
+			foreach $con (@vmConsoles) {
+				chomp($con);
+				my @c = split(/,/, $con);
+				$consOpt = $consOpt . "|$c[3]";
 			}
+			$consOpt =~ s/^\|//; 
+			printf ("%-20s%-13s%-20s%-50s\n", $res[3], $res[0], $res[1], "ediv_console.pl console $res[3] $res[0] $consOpt");
+			#if ($res[4] eq "uml"){
+			#	printf ("%-20s%-13s%-20s%-50s\n", $res[3], $res[0], $res[1], "use local port $res[2]");
+			#}else{
+			#	printf ("%-20s%-13s%-20s%-50s\n", $res[3], $res[0], $res[1], "ediv_console.pl console $res[3] $res[0]");
+			#}
 		}
+		printf ("----------------------------------------------------------------------------------------------------------------\n");	
 		
 		$query->finish();
 		
 	} else{
-		if ($vm_name eq undef){
-			my $query_string = "SELECT `name`,`host`,`ssh_port`,`simulation`,`type` FROM vms WHERE simulation='$scenario_name'";
+		if ($vmName eq undef){
+			my $query_string = "SELECT `name`,`host`,`ssh_port`,`simulation`,`type` FROM vms WHERE simulation='$scenFName'";
 			my $query = $dbh->prepare($query_string);
 			$query->execute();
 			
 			while (@ports = $query->fetchrow_array()) {
 				if ($ports[4] eq "uml"){
-					print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] use local port $ports[2]\n");
+					print ("Scenario $ports[3]: To access VM $ports[0] at $ports[1] use local port $ports[2]\n");
 				}else{
-					print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] execute command 'ediv_console.pl console $ports[3] $ports[0]'\n");
+					print ("Scenario $ports[3]: To access VM $ports[0] at $ports[1] execute command 'ediv_console.pl console $ports[3] $ports[0]'\n");
 				}
 			}
 			
 			$query->finish();
 			
 		} else{
-			my $query_string = "SELECT `name`,`host`,`ssh_port`,`simulation`,`type` FROM vms WHERE simulation='$scenario_name' AND name='$vm_name'";
+			my $query_string = "SELECT `name`,`host`,`ssh_port`,`simulation`,`type` FROM vms WHERE simulation='$scenFName' AND name='$vmName'";
 			my $query = $dbh->prepare($query_string);
 			$query->execute();
 			
 			my @ports = $query->fetchrow_array();			
 			if ($ports[4] eq "uml"){
-				print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] use local port $ports[2]\n");
+				print ("Scenario $ports[3]: To access VM $ports[0] at $ports[1] use local port $ports[2]\n");
 			}else{
-				print ("Simulation $ports[3]: To access VM $ports[0] at $ports[1] execute command 'ediv_console.pl console $ports[3] $ports[0]'\n");
+				print ("Scenario $ports[3]: To access VM $ports[0] at $ports[1] execute command 'ediv_console.pl console $ports[3] $ports[0]'\n");
 			}
 						
 			$query->finish();
@@ -198,32 +211,57 @@ sub tunnelsInfo{
 	}
 	$dbh->disconnect;
 }
+
+sub get_vm_consoles_info {
+	
+	my $dbh    = shift;
+	my $vmName = shift;
+	my $scenFName = shift;
+
+	my $query_string = "SELECT `host` FROM vms WHERE simulation='$scenFName' AND name='$vmName'";
+	my $query = $dbh->prepare($query_string);
+	$query->execute();
+	my $vmHost = $query->fetchrow_array();
+	$query->finish;
+	
+	$query_string = "SELECT `ip` FROM hosts WHERE simulation='$scenFName' AND host='$vmHost'";
+	$query = $dbh->prepare($query_string);
+	$query->execute();
+	my $host_ip = $query->fetchrow_array();
+	$query->finish;
+
+	$filename = "/tmp/$scenFName" . "_" . "$vmHost".".xml";
+	
+    my @res=`ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename --console-info -M $vmName -b | grep ^CON'`;
+    return @res; 
+}
+
 	
 #
 # Subroutine to connect to one virtual machine
 #
 sub console {
+
 	my $dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
 
-	my $query_string = "SELECT `type` FROM vms WHERE simulation='$scenario_name' AND name='$vm_name'";
+	my $query_string = "SELECT `type` FROM vms WHERE simulation='$scenFName' AND name='$vmName'";
 	my $query = $dbh->prepare($query_string);
 	$query->execute();
 	my $vm_type = $query->fetchrow_array();
 	$query->finish;
 	
-	my $query_string = "SELECT `host` FROM vms WHERE simulation='$scenario_name' AND name='$vm_name'";
-	my $query = $dbh->prepare($query_string);
+	$query_string = "SELECT `host` FROM vms WHERE simulation='$scenFName' AND name='$vmName'";
+	$query = $dbh->prepare($query_string);
 	$query->execute();
-	my $vm_host = $query->fetchrow_array();
+	my $vmHost = $query->fetchrow_array();
 	$query->finish;
 
 	if ($vm_type eq undef){
-			print ("The virtual machine $vm_name from simulation $scenario_name doesn't exist\nYou can execute ediv_query_status.pl for a list of virtual machines\n");
+			print ("The virtual machine $vmName from simulation $scenFName doesn't exist\nExecute ediv_query_status.pl for a list of virtual machines\n");
 
 	}elsif ($vm_type eq "uml"){
-
     	  		
-		my $query_string = "SELECT `ssh_port` FROM vms WHERE simulation='$scenario_name' AND name='$vm_name'";
+		my $query_string = "SELECT `ssh_port` FROM vms WHERE simulation='$scenFName' AND name='$vmName'";
 
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
@@ -232,7 +270,7 @@ sub console {
 		$query->finish;
 		
 		if ($port eq undef){
-			print ("The virtual machine $vm_name from simulation $scenario_name doesn't exist\nYou can execute ediv_query_status.pl to see that virtual machines exist\n");
+			print ("The virtual machine $vmName from simulation $scenFName doesn't exist\nYou can execute ediv_query_status.pl to see that virtual machines exist\n");
 		} else {
 			my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' root\@localhost -p $port";
 			system ($ssh_command);	
@@ -240,32 +278,46 @@ sub console {
 
     }else{
     	#for non-uml vms, execute the display command in their host
+    	
+		my @vmConsoles =&get_vm_consoles_info ($dbh, $vmName, $scenFName);
+		my $consCmd;
+		foreach $con (@vmConsoles) {
+			chomp($con);
+			my @c = split(/,/, $con);
+			if ($c[3] eq $conName) {
+				$consCmd = $c[4];
+			}
+		}
+		printf ("*** consCmd=$consCmd\n");
+    	    	
+    	
 		my $ssh_command = &build_display_command($dbh);
-		&daemonize($ssh_command, "/tmp/$vm_host"."_log");
+		&daemonize($ssh_command, "/tmp/$vmHost"."_log");
     }
     
     $dbh->disconnect;
 }
 
+
 sub build_display_command {
 	
 	my $dbh = shift;
 
-	my $query_string = "SELECT `host` FROM vms WHERE simulation='$scenario_name' AND name='$vm_name'";
+	my $query_string = "SELECT `host` FROM vms WHERE simulation='$scenFName' AND name='$vmName'";
 		my $query = $dbh->prepare($query_string);
 	$query->execute();
-	my $vm_host = $query->fetchrow_array();
+	my $vmHost = $query->fetchrow_array();
 	$query->finish;
 	
-	$query_string = "SELECT `ip` FROM hosts WHERE simulation='$scenario_name' AND host='$vm_host'";
+	$query_string = "SELECT `ip` FROM hosts WHERE simulation='$scenFName' AND host='$vmHost'";
 		$query = $dbh->prepare($query_string);
 	$query->execute();
 	my $host_ip = $query->fetchrow_array();
 	$query->finish;
 	
-	$filename = "/tmp/$scenario_name" . "_" . "$vm_host".".xml";
+	$filename = "/tmp/$scenFName" . "_" . "$vmHost".".xml";
 	
-    return "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename -v -u root --console --cid $con_name -M $vm_name'"; 
+    return "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $filename -v --console --cid $conName -M $vmName'"; 
 }
 
 	###########################################################
