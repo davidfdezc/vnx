@@ -265,7 +265,7 @@ sub main {
       $opt_suspend, $opt_resume,$opt_reboot,
       $opt_reset,$opt_execute,$opt_f,$opt_showmap,
       $opt_console,$opt_consoleinfo,$opt_cid,
-      $opt_C, $opt_config, $opt_D);
+      $opt_C, $opt_config, $opt_D, $opt_b);
       
    	Getopt::Long::Configure ("bundling"); # case sensitive single-character options
    	GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
@@ -288,7 +288,7 @@ sub main {
               'show-map' => \$opt_showmap, 'console' => \$opt_console,
               'cid=s' => \$opt_cid, 'console-info' => \$opt_consoleinfo,
               'C|config=s' => \$opt_config,
-              'D' => \$opt_D);
+              'D' => \$opt_D, 'b' => \$opt_b);
 
    	# Build the argument object
    	$args = new Arguments(
@@ -303,7 +303,7 @@ sub main {
       	$opt_suspend,$opt_resume,$opt_reboot,
       	$opt_reset,$opt_execute,$opt_f,$opt_showmap,
       	$opt_console,$opt_cid,$opt_consoleinfo,
-      	$opt_config);
+      	$opt_config, $opt_D, $opt_b);
 
    	# FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
    	# it by default
@@ -656,7 +656,7 @@ sub main {
    	$valid_fail = 0;
    	my $parser;
    	my $doc;
-   if($modeparser eq "xsd"){
+   	if($modeparser eq "xsd"){
    		my $schemalocation;
 
 	    if ($input_file_string =~ /="(\S*).xsd"/) {
@@ -673,35 +673,35 @@ sub main {
 		#$doc    = $parser->parse_file($document);
 		$doc = $parser->parse_file($input_file);
 		my $parser2 = new XML::DOM::Parser;
-        $doc = $parser2->parsefile($input_file);
-   }
+       	$doc = $parser2->parsefile($input_file);
+   	}
    
-   # Build the VNX::Execution object
-   $execution = new Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
+   	# Build the VNX::Execution object
+   	$execution = new Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
 
-   # Calculate the directory where the input_file lives
-   my $xml_dir = (fileparse(abs_path($input_file)))[1];
+   	# Calculate the directory where the input_file lives
+   	my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
-   # Build the VNX::DataHandler object
-   $dh = new DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
-   $dh->set_boot_timeout($boot_timeout);
-   $dh->set_vnx_dir($vnx_dir);
-   $dh->set_tmp_dir($tmp_dir);
-   $dh->enable_ipv6($enable_6);
-   $dh->enable_ipv4($enable_4);   
+   	# Build the VNX::DataHandler object
+   	$dh = new DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
+   	$dh->set_boot_timeout($boot_timeout);
+   	$dh->set_vnx_dir($vnx_dir);
+   	$dh->set_tmp_dir($tmp_dir);
+   	$dh->enable_ipv6($enable_6);
+   	$dh->enable_ipv4($enable_4);   
 
-   # User check
-   if (my $err_msg = &check_user) {
-      &vnx_die("$err_msg\n");
-   }
+   	# User check
+   	if (my $err_msg = &check_user) {
+      	&vnx_die("$err_msg\n");
+   	}
 
-   # Deprecation warnings
-   &check_deprecated;
+   	# Deprecation warnings
+   	&check_deprecated;
 
-   # Semantic check (in addition to validation)
-   if (my $err_msg = &check_doc($bd->get_binaries_path_ref,$execution->get_uid)) {
-      &vnx_die ("$err_msg\n");
-   }
+   	# Semantic check (in addition to validation)
+   	if (my $err_msg = &check_doc($bd->get_binaries_path_ref,$execution->get_uid)) {
+      	&vnx_die ("$err_msg\n");
+   	}
    
    	# Validate extended XML configuration files
 	# Dynamips
@@ -1313,7 +1313,11 @@ sub mode_console {
 		my $cid = $args->get('cid');
 		#print "*** cid=$cid\n";     
 		
-		if (defined $cid) {		
+		if (defined $cid) {
+			if ($cid !~ /con/) {
+				$execution->smartdie ("ERROR: console $cid unknown. Try \"vnx -f file.xml --console-info\" to see console names.\n");
+			}
+			#print "*** opt_cid=$cid\n";		
 			VNX::vmAPICommon->start_console ($vmName, $cid);
 		} else {
 			VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
@@ -4435,6 +4439,13 @@ sub print_console_table_entry {
     my $merged_type=shift;
     my $consFile=shift;
     my $type=shift;
+    my $briefFormat=shift;
+    
+    	if (defined $briefFormat) {
+		print "*** BriefFormat\n";
+	} else {
+		print "*** Long Format\n";
+	}
 	
 	my @cons = qw(con0 con1 con2 con3);
 	my $con;
@@ -4445,38 +4456,69 @@ sub print_console_table_entry {
 		#print "** $consFile $con conData=$conData\n";
 		my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term');
 		if (defined $conData) {
-			#print "** conData=$conData\n";
-		    my @consField = split(/,/, $conData);
-		    if ($consField[1] eq "vnc_display") {
- 				push (@consDesc, "$con:  'virt-viewer -c $hypervisor $vmName' or 'vncviewer $consField[2]'");		    	
-		    } elsif ($consField[1] eq "telnet") {
- 				push (@consDesc, "$con:  'telnet localhost $consField[2]'");		    	   	
-		    } elsif ($consField[1] eq "libvirt_pts") {
- 				push (@consDesc, "$con:  'virsh -c $hypervisor console $vmName' or 'screen $consField[2]'");		    	   		    	
-		    } elsif ($consField[1] eq "uml_pts") {
-		    	my $conLine = VNX::vmAPICommon->open_console ($vmName, $con, $consField[1], $consField[2], 'yes');
- 				#push (@consDesc, "$con:  '$console_term -T $vmName -e screen -t $vmName $consField[2]'");
- 				push (@consDesc, "$con:  '$conLine'");
-		    } else {
-		    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
-		    }
+			if (defined $briefFormat) {
+				#print "** conData=$conData\n";
+			    my @consField = split(/,/, $conData);
+			    if ($consField[1] eq "vnc_display") {
+	 				push (@consDesc, "$con,virt-viewer -c $hypervisor $vmName");		    	
+			    } elsif ($consField[1] eq "telnet") {
+	 				push (@consDesc, "$con,telnet localhost $consField[2]");		    	   	
+			    } elsif ($consField[1] eq "libvirt_pts") {
+	 				push (@consDesc, "$con,virsh -c $hypervisor console $vmName");		    	   		    	
+			    } elsif ($consField[1] eq "uml_pts") {
+			    	my $conLine = VNX::vmAPICommon->open_console ($vmName, $con, $consField[1], $consField[2], 'yes');
+	 				#push (@consDesc, "$con:  '$console_term -T $vmName -e screen -t $vmName $consField[2]'");
+	 				push (@consDesc, "$con,$conLine");
+			    } else {
+			    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
+			    }
+			} else {
+				#print "** conData=$conData\n";
+			    my @consField = split(/,/, $conData);
+			    if ($consField[1] eq "vnc_display") {
+	 				push (@consDesc, "$con:  'virt-viewer -c $hypervisor $vmName' or 'vncviewer $consField[2]'");		    	
+			    } elsif ($consField[1] eq "telnet") {
+	 				push (@consDesc, "$con:  'telnet localhost $consField[2]'");		    	   	
+			    } elsif ($consField[1] eq "libvirt_pts") {
+	 				push (@consDesc, "$con:  'virsh -c $hypervisor console $vmName' or 'screen $consField[2]'");		    	   		    	
+			    } elsif ($consField[1] eq "uml_pts") {
+			    	my $conLine = VNX::vmAPICommon->open_console ($vmName, $con, $consField[1], $consField[2], 'yes');
+	 				#push (@consDesc, "$con:  '$console_term -T $vmName -e screen -t $vmName $consField[2]'");
+	 				push (@consDesc, "$con:  '$conLine'");
+			    } else {
+			    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
+			    }
+			}
 		}
 	}
-	printf " %-12s| %-20s| %s\n", $vmName, $merged_type, $consDesc[0];
-	shift (@consDesc);
-	foreach (@consDesc) {
-		printf " %-12s| %-20s| %s\n", "", "", $_;
+	if (defined $briefFormat) {
+		foreach (@consDesc) {
+			printf "CON,%s,%s,%s\n", $vmName, $merged_type, $_;
+		}
+	} else {
+		printf " %-12s| %-20s| %s\n", $vmName, $merged_type, $consDesc[0];
+		shift (@consDesc);
+		foreach (@consDesc) {
+			printf " %-12s| %-20s| %s\n", "", "", $_;
+		}
+		print "-----------------------------------------------------------------------------------------\n";	
 	}
-	print "-----------------------------------------------------------------------------------------\n";	
 	#printf "%-12s  %-20s  ERROR: cannot open file $portfile \n", $name, $merged_type;
 }
 
 sub print_consoles_info{
 	
 	my $opt_M = $args->get('M');
+	my $briefFormat = $args->get('b');
 #	if ($opt_M ne '') {
 #		print "*** $opt_M\n";
 #	}
+	if (defined $briefFormat) {
+		print "*** BriefFormat\n";
+	} else {
+		print "*** Long Format\n";
+	}
+
 
 	# Print information about vm consoles
     my @vm_ordered = $dh->get_vm_ordered;
@@ -4496,7 +4538,7 @@ sub print_consoles_info{
 
 		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 			
-		if ($first eq 1){
+		if ( ($first eq 1) && (! $briefFormat ) ){
 			&print_console_table_header ($scename);
 			$first = 0;
 		}
@@ -4506,7 +4548,7 @@ sub print_consoles_info{
 		my $cons0Cmd;
 		my $cons1Cmd;
 		my $consFile = $dh->get_run_dir($vmName) . "/console";
-		&print_console_table_entry ($vmName, $merged_type, $consFile, $vm->getAttribute("type"));
+		&print_console_table_entry ($vmName, $merged_type, $consFile, $vm->getAttribute("type"), $briefFormat);
 
 
 #			} elsif ( $vm->getAttribute("type") eq "uml") {
