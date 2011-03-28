@@ -17,7 +17,7 @@ S21SecLabs scenario v0.3
 		<scenario_name>s21seclabsvirtual-v03</scenario_name>
 		<ssh_version>2</ssh_version>
 		<ssh_key>~/.ssh/identity.pub</ssh_key>
-		<automac offset="0"/>
+		<automac offset="50"/>
 		<vm_mgmt type="none"/>
     	<vm_defaults exec_mode="mconsole">
 			<filesystem type="cow">&VNXDIR;filesystems/root_fs_light</filesystem>

@@ -156,7 +156,7 @@ sub tunnelsInfo{
 		$query->execute();
 
 		printf ("\nVirtual machine consoles:\n\n");
-		printf ("%-20s%-13s%-20s%-50s\n", "Scenario", "VM", "Host", "Command");
+		printf ("%-20s%-13s%-30s%-50s\n", "Scenario", "VM", "Host", "Command");
 		printf ("----------------------------------------------------------------------------------------------------------------\n");	
 		while (@res = $query->fetchrow_array()) {
 			my @vmConsoles =&get_vm_consoles_info ($dbh, $res[0], $res[3]);
@@ -167,7 +167,7 @@ sub tunnelsInfo{
 				$consOpt = $consOpt . "|$c[3]";
 			}
 			$consOpt =~ s/^\|//; 
-			printf ("%-20s%-13s%-20s%-50s\n", $res[3], $res[0], $res[1], "ediv_console.pl console $res[3] $res[0] $consOpt");
+			printf ("%-20s%-13s%-30s%-50s\n", $res[3], $res[0], $res[1], "ediv_console.pl console $res[3] $res[0] $consOpt");
 			#if ($res[4] eq "uml"){
 			#	printf ("%-20s%-13s%-20s%-50s\n", $res[3], $res[0], $res[1], "use local port $res[2]");
 			#}else{
