@@ -1534,7 +1534,6 @@ sub configure_virtual_bridged_networks {
       #!$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
      
       # To create management device (id 0), if needed
-      #my $mng_if_value = &mng_if_value($dh,$vm);
       my $mng_if_value = &mng_if_value($vm);
       
       if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
@@ -2008,7 +2007,7 @@ sub define_VMs {
 
       my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
-      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);	
+      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i,$manipcounter);	
             
       # Save the XML <create_conf> file to .vnx/scenarios/<vscenario_name>/vms/$name_cconf.xml
 	  open XML_CCFILE, ">" . $dh->get_vm_dir($name) . '/' . $name . '_cconf.xml'
@@ -2089,7 +2088,8 @@ sub start_VMs {
       # search for <on_boot> tag and if found then process it
       my $on_boot; 
       eval {$on_boot = $vm->getElementsByTagName("on_boot")->item(0)->getFirstChild->getData};
-	  if ($on_boot eq "define"){
+	  # DFC if ($on_boot eq "define"){
+	  if (defined $on_boot){
 	  	# do not start vm unless specified in -M
       	unless ($opt_M =~ /^$name,|,$name,|,$name$|^$name$/) {
 			next;
@@ -3179,6 +3179,7 @@ sub get_UML_command_ip {
             }
             else {
                # There is a management interface
+               print "*** get_admin_address($counter, $dh->get_vmmgmt_type, 2)\n";
                my $net = &get_admin_address($counter, $dh->get_vmmgmt_type, 2);
                if (!&socket_probe($net->addr(),"22")) {
                   print "$name sshd is not ready (socket style)\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
@@ -3236,10 +3237,10 @@ sub automac {
       # JSF 23/3 ubuntu no levantaba la interfaz de gestión porque
       # no todos los campos tenían dos cifras, con esto se pasa de
       # 02:fd:0:0:1:0 a 02:fd:00:00:01:00 
-      $upper_offset = sprintf("%02d", $upper_offset);
-      $lower_offset = sprintf("%02d", $lower_offset);
-      $ante_lower = sprintf("%02d", $ante_lower);
-      $lower = sprintf("%02d", $lower);
+      #$upper_offset = sprintf("%02d", $upper_offset);
+      #$lower_offset = sprintf("%02d", $lower_offset);
+      #$ante_lower = sprintf("%02d", $ante_lower);
+      #$lower = sprintf("%02d", $lower);
 
       # DFC 26/11/2010: En Ubuntu 10.04 y con las versiones 0.8.3, 0.8.4 y 0.8.5 hay un problema 
       # de conectividad entre máquinas virtuales. Cuando se arrancan los ejemplos simple_*
@@ -3248,7 +3249,12 @@ sub automac {
       # tun/tap (ver https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/579892)
       # Una solución temporal es cambiar las direcciones a un número más bajo: fe:fd -> 02:fd
       # return ",fe:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
-      return ",02:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
+      my $mac = "02:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
+      # expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
+      $mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
+      $mac = "," . $mac;
+      print "*** MAC=$mac\n";
+      return $mac 
 
 }
 
@@ -4009,6 +4015,7 @@ sub make_vm_API_doc {
    my $manipcounter = shift;
    my $dom;
 
+print "**** manipcounter=$manipcounter\n";
    
    $dom = XML::LibXML->createDocument( "1.0", "UTF-8" );
    
@@ -4194,10 +4201,11 @@ sub make_vm_API_doc {
       }
       else {	  #my @group = getgrnam("@TUN_GROUP@");
          $mac = &automac($i+1, $id);
-         $mac =~ s/,//;
+         # DFC: Moved to automac function 
+         #$mac =~ s/,//;
          # expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
-         $mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
-         $mac = "," . $mac;
+         #$mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
+         #$mac = "," . $mac;
 	        
       }
          
@@ -4327,7 +4335,9 @@ sub make_vm_API_doc {
         my $mng_if_tag = $dom->createElement('if');
       	$vm_tag->addChild($mng_if_tag);
       	my $mac = &automac($i+1, 0);
+      
         $mng_if_tag->addChild( $dom->createAttribute( mac => $mac));
+        print "***2 get_admin_address($manipcounter, $dh->get_vmmgmt_type, 2)\n";
       	my $mng_addr = &get_admin_address( $manipcounter, $dh->get_vmmgmt_type, 2, $name );
       	$mng_if_tag->addChild( $dom->createAttribute( id => 0));
       	my $ipv4_tag = $dom->createElement('ipv4');
@@ -4440,12 +4450,6 @@ sub print_console_table_entry {
     my $consFile=shift;
     my $type=shift;
     my $briefFormat=shift;
-    
-    	if (defined $briefFormat) {
-		print "*** BriefFormat\n";
-	} else {
-		print "*** Long Format\n";
-	}
 	
 	my @cons = qw(con0 con1 con2 con3);
 	my $con;
@@ -4510,15 +4514,6 @@ sub print_consoles_info{
 	
 	my $opt_M = $args->get('M');
 	my $briefFormat = $args->get('b');
-#	if ($opt_M ne '') {
-#		print "*** $opt_M\n";
-#	}
-	if (defined $briefFormat) {
-		print "*** BriefFormat\n";
-	} else {
-		print "*** Long Format\n";
-	}
-
 
 	# Print information about vm consoles
     my @vm_ordered = $dh->get_vm_ordered;
