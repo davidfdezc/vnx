@@ -1200,6 +1200,7 @@ sub startVM {
 #	my $dh     = shift;
 	my $sock   = shift;
 	my $counter = shift;
+	my $no_consoles = shift;
 
 	my $error;
 	
@@ -1334,9 +1335,11 @@ sub startVM {
 					}
 				}
 			   
-				# Then, we just read the console file and start the active consoles
-				VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
-						    
+				# Then, we just read the console file and start the active consoles,
+				# unless options -n|--no_console were specified by the user
+				unless ($no_consoles eq 1){
+				   VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
+				}		    
 					    
 =BEGIN                        
         		if ($type eq "libvirt-kvm-olive") {
