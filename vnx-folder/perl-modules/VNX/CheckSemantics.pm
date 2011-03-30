@@ -108,6 +108,10 @@ use VNX::TextManipulation;
 # 
 # The functions returns error string describing problem or 1 if all is right
 #
+
+# TODO:
+# - check that dynamips_ext only appears once
+
 sub check_doc {
 	
 	my $max_name_length = 12;
