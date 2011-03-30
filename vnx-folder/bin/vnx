@@ -2105,10 +2105,17 @@ sub start_VMs {
       
       $curr_uml = $name;
       
-      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i,$manipcounter); # only needed for uml vms 
+      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i,$manipcounter); # only needed for uml vms
+      
+      #check for option -n||--no_console (do not start consoles)
+      my $no_console = "0";
+      if ($args->get('n')||$args->get('no_console')){
+      	$no_console = "1";
+      }
+       
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $sock, $manipcounter);
+      my $error = "vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $sock, $manipcounter, $no_console);
       if (!($error eq 0)){print $error} 
       $manipcounter++;
       undef($curr_uml);
@@ -4147,16 +4154,7 @@ sub make_vm_API_doc {
             $console_tag->addChild($dom->createAttribute( id => $console_id));
 			# Optional attributes: display and port            
             my $console_display = $console->getAttribute("display");
-            
-            # If "no_console" options are found, do not launch consoles,
-            # if not, look for tag "display" for the vm and, if found, process it.
-            
-            my $opt_n = $args->get('n');
-            my $opt_no_console = $args->get('no_console');
-            if ($opt_n||$opt_no_console){
-            	$console_tag->addChild($dom->createAttribute( display => "no"));
-            	para("1");
-            }elsif($console_display ne ""){
+            if ($console_display ne "") {
                 $console_tag->addChild($dom->createAttribute( display => $console_display));
             }
             my $console_port = $console->getAttribute("port");
@@ -4164,7 +4162,37 @@ sub make_vm_API_doc {
                 $console_tag->addChild($dom->createAttribute( port => $console_port));
             }  
      }
-   }   
+   }
+
+#   if (@console_list > 0) {
+#     my $xterm_used = 0;
+#     foreach my $console (@console_list) {
+#	  		my $console_id    = $console->getAttribute("id");
+#		 	my $console_value = &text_tag($console);
+#            my $console_tag = $dom->createElement('console');
+#            $vm_tag->addChild($console_tag);
+#            $console_tag->addChild($dom->createTextNode($console_value));
+#            $console_tag->addChild($dom->createAttribute( id => $console_id));
+#			# Optional attributes: display and port            
+#            my $console_display = $console->getAttribute("display");
+#            
+#            # If "no_console" options are found, do not launch consoles,
+#            # if not, look for tag "display" for the vm and, if found, process it.
+#            
+#            my $opt_n = $args->get('n');
+#            my $opt_no_console = $args->get('no_console');
+#            if ($opt_n||$opt_no_console){
+#            	$console_tag->addChild($dom->createAttribute( display => "no"));
+#            	para("1");
+#            }elsif($console_display ne ""){
+#                $console_tag->addChild($dom->createAttribute( display => $console_display));
+#            }
+#            my $console_port = $console->getAttribute("port");
+#            if ($console_port ne "") {
+#                $console_tag->addChild($dom->createAttribute( port => $console_port));
+#            }  
+#     }
+#   }   
 
 #####
 

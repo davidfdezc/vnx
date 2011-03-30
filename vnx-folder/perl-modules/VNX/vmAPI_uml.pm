@@ -262,6 +262,8 @@ sub startVM {
 	my $doc    = shift;
 	my $sock    = shift;
 	my $counter = shift;
+	my $no_consoles = shift;
+	
 	$curr_uml = $vmName;
 
 	my $error = 0;
@@ -845,8 +847,11 @@ sub startVM {
 				}
 				
 			}
-			# Then, we just read the console file and start the active consoles
-			VNX::vmAPICommon->start_consoles_from_console_file ($vmName);		
+			# Then, we just read the console file and start the active consoles,
+			# unless options -n|--no_console were specified by the user
+			unless ($no_consoles eq 1){
+			   VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
+			}			
 		
 		}
 
