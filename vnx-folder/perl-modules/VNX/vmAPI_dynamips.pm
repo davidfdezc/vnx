@@ -280,15 +280,17 @@ sub defineVM {
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
     # Si es la primera vez que se ejecuta el escenario, se borra todo el hypervisor
     # Precacion, tambien se borra otros escenarios que este corriendo paralelamente
-    if ($counter == 0)
-    {
-    	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    	print "Reset hypervisor:\n" if ($exemode == $EXE_VERBOSE);;
-    	$t->print("hypervisor reset");
-   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    	$t->close;
-    	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    }
+    # DFC Comentado 30/3/2011. Con los cambios en los interfaces de gestion ahora $counter llega
+    # siempre a 0 y se resetea dynamips cada vez que se crea un router 
+    #if ($counter == 0)
+    #{
+    #	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
+    #	print "Reset hypervisor:\n" if ($exemode == $EXE_VERBOSE);;
+    #	$t->print("hypervisor reset");
+   	#	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    #	$t->close;
+    #	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
+    #}
     
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);

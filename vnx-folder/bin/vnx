@@ -4581,21 +4581,12 @@ sub print_consoles_info{
 			$first = 0;
 		}
 
-#			if ( ($vm->getAttribute("type") eq "libvirt") || ( $vm->getAttribute("type") eq "dynamips") ) {
 		my $port;
 		my $cons0Cmd;
 		my $cons1Cmd;
 		my $consFile = $dh->get_run_dir($vmName) . "/console";
 		&print_console_table_entry ($vmName, $merged_type, $consFile, $vm->getAttribute("type"), $briefFormat);
 
-
-#			} elsif ( $vm->getAttribute("type") eq "uml") {
-#			    # xterm -T uml -e screen -t uml /dev/pts/0
-#			    my $vnx_dir = $dh->get_vnx_dir;
-#			    my $pts=`cat $vnx_dir/scenarios/$scename/vms/$vmName/run/pts`;
-#			    $pts =~ s/\s+$//;        # Delete linefeed at the end
-#				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $vmName, $merged_type, $vmName, $vmName, $pts;
-#			}
 	}
 	
 }
