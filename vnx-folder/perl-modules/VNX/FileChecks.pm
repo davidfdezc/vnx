@@ -178,8 +178,8 @@ sub get_conf_value {
 #   Converts a relative path to absolute following VNX rules:
 #     - if <basedir> tag is specified, then the path is relative to <basedir> value
 #     - if <basedir> tag is NOT specified, then the path is relative to the XML file location
-#   Beside, it performs tilde (and wildcard) expansion calling do_path_expansion 
-#   If the path is already absolute, it does not modify it (only the mentioned expansion ).
+#   Besides, it performs tilde (and wildcard) expansion calling do_path_expansion 
+#   If the path is already absolute, it does not modify it (only the mentioned expansion).
 # 
 # Arguments:
 #   pathname

@@ -1824,9 +1824,6 @@ sub executeCMD {
 	my $self = shift;
 	my $merged_type = shift;
 	my $seq  = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
 	my $vm    = shift;
 	my $name = shift;
 

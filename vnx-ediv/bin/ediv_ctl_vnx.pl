@@ -123,6 +123,21 @@ my $branch = "";
 # Argument handling
 &parseArguments;	
 
+my $vnxConfigFile = "/etc/vnx.conf";
+# Set VNX and TMP directories
+my $tmp_dir=&get_conf_value ($vnxConfigFile, 'general', 'tmp_dir');
+if (!defined $tmp_dir) {
+	$tmp_dir = $DEFAULT_TMP_DIR;
+}
+#print ("  TMP dir=$tmp_dir\n");
+my $vnx_dir=&get_conf_value ($vnxConfigFile, 'general', 'vnx_dir');
+if (!defined $vnx_dir) {
+	$vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
+} else {
+	$vnx_dir = &do_path_expansion($vnx_dir);
+}
+#print ("  VNX dir=$vnx_dir\n");
+
 # init global objects and check VNX scenario correctness 
 &initAndCheckVNXScenario ($vnx_scenario); 
 	
@@ -136,7 +151,6 @@ if ( $mode eq '-t' | $mode eq '--create' ) {
 	
 	# Fill the cluster hosts.
 	&fillClusterHosts;
-	
 	# Parse scenario XML.
 	print "\n  **** Parsing scenario ****\n\n";
 	&parseScenario ($vnx_scenario);
@@ -148,7 +162,7 @@ if ( $mode eq '-t' | $mode eq '--create' ) {
 #    my $numdynamips_ext = $dynamips_extTagList->getLength;
 #    if ($numdynamips_ext == 1) {
 #		    my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
-#		    $dynamips_ext_path = "/root/.vnx/scenarios/";
+#		    $dynamips_ext_path = "$vnx_dir/scenarios/";
 #    }
 
 
@@ -218,23 +232,19 @@ if ( $mode eq '-t' | $mode eq '--create' ) {
 		
 	# Fill the scenario array
 	&fillScenarioArray;
-unless ($vm_name){
-	# Assign first and last VLAN.
-	&assignVLAN;
-}	
+	unless ($vm_name){
+		# Assign first and last VLAN.
+		&assignVLAN;
+	}	
 	# Split into files
 	&splitIntoFiles;
-	
 	# Make a tgz compressed file containing VM execution config 
 	&getConfiguration;
-	
 	# Send Configuration to each host.
 	&sendConfiguration;
-	
 	#jsf: código copiado a sub sendConfiguration, borrar esta subrutina.	
 	# Send dynamips configuration to each host.
 	#&sendDynConfiguration;
-	
 	print "\n\n  **** Sending scenario to cluster hosts and executing it ****\n\n";
 	# Send scenario files to the hosts and run them with VNX (-t option)
 	&sendScenarios;
@@ -677,7 +687,7 @@ sub parseScenario {
 	my $numdynamips_ext = $dynamips_extTagList->getLength;
 	if ($numdynamips_ext == 1) {
 		my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
-		$dynamips_ext_path = "/root/.vnx/scenarios/";
+		$dynamips_ext_path = "$vnx_dir/scenarios/";
 	}
 
 
@@ -729,6 +739,7 @@ sub fillScenarioArray {
 	my $global= $dom_tree->getElementsByTagName("global")->item(0)->cloneNode("true");
 
 #	$global->setOwnerDocument($nuevoNodo);
+	$global->setOwnerDocument($nuevoVNX->getOwnerDocument()); # DFC
 	$nuevoVNX->appendChild($global);
 
 
@@ -745,7 +756,7 @@ sub fillScenarioArray {
 		my $newdata=$data."_".$currentHostName;
 		$scenarioNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->setData($newdata);
 		
-		#if dynamips_ext node is present, update path
+		#if dynamips_ext tag is present, update path
 		my $dynamips_extTagList=$scenarioNode->getElementsByTagName("dynamips_ext");
     	my $numdynamips_ext = $dynamips_extTagList->getLength;
     	if ($numdynamips_ext == 1) {	
@@ -840,18 +851,28 @@ sub splitIntoFiles {
 		my $virtualm_name = $virtualm->getAttribute("name");
 		my $host_name = $allocation{$virtualm_name};
 		
+		#print "**** $virtualm_name\n";
 		#añadimos type para base de datos
 		my $virtualm_type = $virtualm->getAttribute("type");
 
+		#print "*** OLD: \n";
+		#print $virtualm->toString;
+
 		my $newVirtualM=$virtualm->cloneNode("true");
+		
+		#print "\n*** NEW: \n";
+		#print $newVirtualM->toString;
+		#print "***\n";
+		
 		$newVirtualM->setOwnerDocument($scenarioHash{$host_name});
 
 		my $vnxNode=$scenarioHash{$host_name}->getElementsByTagName("vnx")->item(0);
 			
 		$vnxNode->setOwnerDocument($scenarioHash{$host_name});
-
+		
 		$vnxNode->appendChild($newVirtualM);
-
+		#print $vnxNode->toString;
+		#print "***\n";
 
 		unless ($vm_name){
 				# Creating virtual machines in the database
@@ -874,6 +895,7 @@ sub splitIntoFiles {
 			$query = $dbh->prepare($query_string);
 			$query->execute();
 			$query->finish();
+
 		}		
 	}
 
@@ -905,8 +927,10 @@ sub splitIntoFiles {
 						if ($netFlag==0){
 							my $netToAppend=$currentNet->cloneNode("true");
 							$netToAppend->setOwnerDocument($currentScenario);
+							
 							my $firstVM=$currentScenario->getElementsByTagName("vm")->item(0);
 							$currentScenario->getElementsByTagName("vnx")->item(0)->insertBefore($netToAppend, $firstVM);
+									
 							$netFlag=1;
 						}
 					}
@@ -919,7 +943,6 @@ sub splitIntoFiles {
 		&netTreatment;
 		&setAutomac;
 	}
-	
 }
 
 	###########################################################
@@ -1077,7 +1100,7 @@ sub setAutomac {
 	} else {
 		$VmOffset = $contenido; # we hope this is enough
 	}
-	
+
 	$query_string = "SELECT `mgnet_offset` FROM simulations ORDER BY `mgnet_offset` DESC LIMIT 0,1";
 	$query = $dbh->prepare($query_string);
 	$query->execute();
@@ -1093,13 +1116,18 @@ sub setAutomac {
 	$management_network_mask = $cluster_config->get("cluster_mgmt_network_mask");
 	
 	foreach $host_name (keys(%scenarioHash)) {
+		
+		print "setAutomac 13: $host_name\n"; <STDIN>;
 		my $currentScenario = $scenarioHash{$host_name};
+		print "currentScenario=$currentScenario\n"; <STDIN>;
+		#print "currentScenario=$currentScenario,getOwner=". $currentScenario->getOwner . "\n"; <STDIN>;
 		my $automac=$currentScenario->getElementsByTagName("automac")->item(0);
 		if (!($automac)){
 			$automac=$currentScenario->createElement("automac");
 			$currentScenario->getElementsByTagName("global")->item(0)->appendChild($automac);
 			
 		}
+		
 		$automac->setAttribute("offset", $VmOffset);
 		$VmOffset +=150;  #JSF temporalmente cambiado, hasta que arregle el ""FIXMEmac"" de vnx
 		#$VmOffset +=5;
@@ -1130,8 +1158,32 @@ sub setAutomac {
 		my $host_mapping_property = $currentScenario->getElementsByTagName("host_mapping")->item(0);
 		if (!($host_mapping_property)) {
 			$host_mapping_property = $currentScenario->createElement("host_mapping");
-			$currentScenario->getElementsByTagName("vm_mgmt")->item(0)->appendChild($host_mapping_property);
+		#print "$host_mapping_property=$$host_mapping_property,ownerDocument=". $host_mapping_property->ownerDocument . "\n";
+		#print "$host_mapping_property=$$host_mapping_property,getOwner=". $host_mapping_property->getOwner . "\n"; <STDIN>;
+
+#print "currentScenario\n";
+#print $currentScenario->toString . "\n";
+print "hostmappingproperty 21\n";
+print $host_mapping_property->toString . "\n"; <STDIN>;
+
+
+			my $kk = $currentScenario->createElement("kk");
+			print $kk->toString . "\n"; <STDIN>;
+			$currentScenario->getElementsByTagName("vm_mgmt")->item(0)->appendChild($kk);
+
+			my $list = $currentScenario->getElementsByTagName("vm_mgmt");
+			for ( my $i = 0; $i < $list->getLength; $i++ ) {
+				print "*** $i  " . $list->item($i)->getAttribute("type") . "\n";
+				print $list->item($i)->toString . "\n"; <STDIN>;
+				$list->item($i)->appendChild($host_mapping_property);
+			}
+			
+			#$currentScenario->getElementsByTagName("vm_mgmt")->item(0)->appendChild($host_mapping_property);
+
+#print "currentScenario\n";
+#print $currentScenario->toString . "\n";
 		}
+	print "setAutomac 23\n"; <STDIN>;
 		
 		#my $net_offset = $currentScenario->getElementsByTagName("vm_mgmt")->item(0);
 		#$net_offset->setAttribute("offset", $MgnetOffset);
@@ -1143,10 +1195,13 @@ sub setAutomac {
 #			}				
 #		}	
 	}
+	print "setAutomac 25\n"; <STDIN>;
 	$query_string = "UPDATE simulations SET automac_offset = '$VmOffset' WHERE name='$simulation_name'";
 	$query = $dbh->prepare($query_string);
 	$query->execute();	
 	$query->finish();
+		print "setAutomac 30\n"; <STDIN>;
+	
 		
 	$query_string = "UPDATE simulations SET mgnet_offset = '$MgnetOffset' WHERE name='$simulation_name'";
 	$query = $dbh->prepare($query_string);
@@ -1154,6 +1209,8 @@ sub setAutomac {
 	$query->finish();
 	
 	$dbh->disconnect;
+		print "setAutomac 35\n"; <STDIN>;
+	
 }
 
 	###########################################################
@@ -1187,7 +1244,8 @@ sub sendScenarios {
 		my $simulation_name = $filename;
 		$filename = "/tmp/$filename".".xml";
 		$currentScenario->printToFile("$filename");
-		
+		print "**** /tmp/$filename \n";
+		system ("cat /tmp/$filename");
 			# Save the local specification in DB	
 		open(FILEHANDLE, $filename) or die  'cannot open file!';
 		my $file_data;
@@ -1214,7 +1272,7 @@ sub sendScenarios {
 
 	###########################################################
 	# Subroutine to check propper finishing of launching mode (-t)
-	# Uses /root/.vnx/simulations/<simulacion>/vms/<vm>/status file
+	# Uses $vnx_dir/simulations/<simulacion>/vms/<vm>/status file
 	###########################################################
 sub checkFinish {
 	my $dbh;
@@ -1238,14 +1296,14 @@ sub checkFinish {
 		open STDERR, "/dev/null";
 		foreach $vms (keys (%allocation)){
 			if ($allocation{$vms} eq $host_name){
-				print ("Checking $vms status (/root/.vnx/scenarios/$scenario/vms/$vms/status)\n");
-				my $status_command = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat /root/.vnx/scenarios/$scenario/vms/$vms/status'";
+				print ("Checking $vms status ($vnx_dir/scenarios/$scenario/vms/$vms/status)\n");
+				my $status_command = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat $vnx_dir/scenarios/$scenario/vms/$vms/status'";
 				my $status = `$status_command`;
 				chomp ($status);
 
 				while (!($status eq "running")) {
 					print ("\t $vms still booting, waiting...(status=$status)\n");
-					$status_command = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat /root/.vnx/scenarios/$scenario/vms/$vms/status'";
+					$status_command = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat $vnx_dir/scenarios/$scenario/vms/$vms/status'";
 					$status = `$status_command`;
 					chomp ($status);
 					sleep(5);
@@ -1492,6 +1550,8 @@ sub deleteTMP {
 	# Subroutine to create tgz file with configuration of VMs
 	 ###########################################################
 sub getConfiguration {
+	print "*** getConfiguration\n";
+	
 	my $basedir = "";
 	eval {
 		$basedir = $globalNode->getElementsByTagName("global")->item(0)->getElementsByTagName("vm_defaults")->item(0)->getElementsByTagName("basedir")->item(0)->getFirstChild->getData;
@@ -1529,6 +1589,8 @@ sub getConfiguration {
 	my $extConfFile = $dh->get_default_dynamips();
 	# If the extended config file is defined, look for <conf> tags inside
 	if ($extConfFile ne '0'){
+		$extConfFile = &get_abs_path ($extConfFile);
+		print "** extConfFile=$extConfFile\n";
 		my $parser    = new XML::DOM::Parser;
 		my $dom       = $parser->parsefile($extConfFile);
 		my $conf_list = $dom->getElementsByTagName("conf");
@@ -1591,8 +1653,8 @@ sub sendConfiguration {
 			#&para("$currentScenario");
 			#my $filename = $currentScenario->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 			my $hostIP = $physical_host->ipAddress;
-			my $dynamips_user_path = $dom_tree->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData;
-			
+			my $dynamips_user_path = &get_abs_path ( $dom_tree->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
+			print "** dynamips_user_path=$dynamips_user_path\n";
 			#my $scp_command = "scp -2 $dynamips_user_path root\@$hostIP:$dynamips_ext_path".$filename."/dynamips-dn.xml";
 			my $scp_command = "scp -2 $dynamips_user_path root\@$hostIP:/tmp/dynamips-dn.xml";
 			system($scp_command);
@@ -1811,7 +1873,7 @@ sub daemonize {
     open STDOUT, ">>$output"		or die "Can't write to $output: $!";
     open STDERR, ">>$output"		or die "Can't write to $output: $!";
     setsid							or die "Can't start a new session: $!";
-    system("$command") == 0			or die "Could not execute $command!";
+    system("$command") == 0			or print "ERROR: Could not execute $command!";
     exit();
 }
 

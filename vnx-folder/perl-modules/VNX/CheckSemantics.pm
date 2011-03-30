@@ -310,9 +310,14 @@ sub check_doc {
 
       my $external_if = $net->getAttribute("external");
       unless ($external_if =~ /^$/) {
-	    print $bp->{"ifconfig"} . " $external_if &> /dev/null\n";
-	    if (system($bp->{"ifconfig"} . " $external_if 2&> /dev/null")) {
-	      return "in network $name, $external_if does not exist";
+	    #print $bp->{"ifconfig"} . " $external_if &> /dev/null\n";
+	    
+	    # DFC (30/3/2011): only check the interface existance not the subinterface 
+	    # (we eliminate the .XXX from the interface name) 
+		my $external_base_if = $external_if;
+		$external_base_if =~ s/\..*//;
+	    if (system($bp->{"ifconfig"} . " $external_base_if 2&> /dev/null")) {
+	      return "in network $name, $external_base_if does not exist";
 	    } 
 	    # Check the VLAN attribute (to compose the physical name, for 
 	    # duplication checking)
