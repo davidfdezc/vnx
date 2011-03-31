@@ -136,7 +136,7 @@
         <xs:element ref="ssh_key" minOccurs="0" maxOccurs="unbounded" />
         <xs:element ref="automac" minOccurs="0" />
         <xs:element ref="netconfig" minOccurs="0" />
-        <xs:element ref="vm_mgmt" minOccurs="0" />
+        <xs:element ref="vm_mgmt"/>
         <xs:element ref="tun_device" minOccurs="0" />
         <xs:element ref="vm_defaults" minOccurs="0" />
         <xs:element ref="extension" minOccurs="0" maxOccurs="unbounded" />

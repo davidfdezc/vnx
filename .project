@@ -10,6 +10,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>vnx-autoconf/windows/vnx-aced-win-0.1b.exe</name>
+			<type>1</type>
+			<location>/root/vnx/workspace/vnx-unstable/vnx/vnx-autoconf/windows/vnx-aced-win-0.1b.exe</location>
+		</link>
+		<link>
 			<name>vnx-folder/bin/send_command.pl</name>
 			<type>1</type>
 			<location>/almacen/vnx/workspace/vnx/vnx-folder/bin/send_command.pl</location>

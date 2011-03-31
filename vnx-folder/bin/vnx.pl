@@ -3266,7 +3266,7 @@ sub automac {
       # expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
       $mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
       $mac = "," . $mac;
-      print "*** MAC=$mac\n";
+      #print "*** MAC=$mac\n";
       return $mac 
 
 }
