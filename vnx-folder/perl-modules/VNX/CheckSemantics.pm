@@ -110,7 +110,8 @@ use VNX::TextManipulation;
 #
 
 # TODO:
-# - check that dynamips_ext only appears once
+# - check that dynamips_ext only appears <=1 times
+# - check that forwarding only appears <=1 times
 
 sub check_doc {
 	
@@ -911,6 +912,14 @@ sub check_doc {
       }
    }
 
+	# 23. To check that <mem> tag is specified in Megabytes or Gigabytes
+	my $mem_list = $doc->getElementsByTagName("mem");
+	for (my $j = 0; $j < $mem_list->getLength; $j++) {
+      	my $mem = &text_tag($mem_list->item($j));
+		if ( $mem !~ /[MG]$/ ) {
+			return "<mem> tag sintax error ($mem); memory values must end with 'M' or 'G'";
+		}
+	}
    return 0;
 
 }

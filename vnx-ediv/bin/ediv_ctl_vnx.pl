@@ -532,6 +532,13 @@ sub fillClusterHosts {
 			
 		my $max_vhost = $cluster_config->get("$current_name"."_max_vhost");
 		my $ifname = $cluster_config->get("$current_name"."_ifname");
+
+		# Get vnx_dir for each host in the cluster 
+		my $vnxDir = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^vnx_dir'`;
+		my @aux = split(/=/, $vnxDir);
+		chomp($aux[1]);
+		$vnxDir=$aux[1];
+		if ($vnxDir eq '') { $vnxDir = $DEFAULT_VNX_DIR}
 			
 		# Create new cluster host object
 		my $cluster_host = eval { new cluster_host(); } or die ($@);
@@ -544,6 +551,7 @@ sub fillClusterHosts {
 		$cluster_host->maxVhost("$max_vhost");
 		$cluster_host->ifName("$ifname");
 		$cluster_host->cpuDynamic("$cpu_dynamic");
+		$cluster_host->vnxDir("$vnxDir");
 			
 		# Put the complete cluster host object inside @cluster_hosts array
 		push(@cluster_hosts, $cluster_host);
@@ -1254,6 +1262,19 @@ sub checkFinish {
 	my $hostName;
 	my $scenario;
 	my $file;
+	
+	# Get vnx_dir for each host in the cluster 
+	foreach $physical_host(@cluster_hosts){
+#		$host_ip = $physical_host->ipAddress;
+#		$hostName = $physical_host->hostName;
+#		my $vnxDirHost = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat /etc/vnx.conf | grep ^vnx_dir'`;
+#		chomp ($vnxDirHost);
+#		my @aux = split(/=/, $vnxDirHost);
+#		$vnxDirHost=$aux[1];
+		print "*** " . $physical_host->hostName . ":" . $physical_host->vnxDir. "\n";		
+	}
+	
+	
 	foreach $physical_host(@cluster_hosts){
 		$dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
 		$host_ip = $physical_host->ipAddress;
@@ -1270,14 +1291,16 @@ sub checkFinish {
 		open STDERR, "/dev/null";
 		foreach $vms (keys (%allocation)){
 			if ($allocation{$vms} eq $hostName){
-				print ("Checking $vms status ($vnx_dir/scenarios/$scenario/vms/$vms/status)\n");
-				my $status_command = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat $vnx_dir/scenarios/$scenario/vms/$vms/status'";
+				
+				my $statusFile = $physical_host->vnxDir . "/scenarios/$scenario/vms/$vms/status";
+				print ("Checking $vms status ($statusFile)\n");
+				my $status_command = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat $statusFile'";
 				my $status = `$status_command`;
 				chomp ($status);
 
 				while (!($status eq "running")) {
 					print ("\t $vms still booting, waiting...(status=$status)\n");
-					$status_command = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat $vnx_dir/scenarios/$scenario/vms/$vms/status'";
+					#print "*** $status_command\n"; 
 					$status = `$status_command`;
 					chomp ($status);
 					sleep(5);

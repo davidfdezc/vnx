@@ -1,24 +1,3 @@
-
-
-
-
-
-
-                                            
-  ,ad8888ba,    88           88888888ba,    
- d8"'    `"8b   88           88      `"8b   
-d8'        `8b  88           88        `8b  
-88          88  88           88         88  
-88          88  88           88         88  
-Y8,        ,8P  88           88         8P  
- Y8a.    .a8P   88           88      .a8P   
-  `"Y8888Y"'    88888888888  88888888Y"'    
-                                            
-                                            
-DFC 31/3/2011: Changed to vnx.pl
-
-
-
 #!/usr/bin/perl 
 #!@PERL@
 # ---------------------------------------------------------------------------------
@@ -4395,7 +4374,7 @@ sub make_vm_API_doc {
       #$mng_if_tag->addChild( $dom->createAttribute( value => $mng_if_value));      
       # aquí es donde hay que meter las ips de gestion
       # si mng_if es distinto de no, metemos un if id 0
-      unless ($mng_if_value eq "no"){
+      unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
         my $mng_if_tag = $dom->createElement('if');
       	$vm_tag->addChild($mng_if_tag);
       	my $mac = &automac($i+1, 0);
@@ -4413,9 +4392,6 @@ sub make_vm_API_doc {
       
       }
       
-      
-      
-
 	  # my @group = getgrnam("@TUN_GROUP@");
       my @group = getgrnam("uml-net");
 
@@ -4803,4 +4779,3 @@ sub usage {
    
 
 }
-
