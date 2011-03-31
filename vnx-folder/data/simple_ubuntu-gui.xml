@@ -8,7 +8,7 @@ Just one Ubuntu virtual machine. Use this specification for testing
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.95.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.96.xsd">
   <global>
     <version>1.92</version>
     <scenario_name>simple_ubuntu-gui</scenario_name>
@@ -16,7 +16,7 @@ Just one Ubuntu virtual machine. Use this specification for testing
     <vm_mgmt type="none" />
     <vm_defaults>
 	    <console id="0" display="yes"/>
-	    <console id="1" display="no"/>
+	    <console id="1" display="yes"/>
     </vm_defaults>
   </global>
     

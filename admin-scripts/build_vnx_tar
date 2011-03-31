@@ -1,8 +1,9 @@
 #!/bin/bash
 
 VNX_VERSION="0.15b-`date +%Y%m%d%H%M`"
-OLIVE_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
-ACEDLF_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
+ACED_OLIVE_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
+ACED_LF_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
+ACED_WIN_VERSION="0.1b"
 #ROOTFS_VERSION="es-v023b"
 FNAME=vnx-${VNX_VERSION}
 
@@ -26,31 +27,32 @@ rm -rf tmp/aced/*
 #
 # Olive
 #
-mkdir -p tmp/aced/vnx-aced-olive-$OLIVE_VERSION
-cp vnx-autoconf/open-source/olive/*  tmp/aced/vnx-aced-olive-$OLIVE_VERSION
+mkdir -p tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION
+cp vnx-autoconf/open-source/olive/*  tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION
 cd tmp/aced
-tar cfvz vnx-aced-olive-${OLIVE_VERSION}.tgz vnx-aced-olive-$OLIVE_VERSION
-rm -rf vnx-aced-olive-$OLIVE_VERSION
+tar cfvz vnx-aced-olive-${ACED_OLIVE_VERSION}.tgz vnx-aced-olive-$ACED_OLIVE_VERSION
+rm -rf vnx-aced-olive-$ACED_OLIVE_VERSION
 cd ../..
 #
 # Windows
 #
-# TBP
+cp vnx-autoconf/windows/vnx-aced-win-${ACED_WIN_VERSION}.exe tmp/aced
+
 #
 # Linux & Freebsd
 #
-mkdir -p tmp/aced/vnx-aced-lf-$ACEDLF_VERSION
+mkdir -p tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
 cp -r vnx-autoconf/open-source/freebsd vnx-autoconf/open-source/unix \
       vnx-autoconf/open-source/vnxdaemon.pl vnx-autoconf/open-source/install-vnxdaemon \
-      tmp/aced/vnx-aced-lf-$ACEDLF_VERSION
+      tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
 cd tmp/aced
-tar cfvz vnx-aced-lf-${ACEDLF_VERSION}.tgz vnx-aced-lf-$ACEDLF_VERSION
-rm -rf vnx-aced-lf-$ACEDLF_VERSION
+tar cfvz vnx-aced-lf-${ACED_LF_VERSION}.tgz vnx-aced-lf-$ACED_LF_VERSION
+rm -rf vnx-aced-lf-$ACED_LF_VERSION
 cd ../..
 
 
 #
-# Copy all the files to tmp/${FNAME} directory to buil the tar file from there 
+# Copy all the files to tmp/${FNAME} directory to build the tar file from there 
 #
 cp -r vnx-folder/doc  \
       vnx-folder/etc  \
@@ -69,7 +71,7 @@ cp -r vnx-folder/doc  \
 RELDATE=$( date +%d/%m/%Y_%H:%M )
 echo "** \$release=$RELDATE"
 echo "** "
-sed --in-place -e "s%DD/MM/YYYY%$RELDATE%" tmp/${FNAME}/bin/vnx
+sed --in-place -e "s%DD/MM/YYYY%$RELDATE%" tmp/${FNAME}/bin/vnx.pl
 cp admin-scripts/install_vnx tmp/${FNAME}
 mv tmp/${FNAME}/doc/00-readme.txt tmp/${FNAME}
 

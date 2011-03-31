@@ -197,10 +197,15 @@ sub check_doc {
 	my $vmmgmt_net_list;
 	my $vmmgmt_net_list_len = 0;
 	my $vmmgmt_hostmap_list;
-	if ($vmmgmt_list->getLength == 1) {
+	# DFC 31/3/2011: <vm_mgmt> made compulsory to simplify 
+	if ($vmmgmt_list->getLength == 0) {
+		return "<vm_mgmt> tag missing"
+	} elsif ($vmmgmt_list->getLength == 1) {
 		$vmmgmt_net_list = $vmmgmt_list->item(0)->getElementsByTagName("mgmt_net");
 		$vmmgmt_net_list_len = $vmmgmt_net_list->getLength;
 		$vmmgmt_hostmap_list = $vmmgmt_list->item(0)->getElementsByTagName("host_mapping");
+	} else {
+		return "tag <vm_mgmt> duplicated"
 	}
 	
     # 7b. exactly one <mgmt_net> child for the <vm_mgmt> tag if and only if

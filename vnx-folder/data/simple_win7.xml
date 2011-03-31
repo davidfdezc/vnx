@@ -8,7 +8,7 @@ Just one Windows XP virtual machine. Use this specification for testing
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.95.xsd">
+     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.96.xsd">
   <global>
     <version>1.92</version>
     <scenario_name>simple_w7</scenario_name>
