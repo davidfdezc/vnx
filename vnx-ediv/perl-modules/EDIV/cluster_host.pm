@@ -45,7 +45,8 @@ sub new {
         _cpu => undef,			# Percentage of CPU speed
         _maxvhost => undef,		# Maximum virtualized host (0 = unlimited)
         _ifname => undef,		# Network interface of the physical host
-        _cpudynamic => undef	# CPU load in present time
+        _cpudynamic => undef,	# CPU load in present time
+        _vnxdir => undef     	# VNX directory  
     };
     bless $self, $class;
     return $self;
@@ -109,6 +110,15 @@ sub ifName {
     my ( $self, $if ) = @_;
     $self->{_ifname} = $if if defined($if);
     return $self->{_ifname};
+}
+
+	###########################################################	
+	# Accessor method for the network interface
+	###########################################################
+sub vnxDir {
+    my ( $self, $vnxdir ) = @_;
+    $self->{_vnxdir} = $vnxdir if defined($vnxdir);
+    return $self->{_vnxdir};
 }
 
 1;

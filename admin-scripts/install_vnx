@@ -39,7 +39,7 @@ mkdir -vp /etc/ediv
 #
 # Copy vnx
 #
-cp -v bin/vnx /usr/bin
+cp -v bin/vnx.pl /usr/bin/vnx
 chmod +x /usr/bin/vnx
 
 #
