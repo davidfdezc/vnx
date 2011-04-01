@@ -2001,7 +2001,7 @@ sub define_VMs {
    #   equal to $manipcounter if no mng_if file found
    #   value "file" if mng_if file found in run dir
    my $manipdata;
-   
+
    my $docstring;
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -2014,20 +2014,22 @@ sub define_VMs {
 
       my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
-      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i,$manipcounter);	
+      
+      # check for existing management ip file stored in run dir
+      # update manipdata for current vm accordingly
+      if (-f $dh->get_vm_dir($name) . '/mng_ip'){
+         $manipdata = "file"; 	
+      }else{
+         $manipdata = $manipcounter;
+      }
+      
+      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i,$manipdata);	
       # Save the XML <create_conf> file to .vnx/scenarios/<vscenario_name>/vms/$name_cconf.xml
 	  open XML_CCFILE, ">" . $dh->get_vm_dir($name) . '/' . $name . '_cconf.xml'
 		  or $execution->smartdie("can not open " . $dh->get_vm_dir . '/' . $name . '_cconf.xml' )
 		    unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 	  print XML_CCFILE "$docstring\n";
 	  close XML_CCFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-	  
-	  # check for existing management ip file stored in run dir
-	  if (-f $dh->get_vm_dir($name) . '/mng_ip'){
-	  	$manipdata = "file";	  	
-	  }else{
-	  	$manipdata = $manipcounter;
-	  }
         
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
@@ -2104,7 +2106,7 @@ sub start_VMs {
 
       
       $curr_uml = $name;
-      
+
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i,$manipcounter); # only needed for uml vms
       
       #check for option -n||--no_console (do not start consoles)
@@ -2117,6 +2119,22 @@ sub start_VMs {
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $sock, $manipcounter, $no_console);
       if (!($error eq 0)){print $error} 
+
+      
+      #######
+      my $mng_if_value = &mng_if_value( $vm );
+      # To configure management device (id 0), if needed
+	  if ( $dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no" ) {
+         my $net = &get_admin_address( $manipcounter, $dh->get_vmmgmt_type, 1 );
+		 $execution->execute( $bd->get_binaries_path_ref->{"ifconfig"}
+			  . " $name-e0 "
+			  . $net->addr()
+			  . " netmask "
+			  . $net->mask()
+			  . " up" );
+	  }
+
+      #######
       $manipcounter++;
       undef($curr_uml);
       #&change_vm_status($dh,$name,"running");
@@ -4380,7 +4398,7 @@ sub make_vm_API_doc {
       	my $mac = &automac($i+1, 0);
       
         $mng_if_tag->addChild( $dom->createAttribute( mac => $mac));
-        print "***2 get_admin_address($manipcounter, $dh->get_vmmgmt_type, 2)\n";
+        
       	my $mng_addr = &get_admin_address( $manipcounter, $dh->get_vmmgmt_type, 2, $name );
       	$mng_if_tag->addChild( $dom->createAttribute( id => 0));
       	my $ipv4_tag = $dom->createElement('ipv4');

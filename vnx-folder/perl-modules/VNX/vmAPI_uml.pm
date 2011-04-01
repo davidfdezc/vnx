@@ -2710,16 +2710,18 @@ sub UML_bootfile {
 	$execution->set_verb_prompt($verb_prompt_bk);
 	close CONFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
-	# To configure management device (id 0), if needed
-	if ( $dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no" ) {
-		my $net = &get_admin_address( $number, $dh->get_vmmgmt_type, 1 );
-		$execution->execute( $bd->get_binaries_path_ref->{"ifconfig"}
-			  . " $vm_name-e0 "
-			  . $net->addr()
-			  . " netmask "
-			  . $net->mask()
-			  . " up" );
-	}
+# movido a vnx.pl->start_VMs()
+# 
+#	# To configure management device (id 0), if needed
+#	if ( $dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no" ) {
+#		my $net = &get_admin_address( $number, $dh->get_vmmgmt_type, 1 );
+#		$execution->execute( $bd->get_binaries_path_ref->{"ifconfig"}
+#			  . " $vm_name-e0 "
+#			  . $net->addr()
+#			  . " netmask "
+#			  . $net->mask()
+#			  . " up" );
+#	}
 
 	# Boot file will be executable
 	$execution->execute(
