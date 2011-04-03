@@ -31,7 +31,10 @@ package VNX::CheckSemantics;
 require(Exporter);
 
 @ISA = qw(Exporter);
-@EXPORT = qw(check_doc);
+@EXPORT = qw(
+	validate_xml
+	check_doc
+);
 
 use strict;
 use NetAddr::IP;
@@ -41,6 +44,58 @@ use VNX::FileChecks;
 use VNX::IPChecks;
 use VNX::NetChecks;
 use VNX::TextManipulation;
+use XML::LibXML;
+
+
+# 
+# validate_xml
+# 
+#   Checks the existence of an XML file and validates it against the XSD .
+#
+# Arguments:
+#   xmlFile: the XML file tio be validated
+#
+# Returns
+#   empty string if no errors found; error messages if the parser finds them
+#
+sub validate_xml {
+	
+	my $xmlFile = shift;
+	my $xsd;
+
+	# Check file existance
+	if (!-e $xmlFile){
+		return "$xmlFile does not exists or is not readable\n";
+	}
+
+	# Load XML file content
+	open INPUTFILE, "$xmlFile";
+	my @xmlContent = <INPUTFILE>;
+	my $xmlContent = join("",@xmlContent);
+	close INPUTFILE;
+
+	# DTD use is deprecated
+   	if ($xmlContent =~ /<!DOCTYPE vnx SYSTEM "(.*)">/) { 
+          return "parsing based on DTD is not supported; use XSD instead\n";	  
+   	}
+
+	# Get XSD file name from the XML
+	if ($xmlContent =~ /="(\S*).xsd"/) {
+		$xsd = $1 .".xsd";
+	}else{
+		return "XSD definition not found in XML file: $xsd\n";
+	}
+
+	my $schema = XML::LibXML::Schema->new(location => $xsd);
+	my $parser = XML::LibXML->new;
+	my $doc = $parser->parse_file($xmlFile);
+	eval { $schema->validate( $doc ) };
+
+	if ( my $ex = $@ ) {
+		return $ex;
+	}
+	return;
+}
 
 # check_doc
 #

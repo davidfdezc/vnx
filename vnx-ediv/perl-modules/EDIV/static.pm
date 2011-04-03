@@ -80,7 +80,7 @@ sub initial_check {
 	close (FILEHANDLE);
 		# Get VM names from scenario file
 	my $dom_tree = $self->{dom_tree};
-	my $globalNode = $dom_tree->getElementsByTagName("vnuml")->item(0);
+	my $globalNode = $dom_tree->getElementsByTagName("vnx")->item(0);
 	my $virtualmList=$globalNode->getElementsByTagName("vm");
 	my @scenarioVmList;
 	for (my $i=0; $i<$virtualmList->getLength; $i++) {
@@ -137,7 +137,7 @@ sub initial_check {
 			}
 		}
 		if ($match == 0){
-			print ("ERROR: The vm $vmRestrictionName from restricion file doesn't exist in this scenario... Aborting\n");
+			print ("ERROR: The vm $vmRestrictionName from restriction file doesn't exist in this scenario... Aborting\n");
 			$errorCode = 1;
 			return $errorCode;
 		}
@@ -180,7 +180,7 @@ sub initial_check {
 			}
 		}
 		if ($match == 0){
-			print ("ERROR: The net $netRestrictionName from restricion file doesn't exist in this scenario... Aborting\n");
+			print ("ERROR: The net $netRestrictionName from restriction file doesn't exist in this scenario... Aborting\n");
 			$errorCode = 1;
 			return $errorCode;
 		}
@@ -222,7 +222,7 @@ sub initial_check {
 			}
 		}
 		if ($match == 0){
-			print ("ERROR: The host $hostRestrictionName from restricion file doesn't exist in this scenario... Aborting\n");
+			print ("ERROR: The host $hostRestrictionName from restriction file doesn't exist in this scenario... Aborting\n");
 			$errorCode = 1;
 			return $errorCode;
 		}
@@ -266,7 +266,7 @@ sub assign {
 		}
 	}
 	my $dom_tree = $self->{dom_tree};
-	my $globalNode = $dom_tree->getElementsByTagName("vnuml")->item(0);
+	my $globalNode = $dom_tree->getElementsByTagName("vnx")->item(0);
 	my $virtualmList=$globalNode->getElementsByTagName("vm");
 	
 	my %netVms;
@@ -522,7 +522,7 @@ sub remaining {
 	my $self = shift;
 	
 	my $dom_tree = $self->{dom_tree};
-	my $globalNode = $dom_tree->getElementsByTagName("vnuml")->item(0);
+	my $globalNode = $dom_tree->getElementsByTagName("vnx")->item(0);
 	my $virtualmList=$globalNode->getElementsByTagName("vm");
 	my @scenarioVmList;
 	for (my $i=0; $i<$virtualmList->getLength; $i++) {

@@ -625,23 +625,15 @@ sub main {
    	if ($bd->check_binaries_mandatory != 0) {
       &vnx_die ("some required binary files are missing\n");
    	}
-  
-   	# We need the file to perform some manipulations
-   	open INPUTFILE, "$input_file";
-   	my @input_file_array = <INPUTFILE>;
-   	my $input_file_string = join("",@input_file_array);
-   	close INPUTFILE;
-   
-   	# 7. To check if the DTD file is present
-   	my $modeparser;
-      
-   	if ($input_file_string =~ /<!DOCTYPE vnx SYSTEM "(.*)">/) { 
-         &vnx_die ("parsing based on DTD not supported; use XSD instead\n");	  
-   	}
-	$modeparser = "xsd";
 
-   	# 8. To check version number
-   	if ($input_file_string =~ /<version>\s*(\d\.\d+)(\.\d+)?\s*<\/version>/) {
+   	# 7. To check version number
+	# Load XML file content
+	open INPUTFILE, "$input_file";
+	my @xmlContent = <INPUTFILE>;
+	my $xmlContent = join("",@xmlContent);
+	close INPUTFILE;
+
+   	if ($xmlContent =~ /<version>\s*(\d\.\d+)(\.\d+)?\s*<\/version>/) {
       	my $version_in_file = $1;
       	$version =~ /^(\d\.\d+)/;
       	my $version_in_parser = $1;
@@ -652,37 +644,22 @@ sub main {
    	} else {
       	&vnx_die("can not find VNX version in $input_file");
    	}
+  
+   	# 8. To check XML file existance and readability and
+   	# validate it against its XSD language definition
+	my $error;
+	$error = validate_xml ($input_file);
+	if ( $error ) {
+        &vnx_die ("XML file ($input_file) validation failed:\n$error\n");
+	}
 
+   	# Create DOM tree
+	my $parser = new XML::DOM::Parser;
+    my $doc = $parser->parsefile($input_file);
+       	       	
    	# Interactive execution (press a key after each command)
    	my $exeinteractive = $opt_v && $opt_i;
 
-   	# Before building the DOM tree, perform text patern-based version
-   	# checking   
-
-   	# To build DOM tree parsing file
-   	$valid_fail = 0;
-   	my $parser;
-   	my $doc;
-   	if($modeparser eq "xsd"){
-   		my $schemalocation;
-
-	    if ($input_file_string =~ /="(\S*).xsd"/) {
-        	$schemalocation = $1 .".xsd";
-
-		}else{
-			print "input_file_string = $input_file_string, $schemalocation=schemalocation\n";
-			&vnx_die("XSD not found");
-		}
-		
-		my $schema = XML::LibXML::Schema->new(location => $schemalocation);
-		
-		$parser = XML::LibXML->new;
-		#$doc    = $parser->parse_file($document);
-		$doc = $parser->parse_file($input_file);
-		my $parser2 = new XML::DOM::Parser;
-       	$doc = $parser2->parsefile($input_file);
-   	}
-   
    	# Build the VNX::Execution object
    	$execution = new Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
 
@@ -712,10 +689,12 @@ sub main {
    
    	# Validate extended XML configuration files
 	# Dynamips
-	my $extConfFile = $dh->get_default_dynamips();
-	#print "*** dynamipsconf=$extConfFile\n";
-	if ($extConfFile ne "0"){
-		$extConfFile = vmAPI_dynamips->validateExtXMLFiles($extConfFile);	
+	my $dmipsConfFile = $dh->get_default_dynamips();
+	if ($dmipsConfFile ne "0"){
+		my $error = validate_xml ($dmipsConfFile);
+		if ( $error ) {
+	        &vnx_die ("Dynamips XML configuration file ($dmipsConfFile) validation failed:\n$error\n");
+		}
 	}
 
    	# 6b (delayed because it required the $dh object constructed)
@@ -965,8 +944,6 @@ sub main {
    print "Total time elapsed: $total_time seconds\n";
 
 }
-
-
 
 
 sub mode_define {
@@ -2001,7 +1978,7 @@ sub define_VMs {
    #   equal to $manipcounter if no mng_if file found
    #   value "file" if mng_if file found in run dir
    my $manipdata;
-
+   
    my $docstring;
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -2014,22 +1991,20 @@ sub define_VMs {
 
       my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
       $curr_uml = $name;
-      
-      # check for existing management ip file stored in run dir
-      # update manipdata for current vm accordingly
-      if (-f $dh->get_vm_dir($name) . '/mng_ip'){
-         $manipdata = "file"; 	
-      }else{
-         $manipdata = $manipcounter;
-      }
-      
-      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i,$manipdata);	
+      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i,$manipcounter);	
       # Save the XML <create_conf> file to .vnx/scenarios/<vscenario_name>/vms/$name_cconf.xml
 	  open XML_CCFILE, ">" . $dh->get_vm_dir($name) . '/' . $name . '_cconf.xml'
 		  or $execution->smartdie("can not open " . $dh->get_vm_dir . '/' . $name . '_cconf.xml' )
 		    unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 	  print XML_CCFILE "$docstring\n";
 	  close XML_CCFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+	  
+	  # check for existing management ip file stored in run dir
+	  if (-f $dh->get_vm_dir($name) . '/mng_ip'){
+	  	$manipdata = "file";	  	
+	  }else{
+	  	$manipdata = $manipcounter;
+	  }
         
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
@@ -2106,7 +2081,7 @@ sub start_VMs {
 
       
       $curr_uml = $name;
-
+      
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i,$manipcounter); # only needed for uml vms
       
       #check for option -n||--no_console (do not start consoles)
@@ -2119,22 +2094,6 @@ sub start_VMs {
       my $vmType = $vm->getAttribute("type");
       my $error = "vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $sock, $manipcounter, $no_console);
       if (!($error eq 0)){print $error} 
-
-      
-      #######
-      my $mng_if_value = &mng_if_value( $vm );
-      # To configure management device (id 0), if needed
-	  if ( $dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no" ) {
-         my $net = &get_admin_address( $manipcounter, $dh->get_vmmgmt_type, 1 );
-		 $execution->execute( $bd->get_binaries_path_ref->{"ifconfig"}
-			  . " $name-e0 "
-			  . $net->addr()
-			  . " netmask "
-			  . $net->mask()
-			  . " up" );
-	  }
-
-      #######
       $manipcounter++;
       undef($curr_uml);
       #&change_vm_status($dh,$name,"running");
@@ -4398,7 +4357,7 @@ sub make_vm_API_doc {
       	my $mac = &automac($i+1, 0);
       
         $mng_if_tag->addChild( $dom->createAttribute( mac => $mac));
-        
+        print "***2 get_admin_address($manipcounter, $dh->get_vmmgmt_type, 2)\n";
       	my $mng_addr = &get_admin_address( $manipcounter, $dh->get_vmmgmt_type, 2, $name );
       	$mng_if_tag->addChild( $dom->createAttribute( id => 0));
       	my $ipv4_tag = $dom->createElement('ipv4');
