@@ -11,9 +11,10 @@ See the tutorial/index.html document for details
     <version>1.92</version>
     <scenario_name>tutorial-r1_all</scenario_name>
     <automac/>
-    <vm_mgmt type="private" network="10.250.0.0" mask="24">
+    <vm_mgmt type="none"/>
+    <!--vm_mgmt type="private" network="10.250.0.0" mask="24">
        <host_mapping />
-    </vm_mgmt> 
+    </vm_mgmt--> 
     <vm_defaults exec_mode="mconsole">
     	<console id="0" display="no"/>
 	    <console id="1" display="yes"/>

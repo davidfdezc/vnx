@@ -44,7 +44,6 @@
   rebootVM
   resetVM
   executeCMD
-  validateExtXMLFiles
   );
 
 package vmAPI_dynamips;
@@ -117,7 +116,8 @@ sub defineVM {
 	$extConfFile = $dh->get_default_dynamips();
 	#print "*** dynamipsconf=$extConfFile\n";
 	if ($extConfFile ne "0"){
-		$extConfFile = &validateExtXMLFiles($self, $extConfFile);	
+		$extConfFile = &get_abs_path ($extConfFile);
+		#$extConfFile = &validate_xml ($extConfFile); # Moved to vnx.pl	
 	}
 	
 	my $doc2       = $dh->get_doc;
@@ -786,7 +786,8 @@ sub executeCMD{
 	# Configuro el fichero de configuracion extendida
 	$extConfFile = $dh->get_default_dynamips();
 	if ($extConfFile ne "0"){
-		$extConfFile = &validateExtXMLFiles($self, $extConfFile);	
+		$extConfFile = &get_abs_path ($extConfFile);
+		#$extConfFile = &validate_xml ($extConfFile);	# Moved to vnx.pl
 	}
 	# Get the console port from vm's console file
 	open (PORT_CISCO, "< $consFile") || $execution->smartdie ("ERROR: cannot open $vmName console file ($consFile)");
@@ -949,7 +950,7 @@ sub reload_conf {
 	VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
 }
 
-
+=BEGIN Moved to VNX
 # 
 # validateExtXMLFiles
 # 
@@ -1010,6 +1011,8 @@ sub validateExtXMLFiles{
 		$execution->smartdie("$tempconf not found");
 	}
 }
+=END
+=cut
 
 # Devuelve en un array de dos columnas, los valores dados en la etiqueta login del XML
 # Por defecto (si no existe) no devuelve usuarios.
