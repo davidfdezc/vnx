@@ -691,6 +691,7 @@ sub main {
 	# Dynamips
 	my $dmipsConfFile = $dh->get_default_dynamips();
 	if ($dmipsConfFile ne "0"){
+		$dmipsConfFile = get_abs_path ($dmipsConfFile);
 		my $error = validate_xml ($dmipsConfFile);
 		if ( $error ) {
 	        &vnx_die ("Dynamips XML configuration file ($dmipsConfFile) validation failed:\n$error\n");
@@ -1262,19 +1263,22 @@ sub mode_resume {
 
 sub mode_showmap {
 
-   my $scedir  = $dh->get_sim_dir;
-   my $scename = $dh->get_scename;
-   #print "**** scedir=$scedir\n"; 
-   #print "**** file=$input_file\n"; 
-   $execution->execute("vnx2dot ${input_file} > ${scedir}/${scename}.dot");
-   $execution->execute("neato -Tpng -o${scedir}/${scename}.png ${scedir}/${scename}.dot");
+   	my $scedir  = $dh->get_sim_dir;
+   	my $scename = $dh->get_scename;
+   	#print "**** scedir=$scedir\n"; 
+   	#print "**** file=$input_file\n"; 
+   	if (! -d $dh->get_sim_dir ) {
+		mkdir $dh->get_sim_dir or $execution->smartdie ("error making directory " . $dh->get_sim_dir . ": $!");
+   	}   
+	$execution->execute("vnx2dot ${input_file} > ${scedir}/${scename}.dot");
+   	$execution->execute("neato -Tpng -o${scedir}/${scename}.png ${scedir}/${scename}.dot");
    
-   my $gnome=`w -sh | grep gnome-session`;
-   my $viewapp;
-   if ($gnome ne "") { $viewapp="gnome-open" }
+   	my $gnome=`w -sh | grep gnome-session`;
+   	my $viewapp;
+   	if ($gnome ne "") { $viewapp="gnome-open" }
                 else { $viewapp="xdg-open" }
-   #$execution->execute("eog ${scedir}/${scename}.png");
-   $execution->execute("$viewapp ${scedir}/${scename}.png &");
+   	#$execution->execute("eog ${scedir}/${scename}.png");
+   	$execution->execute("$viewapp ${scedir}/${scename}.png &");
 
 }
 
