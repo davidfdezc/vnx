@@ -4014,130 +4014,106 @@ sub build_topology{
 
 sub make_vm_API_doc {
 	
-   my $vm = shift;
-   my $notify_ctl = shift;
-   my $i = shift;
-   my $manipcounter = shift;
-   my $dom;
+   	my $vm = shift;
+   	my $notify_ctl = shift;
+   	my $i = shift;
+   	my $manipcounter = shift;
+   	my $dom;
+   
+   	$dom = XML::LibXML->createDocument( "1.0", "UTF-8" );
+   
+   	my $create_conf_tag = $dom->createElement('create_conf');
+   	$dom->addChild($create_conf_tag);
+   
+   	# We get name attribute
+   	my $name = $vm->getAttribute("name");
 
-
-   
-   $dom = XML::LibXML->createDocument( "1.0", "UTF-8" );
-   
-   my $create_conf_tag = $dom->createElement('create_conf');
-   $dom->addChild($create_conf_tag);
-   
-   # We get name attribute
-   my $name = $vm->getAttribute("name");
-
-   # Insert random id number
-   my $fileid_tag = $dom->createElement('id');
-   $create_conf_tag->addChild($fileid_tag);
-   my $fileid = $name . "-" . &generate_random_string(6);
-   $fileid_tag->addChild( $dom->createTextNode($fileid) );
-   
-   
-   my $vm_tag = $dom->createElement('vm');
-   $create_conf_tag->addChild($vm_tag);
-   
-   $vm_tag->addChild( $dom->createAttribute( name => $name));
- 
-   # To get filesystem and type
-   my $filesystem;
-   my $filesystem_type;
-   my $filesystem_list = $vm->getElementsByTagName("filesystem");
-
-   # filesystem tag in dom tree        
-   my $fs_tag = $dom->createElement('filesystem');
-   $vm_tag->addChild($fs_tag);
-
-   if ($filesystem_list->getLength == 1) {
-      $filesystem = &do_path_expansion(&text_tag($vm->getElementsByTagName("filesystem")->item(0)));
-      $filesystem_type = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
-
-      # to dom tree
-      $fs_tag->addChild( $dom->createAttribute( type => $filesystem_type));
-      $fs_tag->addChild($dom->createTextNode($filesystem));       
-   }
-   else {
-    	
-      $filesystem = $dh->get_default_filesystem;
-      $filesystem_type = $dh->get_default_filesystem_type;
-
-      #to dom tree
-      $fs_tag->addChild( $dom->createAttribute( type => $filesystem_type));
-      $fs_tag->addChild($dom->createTextNode($filesystem));
-   }
-
-   # Memory assignment
-   my $mem = $dh->get_default_mem;      
-   my $mem_list = $vm->getElementsByTagName("mem");
-   if ($mem_list->getLength == 1) {
-      $mem = &text_tag($mem_list->item(0));
-   }
-   
-   # Convert <mem> tag value to Kilobytes (only "M" and "G" letters are allowed) 
-   if ((($mem =~ /M$/))) {
-      $mem =~ s/M//;
-      $mem = $mem * 1024;
-   } elsif ((($mem =~ /G$/))) {
-      $mem =~ s/G//;
-      $mem = $mem * 1024 * 1024;
-   }
-   
-   # mem tag in dom tree
-   my $mem_tag = $dom->createElement('mem');
-   $vm_tag->addChild($mem_tag);
-   $mem_tag->addChild($dom->createTextNode($mem));
-   
-   ## conf for dynamips
-   
-   #my $dynamips = $dh->get_default_mem;      
-#   my $conf_dynamips_list = $vm->getElementsByTagName("dynamips_conf");
-#   if ($conf_dynamips_list->getLength == 1) {
-#   		my $conf_dynamips = &text_tag($conf_dynamips_list->item(0));
-#  		my $conf_dynamips_tag = $dom->createElement('dynamips_conf');
-#   		$vm_tag->addChild($conf_dynamips_tag);
-#   		$conf_dynamips_tag->addChild($dom->createTextNode($conf_dynamips));
-#   }
-  
-#   my $ext_dynamips = $dh->get_default_dynamips();
-#  #  my $ext_dynamips_list = $vm->getElementsByTagName("dynamips_ext");
-#   if (!($ext_dynamips eq "")) {
-#   		#my $ext_dynamips = &text_tag($ext_dynamips_list->item(0));
-#  		my $ext_dynamips_tag = $dom->createElement('dynamips_ext');
-#   		$vm_tag->addChild($ext_dynamips_tag);
-#   		$ext_dynamips_tag->addChild($dom->createTextNode($ext_dynamips));
-#   }
-
-   # kernel to be booted
-   my $kernel;
-   my @params;
-   my @build_params;
-   my $kernel_list = $vm->getElementsByTagName("kernel");
+   	# Insert random id number
+   	my $fileid_tag = $dom->createElement('id');
+   	$create_conf_tag->addChild($fileid_tag);
+   	my $fileid = $name . "-" . &generate_random_string(6);
+   	$fileid_tag->addChild( $dom->createTextNode($fileid) );
       
-   # kernel tag in dom tree
-   my $kernel_tag = $dom->createElement('kernel');
-   $vm_tag->addChild($kernel_tag);
-   if ($kernel_list->getLength == 1) {
-      my $kernel_item = $kernel_list->item(0);
-      $kernel = &do_path_expansion(&text_tag($kernel_item));         
-      # to dom tree
-      $kernel_tag->addChild($dom->createTextNode($kernel));         
-   }
-   else {    	
-      # include a 'default' in dom tree
-      $kernel_tag->addChild($dom->createTextNode('default'));
-         
-   }
+   	my $vm_tag = $dom->createElement('vm');
+   	$create_conf_tag->addChild($vm_tag);
+   
+   	$vm_tag->addChild( $dom->createAttribute( name => $name));
+ 
+   	# To get filesystem and type
+   	my $filesystem;
+   	my $filesystem_type;
+   	my $filesystem_list = $vm->getElementsByTagName("filesystem");
 
-   # Add console tags
-   # Get the array of consoles for that VM
-   my @console_list = $dh->merge_console($vm);
+   	# filesystem tag in dom tree        
+   	my $fs_tag = $dom->createElement('filesystem');
+   	$vm_tag->addChild($fs_tag);
 
-   if (@console_list > 0) {
-     my $xterm_used = 0;
-     foreach my $console (@console_list) {
+   	if ($filesystem_list->getLength == 1) {
+      	$filesystem = &do_path_expansion(&text_tag($vm->getElementsByTagName("filesystem")->item(0)));
+      	$filesystem_type = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
+
+      	# to dom tree
+      	$fs_tag->addChild( $dom->createAttribute( type => $filesystem_type));
+      	$fs_tag->addChild($dom->createTextNode($filesystem));       
+   	}
+   	else {
+    	
+      	$filesystem = $dh->get_default_filesystem;
+      	$filesystem_type = $dh->get_default_filesystem_type;
+
+      	#to dom tree
+      	$fs_tag->addChild( $dom->createAttribute( type => $filesystem_type));
+      	$fs_tag->addChild($dom->createTextNode($filesystem));
+   	}
+
+   	# Memory assignment
+   	my $mem = $dh->get_default_mem;      
+   	my $mem_list = $vm->getElementsByTagName("mem");
+   	if ($mem_list->getLength == 1) {
+      	$mem = &text_tag($mem_list->item(0));
+   	}
+   
+	# Convert <mem> tag value to Kilobytes (only "M" and "G" letters are allowed) 
+	if ((($mem =~ /M$/))) {
+	 	$mem =~ s/M//;
+		$mem = $mem * 1024;
+	} elsif ((($mem =~ /G$/))) {
+	    $mem =~ s/G//;
+		$mem = $mem * 1024 * 1024;
+	}
+   
+   	# mem tag in dom tree
+	my $mem_tag = $dom->createElement('mem');
+   	$vm_tag->addChild($mem_tag);
+   	$mem_tag->addChild($dom->createTextNode($mem));
+   
+   	# kernel to be booted
+   	my $kernel;
+   	my @params;
+   	my @build_params;
+   	my $kernel_list = $vm->getElementsByTagName("kernel");
+      
+   	# kernel tag in dom tree
+   	my $kernel_tag = $dom->createElement('kernel');
+   	$vm_tag->addChild($kernel_tag);
+   	if ($kernel_list->getLength == 1) {
+      	my $kernel_item = $kernel_list->item(0);
+      	$kernel = &do_path_expansion(&text_tag($kernel_item));         
+      	# to dom tree
+      	$kernel_tag->addChild($dom->createTextNode($kernel));         
+   	}
+   	else {    	
+      	# include a 'default' in dom tree
+      	$kernel_tag->addChild($dom->createTextNode('default'));
+   	}
+
+   	# Add console tags
+   	# Get the array of consoles for that VM
+   	my @console_list = $dh->merge_console($vm);
+
+   	if (@console_list > 0) {
+     	my $xterm_used = 0;
+     	foreach my $console (@console_list) {
 	  		my $console_id    = $console->getAttribute("id");
 		 	my $console_value = &text_tag($console);
             my $console_tag = $dom->createElement('console');
@@ -4153,8 +4129,8 @@ sub make_vm_API_doc {
             if ($console_port ne "") {
                 $console_tag->addChild($dom->createAttribute( port => $console_port));
             }  
-     }
-   }
+		}
+	}
 
 #   if (@console_list > 0) {
 #     my $xterm_used = 0;
@@ -4188,125 +4164,133 @@ sub make_vm_API_doc {
 
 #####
 
-=BEGIN
-   # To get display_console tag from scenario
-   my $display_console_list = $vm->getElementsByTagName("display_console");
-   my $display_console = "yes";
-   if ($display_console_list->getLength == 1) {
-      $display_console = &text_tag($display_console_list->item(0));
-   }
-   # display_console tag to vmAPI dom tree        
-   my $display_console_tag = $dom->createElement('display_console');
-   $vm_tag->addChild($display_console_tag);
-   $display_console_tag->addChild($dom->createTextNode($display_console)); 
-=END
-=cut
-   
-   # To process all interfaces
-   # To get UML's interfaces list
-   my $if_list = $vm->getElementsByTagName("if");
-   my $longitud = $if_list->getLength;
-
-   # To process list, we ignore interface zero since it
-   # gets setup as necessary management interface
-   for ( my $j = 0; $j < $if_list->getLength; $j++) {
+	# Management interface, if needed
+    #my $mng_if_value = &mng_if_value($dh,$vm);
+    my $mng_if_value = &mng_if_value($vm);
+    #$mng_if_tag->addChild( $dom->createAttribute( value => $mng_if_value));      
+    # aquí es donde hay que meter las ips de gestion
+    # si mng_if es distinto de no, metemos un if id 0
+    unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
+    	my $mng_if_tag = $dom->createElement('if');
+    	$vm_tag->addChild($mng_if_tag);
+      	my $mac = &automac($i+1, 0);
       
-      my $if = $if_list->item($j);
+        $mng_if_tag->addChild( $dom->createAttribute( mac => $mac));
+
+      	my $mng_addr = &get_admin_address( $manipcounter, $dh->get_vmmgmt_type, 2, $name );
+      	$mng_if_tag->addChild( $dom->createAttribute( id => 0));
+      	my $ipv4_tag = $dom->createElement('ipv4');
+      	$mng_if_tag->addChild($ipv4_tag);
+      	my $mng_mask = $mng_addr->mask();
+      	$ipv4_tag->addChild( $dom->createAttribute( mask => $mng_mask));
+      	my $mng_ip = $mng_addr->addr();
+        $ipv4_tag->addChild($dom->createTextNode($mng_ip));
+      
+	}
+   
+   	# To process all interfaces
+   	# To get UML's interfaces list
+   	my $if_list = $vm->getElementsByTagName("if");
+   	my $longitud = $if_list->getLength;
+
+   	# To process list, we ignore interface zero since it
+   	# gets setup as necessary management interface
+   	for ( my $j = 0; $j < $if_list->getLength; $j++) {
+      
+      	my $if = $if_list->item($j);
     
-      # To get attributes
-      my $id = $if->getAttribute("id");
-      my $net = $if->getAttribute("net");
+      	# To get attributes
+      	my $id = $if->getAttribute("id");
+      	my $net = $if->getAttribute("net");
 
-
-      # To get MAC address
-      my $mac_list = $if->getElementsByTagName("mac");
-      my $mac;
-      # If <mac> is not present, we ask for an automatic one (if
-      # <automac> is not enable may be null; in this case UML 
-      # autoconfiguration based in IP address of the interface 
-      # is used -but it doesn't work with IPv6!)
-      if ($mac_list->getLength == 1) {
+      	# To get MAC address
+      	my $mac_list = $if->getElementsByTagName("mac");
+      	my $mac;
+      	# If <mac> is not present, we ask for an automatic one (if
+      	# <automac> is not enable may be null; in this case UML 
+      	# autoconfiguration based in IP address of the interface 
+      	# is used -but it doesn't work with IPv6!)
+      	if ($mac_list->getLength == 1) {
       	
-         $mac = &text_tag($mac_list->item(0));
-         # expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
-         $mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
-         $mac = "," . $mac;
+         	$mac = &text_tag($mac_list->item(0));
+         	# expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
+         	$mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
+         	$mac = "," . $mac;
          
-         #$mac = "," . &text_tag($mac_list->item(0));
-      }
-      else {	  #my @group = getgrnam("@TUN_GROUP@");
-         $mac = &automac($i+1, $id);
-         # DFC: Moved to automac function 
-         #$mac =~ s/,//;
-         # expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
-         #$mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
-         #$mac = "," . $mac;
-	        
-      }
+         	#$mac = "," . &text_tag($mac_list->item(0));
+      	}
+      	else {	  #my @group = getgrnam("@TUN_GROUP@");
+         	$mac = &automac($i+1, $id);
+         	# DFC: Moved to automac function 
+         	#$mac =~ s/,//;
+         	# expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
+         	#$mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
+         	#$mac = "," . $mac;
+      	}
          
-      # if tags in dom tree 
-      my $if_tag = $dom->createElement('if');
-      $vm_tag->addChild($if_tag);
-      $if_tag->addChild( $dom->createAttribute( id => $id));
-      $if_tag->addChild( $dom->createAttribute( net => $net));
-      $if_tag->addChild( $dom->createAttribute( mac => $mac));
-      try {
-      	my $name = $if->getAttribute("name");
-      	$if_tag->addChild( $dom->createAttribute( name => $name));
-      } 
-      catch Error with {
+      	# if tags in dom tree 
+      	my $if_tag = $dom->createElement('if');
+      	$vm_tag->addChild($if_tag);
+      	$if_tag->addChild( $dom->createAttribute( id => $id));
+      	$if_tag->addChild( $dom->createAttribute( net => $net));
+      	$if_tag->addChild( $dom->createAttribute( mac => $mac));
+      	try {
+      		my $name = $if->getAttribute("name");
+      		$if_tag->addChild( $dom->createAttribute( name => $name));
+      	} 
+      	catch Error with {
       	
-      } ;
+      	} ;
          
-      # To process interface IPv4 addresses
-      # The first address has to be assigned without "add" to avoid creating subinterfaces
-      if ($dh->is_ipv4_enabled) {
-         my $ipv4_list = $if->getElementsByTagName("ipv4");
-         #my $command = "";
-         for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
+      	# To process interface IPv4 addresses
+      	# The first address has to be assigned without "add" to avoid creating subinterfaces
+      	if ($dh->is_ipv4_enabled) {
+         	my $ipv4_list = $if->getElementsByTagName("ipv4");
+         	#my $command = "";
+         	for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
 
-            my $ip = &text_tag($ipv4_list->item($j));
-            my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
-            if (&valid_ipv4_with_mask($ip)) {
-               # Implicit slashed mask in the address
-               $ip =~ /.(\d+)$/;
-               $ipv4_effective_mask = &slashed_to_dotted_mask($1);
-               # The IP need to be chomped of the mask suffix
-               $ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
-               $ip = "$1.$2.$3.$4";
-            }
-            else { 
-               # Check the value of the mask attribute
-               my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
-               if ($ipv4_mask_attr ne "") {
-                  # Slashed or dotted?
-                  if (&valid_dotted_mask($ipv4_mask_attr)) {
-                  	 $ipv4_effective_mask = $ipv4_mask_attr;
-                  }
-                  else {
-                     $ipv4_mask_attr =~ /.(\d+)$/;
-                     $ipv4_effective_mask = &slashed_to_dotted_mask($1);
-                  }
-               } else {
-                  	 print "WARNING (vm=$name): no mask defined for $ip address of interface $id. Using default mask ($ipv4_effective_mask)\n";
-               }
-            }
+            	my $ip = &text_tag($ipv4_list->item($j));
+            	my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
+            	if (&valid_ipv4_with_mask($ip)) {
+               		# Implicit slashed mask in the address
+               		$ip =~ /.(\d+)$/;
+               		$ipv4_effective_mask = &slashed_to_dotted_mask($1);
+               		# The IP need to be chomped of the mask suffix
+               		$ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
+               		$ip = "$1.$2.$3.$4";
+            	}
+            	else { 
+               		# Check the value of the mask attribute
+               		my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
+               		if ($ipv4_mask_attr ne "") {
+                  		# Slashed or dotted?
+                  		if (&valid_dotted_mask($ipv4_mask_attr)) {
+                  	 		$ipv4_effective_mask = $ipv4_mask_attr;
+                  		}
+                  		else {
+                     		$ipv4_mask_attr =~ /.(\d+)$/;
+                     		$ipv4_effective_mask = &slashed_to_dotted_mask($1);
+                  		}
+               		} else {
+                  	 	print "WARNING (vm=$name): no mask defined for $ip address of interface $id. Using default mask ($ipv4_effective_mask)\n";
+               		}
+            	}
 	       
-            my $ipv4_tag = $dom->createElement('ipv4');
-            $if_tag->addChild($ipv4_tag);
-            # TODO: cambiar para que el formato sea siempre x.x.x.x/y
-            # Hay que hacer cambios en los demonios de autoconfig
-            # Lineas originales:
-            $ipv4_tag->addChild( $dom->createAttribute( mask => $ipv4_effective_mask));
-            $ipv4_tag->addChild($dom->createTextNode($ip));
-            # Nuevas lineas para usar /24:
-            #$ip = NetAddr::IP->new ($ip, $ipv4_effective_mask)->cidr();
-            #$ipv4_tag->addChild($dom->createTextNode($ip));
+            	my $ipv4_tag = $dom->createElement('ipv4');
+            	$if_tag->addChild($ipv4_tag);
+            	# TODO: cambiar para que el formato sea siempre x.x.x.x/y
+            	# Hay que hacer cambios en los demonios de autoconfig
+            	# Lineas originales:
+            	$ipv4_tag->addChild( $dom->createAttribute( mask => $ipv4_effective_mask));
+            	$ipv4_tag->addChild($dom->createTextNode($ip));
+            	# Nuevas lineas para usar /24:
+            	#$ip = NetAddr::IP->new ($ip, $ipv4_effective_mask)->cidr();
+            	#$ipv4_tag->addChild($dom->createTextNode($ip));
                
             }
-         }
+		}
 	     
-	     # To process interface IPv6 addresses
+	# To process interface IPv6 addresses
   	     if ($dh->is_ipv6_enabled) {
 	        my $ipv6_list = $if->getElementsByTagName("ipv6");
 	        for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
@@ -4328,124 +4312,99 @@ sub make_vm_API_doc {
 	              
                   $ipv6_tag->addChild($dom->createTextNode("$ip$ipv6_effective_mask"));
 	            }	       
-	        }
-	     }
-      }
+	     	}
+  	     }
+	}
       
      
-      #rutas de la máquina.
-      my @route_list = $dh->merge_route($vm);
-      foreach my $route (@route_list) {
+ 	#rutas de la máquina.
+  	my @route_list = $dh->merge_route($vm);
+   	foreach my $route (@route_list) {
       	
-         my $route_dest = &text_tag($route);
-         my $route_gw = $route->getAttribute("gw");
-         my $route_type = $route->getAttribute("type");       
-         my $route_tag = $dom->createElement('route');
-         $vm_tag->addChild($route_tag);
+		my $route_dest = &text_tag($route);
+    	my $route_gw = $route->getAttribute("gw");
+     	my $route_type = $route->getAttribute("type");       
+    	my $route_tag = $dom->createElement('route');
+    	$vm_tag->addChild($route_tag);
        
-         $route_tag->addChild( $dom->createAttribute( type => $route_type));
-         $route_tag->addChild( $dom->createAttribute( gw => $route_gw));
-         $route_tag->addChild($dom->createTextNode($route_dest));
-      }
+     	$route_tag->addChild( $dom->createAttribute( type => $route_type));
+     	$route_tag->addChild( $dom->createAttribute( gw => $route_gw));
+      	$route_tag->addChild($dom->createTextNode($route_dest));
+	}
     
-      # Forwarding
-      my $f_type = $dh->get_default_forwarding_type;
-      my $forwarding_list = $vm->getElementsByTagName("forwarding");
-      if ($forwarding_list->getLength == 1) {
-         $f_type = $forwarding_list->item(0)->getAttribute("type");
-         $f_type = "ip" if ($f_type =~ /^$/);
-      }
-      if ($f_type ne ""){
-         my $forwarding_tag = $dom->createElement('forwarding');
-         $vm_tag->addChild($forwarding_tag);
-         $forwarding_tag->addChild( $dom->createAttribute( type => $f_type));
-      }
-      # Management interface, if needed
-      #my $mng_if_value = &mng_if_value($dh,$vm);
-      my $mng_if_value = &mng_if_value($vm);
-      #$mng_if_tag->addChild( $dom->createAttribute( value => $mng_if_value));      
-      # aquí es donde hay que meter las ips de gestion
-      # si mng_if es distinto de no, metemos un if id 0
-      unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
-        my $mng_if_tag = $dom->createElement('if');
-      	$vm_tag->addChild($mng_if_tag);
-      	my $mac = &automac($i+1, 0);
+    # Forwarding
+    my $f_type = $dh->get_default_forwarding_type;
+    my $forwarding_list = $vm->getElementsByTagName("forwarding");
+    if ($forwarding_list->getLength == 1) {
+   		$f_type = $forwarding_list->item(0)->getAttribute("type");
+     	$f_type = "ip" if ($f_type =~ /^$/);
+  	}
+  	if ($f_type ne ""){
+    	my $forwarding_tag = $dom->createElement('forwarding');
+    	$vm_tag->addChild($forwarding_tag);
+   		$forwarding_tag->addChild( $dom->createAttribute( type => $f_type));
+ 	}
       
-        $mng_if_tag->addChild( $dom->createAttribute( mac => $mac));
+	# my @group = getgrnam("@TUN_GROUP@");
+    my @group = getgrnam("uml-net");
 
-      	my $mng_addr = &get_admin_address( $manipcounter, $dh->get_vmmgmt_type, 2, $name );
-      	$mng_if_tag->addChild( $dom->createAttribute( id => 0));
-      	my $ipv4_tag = $dom->createElement('ipv4');
-      	$mng_if_tag->addChild($ipv4_tag);
-      	my $mng_mask = $mng_addr->mask();
-      	$ipv4_tag->addChild( $dom->createAttribute( mask => $mng_mask));
-      	my $mng_ip = $mng_addr->addr();
-        $ipv4_tag->addChild($dom->createTextNode($mng_ip));
-      
-      }
-      
-	  # my @group = getgrnam("@TUN_GROUP@");
-      my @group = getgrnam("uml-net");
+    # flag 'o' tag in dom tree 
+    my $o_flag_tag = $dom->createElement('o_flag');
+    $vm_tag->addChild($o_flag_tag);      
+    my $o_flag = "";
+    if ($args->get('o')) {
+     	$o_flag = $args->get('o');
+    }     
+    $o_flag_tag->addChild($dom->createTextNode($o_flag));
 
-      # flag 'o' tag in dom tree 
-      my $o_flag_tag = $dom->createElement('o_flag');
-      $vm_tag->addChild($o_flag_tag);      
-      my $o_flag = "";
-      if ($args->get('o')) {
-      	$o_flag = $args->get('o');
-      }     
-      $o_flag_tag->addChild($dom->createTextNode($o_flag));
+    # flag 'e' tag in dom tree 
+    my $e_flag_tag = $dom->createElement('e_flag');
+    $vm_tag->addChild($e_flag_tag);
+    my $e_flag = "";
+    if ($args->get('e')) {
+    	$e_flag = $args->get('e');
+    }     
+    $e_flag_tag->addChild($dom->createTextNode($e_flag));
 
-      # flag 'e' tag in dom tree 
-      my $e_flag_tag = $dom->createElement('e_flag');
-      $vm_tag->addChild($e_flag_tag);
-      my $e_flag = "";
-      if ($args->get('e')) {
-      	$e_flag = $args->get('e');
-      }     
-      $e_flag_tag->addChild($dom->createTextNode($e_flag));
-
-      # flag 'Z' tag in dom tree
-      my $Z_flag_tag = $dom->createElement('Z_flag');
-      $vm_tag->addChild($Z_flag_tag);
-      my $Z_flag;
-      if ($args->get('Z')) {
+    # flag 'Z' tag in dom tree
+    my $Z_flag_tag = $dom->createElement('Z_flag');
+    $vm_tag->addChild($Z_flag_tag);
+    my $Z_flag;
+    if ($args->get('Z')) {
       	$Z_flag = 1;
-      }else{
+    }else{
       	$Z_flag = 0;
-      }      
-      $Z_flag_tag->addChild($dom->createTextNode($Z_flag));
+    }      
+    $Z_flag_tag->addChild($dom->createTextNode($Z_flag));
 
-      # flag 'F' tag in dom tree
-      my $F_flag_tag = $dom->createElement('F_flag');
-      $vm_tag->addChild($F_flag_tag);
-      my $F_flag;
-      if ($args->get('F')) {
+    # flag 'F' tag in dom tree
+    my $F_flag_tag = $dom->createElement('F_flag');
+    $vm_tag->addChild($F_flag_tag);
+    my $F_flag;
+    if ($args->get('F')) {
       	$F_flag = 1;
-      }else{
+    }else{
       	$F_flag = 0;
-      }      
-      $F_flag_tag->addChild($dom->createTextNode($F_flag));
+    }      
+    $F_flag_tag->addChild($dom->createTextNode($F_flag));
 
-      # 'group2' tag in dom tree (luego se usa $group[2])
-      #my $group2_tag = $dom->createElement('group2');
-      #$vm_tag->addChild($group2_tag);
-      #$group2_tag->addChild($dom->createTextNode($args->get('group2')));
+    # 'group2' tag in dom tree (luego se usa $group[2])
+    #my $group2_tag = $dom->createElement('group2');
+    #$vm_tag->addChild($group2_tag);
+    #$group2_tag->addChild($dom->createTextNode($args->get('group2')));
 
-      # 'notify_ctl' tag in dom tree
-      my $notify_ctl_tag = $dom->createElement('notify_ctl');
-      $vm_tag->addChild($notify_ctl_tag);
-      $notify_ctl_tag->addChild($dom->createTextNode($notify_ctl));
+    # 'notify_ctl' tag in dom tree
+    my $notify_ctl_tag = $dom->createElement('notify_ctl');
+    $vm_tag->addChild($notify_ctl_tag);
+    $notify_ctl_tag->addChild($dom->createTextNode($notify_ctl));
 
-      my $format = 1;
+    my $format = 1;
 	  
-      # dom es un XML::LibXML::Document; 
-      my $docstring = $dom->toString($format);
+    # dom es un XML::LibXML::Document; 
+    my $docstring = $dom->toString($format);
       
-      return $docstring;
+    return $docstring;
 }
-
-
 
 sub para {
 	my $mensaje = shift;
