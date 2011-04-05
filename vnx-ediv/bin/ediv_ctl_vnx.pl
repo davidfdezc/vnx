@@ -80,7 +80,8 @@ my $mode;								# Running mode
 my $configuration;						# =1 if scenario has configuration files
 my $execution_mode;						# Execution command mode
 # TODO: -M can specify a list of vms not only one
-my $vm_name; # máquina especificada con tag -M
+my $vm_name; 							# VM specified with -M tag
+my $no_console; 						# Stores the value of --no-console command line option
 	
 	# Scenario
 my $vnx_scenario;						# VNX scenario to split
@@ -439,6 +440,10 @@ sub parseArguments{
 		if ($ARGV[$i] eq '-M'){
 			my $vm_name_arg = $i +1;
 			$vm_name = $ARGV[$vm_name_arg];
+		}		
+		# Search for -n|--no-console tag
+		if ($ARGV[$i] eq '-n' || $ARGV[$i] eq '--no-console'){
+			$no_console = "--no-console";
 		}		
 	}
 	if ($mode eq undef){
@@ -1236,6 +1241,8 @@ sub sendScenarios {
 		my $fileData;
 		read (FILEHANDLE,$fileData, -s FILEHANDLE);
 
+		# We scape the "\" before writing the scenario to the ddbb
+   		$fileData =~ s/\\/\\\\/g; 
 		my $query_string = "UPDATE hosts SET local_specification = '$fileData' WHERE local_simulation='$hostScenName'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
@@ -1249,7 +1256,8 @@ sub sendScenarios {
 #VNX		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnumlparser.pl -Z -u root -v -t $filename -o /dev/null\'";
 		my $option_M = "";
 		if ($vm_name){$option_M="-M $vm_name";}
-		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $hostScenFileName -v -t -o /dev/null\ " . $option_M . "'";
+		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $hostScenFileName -v -t -o /dev/null\ " 
+		                  . $option_M . " " . $no_console . "'";
 		&daemonize($ssh_command, "/tmp/$hostName"."_log");		
 	}
 	$dbh->disconnect;
@@ -1807,6 +1815,8 @@ sub executeConfiguration {
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		my $scenario_bin = $query->fetchrow_array();
+
+		print $scenario_bin . "\n";
 
 		$query->finish();
 					

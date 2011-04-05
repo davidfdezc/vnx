@@ -265,8 +265,7 @@ sub main {
       $opt_suspend, $opt_resume,$opt_reboot,
       $opt_reset,$opt_execute,$opt_f,$opt_showmap,
       $opt_console,$opt_consoleinfo,$opt_cid,
-      $opt_C, $opt_config, $opt_D, $opt_b, $opt_n,
-      $opt_no_console);
+      $opt_C, $opt_config, $opt_D, $opt_b, $opt_n);
       
    	Getopt::Long::Configure ("bundling"); # case sensitive single-character options
    	GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
@@ -289,7 +288,7 @@ sub main {
               'show-map' => \$opt_showmap, 'console' => \$opt_console,
               'cid=s' => \$opt_cid, 'console-info' => \$opt_consoleinfo,
               'C|config=s' => \$opt_config, 'D' => \$opt_D, 'b' => \$opt_b,
-              'n' => \$opt_n, 'no_console' => \$opt_no_console);
+              'n|no-console' => \$opt_n);
 
    	# Build the argument object
    	$args = new Arguments(
@@ -304,8 +303,7 @@ sub main {
       	$opt_suspend,$opt_resume,$opt_reboot,
       	$opt_reset,$opt_execute,$opt_f,$opt_showmap,
       	$opt_console,$opt_cid,$opt_consoleinfo,
-      	$opt_config, $opt_D, $opt_b, $opt_n,
-      	$opt_no_console);
+      	$opt_config, $opt_D, $opt_b, $opt_n);
 
    	# FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
    	# it by default
@@ -483,9 +481,9 @@ sub main {
       	&usage;
       	&vnx_die ("-4 and -6 can not be used at the same time\n");
    	}
-   	if (($opt_n||$opt_no_console) && (!($opt_t||$opt_create))) {
+   	if ( $opt_n && (!($opt_t||$opt_create))) {
       	&usage;
-      	&vnx_die ("Option -n|--no_console only makes sense with -t|--create mode\n");
+      	&vnx_die ("Option -n|--no-console only makes sense with -t|--create mode\n");
    	}
 
    	# Version pseudomode
@@ -2090,9 +2088,9 @@ sub start_VMs {
       
       $docstring = &make_vm_API_doc($vm,$notify_ctl,$i,$manipcounter); # only needed for uml vms
       
-      #check for option -n||--no_console (do not start consoles)
+      #check for option -n||--no-console (do not start consoles)
       my $no_console = "0";
-      if ($args->get('n')||$args->get('no_console')){
+      if ($args->get('n')){
       	$no_console = "1";
       }
        
@@ -2117,7 +2115,6 @@ sub start_VMs {
       #######
       $manipcounter++;
       undef($curr_uml);
-      #&change_vm_status($dh,$name,"running");
       &change_vm_status($name,"running");
 
    }
@@ -2194,7 +2191,6 @@ sub mode_x {
 		# call the corresponding vmAPI
     	my $vmType = $vm->getAttribute("type");
 
-    	#my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $execution, $bd, $dh, $vm, $name);
     	my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $vm, $name, %vm_ips);
      	if (!($error eq 0)){
      		print $error
@@ -2205,7 +2201,6 @@ sub mode_x {
 		$execution->smartdie("Sequence $seq not found. Exiting");
 	}
 
-	#vmAPI_uml->exec_command_host($seq,$execution,$bd,$dh);
 	exec_command_host($seq);
 }
 
@@ -2256,7 +2251,6 @@ sub mode_d {
       else{
            # call the corresponding vmAPI
            my $vmType = $vm->getAttribute("type");
-           #my $error = "vmAPI_$vmType"->shutdownVM($name, $merged_type, $execution, $bd,$dh,$args->get('F'));
            my $error = "vmAPI_$vmType"->shutdownVM($name, $merged_type, $args->get('F'));
            if (!($error eq 0)){print $error}
           
@@ -4174,12 +4168,12 @@ sub make_vm_API_doc {
 #			# Optional attributes: display and port            
 #            my $console_display = $console->getAttribute("display");
 #            
-#            # If "no_console" options are found, do not launch consoles,
+#            # If "noconsole" options are found, do not launch consoles,
 #            # if not, look for tag "display" for the vm and, if found, process it.
 #            
 #            my $opt_n = $args->get('n');
-#            my $opt_no_console = $args->get('no_console');
-#            if ($opt_n||$opt_no_console){
+#            my $opt_noconsole = $args->get('noconsole');
+#            if ($opt_n||$opt_noconsole){
 #            	$console_tag->addChild($dom->createAttribute( display => "no"));
 #            	para("1");
 #            }elsif($console_display ne ""){
@@ -4714,66 +4708,87 @@ sub get_vnx_config {
 #
 # Prints program usage message
 sub usage {
+	
 	my $basename = basename $0;
-	print "Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnx_dir] [-u user]\n";
-#	print "                 [-T tmp_dir] [-i] [-w timeout] [-B] [-Z]\n";
-	print "                 [-T tmp_dir] [-i] [-w timeout] [-B]\n";
-	print "                 [-e screen_file] [-4] [-6] [-v] [-g] [-M vm_list] [-D]\n";
-	print "       vnx -f VNX_file [-x|--execute cmd_seq] [-T tmp_dir] [-M vm_list] [-i] [-B] [-4] [-6] [-v] [-g]\n";
-	print "       vnx -f VNX_file [-d|--shutdown] [-c vnx_dir] [-F] [-T tmp_dir] [-i] [-B] [-4] [-6] [-v] [-g]\n";
-	print "       vnx -f VNX_file [-P|--destroy] [-T tmp_file] [-i] [-v] [-u user] [-g]\n";
-	print "       vnx -f VNX_file [--define] [-M vm_list] [-v] [-u user] [-i]\n";
-	print "       vnx -f VNX_file [--start] [-M vm_list] [-v] [-u user] [-i]\n";
-	print "       vnx -f VNX_file [--undefine] [-M vm_list] [-v] [-u user] [-i]\n";
-	print "       vnx -f VNX_file [--save] [-M vm_list] [-v] [-u user] [-i]\n";
-	print "       vnx -f VNX_file [--restore] [-M vm_list] [-v] [-u user] [-i]\n";
-	print "       vnx -f VNX_file [--suspend] [-M vm_list] [-v] [-u user] [-i]\n";
-	print "       vnx -f VNX_file [--resume] [-M vm_list] [-v] [-u user] [-i]\n";
-	print "       vnx -f VNX_file [--reboot] [-M vm_list] [-v] [-u user] [-i]\n";
-	print "       vnx -f VNX_file [--reset] [-M vm_list] [-v] [-u user] [-i]\n";
-	print "       vnx -f VNX_file [--show-map] \n";
-	print "       vnx -h\n";
-	print "       vnx -V\n";
-	print "\n";
-	print "Mode:\n";
-	print "       -t|--create, build topology, or create virtual machine (if -M), using VNX_file as source.\n";
-	print "       -x cmd_seq, execute the cmd_seq command sequence, using VNX_file as source.\n";
-	print "       -d|--shutdown, destroy current scenario, or virtual machine (if -M), using VNX_file as source.\n";
-	print "       -P|--destroy, purge scenario, or virtual machine (if -M), (warning: it will remove cowed filesystems!)\n";
-	print "       --define, define all machines, or the ones speficied (if -M), using VNX_file as source.\n";
-	print "       --undefine, undefine all machines, or the ones speficied (if -M), using VNX_file as source.\n";
-	print "       --start, start all machines, or the ones speficied (if -M), using VNX_file as source.\n";
-	print "       --save, save all machines, or the ones speficied (if -M), using VNX_file as source.\n";
-	print "       --restore, restore all machines, or the ones speficied (if -M), using VNX_file as source.\n";
-	print "       --suspend, suspend all machines, or the ones speficied (if -M), using VNX_file as source.\n";
-	print "       --resume, resume all machines, or the ones speficied (if -M), using VNX_file as source.\n";
-	print "       --reboot, reboot all machines, or the ones speficied (if -M), using VNX_file as source.\n";
-	print "       --show-map, shows a map of the network build using graphviz.\n";
-	print "\n";
-	print "Pseudomode:\n";
-	print "       -V, show program version and exit.\n";
-	print "       -H, show this help message and exit.\n";
-	print "\n";
-	print "Options:\n";
-	print "       -o prefix, dump UML boot messages output to files (using given prefix in pathname)\n";
-	print "       -c vnx_dir, vnx working directory (default is ~/.vnx)\n";
-	print "       -u user, if run as root, UML and uml_switch processes will be owned by this user instead (default [arroba]VNX_USER[arroba])\n";
-	print "       -F, force stopping of UMLs (warning: UML filesystems may be corrupted)\n";
-	print "       -w timeout, waits timeout seconds for a UML to boot before prompting the user for further action; a timeout of 0 indicates no timeout (default is 30)\n";
-	print "       -B, blocking mode\n";
-#	print "       -Z, avoids filesystem VNXzation\n";
-	print "       -e screen_file, make screen configuration file for pts devices\n";
-	print "       -i, interactive execution (in combination with -v mode)\n";
-	print "       -4, process only IPv4 related tags (and not process IPv6 related tags)\n";
-	print "       -6, process only IPv6 related tags (and not process IPv4 related tags)\n";
-	print "       -v, verbose mode on\n";
-	print "       -g, debug mode on (overrides verbose)\n";
-	print "       -T tmp_dir, temporal files directory (default is /tmp)\n";
-	print "       -M vm_list, start/stop/restart scenario in vm_list UMLs (a list of names separated by ,)\n";
-   	print "       -C|--config config_file, use config_file as configuration file instead of default one (/etc/vnx.conf)\n";
-   	print "       -D, delete LOCK file\n";
-   	print "       -n|--no_console, do not display the console of any vm. To be used with -t|--create options";
-   	print "\n";
-   
+	
+my $usage = <<EOF;
+
+Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnx_dir] [-u user]
+                 [-T tmp_dir] [-i] [-w timeout] [-B]
+                 [-e screen_file] [-4] [-6] [-v] [-g] [-M vm_list] [-D]
+       vnx -f VNX_file [-x|--execute cmd_seq] [-T tmp_dir] [-M vm_list] [-i] [-B] [-4] [-6] [-v] [-g]
+       vnx -f VNX_file [-d|--shutdown] [-c vnx_dir] [-F] [-T tmp_dir] [-i] [-B] [-4] [-6] [-v] [-g]
+       vnx -f VNX_file [-P|--destroy] [-T tmp_file] [-i] [-v] [-u user] [-g]
+       vnx -f VNX_file [--define] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--start] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--undefine] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--save] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--restore] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--suspend] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--resume] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--reboot] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--reset] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--show-map] 
+       vnx -h
+       vnx -V
+
+Main modes:
+       -t|--create   -> build topology, or create virtual machine (if -M), using VNX_file as source.
+       -x cmd_seq    -> execute the cmd_seq command sequence, using VNX_file as source.
+       -d|--shutdown -> destroy current scenario, or virtual machine (if -M), using VNX_file as source.
+       -P|--destroy  -> purge scenario, or virtual machine (if -M), (warning: it will remove cowed 
+                        filesystems!)
+       --define      -> define all machines, or the ones speficied (if -M), using VNX_file as source.
+       --undefine    -> undefine all machines, or the ones speficied (if -M), using VNX_file as source.
+       --start       -> start all machines, or the ones speficied (if -M), using VNX_file as source.
+       --save        -> save all machines, or the ones speficied (if -M), using VNX_file as source.
+       --restore     -> restore all machines, or the ones speficied (if -M), using VNX_file as source.
+       --suspend     -> suspend all machines, or the ones speficied (if -M), using VNX_file as source.
+       --resume      -> resume all machines, or the ones speficied (if -M), using VNX_file as source.
+       --reboot      -> reboot all machines, or the ones speficied (if -M), using VNX_file as source.
+	
+Console management modes:
+       --console-info       -> shows information about all virtual machine consoles or the 
+                               one specified with -M option.
+       --console-info -b    -> the same but the information is provided in a compact format
+       --console            -> opens the consoles of all vms, or just the ones speficied if -M is used. 
+                               Only the consoles defined with display="yes" in VNX_file are opened.
+       --console --cid conX -> opens 'conX' console (being conX the id of a console: con0, con1, etc) 
+                               of all vms, or just the ones speficied if -M is used.                              
+       Examples:
+       		vnx -f ex1.xml --console
+       		vnx -f ex1.xml --console --cid con0 -M A --> open console 0 of vm A of scenario ex1.xml
+
+Other modes:
+       --show-map    -> shows a map of the network scenarios build using graphviz.
+
+Pseudomode:
+       -V, show program version and exit.
+       -H, show this help message and exit.
+
+Options:
+       -o prefix       -> dump UML boot messages output to files (using given prefix in pathname)
+       -c vnx_dir      -> vnx working directory (default is ~/.vnx)
+       -u user         -> if run as root, UML and uml_switch processes will be owned by this 
+                          user instead (default [arroba]VNX_USER[arroba])
+       -F              -> force stopping of UMLs (warning: UML filesystems may be corrupted)
+       -w timeout      -> waits timeout seconds for a UML to boot before prompting the user 
+                          for further action; a timeout of 0 indicates no timeout (default is 30)
+       -B              -> blocking mode
+       -e screen_file  -> make screen configuration file for pts devices
+       -i              -> interactive execution (in combination with -v mode)
+       -4              -> process only IPv4 related tags (and not process IPv6 related tags)
+       -6              -> process only IPv6 related tags (and not process IPv4 related tags)
+       -v              -> verbose mode on
+       -g              -> debug mode on (overrides verbose)
+       -T tmp_dir      -> temporal files directory (default is /tmp)
+       -M vm_list      -> start/stop/restart scenario in vm_list UMLs (a list of names separated by ,)
+       -C|--config cfgfile -> use cfgfile as configuration file instead of default one (/etc/vnx.conf)
+       -D              -> delete LOCK file
+       -n|--noconsole -> do not display the console of any vm. To be used with -t|--create options
+
+EOF
+
+print "$usage\n";   
 
 }
