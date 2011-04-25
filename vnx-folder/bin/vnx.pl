@@ -4049,7 +4049,8 @@ sub make_vm_API_doc {
    	$vm_tag->addChild($fs_tag);
 
    	if ($filesystem_list->getLength == 1) {
-      	$filesystem = &do_path_expansion(&text_tag($vm->getElementsByTagName("filesystem")->item(0)));
+      	# $filesystem = &do_path_expansion(&text_tag($vm->getElementsByTagName("filesystem")->item(0)));
+      	$filesystem = &get_abs_path(&text_tag($vm->getElementsByTagName("filesystem")->item(0)));
       	$filesystem_type = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
 
       	# to dom tree

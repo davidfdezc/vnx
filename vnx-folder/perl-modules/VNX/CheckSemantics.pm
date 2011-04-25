@@ -649,7 +649,9 @@ sub check_doc {
       }
       else {
          #12a (again). <filesystem> are valid, readable/executable files
-         return "$filesystem (filesystem) is not a valid absolute filename" unless &valid_absolute_filename($filesystem);
+         # DFC 25/4/2011: allowed relative filesystem paths following rules descried in FileChecks->get_abs_path
+         $filesystem = &get_abs_path ($filesystem);
+         # return "$filesystem (filesystem) is not a valid absolute filename" unless &valid_absolute_filename($filesystem);
          return "$filesystem (filesystem) does not exist or is not readable (user $uid_name)" unless (-r $filesystem);
          if ($filesystem_type eq "direct") {
             return "$filesystem (filesystem) is not writeable (user $uid_name)" unless (-w $filesystem);
