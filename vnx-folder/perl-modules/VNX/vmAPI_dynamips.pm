@@ -439,20 +439,21 @@ sub defineVM {
     # Connect virtual networks to host interfaces
     $ifTagList = $virtualm->getElementsByTagName("if");
 	$numif     = $ifTagList->getLength;
-
+    
 	for ( my $j = 0 ; $j < $numif ; $j++ ) {
 		my $ifTag = $ifTagList->item($j);
-		my $name   = $ifTag->getAttribute("name");
-		my ($firstpart, $secondpart)= split("/",$name,2);
-		my $firstnumber = substr $firstpart,-1,1;
-		my $temp = $j + 1;
-		print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp\n");
-		$t->print("nio create_tap nio_tap$counter$secondpart $vmName-e$temp");
+		my $name  = $ifTag->getAttribute("name");
+		my $id    = $ifTag->getAttribute("id");
+		my ($slot, $dev)= split("/",$name,2);
+		$slot = substr $slot,-1,1;
+		print ("******** slot=$slot, dev=$dev\n");
+		print("nio create_tap nio_tap$slot$dev $vmName-e$id\n");
+		$t->print("nio create_tap nio_tap$slot$dev $vmName-e$id");
    		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-   		print("vm slot_add_nio_binding $vmName $firstnumber $secondpart nio_tap$counter$secondpart\n");
-   		$t->print("vm slot_add_nio_binding $vmName $firstnumber $secondpart nio_tap$counter$secondpart");
+   		print("vm slot_add_nio_binding $vmName $slot $dev nio_tap$slot$dev\n");
+   		$t->print("vm slot_add_nio_binding $vmName $slot $dev nio_tap$slot$dev");
    		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-   		$execution->execute("ifconfig $vmName-e$temp 0.0.0.0");
+   		$execution->execute("ifconfig $vmName-e$id 0.0.0.0");
 	}
 	
 	# Set config file to router
