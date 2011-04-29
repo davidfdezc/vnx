@@ -531,7 +531,7 @@ sub check_doc {
 
          # 9d. To check that there is a net with this name or "lo"
          unless (($net eq "lo") || ($net_names{$net} == 1)) {
-            return "if id $id in vm $name net $net is not valid: it must be defined in a <net> tag (or use \"lo\")";
+            return "net $net defined for interface $id of virtual machine $name is not valid: it must be defined in a <net> tag (or use \"lo\")";
          }
          
          # 9e. <mac> can not be put within <if net="lo">
