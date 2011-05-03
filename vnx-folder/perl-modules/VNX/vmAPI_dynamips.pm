@@ -499,8 +499,10 @@ sub defineVM {
 				}
 				# Get virtual machines connected to the serial line
 				my ($vmsInNet,$ifsInNet) = $dh->get_vms_in_a_net ($net);
-				@vms = @$vmsInNet;
-				if (scalar @vms != 2) { $execution->smartdie ("ERROR: point-to-point network $net has " . scalar @vms . "virtual machines connected (must be 2)"); }
+				if (scalar @$vmsInNet != 2) { $execution->smartdie ("ERROR: point-to-point network $net has " . scalar @vms . " virtual machines connected (must be 2)"); }
+				#@vms = @$vmsInNet;
+				$vms[0] = @$vmsInNet[0]->getAttribute ("name");
+				$vms[1] = @$vmsInNet[1]->getAttribute ("name");
 				# and we write it to the file
 				open (PORTS_FILE, "> $portsFile") || $execution->smartdie ("ERROR: Cannot open file $portsFile for writting $net serial line ports");
 				for ( my $i = 0 ; $i <= 1 ; $i++ ) {
@@ -901,38 +903,93 @@ sub executeCMD{
 			return "\n------\nERROR: cannot access $vmName console at port $port. Please, release the router console and try again.\n------\n";
 		}
 	}
+	
+	Nuevos comandos Dynamips:
+
+    <exec seq="brief" type="verbatim" mode="telnet" ostype="show">show ip interface brief</exec>
+    <exec seq="brief" type="verbatim" mode="telnet" ostype="set">hostname Router1</exec>
+    <exec seq="brief" type="verbatim" mode="telnet" ostype="load">conf/r1.conf</exec>
+	
+	
+	
 =END
 =cut
 
-	# Recuperamos las sentencias de ejecucion
+	# Loop through all vm <exec> tags 
 	my $command_list = $vm->getElementsByTagName("exec");
 	my $countcommand = 0;
 	for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
-		# Por cada sentencia.
 		my $command = $command_list->item($j);	
-		# To get attributes
 		my $cmd_seq_string = $command->getAttribute("seq");
 		# JSF 02/12/10: we accept several commands in the same seq tag,
 		# separated by spaces
 		my @cmd_seqs = split(' ',$cmd_seq_string);
 		foreach my $cmd_seq (@cmd_seqs) {
 		
-			# Se comprueba si la seq es la misma que la que te pasan a ejecutar
+			# Check if the seq atribute value is the one we look ($seq)
 			if ( $cmd_seq eq $seq ) {
 				my $type = $command->getAttribute("type");
+				my $ostype = $command->getAttribute("ostype");
 				# Case 1. Verbatim type
 				if ( $type eq "verbatim" ) {
 					# Including command "as is"
 					my $command_tag = &text_tag($command);
+
 					# Si el primer elemento a ejecutar es un reload, no se ejecuta en el router
 					# sino que:
 					# 1º Se para el router
 					# 2º Se introduce el nuevo fichero de configuracion (que estará como parametro de la funcion reload)
 					# 3º Se vuelve a encender.
+
+					if ( ($ostype eq 'show') && ($ostype eq 'set') ) {
+
+						# Command is not a 'reload', we execute it 
+
+						# Get the user name and password. If several users are define, 
+						# we just take the first one.
+						my @login_users = &get_login_user($extConfFile, $vmName);
+		     			my $login_user = $login_users[0];
+		 				my $user=$login_user->[0];
+						my $pass=$login_user->[1];
+						# Get enable password
+ 						my $enablepass = get_enable_pass($extConfFile, $vmName);
+						# create CiscoExeCmd object to connect to router console
+						my $sess = new VNX::CiscoExeCmd ('localhost', $port, $user, $pass, $enablepass);
+						# Connect to console
+						my $res = $sess->open;
+						if (!$res) { $execution->smartdie("ERROR: cannot connect to ${vmName}'s console at port $port.\n" .
+							                              "       Please, release the router console and try again.\n"); }
+						# Put router in priviledged mode
+						$res = $sess->goToEnableMode;
+						if ($res eq 'timeout') {
+							$execution->smartdie("ERROR: timeout connecting to ${vmName}'s console at port $port.\n" .
+							                     "       Please, release the router console and try again.\n"); 
+						} elsif ($res eq 'invalidlogin') { 
+							$execution->smartdie("ERROR: invalid login connecting to ${vmName}'s console at port $port\n") 
+						}
+					    if ($ostype eq 'set') {
+					    	# Send "conf t" command
+					    	
+					    }
+						# execute the command
+						my @output = $sess->exeCmd ($command_tag);
+						print "-- cmd result: \n\n@output\n";
+						$sess->exeCmd ("disable");
+						$sess->exeCmd ("exit");
+						$sess->close;
+
+						
+					} if ($ostype eq 'load') {
+						my $confFile = &get_abs_path($command_tag);
+						&reload_conf ($vmName, $confFile, $dynamipsHost, $dynamipsPort, $consFile);					
+					}
+					
 					if ($command_tag =~ m/^reload/){
 						my @file_conf = split('reload ',$command_tag);
 						&reload_conf ($vmName, $file_conf[1], $dynamipsHost, $dynamipsPort, $consFile);
+						print "WARNING: reload command deprecated; use ostype='load' instead\n"
 					}else{
+=BEGIN
 						# Command is not a 'reload', we execute it 
 
 						# Get the user name and password. If several users are define, 
@@ -963,8 +1020,11 @@ sub executeCMD{
 						$sess->exeCmd ("disable");
 						$sess->exeCmd ("exit");
 						$sess->close;
+=END
+=cut
 					}
 				}
+
 				# Case 2. File type
 				# En caso de que sea un fichero, simplemente se lee el fichero
 				# y se va ejecutando linea por linea.

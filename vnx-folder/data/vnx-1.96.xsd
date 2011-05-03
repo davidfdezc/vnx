@@ -69,6 +69,8 @@
             <xs:enumeration value="processy" />
             <xs:enumeration value="exec" />
             <xs:enumeration value="cdrom" />
+            <xs:enumeration value="sdisk" />
+            <xs:enumeration value="telnet" />
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>

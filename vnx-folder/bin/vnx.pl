@@ -2631,7 +2631,8 @@ sub mode_P {
             my $net = $nets->item ($i);
             my $type = $net->getAttribute ("type");
             if ($type eq 'ppp') {
-		        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_networks_dir . "/" . $net . ".ports");
+		        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_networks_dir 
+		                             . "/" . $net->getAttribute ("name") . ".ports");
             }
         }      
     }

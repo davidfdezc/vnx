@@ -23,7 +23,7 @@ See the tutorial/index.html document for details
   </global>
 
   <net name="Net0" mode="virtual_bridge" />
-  <net name="Net1" mode="virtual_bridge" />
+  <net name="Net1" type='ppp' mode="virtual_bridge" />
   <net name="Net2" mode="virtual_bridge" />
   <net name="Net3" mode="virtual_bridge" />
 
@@ -51,10 +51,10 @@ See the tutorial/index.html document for details
     <if id="1" net="Net0" name="e0/0">
       <ipv4>10.0.0.3/24</ipv4>
     </if>
-    <if id="2" net="Net1" name="e0/1">
+    <if id="2" net="Net1" name="s1/0">
       <ipv4>10.0.1.1/24</ipv4>
     </if>
-    <if id="3" net="Net3" name="e0/2">
+    <if id="3" net="Net3" name="e0/1">
       <ipv4>10.0.3.1/24</ipv4>
     </if>
     <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
@@ -64,10 +64,10 @@ See the tutorial/index.html document for details
   <vm name="r2" type="dynamips" subtype="3600" os="">
     <filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
     <mem>96M</mem>
-    <if id="1" net="Net1" name="e0/0">
+    <if id="1" net="Net1" name="s1/0">
       <ipv4>10.0.1.2/24</ipv4>
     </if>
-    <if id="2" net="Net2" name="e0/1">
+    <if id="2" net="Net2" name="e0/0">
       <ipv4>10.0.2.1/24</ipv4>
     </if>
     <route type="ipv4" gw="10.0.1.1">default</route>
