@@ -167,6 +167,11 @@ sub validate_xml {
 # TODO:
 # - check that dynamips_ext only appears <=1 times
 # - check that forwarding only appears <=1 times
+# - check the correctness of dynamips interface names (e0/0, s0/1, fa0/2, etc)
+# - check that if a dynamips vm has an if which is a serial line interface (e.g s1/0) connected to a net:
+#         - the net has exactly two interfaces connected
+#         - the net type is ppp
+#         - the other end is a dynamips router and the interface connected is also a serial line
 
 sub check_doc {
 	

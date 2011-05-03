@@ -2623,6 +2623,17 @@ sub mode_P {
 	#    ...but only if -M option is not active (DFC 27/01/2010)
 
         $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_sim_dir . "/*");
+
+        # Delete network/$net.ports files of ppp networks
+        my $doc = $dh->get_doc;
+		my $nets = $doc->getElementsByTagName ("net");
+		for (my $i = 0; $i < $nets->getLength; $i++) {
+            my $net = $nets->item ($i);
+            my $type = $net->getAttribute ("type");
+            if ($type eq 'ppp') {
+		        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_networks_dir . "/" . $net . ".ports");
+            }
+        }      
     }
 }
 
