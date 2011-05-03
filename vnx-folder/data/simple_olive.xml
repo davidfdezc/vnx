@@ -45,16 +45,16 @@ commit
     
     <filetree seq="copyconfig2" root="/var/tmp">conf/</filetree>
     <filetree seq="copyconfig2" root="/var/tmp">conf/txtfile/</filetree>
-    <exec seq="config1" type="verbatim" mode="cdrom" ostype="load">override conf/juniper.conf</exec>
-    <exec seq="configif" type="verbatim" mode="cdrom" ostype="set">set interfaces fxp0 unit 0 family inet address 10.0.0.10/24</exec>
-    <exec seq="enable-ssh" type="verbatim" mode="cdrom" ostype="set">set system services ssh</exec>
-    <exec seq="enable-telnet" type="verbatim" mode="cdrom" ostype="set">set system services telnet</exec>
-    <exec seq="showint" type="verbatim" mode="cdrom" ostype="show">show interfaces</exec>
-    <exec seq="file" type="file" mode="cdrom">comandos/commands-file</exec>
+    <exec seq="config1" type="verbatim" mode="sdisk" ostype="load">override conf/juniper.conf</exec>
+    <exec seq="configif" type="verbatim" mode="sdisk" ostype="set">set interfaces fxp0 unit 0 family inet address 10.0.0.10/24</exec>
+    <exec seq="enable-ssh" type="verbatim" mode="sdisk" ostype="set">set system services ssh</exec>
+    <exec seq="enable-telnet" type="verbatim" mode="sdisk" ostype="set">set system services telnet</exec>
+    <exec seq="showint" type="verbatim" mode="sdisk" ostype="show">show interfaces</exec>
+    <exec seq="file" type="file" mode="sdisk">comandos/commands-file</exec>
 
-    <exec seq="copyconfig" type="verbatim" mode="cdrom" ostype="set">set interfaces fxp0 unit 0 family inet address 192.168.122.10/24</exec>
-    <exec seq="copyconfig" type="verbatim" mode="cdrom" ostype="show">show interfaces</exec>
-    <exec seq="copyconfig" type="verbatim" mode="cdrom" ostype="show">show interfaces</exec>    
+    <exec seq="copyconfig" type="verbatim" mode="sdisk" ostype="set">set interfaces fxp0 unit 0 family inet address 192.168.122.10/24</exec>
+    <exec seq="copyconfig" type="verbatim" mode="sdisk" ostype="show">show interfaces</exec>
+    <exec seq="copyconfig" type="verbatim" mode="sdisk" ostype="show">show interfaces</exec>    
   </vm>
 
   <host>

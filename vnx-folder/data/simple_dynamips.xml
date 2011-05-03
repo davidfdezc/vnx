@@ -34,6 +34,7 @@ Just one Cisco virtual machine. Use this specification for testing
     <exec seq="brief" type="verbatim">show ip interface brief</exec>
     <exec seq="cmdfile" type="file">conf/cisco-cmd-file.conf</exec>
     <exec seq="reload" type="verbatim">reload conf/cisco.conf</exec>
+    <exec seq="reload2" type="verbatim" mode="telnet" ostype="load">conf/cisco.conf</exec>
   </vm>
 
   <host>

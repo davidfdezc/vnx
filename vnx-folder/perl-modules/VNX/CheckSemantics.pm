@@ -166,6 +166,10 @@ sub validate_xml {
 
 # TODO:
 # - check that forwarding only appears <=1 times
+# - check execution mode:
+#       - Olive: only mode="sdisk" allowed
+#       - Dynamips: only mode="telnet" allowed
+#                   type="file" only allowed with ostype="show|set"
 
 sub check_doc {
 	
@@ -1017,11 +1021,11 @@ sub check_doc {
 					return "missing dynamips interface name (id=$id, vm=$name)";
 	            }
 	            # Check $ifName correctness
-           		if ($ifName !~ /[sefg].*[0-9]\/[0-9]/ ) {
+           		if ($ifName !~ /[sefgSEFG].*[0-9]\/[0-9]/ ) {
 					return "incorrect dynamips interface name (id=$id, name=$ifName, vm=$name)";
            		}
 	            # 
-	            if ($ifName =~ /s.*/) { 
+	            if ($ifName =~ /[sS].*/) { 
 	            	# Interface is a serial line (e.g. s1/0)
 					# No need to check that length of @vms == 2; already done in 8g
 					# Check that if is connected to a ppp <net>
@@ -1037,7 +1041,7 @@ sub check_doc {
 							return "all interfaces connected to <net> $net must be dynamips serial lines (" . 
 							        @$vms[$i]->getAttribute ("name") . " is not of type dynamips)";
 	            		}
-	            		if (@$ifs[$i]->getAttribute ("name") !~ /s.*/) {
+	            		if (@$ifs[$i]->getAttribute ("name") !~ /[sS].*/) {
 							return "all interfaces connected to <net> $net must be dynamips serial lines (" .
 							        @$ifs[$i]->getAttribute ("name") . " of " . @$vms[$i]->getAttribute ("name") . 
 							        " is not a serial line)";
