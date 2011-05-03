@@ -498,7 +498,8 @@ sub defineVM {
 					$VNX::Globals::SERLINE_PORT = $ports[$i] + 1;
 				}
 				# Get virtual machines connected to the serial line
-				@vms = &get_vms_in_a_net ($net);
+				my ($vmsInNet,$ifsInNet) = $dh->get_vms_in_a_net ($net);
+				@vms = @$vmsInNet;
 				if (scalar @vms != 2) { $execution->smartdie ("ERROR: point-to-point network $net has " . scalar @vms . "virtual machines connected (must be 2)"); }
 				# and we write it to the file
 				open (PORTS_FILE, "> $portsFile") || $execution->smartdie ("ERROR: Cannot open file $portsFile for writting $net serial line ports");
@@ -1405,39 +1406,6 @@ sub change_vm_status {
 			$bd->get_binaries_path_ref->{"echo"} . " $status > $status_file" );
 	}
 }
-
-#
-# get_vms_in_a_net: returns an array with the names of the virtual machines connected to a <net>
-#
-sub get_vms_in_a_net {
-
-	my $netName = shift;
-	my @vms;
-	
-	print "**** net=$netName \n";
-	# Virtual machines loop
-	my $doc = $dh->get_doc;
-	my $vms = $doc->getElementsByTagName ("vm");
-	for (my $i = 0; $i < $vms->getLength; $i++) {
-	    my $found;
-	    my $vm = $vms->item ($i);
-	    my $name = $vm->getAttribute ("name");
-		# Network interfaces loop
-        my $ifs = $vm->getElementsByTagName ("if");
-        my $n = $ifs->getLength;
-        for (my $j = 0; $j < $n; $j++) {
-            my $if = $ifs->item ($j);
-            my $id = $if->getAttribute ("id");
-            my $net = $if->getAttribute ("net");
-            if ($net eq $netName) {
-                #print "  vm found: $name \n";
-                push (@vms, $name)
-            }
-        }
-	}
-	return @vms
-}
-
 
 =BEGIN
 #

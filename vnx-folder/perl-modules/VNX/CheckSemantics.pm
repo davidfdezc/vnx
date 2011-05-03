@@ -127,7 +127,7 @@ sub validate_xml {
 #   - 8f. external interfaces (external attribute of <net>) are actually physical interfaces
 #         (they exist in the OS host enviroment)
 #   - 8g. <net type="ppp"> has exactly two virtual machine interfaces connected to it
-#   - 8h. only <net type="ppp"> networks has <bw> tag
+#   - 8h. 3/5/11: Eliminated to allow dynamips ppp links / only <net type="ppp"> networks has <bw> tag
 #   - 8i. sock are readable, writable socket files
 #   - 9a. there is not duplicated UML names (<vm>)
 #   - 9b. (conditional) there is not <if> with id 0 in any UML (reserved for management),
@@ -165,13 +165,7 @@ sub validate_xml {
 #
 
 # TODO:
-# - check that dynamips_ext only appears <=1 times
 # - check that forwarding only appears <=1 times
-# - check the correctness of dynamips interface names (e0/0, s0/1, fa0/2, etc)
-# - check that if a dynamips vm has an if which is a serial line interface (e.g s1/0) connected to a net:
-#         - the net has exactly two interfaces connected
-#         - the net type is ppp
-#         - the other end is a dynamips router and the interface connected is also a serial line
 
 sub check_doc {
 	
@@ -430,9 +424,10 @@ sub check_doc {
          return "net $name is not a PPP network and only PPP networks can have a <bw> tag" if ($bw_list->getLength != 0)
       }
       else {
+         # DFC 3/5/11: relaxed to allow PPP links in dynamips withouth <bw> tag
          #8h. To check PPP networks has <bw> tag
-         my $bw_list = $net->getElementsByTagName("bw");
-         return "net $name is a PPP network and PPP networks must have a <bw> tag" if ($bw_list->getLength == 0)
+         #my $bw_list = $net->getElementsByTagName("bw");
+         #return "net $name is a PPP network and PPP networks must have a <bw> tag" if ($bw_list->getLength == 0)
       }
 
       # 8i. Check sock files
@@ -987,6 +982,72 @@ sub check_doc {
 			return "<mem> tag sintax error ($mem); memory values must end with 'M' or 'G'";
 		}
 	}
+
+	# DYNAMIPS checks
+
+	# - check that dynamips_ext only appears <=1 times
+   my $dynext_list = $doc->getElementsByTagName("dynamips_ext");
+   if ($dynext_list->getLength > 1) {
+			return "duplicated <dynamips_ext> tag. Only one allowed";
+   }
+   
+   
+   	# - check the correctness of dynamips interface names (e0/0, s0/1, fa0/2, etc)
+   	# - check that if a dynamips vm has an if which is a serial line interface (e.g s1/0) connected to a net:
+   	#         - the net has exactly two interfaces connected
+   	#         - the net type is ppp
+   	#         - the other end is a dynamips router and the interface connected is also a serial line
+	# Virtual machines loop
+	$vm_list = $doc->getElementsByTagName ("vm");
+	for (my $i = 0; $i < $vm_list->getLength; $i++) {
+
+	    my $vm = $vm_list->item ($i);
+	    my $name = $vm->getAttribute ("name");
+	    my $type = $vm->getAttribute ("type");
+		if ( $type eq 'dynamips') {
+			# Network interfaces loop
+	        my $if_list = $vm->getElementsByTagName ("if");
+	        for (my $j = 0; $j < $if_list->getLength; $j++) {
+	            my $if = $if_list->item ($j);
+	            my $id = $if->getAttribute ("id");
+	            my $net = $if->getAttribute ("net");
+	            my $ifName = $if->getAttribute ("name");
+				# Check if name attribute exists
+	            if (!$ifName) {
+					return "missing dynamips interface name (id=$id, vm=$name)";
+	            }
+	            # Check $ifName correctness
+           		if ($ifName !~ /[sefg].*[0-9]\/[0-9]/ ) {
+					return "incorrect dynamips interface name (id=$id, name=$ifName, vm=$name)";
+           		}
+	            # 
+	            if ($ifName =~ /s.*/) { 
+	            	# Interface is a serial line (e.g. s1/0)
+					# No need to check that length of @vms == 2; already done in 8g
+					# Check that if is connected to a ppp <net>
+					if ($dh->get_net_type($net) ne 'ppp') {
+						return "serial line dynamips interface $ifName of $name must be connected to a <net> of type 'ppp'.";
+					}	            	
+					# Get ifs connected to that <net>
+	            	my ($vms,$ifs) = $dh->get_vms_in_a_net ($net);
+	            	#foreach $vm (@$vms) { print "********* vm= " . $vm->getAttribute ("name") . "\n"}
+	            	#foreach $if (@$ifs) { print "********* if= " . $if->getAttribute ("name") . "\n"}
+	        		for (my $i = 0; $i < scalar @$vms; $i++) {
+	            		if (@$vms[$i]->getAttribute ("type") ne 'dynamips') {
+							return "all interfaces connected to <net> $net must be dynamips serial lines (" . 
+							        @$vms[$i]->getAttribute ("name") . " is not of type dynamips)";
+	            		}
+	            		if (@$ifs[$i]->getAttribute ("name") !~ /s.*/) {
+							return "all interfaces connected to <net> $net must be dynamips serial lines (" .
+							        @$ifs[$i]->getAttribute ("name") . " of " . @$vms[$i]->getAttribute ("name") . 
+							        " is not a serial line)";
+	            		}
+	        		}
+	            }
+	        }
+		}
+	}
+
    return 0;
 
 }
