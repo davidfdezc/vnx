@@ -1282,4 +1282,72 @@ sub filetree_in_vm {
 
 sub numerically { $a <=> $b; }     # Helper for sorting
 
+#
+# get_net_type: returns the type of a <net> ('' if not found).
+#
+sub get_net_type {
+
+   	my $self = shift;
+	my $netName = shift;
+	
+	#my $doc = $self->{'doc'}->get_doc;
+	#my $net_list = $doc->getElementsByTagName ("net");
+	my $net_list = $self->{'doc'}->getElementsByTagName("net");
+	for (my $i = 0; $i < $net_list->getLength; $i++) {
+	    my $net = $net_list->item ($i);
+	    my $name = $net->getAttribute ("name");
+        if ($name eq $netName) {
+	    	return $net->getAttribute ("type");
+        }
+	}
+	return ''
+}
+
+
+#
+# get_vms_in_a_net: returns references to two arrays with the virtual machines and the 
+#                   interfaces connected to a <net>
+#
+# Example usage:
+#
+#   my ($vms,$ifs) = $dh->get_vms_in_a_net ($net);
+#   for (my $i = 0; $i < scalar @$vms; $i++) {
+#	  print "vm name=" . @$vms[$i]->getAttribute ("name");
+#	  print "if name=" . @$ifs[$i]->getAttribute ("name");	
+#   }
+#
+sub get_vms_in_a_net {
+
+   	my $self = shift;
+	my $netName = shift;
+	my @vms;
+	my @ifs;
+	
+	#print "**** net=$netName \n";
+	# Virtual machines loop
+	#my $doc = $self->{'doc'}->get_doc;
+	#my $vms = $doc->getElementsByTagName ("vm");
+	my $vms = $self->{'doc'}->getElementsByTagName("vm");
+	for (my $i = 0; $i < $vms->getLength; $i++) {
+	    my $found;
+	    my $vm = $vms->item ($i);
+	    my $name = $vm->getAttribute ("name");
+		# Network interfaces loop
+        my $ifs = $vm->getElementsByTagName ("if");
+        my $n = $ifs->getLength;
+        for (my $j = 0; $j < $n; $j++) {
+            my $if = $ifs->item ($j);
+            my $id = $if->getAttribute ("id");
+            my $net = $if->getAttribute ("net");
+            if ($net eq $netName) {
+                #print "  vm found: $name \n";
+                push (@vms, $vm);
+                push (@ifs, $if);
+            }
+        }
+	}
+	return (\@vms, \@ifs)
+}
+
+
 1;
