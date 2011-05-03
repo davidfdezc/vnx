@@ -52,6 +52,7 @@ package vmAPI_dynamips;
 #@EXPORT = qw(defineVM);
   
 use strict;
+use feature qw(switch);
 use XML::LibXML;
 use XML::DOM;
 #use XML::DOM::ValParser;
@@ -342,7 +343,7 @@ sub defineVM {
 	}
 	print "** $vmName: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
 
-    # Define ports for main console and aux console (only used for 7200)
+    # Define ports for main console (all) and aux console (only for 7200)
 	my @consolePort = qw();
     foreach my $j (1, 2) {
 		if ($consPortDefInXML{$j} eq "") { # telnet port not defined we choose a free one starting from $CONS_PORT
@@ -352,6 +353,7 @@ sub defineVM {
 			}
 			$VNX::Globals::CONS_PORT = $consolePort[$j] + 1;
 		} else { # telnet port was defined in <console> tag
+		    
 			$consolePort[$j] = $consPortDefInXML{$j};
 			while ( !system("fuser -s -v -n tcp $consolePort[$j]") ) {
 				$consolePort[$j]++;
@@ -379,11 +381,19 @@ sub defineVM {
 	close (PORT_CISCO);
     
     # Set Chassis
-    my $chassis = &get_chassis($extConfFile, $vmName);
+    my $chassis = &get_simple_conf($extConfFile, $vmName, 'chassis');
     $chassis =~ s/c//;
     print("c$model set_chassis $vmName $chassis\n");
     $t->print("c$model set_chassis $vmName $chassis");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+
+    # Set NPE if 7200
+    if ($model eq '7200') {
+	    my $npe = &get_simple_conf($extConfFile, $vmName, 'npe');
+	    print("c$model set_npe $vmName npe-$npe\n");
+	    $t->print("c$model set_npe $vmName npe-$npe");
+	    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);   	
+    } 
     
 	# Set Filesystem
     print("vm set_ios $vmName $filesystem\n");
@@ -394,7 +404,7 @@ sub defineVM {
     print("vm set_ram $vmName $mem\n");
     $t->print("vm set_ram $vmName $mem");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    if (&get_sparsemem($extConfFile, $vmName) eq "true"){
+    if (&get_simple_conf($extConfFile, $vmName, 'sparsemem') eq "true"){
 		print("vm set_sparse_mem $vmName 1\n");
 		$t->print("vm set_sparse_mem $vmName 1");
    		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
@@ -411,7 +421,7 @@ sub defineVM {
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     
     #Set ios ghost
-    if (&get_ghost_ios($extConfFile, $vmName) eq "true"){
+    if (&get_simple_conf($extConfFile, $vmName, 'ghostios') eq "true"){
     	print("vm set_ghost_status $vmName 2\n");
 		$t->print("vm set_ghost_status $vmName 2");
     	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
@@ -444,15 +454,89 @@ sub defineVM {
 		my $ifTag = $ifTagList->item($j);
 		my $name  = $ifTag->getAttribute("name");
 		my $id    = $ifTag->getAttribute("id");
+		my $net   = $ifTag->getAttribute("net");
 		my ($slot, $dev)= split("/",$name,2);
 		$slot = substr $slot,-1,1;
-		print ("******** slot=$slot, dev=$dev\n");
-		print("nio create_tap nio_tap$slot$dev $vmName-e$id\n");
-		$t->print("nio create_tap nio_tap$slot$dev $vmName-e$id");
-   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-   		print("vm slot_add_nio_binding $vmName $slot $dev nio_tap$slot$dev\n");
-   		$t->print("vm slot_add_nio_binding $vmName $slot $dev nio_tap$slot$dev");
-   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+		if ( $name =~ /^[gfe]/ ) {
+			print "**** Ethernet interface: $name, slot=$slot, dev=$dev\n";
+			print("nio create_tap nio_tap_$vmName$slot$dev $vmName-e$id\n");
+			$t->print("nio create_tap nio_tap_$vmName$slot$dev $vmName-e$id");
+	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+	   		print("vm slot_add_nio_binding $vmName $slot $dev nio_tap_$vmName$slot$dev\n");
+	   		$t->print("vm slot_add_nio_binding $vmName $slot $dev nio_tap_$vmName$slot$dev");
+	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+		}
+		elsif ( $name =~ /^[s]/ ) {
+			print "**** Serial interface: $name, slot=$slot, dev=$dev\n";			
+			print "**** Serial interface: VNX::Globals::SERLINE_PORT=$VNX::Globals::SERLINE_PORT\n";
+			
+			#
+			# Ports used to create the virtual serial line for the pt2pt link are
+			# stored in a file under $vnxDir/networks. For example, for a link that 
+			# joins two routers, r1 and r2, using a net named Net1 the file is named:
+			#
+			#     $vnxDir/networks/Net1.ports
+			#
+			# and the content is:
+			#
+			#     r1=12002
+			#     r2=12003
+			#
+			# First, we check if the file already exists
+			my @vms;
+			my @ports;
+			my $portsFile = $dh->get_networks_dir . "/" . $net . ".ports";
+			print "**** portsFile=$portsFile\n"; 
+			if (!-e $portsFile) {
+				print "*** $portsFile does not exist, creating it...\n";
+				# We choose two free UDP ports
+				for ( my $i = 0 ; $i <= 1 ; $i++ ) {
+					$ports[$i] = $VNX::Globals::SERLINE_PORT;
+					while ( !system("fuser -s -v -n tcp $ports[$i]") ) {
+						$ports[$i]++;
+					}
+					$VNX::Globals::SERLINE_PORT = $ports[$i] + 1;
+				}
+				# Get virtual machines connected to the serial line
+				@vms = &get_vms_in_a_net ($net);
+				if (scalar @vms != 2) { $execution->smartdie ("ERROR: point-to-point network $net has " . scalar @vms . "virtual machines connected (must be 2)"); }
+				# and we write it to the file
+				open (PORTS_FILE, "> $portsFile") || $execution->smartdie ("ERROR: Cannot open file $portsFile for writting $net serial line ports");
+				for ( my $i = 0 ; $i <= 1 ; $i++ ) {
+					print "**** $vms[$i]=$ports[$i]\n";
+					print PORTS_FILE "$vms[$i]=$ports[$i]\n";
+				}
+				close (PORTS_FILE); 				
+			} else {
+				print "*** $portsFile already exists, reading it...\n";
+				# The file already exists; we read it and load the values
+				open (PORTS_FILE, "< $portsFile") || $execution->smartdie("Could not open $portsFile file.");
+				foreach my $line (<PORTS_FILE>) {
+				    chomp($line);               # remove the newline from $line.
+					print "**** line=$line\n";
+				    my $name = $line;				    
+				    $name =~ s/=.*//;  	  
+				    my $port = $line;
+					$port =~ s/.*=//;  
+					print "**** vm=$name, port=$port\n";
+				    push (@vms,$name);
+				    push (@ports,$port);
+				}	
+				close (PORTS_FILE); 							
+			}
+			print "**** Serial interface: ports[0]=$ports[0], ports[1]=$ports[1]\n";
+			if ($vms[0] eq $vmName) {
+				print("nio create_udp nio_udp_$vmName$slot$dev $ports[0] 127.0.0.1 $ports[1]\n");
+				$t->print("nio create_udp nio_udp_$vmName$slot$dev $ports[0] 127.0.0.1 $ports[1]");
+			} else {
+				print("nio create_udp nio_udp_$vmName$slot$dev $ports[1] 127.0.0.1 $ports[0]\n");
+				$t->print("nio create_udp nio_udp_$vmName$slot$dev $ports[1] 127.0.0.1 $ports[0]");
+			}
+	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+	   		print("vm slot_add_nio_binding $vmName $slot $dev nio_udp_$vmName$slot$dev\n");
+	   		$t->print("vm slot_add_nio_binding $vmName $slot $dev nio_udp_$vmName$slot$dev");
+	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+		}
    		$execution->execute("ifconfig $vmName-e$id 0.0.0.0");
 	}
 	
@@ -951,69 +1035,7 @@ sub reload_conf {
 	VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
 }
 
-=BEGIN Moved to VNX
-# 
-# validateExtXMLFiles
-# 
-#   Checks the existence of the extended configuration file and validates it.
-#   Returns the full pathname of the file.
-#
-# Arguments:
-#   extConfFile: the extended configuration filename provided in the XML
-#
-# Returns
-#   full path name of file
-#
-sub validateExtXMLFiles{
-	
-	my $self = shift;
-	my $tempconf = shift;
-	#print "*** vmAPI_dynamips: validateExtXMLFiles tempconf=$tempconf\n";
 
-	$tempconf = &get_abs_path ($tempconf);
-	
-	# Comprueba que exista el fichero
-	if (-e $tempconf){
-		#$extConfFile = $tempconf;
-		open CONF_EXT_FILE, "$tempconf";
-   			my @conf_file_array = <CONF_EXT_FILE>;
-   			my $extConfFile_string = join("",@conf_file_array);
-   		close CONF_EXT_FILE;
-		my $schemalocation;
-
-#jsf	if ($input_file_string =~ /="(.*).xsd"/) {
-	    if ($extConfFile_string =~ /="(\S*).xsd"/) {
-        	$schemalocation = $1 .".xsd";
-		}else{
-			print "input_file_string = $extConfFile_string, $schemalocation=schemalocation\n" if ($exemode == $EXE_VERBOSE);
-			$execution->smartdie("XSD not found");
-		}
-		if (!(-e $schemalocation)){
-			$execution->smartdie("$schemalocation not found");
-		}
-		# Valida el XML contra el Schema
-        my $schema = XML::LibXML::Schema->new(location => $schemalocation);
-		
-		
-		my $parser = XML::LibXML->new;
-		#$doc    = $parser->parse_file($document);
-		my $doc = $parser->parse_file($tempconf);
-		
-		eval { $schema->validate($doc) };
-	
-		if ($@) {
-		  # Validation errors
-		  $execution->smartdie("$tempconf is not a well-formed Dynamips extended configuration file");
-		}
-    	#print "*** validateExtXMLFiles: tempconf=$tempconf\n";
-		return $tempconf;	
-	}else
-	{
-		$execution->smartdie("$tempconf not found");
-	}
-}
-=END
-=cut
 
 # Devuelve en un array de dos columnas, los valores dados en la etiqueta login del XML
 # Por defecto (si no existe) no devuelve usuarios.
@@ -1146,6 +1168,411 @@ sub get_enable_pass {
  	return $result;
 }
 
+#
+# Get the value of a simple tag in extended configuration file
+# 
+# Returns the value of the parameter or the default value if not found 
+# 
+sub get_simple_conf {
+
+	my $extConfFile = shift;
+	my $vmName      = shift;
+	my $tagName     = shift;
+	
+	my $global_tag = 1;
+	my $result;
+	
+	# Set default value
+	given ($tagName) {
+	    when ('sparsemem') { $result = 'true'; }
+	    when ('ghostios')  { $result = 'false'; }
+	    when ('npe')       { $result = '200'; }
+	    when ('chassis')   { $result = '3640'; }
+	}
+		
+	# If the extended config file is not defined, return default value 
+	if ($extConfFile eq '0'){
+		return "$result\n";
+	}
+	
+	# Parse the extended config file
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($extConfFile);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+			
+	# First, we look for a definition in the $vmName <vm> section 
+	for ( my $j = 0 ; $j < $virtualmList->getLength ; $j++ ) {
+	 	# We get name attribute
+	 	my $virtualm = $virtualmList->item($j);
+		my $name = $virtualm->getAttribute("name");
+		if ( $name eq $vmName ) {
+			my $tag_list = $virtualm->getElementsByTagName("$tagName");
+			if ($tag_list->getLength gt 0){
+				my $tag = $tag_list->item(0);
+				$result = &text_tag($tag);
+	 			$global_tag = 0;
+	                        print "*** vmName = $name, specific entry found ($result)\n";
+			}
+			last;
+		}
+	}
+	# Then, if a virtual machine specific definition was not found, 
+	# have a look in the <global> section
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item(0);
+			my $tag_gl_list = $globaltag->getElementsByTagName("$tagName");
+			if ($tag_gl_list->getLength gt 0){
+				my $tag_gl = $tag_gl_list->item(0);
+				$result = &text_tag($tag_gl);
+                print "*** vmName = $vmName, global entry found ($result)\n";
+			}
+		}	
+	}
+	return $result;
+}
+
+
+#
+# get_router_conf_file:
+#																
+#   Gets the router configuration file from the dynamips extended 
+#   configuration file (if exists)
+# 
+# Arguments:						
+# 	vmName: name of virtual router
+# 
+# Returns:									
+# 	absolute path of the router config file or empty string if not defined
+#
+sub get_router_conf_file {
+
+	my $extConfFile = shift;
+	my $vmName    = shift;
+
+	my $result = "0";
+	
+	# If the extended config file is not defined, return default value 
+	if ($extConfFile eq '0'){
+		return $result;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($extConfFile);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $conf_list = $virtualm->getElementsByTagName("conf");
+		if ($conf_list->getLength gt 0){
+			my $conftag = $conf_list->item(0);
+			$result = &text_tag($conftag);
+			$global_tag = 0;
+			$result = &get_abs_path ($result);
+		}
+	}
+	print "**** get_router_conf_file: $result\n";
+ 	return $result;
+}
+
+
+#################################################################
+# get_card_conf													#
+# 																#
+# Saca del fichero de configuración extendida, las tarjetas que #
+# se tienen que conectar al router								#
+# Entrada:														#
+# 	Nombre del router virtual									#
+# Salida:														#
+# 	Array de los nombres de las tarjetas que tienen que ser 	#
+#	agregadas al router, en caso de que no haya o etiqueta o 	#
+#	no exista el fichero, por defecto se inserta una placa		#
+# 	NM-4E														# 
+#################################################################
+
+sub get_cards_conf {
+	
+	my $extConfFile = shift;
+	my $vmName      = shift;
+
+	my @slotarray;
+	
+	# If the extended config file is not defined, return default value 
+	if ($extConfFile eq '0'){
+		push(@slotarray,"NM-4E");
+		return @slotarray;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($extConfFile);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+		
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			my $hw_list = $virtualm->getElementsByTagName("hw");
+			if ($hw_list->getLength gt 0){
+				my $hw = $hw_list->item(0);
+				my $slot_list = $hw->getElementsByTagName("slot");
+		 		my $numslot = $slot_list->getLength;
+		 		# Añadimos las tarjetas que haya en el fichero.
+		 		for ( my $j = 0 ; $j < $numslot ; $j++ ) {
+		 			my $slotTag = $slot_list->item($j);
+					my $slot = &text_tag($slotTag);
+					push(@slotarray,$slot);
+					# Como ya tenemos tarjetas no vemos las globales.
+					$global_tag = 0;
+		 		}
+			}
+			last;
+		}
+ 	}
+	# Si no hay tarjetas definidas en la seccion del router virtual.
+	# se utilizan el que está definido en la parte global.
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item(0);
+			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+			if ($hw_gl_list->getLength gt 0){
+				my $hw_gl = $hw_gl_list->item(0);
+				my $slot_gl_list = $hw_gl->getElementsByTagName("slot");
+	 			my $numslotgl = $slot_gl_list->getLength;
+	 			for ( my $j = 0 ; $j < $numslotgl ; $j++ ) {
+	 				my $slotTaggl = $slot_gl_list->item($j);
+					my $slot_gl = &text_tag($slotTaggl);
+					push(@slotarray,$slot_gl);
+					# Como ya tenemos tarjetas definidas, no utilizamos la configurada por defecto.
+					$default_tag = 0;
+	 			}
+			}
+		}	
+	}
+	# Si no tenemos definidas ninguna tarjeta en la definicion del router virtual o el la seccion global
+	# utilizamos el valor por defecto "NM-4E"
+	
+	# Diferente al ser un array y no poder asignarle un valor por defecto al principio
+	if (($global_tag eq 1 )&&($default_tag eq 1)){
+		push(@slotarray,"NM-4E");
+	}
+ 	return @slotarray;
+}
+
+###################################################################
+#                                                                 
+sub change_vm_status {
+
+#	my $dh     = shift;
+	my $vm     = shift;
+	my $status = shift;
+
+	my $status_file = $dh->get_vm_dir($vm) . "/status";
+
+	if ( $status eq "REMOVE" ) {
+		$execution->execute(
+			$bd->get_binaries_path_ref->{"rm"} . " -f $status_file" );
+	}
+	else {
+		$execution->execute(
+			$bd->get_binaries_path_ref->{"echo"} . " $status > $status_file" );
+	}
+}
+
+#
+# get_vms_in_a_net: returns an array with the names of the virtual machines connected to a <net>
+#
+sub get_vms_in_a_net {
+
+	my $netName = shift;
+	my @vms;
+	
+	print "**** net=$netName \n";
+	# Virtual machines loop
+	my $doc = $dh->get_doc;
+	my $vms = $doc->getElementsByTagName ("vm");
+	for (my $i = 0; $i < $vms->getLength; $i++) {
+	    my $found;
+	    my $vm = $vms->item ($i);
+	    my $name = $vm->getAttribute ("name");
+		# Network interfaces loop
+        my $ifs = $vm->getElementsByTagName ("if");
+        my $n = $ifs->getLength;
+        for (my $j = 0; $j < $n; $j++) {
+            my $if = $ifs->item ($j);
+            my $id = $if->getAttribute ("id");
+            my $net = $if->getAttribute ("net");
+            if ($net eq $netName) {
+                #print "  vm found: $name \n";
+                push (@vms, $name)
+            }
+        }
+	}
+	return @vms
+}
+
+
+=BEGIN
+#
+# get_dynamips_port_conf
+#
+#   Returns dynamips daemon port from /etc/vnx.conf file
+#   If not defined, returns default value ($VNX::Globals::DYNAMIPS_DEFAULT_PORT)
+#
+sub get_dynamips_port_conf {
+
+	my $result = $VNX::Globals::DYNAMIPS_DEFAULT_PORT;
+	
+	unless(-e $VNX::Globals::MAIN_CONF_FILE){
+		return $result;
+	}
+	open FILE, "<$VNX::Globals::MAIN_CONF_FILE" or $execution->smartdie("$VNX::Globals::MAIN_CONF_FILE not found");
+	my @lines = <FILE>;
+	foreach my $line (@lines){
+	    if (($line =~ /port/) && !($line =~ /^#/)){ 
+			my @config1 = split(/=/, $line);
+			my @config2 = split(/#/,$config1[1]);
+			$result = $config2[0];
+			chop $result;
+			$result =~ s/\s+//g;
+	    }
+	}
+ 	return $result;
+}
+
+#
+# get_dynamips_port_conf
+#
+#   Returns idle-pc value from /etc/vnx.conf file
+#   If not defined, returns 0x604f8104
+#
+sub get_idle_pc_conf {
+	my $vmName = shift;
+	my $result = "0x604f8104";
+	
+	unless(-e $VNX::Globals::MAIN_CONF_FILE){
+		return $result;
+	}
+	open FILE, "<$VNX::Globals::MAIN_CONF_FILE" or $execution->smartdie("$VNX::Globals::MAIN_CONF_FILE not found");
+	my @lines = <FILE>;
+	foreach my $line (@lines){
+	    if (($line =~ /idle_pc/) && !($line =~ /^#/)){ 
+			my @config1 = split(/=/, $line);
+			my @config2 = split(/#/,$config1[1]);
+			$result = $config2[0];
+			chop $result;
+			$result =~ s/\s+//g;
+	    }
+	}
+ 	return $result;
+}
+=END
+=cut
+
+=BEGIN
+# 
+# get_port_conf
+#
+#
+#
+sub get_port_conf {
+
+	my $extConfFile = shift;
+	my $vmName    = shift;
+	my $counter   = shift;
+
+	my $result =  900 + $counter;
+	
+	unless(-e $extConfFile){
+		return $result;
+	}
+	# Parseamos el fichero.
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($extConfFile);
+	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+
+ 	my $numsvm = $virtualmList->getLength;
+ 	my $name;
+ 	my $virtualm;
+ 	my $default_tag = 1;
+ 	my $global_tag = 1;
+ 	# Buscamos la seccion de la maquina virtual
+ 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
+ 		# We get name attribute
+ 		$virtualm = $virtualmList->item($j);
+		$name = $virtualm->getAttribute("name");
+
+		if ( $name eq $vmName ) {
+			last;
+		}
+ 	}
+ 	# Comprobamos que la maquina es la correcta
+	if($name eq $vmName){
+		my $hw_list = $virtualm->getElementsByTagName("hw");
+		if ($hw_list->getLength gt 0){
+			my $hw = $hw_list->item(0);
+			my $console_list = $hw->getElementsByTagName("console");
+	 		if($console_list->getLength gt 0){
+	 			my $consoleTag = $console_list->item(0);
+	 			$result = $consoleTag->getAttribute("port");
+	 			$global_tag = 0;
+	 		}
+		}
+	}
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item(0);
+			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
+			if ($hw_gl_list->getLength gt 0){
+				my $hw_gl = $hw_gl_list->item(0);
+				my $console_gl_list = $hw_gl->getElementsByTagName("console_base");
+	 			if($console_gl_list->getLength gt 0){
+	 				my $console_gl_Tag = $console_gl_list->item(0);
+	 				my $base = $console_gl_Tag->getAttribute("port");
+	 				$result = $base + $counter;
+	 			}
+			}
+		}	
+	}
+#	if (($default_tag eq 1)&&($global_tag eq 1)){
+#		$result = 900 + $counter; 
+#	}
+ 	return $result;
+}
+=END
+=cut
+
+
+=BEGIN
 # Devuelve el valor de la etiqueta sparsemem
 # Si no se define, devuelve un valor true.
 sub get_sparsemem {
@@ -1260,6 +1687,7 @@ sub get_ghost_ios {
  	return $result;
 }
 
+
 #################################################################
 # get_chassis 													#
 # 																#
@@ -1338,312 +1766,71 @@ sub get_chassis {
  	return $result;
 }
 
-#
-# get_router_conf_file:
-#																
-#   Gets the router configuration file from the dynamips extended 
-#   configuration file (if exists)
-# 
-# Arguments:						
-# 	vmName: name of virtual router
-# 
-# Returns:									
-# 	absolute path of the router config file or empty string if not defined
-#
-sub get_router_conf_file {
-
-	my $extConfFile = shift;
-	my $vmName    = shift;
-
-	my $result = "0";
-	
-	# If the extended config file is not defined, return default value 
-	if ($extConfFile eq '0'){
-		return $result;
-	}
-	# Parseamos el fichero.
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($extConfFile);
-	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
-	my $virtualmList = $globalNode->getElementsByTagName("vm");
-		
- 	my $numsvm = $virtualmList->getLength;
- 	my $name;
- 	my $virtualm;
- 	my $default_tag = 1;
- 	my $global_tag = 1;
- 	# Buscamos la seccion de la maquina virtual
- 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
- 		# We get name attribute
- 		$virtualm = $virtualmList->item($j);
-		$name = $virtualm->getAttribute("name");
-
-		if ( $name eq $vmName ) {
-			last;
-		}
- 	}
- 	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
-		my $conf_list = $virtualm->getElementsByTagName("conf");
-		if ($conf_list->getLength gt 0){
-			my $conftag = $conf_list->item(0);
-			$result = &text_tag($conftag);
-			$global_tag = 0;
-			$result = &get_abs_path ($result);
-		}
-	}
-	print "**** get_router_conf_file: $result\n";
- 	return $result;
-}
-
-=BEGIN
-# 
-# get_port_conf
-#
-#
-#
-sub get_port_conf {
-
-	my $extConfFile = shift;
-	my $vmName    = shift;
-	my $counter   = shift;
-
-	my $result =  900 + $counter;
-	
-	unless(-e $extConfFile){
-		return $result;
-	}
-	# Parseamos el fichero.
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($extConfFile);
-	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
-	my $virtualmList = $globalNode->getElementsByTagName("vm");
-
- 	my $numsvm = $virtualmList->getLength;
- 	my $name;
- 	my $virtualm;
- 	my $default_tag = 1;
- 	my $global_tag = 1;
- 	# Buscamos la seccion de la maquina virtual
- 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
- 		# We get name attribute
- 		$virtualm = $virtualmList->item($j);
-		$name = $virtualm->getAttribute("name");
-
-		if ( $name eq $vmName ) {
-			last;
-		}
- 	}
- 	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
-		my $hw_list = $virtualm->getElementsByTagName("hw");
-		if ($hw_list->getLength gt 0){
-			my $hw = $hw_list->item(0);
-			my $console_list = $hw->getElementsByTagName("console");
-	 		if($console_list->getLength gt 0){
-	 			my $consoleTag = $console_list->item(0);
-	 			$result = $consoleTag->getAttribute("port");
-	 			$global_tag = 0;
-	 		}
-		}
-	}
-	if ($global_tag eq 1){
-		my $globalList = $globalNode->getElementsByTagName("global");
-		if ($globalList->getLength gt 0){
-			my $globaltag = $globalList->item(0);
-			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
-			if ($hw_gl_list->getLength gt 0){
-				my $hw_gl = $hw_gl_list->item(0);
-				my $console_gl_list = $hw_gl->getElementsByTagName("console_base");
-	 			if($console_gl_list->getLength gt 0){
-	 				my $console_gl_Tag = $console_gl_list->item(0);
-	 				my $base = $console_gl_Tag->getAttribute("port");
-	 				$result = $base + $counter;
-	 			}
-			}
-		}	
-	}
-#	if (($default_tag eq 1)&&($global_tag eq 1)){
-#		$result = 900 + $counter; 
-#	}
- 	return $result;
-}
 =END
 =cut
 
-
-#################################################################
-# get_card_conf													#
-# 																#
-# Saca del fichero de configuración extendida, las tarjetas que #
-# se tienen que conectar al router								#
-# Entrada:														#
-# 	Nombre del router virtual									#
-# Salida:														#
-# 	Array de los nombres de las tarjetas que tienen que ser 	#
-#	agregadas al router, en caso de que no haya o etiqueta o 	#
-#	no exista el fichero, por defecto se inserta una placa		#
-# 	NM-4E														# 
-#################################################################
-
-sub get_cards_conf {
+=BEGIN Moved to VNX
+# 
+# validateExtXMLFiles
+# 
+#   Checks the existence of the extended configuration file and validates it.
+#   Returns the full pathname of the file.
+#
+# Arguments:
+#   extConfFile: the extended configuration filename provided in the XML
+#
+# Returns
+#   full path name of file
+#
+sub validateExtXMLFiles{
 	
-	my $extConfFile = shift;
-	my $vmName      = shift;
+	my $self = shift;
+	my $tempconf = shift;
+	#print "*** vmAPI_dynamips: validateExtXMLFiles tempconf=$tempconf\n";
 
-	my @slotarray;
+	$tempconf = &get_abs_path ($tempconf);
 	
-	# If the extended config file is not defined, return default value 
-	if ($extConfFile eq '0'){
-		push(@slotarray,"NM-4E");
-		return @slotarray;
-	}
-	# Parseamos el fichero.
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($extConfFile);
-	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
-	my $virtualmList = $globalNode->getElementsByTagName("vm");
+	# Comprueba que exista el fichero
+	if (-e $tempconf){
+		#$extConfFile = $tempconf;
+		open CONF_EXT_FILE, "$tempconf";
+   			my @conf_file_array = <CONF_EXT_FILE>;
+   			my $extConfFile_string = join("",@conf_file_array);
+   		close CONF_EXT_FILE;
+		my $schemalocation;
+
+#jsf	if ($input_file_string =~ /="(.*).xsd"/) {
+	    if ($extConfFile_string =~ /="(\S*).xsd"/) {
+        	$schemalocation = $1 .".xsd";
+		}else{
+			print "input_file_string = $extConfFile_string, $schemalocation=schemalocation\n" if ($exemode == $EXE_VERBOSE);
+			$execution->smartdie("XSD not found");
+		}
+		if (!(-e $schemalocation)){
+			$execution->smartdie("$schemalocation not found");
+		}
+		# Valida el XML contra el Schema
+        my $schema = XML::LibXML::Schema->new(location => $schemalocation);
 		
- 	my $numsvm = $virtualmList->getLength;
- 	my $name;
- 	my $virtualm;
- 	my $default_tag = 1;
- 	my $global_tag = 1;
- 	# Buscamos la seccion de la maquina virtual
- 	for ( my $j = 0 ; $j < $numsvm ; $j++ ) {
- 		# We get name attribute
- 		$virtualm = $virtualmList->item($j);
-		$name = $virtualm->getAttribute("name");
-
-		if ( $name eq $vmName ) {
-			last;
+		
+		my $parser = XML::LibXML->new;
+		#$doc    = $parser->parse_file($document);
+		my $doc = $parser->parse_file($tempconf);
+		
+		eval { $schema->validate($doc) };
+	
+		if ($@) {
+		  # Validation errors
+		  $execution->smartdie("$tempconf is not a well-formed Dynamips extended configuration file");
 		}
- 	}
- 	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
-		my $hw_list = $virtualm->getElementsByTagName("hw");
-		if ($hw_list->getLength gt 0){
-			my $hw = $hw_list->item(0);
-			my $slot_list = $hw->getElementsByTagName("slot");
-	 		my $numslot = $slot_list->getLength;
-	 		# Añadimos las tarjetas que haya en el fichero.
-	 		for ( my $j = 0 ; $j < $numslot ; $j++ ) {
-	 			my $slotTag = $slot_list->item($j);
-				my $slot = &text_tag($slotTag);
-				push(@slotarray,$slot);
-				# Como ya tenemos tarjetas no vemos las globales.
-				$global_tag = 0;
-	 		}
-		}
+    	#print "*** validateExtXMLFiles: tempconf=$tempconf\n";
+		return $tempconf;	
+	}else
+	{
+		$execution->smartdie("$tempconf not found");
 	}
-	# Si no hay tarjetas definidas en la seccion del router virtual.
-	# se utilizan el que está definido en la parte global.
-	if ($global_tag eq 1){
-		my $globalList = $globalNode->getElementsByTagName("global");
-		if ($globalList->getLength gt 0){
-			my $globaltag = $globalList->item(0);
-			my $hw_gl_list = $globaltag->getElementsByTagName("hw");
-			if ($hw_gl_list->getLength gt 0){
-				my $hw_gl = $hw_gl_list->item(0);
-				my $slot_gl_list = $hw_gl->getElementsByTagName("slot");
-	 			my $numslotgl = $slot_gl_list->getLength;
-	 			for ( my $j = 0 ; $j < $numslotgl ; $j++ ) {
-	 				my $slotTaggl = $slot_gl_list->item($j);
-					my $slot_gl = &text_tag($slotTaggl);
-					push(@slotarray,$slot_gl);
-					# Como ya tenemos tarjetas definidas, no utilizamos la configurada por defecto.
-					$default_tag = 0;
-	 			}
-			}
-		}	
-	}
-	# Si no tenemos definidas ninguna tarjeta en la definicion del router virtual o el la seccion global
-	# utilizamos el valor por defecto "NM-4E"
-	
-	# Diferente al ser un array y no poder asignarle un valor por defecto al principio
-	if (($global_tag eq 1 )&&($default_tag eq 1)){
-		push(@slotarray,"NM-4E");
-	}
- 	return @slotarray;
-}
-
-=BEGIN
-#
-# get_dynamips_port_conf
-#
-#   Returns dynamips daemon port from /etc/vnx.conf file
-#   If not defined, returns default value ($VNX::Globals::DYNAMIPS_DEFAULT_PORT)
-#
-sub get_dynamips_port_conf {
-
-	my $result = $VNX::Globals::DYNAMIPS_DEFAULT_PORT;
-	
-	unless(-e $VNX::Globals::MAIN_CONF_FILE){
-		return $result;
-	}
-	open FILE, "<$VNX::Globals::MAIN_CONF_FILE" or $execution->smartdie("$VNX::Globals::MAIN_CONF_FILE not found");
-	my @lines = <FILE>;
-	foreach my $line (@lines){
-	    if (($line =~ /port/) && !($line =~ /^#/)){ 
-			my @config1 = split(/=/, $line);
-			my @config2 = split(/#/,$config1[1]);
-			$result = $config2[0];
-			chop $result;
-			$result =~ s/\s+//g;
-	    }
-	}
- 	return $result;
-}
-
-#
-# get_dynamips_port_conf
-#
-#   Returns idle-pc value from /etc/vnx.conf file
-#   If not defined, returns 0x604f8104
-#
-sub get_idle_pc_conf {
-	my $vmName = shift;
-	my $result = "0x604f8104";
-	
-	unless(-e $VNX::Globals::MAIN_CONF_FILE){
-		return $result;
-	}
-	open FILE, "<$VNX::Globals::MAIN_CONF_FILE" or $execution->smartdie("$VNX::Globals::MAIN_CONF_FILE not found");
-	my @lines = <FILE>;
-	foreach my $line (@lines){
-	    if (($line =~ /idle_pc/) && !($line =~ /^#/)){ 
-			my @config1 = split(/=/, $line);
-			my @config2 = split(/#/,$config1[1]);
-			$result = $config2[0];
-			chop $result;
-			$result =~ s/\s+//g;
-	    }
-	}
- 	return $result;
 }
 =END
 =cut
-
-###################################################################
-#                                                                 
-sub change_vm_status {
-
-#	my $dh     = shift;
-	my $vm     = shift;
-	my $status = shift;
-
-	my $status_file = $dh->get_vm_dir($vm) . "/status";
-
-	if ( $status eq "REMOVE" ) {
-		$execution->execute(
-			$bd->get_binaries_path_ref->{"rm"} . " -f $status_file" );
-	}
-	else {
-		$execution->execute(
-			$bd->get_binaries_path_ref->{"echo"} . " $status > $status_file" );
-	}
-}
-
-
 
 1;

@@ -33,6 +33,8 @@ our @EXPORT = qw(
 
 	$DYNAMIPS_DEFAULT_PORT        
 	$DYNAMIPS_DEFAULT_IDLE_PC
+	$SERLINE_BASE_PORT
+	$SERLINE_PORT	
 
 	$EXE_DEBUG
 	$EXE_VERBOSE
@@ -68,17 +70,22 @@ Readonly::Scalar our $DEFAULT_VNX_DIR => '~/.vnx';
 
 # Console Management
 Readonly::Scalar our $CONS_DISPLAY_DEFAULT => 'yes';    # By default consoles are displayed at startup
-Readonly::Scalar our $CONS_BASE_PORT       => '12000';  # DFC: base port for consoles. The code looks for a free port starting from this value
+Readonly::Scalar our $CONS_BASE_PORT       => '12000';  # Initial TCP port for consoles. The code looks for a free port starting from this value
 Readonly::Scalar our $CONS1_DEFAULT_TYPE   => 'pts';    # Default type for text console <console id="1">
-our $CONS_PORT = $CONS_BASE_PORT; # Points to the next port to be used for consoles
+our $CONS_PORT = $CONS_BASE_PORT; # Points to the next TCP port to be used for consoles
 
 # Libvirt
 Readonly::Scalar our $LIBVIRT_DEFAULT_HYPERVISOR => 'qemu:///system';        
 
 # Dynamips
 Readonly::Scalar our $DYNAMIPS_DEFAULT_PORT    => '7200';        
-Readonly::Scalar our $DYNAMIPS_DEFAULT_IDLE_PC => '0x604f8104';  
+Readonly::Scalar our $DYNAMIPS_DEFAULT_IDLE_PC => '0x604f8104';
+Readonly::Scalar our $SERLINE_BASE_PORT        => '12000';  # DFC: initial port for the UDP ports using in dynamips serial line emulation
+our $SERLINE_PORT = $SERLINE_BASE_PORT; # Points to the next UDP port to be used for serial line emulation
 
+
+
+# Execution modes
 Readonly::Scalar our $EXE_DEBUG => 0;	#	- does not execute, only shows
 Readonly::Scalar our $EXE_VERBOSE => 1;	#	- executes and shows
 Readonly::Scalar our $EXE_NORMAL => 2;	#	- executes
