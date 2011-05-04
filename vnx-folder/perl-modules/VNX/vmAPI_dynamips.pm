@@ -931,21 +931,13 @@ sub executeCMD{
 				my $type = $command->getAttribute("type");
 				my $ostype = $command->getAttribute("ostype");
 				# Case 1. Verbatim type
-				if ( $type eq "verbatim" ) {
-					# Including command "as is"
+				if ( $type eq "verbatim" ) { # <exec> tag specifies a single command
+				
 					my $command_tag = &text_tag($command);
+					
+					if ( ($ostype eq 'show') || ($ostype eq 'set') ) {
 
-					# Si el primer elemento a ejecutar es un reload, no se ejecuta en el router
-					# sino que:
-					# 1º Se para el router
-					# 2º Se introduce el nuevo fichero de configuracion (que estará como parametro de la funcion reload)
-					# 3º Se vuelve a encender.
-
-					if ( ($ostype eq 'show') && ($ostype eq 'set') ) {
-
-						# Command is not a 'reload', we execute it 
-
-						# Get the user name and password. If several users are define, 
+						# Get the user name and password. If several users are defined, 
 						# we just take the first one.
 						my @login_users = &get_login_user($extConfFile, $vmName);
 		     			my $login_user = $login_users[0];
@@ -967,31 +959,36 @@ sub executeCMD{
 						} elsif ($res eq 'invalidlogin') { 
 							$execution->smartdie("ERROR: invalid login connecting to ${vmName}'s console at port $port\n") 
 						}
-					    if ($ostype eq 'set') {
-					    	# Send "conf t" command
-					    	
-					    }
+					    if ($ostype eq 'set') {	my @output = $sess->exeCmd ('configure terminal'); }
 						# execute the command
 						my @output = $sess->exeCmd ($command_tag);
-						print "-- cmd result: \n\n@output\n";
+						print "\ncmd '$command_tag' result: \n\n@output\n";
+					    if ($ostype eq 'set') {	my @output = $sess->exeCmd ('end'); }
 						$sess->exeCmd ("disable");
 						$sess->exeCmd ("exit");
 						$sess->close;
 
-						
 					} if ($ostype eq 'load') {
 						my $confFile = &get_abs_path($command_tag);
 						&reload_conf ($vmName, $confFile, $dynamipsHost, $dynamipsPort, $consFile);					
 					}
-					
-					if ($command_tag =~ m/^reload/){
-						my @file_conf = split('reload ',$command_tag);
-						&reload_conf ($vmName, $file_conf[1], $dynamipsHost, $dynamipsPort, $consFile);
-						print "WARNING: reload command deprecated; use ostype='load' instead\n"
-					}else{
-=BEGIN
-						# Command is not a 'reload', we execute it 
 
+# DFC 5/5/2011: command reload deprecated. ostype='load' command type defined to load configurations					
+#					if ($command_tag =~ m/^reload/){
+#						my @file_conf = split('reload ',$command_tag);
+#						&reload_conf ($vmName, $file_conf[1], $dynamipsHost, $dynamipsPort, $consFile);
+#						print "WARNING: reload command deprecated; use ostype='load' instead\n"
+#					}else{
+#					}
+				}
+
+				elsif ( $type eq "file" ) { # <exec> tag specifies a file containing a list of commands
+
+					if ( ($ostype eq 'show') || ($ostype eq 'set') ) {
+
+						# We open the file and read and execute commands line by line
+						my $include_file =  &do_path_expansion( &text_tag($command) );
+								
 						# Get the user name and password. If several users are define, 
 						# we just take the first one.
 						my @login_users = &get_login_user($extConfFile, $vmName);
@@ -999,7 +996,7 @@ sub executeCMD{
 		 				my $user=$login_user->[0];
 						my $pass=$login_user->[1];
 						# Get enable password
- 						my $enablepass = get_enable_pass($extConfFile, $vmName);
+						my $enablepass = get_enable_pass($extConfFile, $vmName);
 						# create CiscoExeCmd object to connect to router console
 						my $sess = new VNX::CiscoExeCmd ('localhost', $port, $user, $pass, $enablepass);
 						# Connect to console
@@ -1014,56 +1011,20 @@ sub executeCMD{
 						} elsif ($res eq 'invalidlogin') { 
 							$execution->smartdie("ERROR: invalid login connecting to ${vmName}'s console at port $port\n") 
 						}
-						# execute the command
-						my @output = $sess->exeCmd ($command_tag);
+						if ($ostype eq 'set') {	my @output = $sess->exeCmd ('configure terminal'); }
+						# execute the file with commands 
+						@output = $sess->exeCmdFile ("$include_file");
 						print "-- cmd result: \n\n@output\n";
+						if ($ostype eq 'set') {	my @output = $sess->exeCmd ('end'); }
 						$sess->exeCmd ("disable");
 						$sess->exeCmd ("exit");
 						$sess->close;
-=END
-=cut
+					} elsif ($ostype eq 'load')  { # should never occur when checnked in CheckSemantics
+							$execution->smartdie("ERROR: ostype='load' not allowed with <exec> tags of mode='file'\n") 
 					}
+					
 				}
-
-				# Case 2. File type
-				# En caso de que sea un fichero, simplemente se lee el fichero
-				# y se va ejecutando linea por linea.
-				# En el caso de que se requiera un enable, este se tiene que poner en el fichero.
-				elsif ( $type eq "file" ) {
-					# We open the file and write commands line by line
-					my $include_file =  &do_path_expansion( &text_tag($command) );
-							
-					# Get the user name and password. If several users are define, 
-					# we just take the first one.
-					my @login_users = &get_login_user($extConfFile, $vmName);
-	     			my $login_user = $login_users[0];
-	 				my $user=$login_user->[0];
-					my $pass=$login_user->[1];
-					# Get enable password
-					my $enablepass = get_enable_pass($extConfFile, $vmName);
-					# create CiscoExeCmd object to connect to router console
-					my $sess = new VNX::CiscoExeCmd ('localhost', $port, $user, $pass, $enablepass);
-					# Connect to console
-					my $res = $sess->open;
-					if (!$res) { $execution->smartdie("ERROR: cannot connect to ${vmName}'s console at port $port.\n" .
-						                              "       Please, release the router console and try again.\n"); }
-					# Put router in priviledged mode
-					$res = $sess->goToEnableMode;
-					if ($res eq 'timeout') {
-						$execution->smartdie("ERROR: timeout connecting to ${vmName}'s console at port $port.\n" .
-						                     "       Please, release the router console and try again.\n"); 
-					} elsif ($res eq 'invalidlogin') { 
-						$execution->smartdie("ERROR: invalid login connecting to ${vmName}'s console at port $port\n") 
-					}
-					# execute the file with commands 
-					@output = $sess->exeCmdFile ("$include_file");
-					print "-- cmd result: \n\n@output\n";
-					$sess->exeCmd ("disable");
-					$sess->exeCmd ("exit");
-					$sess->close;
-				}
-	
-			# Other case. Don't do anything (it would be and error in the XML!)
+				# Other cases impossible. Only 'verbatim' or 'file' allowed by vnx XSD definition
 			}
 		}
 	}	

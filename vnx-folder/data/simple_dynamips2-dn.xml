@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<vnx_dynamips xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/dynamips.xsd"> 
+
+  <global>
+    <sparsemem>true</sparsemem>
+    <ghostios>false</ghostios>
+    <hw>
+       <npe>200</npe>
+       <slot id="0">C7200-IO-2FE</slot>
+       <slot id="1">PA-2FE-TX</slot>
+     </hw>
+
+  </global>
+
+  <vm name="cisco2">
+     <conf>conf/cisco2.conf</conf>
+     <hw>
+       <chassis>c7200</chassis>
+       <npe>400</npe>
+       <slot id="0">C7200-IO-2FE</slot>
+       <slot id="1">PA-2FE-TX</slot>
+     </hw>
+     <!--login password="xxxx"/-->
+     <login user="root" password="xxxx"/>
+     <enable password="xxxx"/>
+  </vm>
+  
+</vnx_dynamips>
