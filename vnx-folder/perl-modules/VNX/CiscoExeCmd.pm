@@ -56,13 +56,13 @@ sub new {
     my $self = {};
     bless $self;
 
-    print "-- new called (host\n";
+    #print "-- new called (host\n";
     $self->{'host'} = shift;
     $self->{'port'} = shift;
     $self->{'login'} = shift;
     $self->{'passwd'} = shift;
     $self->{'enable_passwd'} = shift;
-    print "-- new called (host=$self->{'host'},port=$self->{'port'},login=$self->{'login'},passwd=$self->{'passwd'},enable_pass=$self->{'enable_passwd'}\n";
+    #print "-- new called (host=$self->{'host'},port=$self->{'port'},login=$self->{'login'},passwd=$self->{'passwd'},enable_pass=$self->{'enable_passwd'}\n";
 
     $self->{'session'} = new Net::Telnet ( Input_log => "input.log", 
                                 #Output_log => "output.log", 
@@ -74,7 +74,7 @@ sub new {
 sub open {
 
     my $self = shift;
-    print "-- open called\n";
+    #print "-- open called\n";
 
     my $res = $self->{session}->open(Host => $self->{host}, Port => $self->{port});
     return $res;
@@ -90,7 +90,7 @@ sub goToEnableMode {
     my $match;
     my $state;
 
-    print "-- goToEnableMode called\n";
+    #print "-- goToEnableMode called\n";
     $session->print("q\n");
     do {
         my $i=2;
@@ -105,29 +105,29 @@ sub goToEnableMode {
 
         if ($match =~ m/$username_prompt/) {
             # Username
-            print "-- 'Username:' prompt detected, providing username ($self->{login})\n";
+            #print "-- 'Username:' prompt detected, providing username ($self->{login})\n";
             $session->print($self->{login});
             $session->waitfor("/$passwd_prompt/");
             if ($session->timed_out) { print "timeout\n"; return "timeout" }
-            print "-- 'Password:' detected, providing password\n";
+            #print "-- 'Password:' detected, providing password\n";
             $session->print($self->{passwd});
             $state = 'userAuthInfoProvided';
         } 
         elsif ($match =~ m/$passwd_prompt/) {
             # Password
-            print "-- 'Password:' detected, providing password\n";
+            #print "-- 'Password:' detected, providing password\n";
             $session->print($self->{passwd});
             $state = 'userAuthInfoProvided';
         } 
         elsif ($match =~ m/$config_prompt/) {
             # Config mode
-            print "-- Router in Config mode\n";
+            #print "-- Router in Config mode\n";
             $session->print("\cZ");
             $state = 'config';
         }
         elsif ($match =~ m/$user_prompt/) {
             # Non priviledged mode
-            print "-- Router in User mode; changing to priviledged mode (enable command)\n";
+            #print "-- Router in User mode; changing to priviledged mode (enable command)\n";
             $session->print('enable');
             #$session->waitfor("/$passwd_prompt|$priv_prompt/");
             #if ($session->timed_out) { print "timeout\n"; return "timeout" }
@@ -137,7 +137,7 @@ sub goToEnableMode {
         }
         elsif ($match =~ m/$priv_prompt/) {
             # Priviledged mode
-            print "-- Router in Priviledged mode\n";
+            #print "-- Router in Priviledged mode\n";
             $session->buffer_empty;
             $state = 'priviledged';
         }
@@ -146,14 +146,14 @@ sub goToEnableMode {
         } 
         elsif ($match =~ m/$more_prompt/) {
             # More mode
-            print "-- Router in More mode\n";
+            #print "-- Router in More mode\n";
             $session->print("q");
             $state = 'more';
         }
         else {
             $state = 'unknown';
         }
-        print "-- state = $state\n";
+        #print "-- state = $state\n";
 
     } until ( ($session->timed_out) || $state eq "priviledged" || $state eq "invalidlogin" );
 
@@ -162,7 +162,7 @@ sub goToEnableMode {
     } elsif ($state eq "invalidlogin") { 
         return 'invalidlogin' 
     } elsif ($state eq "priviledged") { 
-        print("-- sending 'terminal length 0' command\n");
+        #print("-- sending 'terminal length 0' command\n");
         my @cmdoutput = $session->cmd(String => "terminal length 0", Prompt  => "/$priv_prompt/");
         #$session->print("terminal length 0");
         #($prematch, $match) = $session->waitfor("/$priv_prompt/");
@@ -189,7 +189,7 @@ sub exeCmd {
     my $cmd = shift;
     my $session = $self->{session};
 
-    print("-- exeCmd: $cmd\n");
+    #print("-- exeCmd: $cmd\n");
     my @cmdoutput = $session->cmd(String => "$cmd", Prompt  => "/$user_prompt|$priv_prompt|$config_prompt|$initial_prompt/");
     return @cmdoutput;
 
@@ -214,7 +214,7 @@ sub exeCmdFile {
 	# Se van ejecutando linea por linea
 	chomp;
 	$command_tag = $_;
-	print "-- cmdFile: $command_tag\n";
+	#print "-- cmdFile: $command_tag\n";
 	# Execute command
         @cmdoutput = $self->exeCmd ("$command_tag");
 	# Add command output to @cmdfileoutput
