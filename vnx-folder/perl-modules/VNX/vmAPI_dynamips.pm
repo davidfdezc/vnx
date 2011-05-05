@@ -412,9 +412,18 @@ sub defineVM {
     
     # Set IDLEPC
     #my $idlepc = get_idle_pc_conf($vmName);
-    my $idlepc = &get_conf_value ($vnxConfigFile, 'dynamips', 'idle_pc');
-    if (!defined $idlepc) { $idlepc = $DYNAMIPS_DEFAULT_IDLE_PC };
-    print "*** idlepc = $idlepc \n";
+    my $imgName = basename ($filesystem);
+    # Look for a specific idle_pc value for this image
+    my $idlepc = &get_conf_value ($vnxConfigFile, 'dynamips', "idle_pc-$imgName");
+    if (!defined $idlepc) { 
+    	# Look for a generic idle_pc value 
+    	$idlepc = &get_conf_value ($vnxConfigFile, 'dynamips', 'idle_pc');   
+	    if (!defined $idlepc) { 
+    		# Use default value in VNX::Globals
+    		$idlepc = $DYNAMIPS_DEFAULT_IDLE_PC;
+	    } 
+    }
+    #print "*** idlepc = $idlepc \n";
     
 	print("vm set_idle_pc $vmName $idlepc\n");
 	$t->print("vm set_idle_pc $vmName $idlepc");

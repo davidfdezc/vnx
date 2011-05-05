@@ -170,6 +170,8 @@ sub validate_xml {
 #       - Olive: only mode="sdisk" allowed
 #       - Dynamips: only mode="telnet" allowed
 #                   type="file" only allowed with ostype="show|set"
+# - dynamisp: if management network is defined, then the name of the mgmt if has to be defined with:
+#                    <if id="0" net="vm_mgmt" name="e0/0">
 
 sub check_doc {
 	

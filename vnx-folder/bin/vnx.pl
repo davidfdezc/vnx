@@ -4038,18 +4038,18 @@ sub make_vm_API_doc {
    	$dom->addChild($create_conf_tag);
    
    	# We get name attribute
-   	my $name = $vm->getAttribute("name");
+   	my $vmName = $vm->getAttribute("name");
 
    	# Insert random id number
    	my $fileid_tag = $dom->createElement('id');
    	$create_conf_tag->addChild($fileid_tag);
-   	my $fileid = $name . "-" . &generate_random_string(6);
+   	my $fileid = $vmName . "-" . &generate_random_string(6);
    	$fileid_tag->addChild( $dom->createTextNode($fileid) );
       
    	my $vm_tag = $dom->createElement('vm');
    	$create_conf_tag->addChild($vm_tag);
    
-   	$vm_tag->addChild( $dom->createAttribute( name => $name));
+   	$vm_tag->addChild( $dom->createAttribute( name => $vmName));
  
    	# To get filesystem and type
    	my $filesystem;
@@ -4070,7 +4070,6 @@ sub make_vm_API_doc {
       	$fs_tag->addChild($dom->createTextNode($filesystem));       
    	}
    	else {
-    	
       	$filesystem = $dh->get_default_filesystem;
       	$filesystem_type = $dh->get_default_filesystem_type;
 
@@ -4145,38 +4144,6 @@ sub make_vm_API_doc {
 		}
 	}
 
-#   if (@console_list > 0) {
-#     my $xterm_used = 0;
-#     foreach my $console (@console_list) {
-#	  		my $console_id    = $console->getAttribute("id");
-#		 	my $console_value = &text_tag($console);
-#            my $console_tag = $dom->createElement('console');
-#            $vm_tag->addChild($console_tag);
-#            $console_tag->addChild($dom->createTextNode($console_value));
-#            $console_tag->addChild($dom->createAttribute( id => $console_id));
-#			# Optional attributes: display and port            
-#            my $console_display = $console->getAttribute("display");
-#            
-#            # If "noconsole" options are found, do not launch consoles,
-#            # if not, look for tag "display" for the vm and, if found, process it.
-#            
-#            my $opt_n = $args->get('n');
-#            my $opt_noconsole = $args->get('noconsole');
-#            if ($opt_n||$opt_noconsole){
-#            	$console_tag->addChild($dom->createAttribute( display => "no"));
-#            	para("1");
-#            }elsif($console_display ne ""){
-#                $console_tag->addChild($dom->createAttribute( display => $console_display));
-#            }
-#            my $console_port = $console->getAttribute("port");
-#            if ($console_port ne "") {
-#                $console_tag->addChild($dom->createAttribute( port => $console_port));
-#            }  
-#     }
-#   }   
-
-#####
-
 	# Management interface, if needed
     #my $mng_if_value = &mng_if_value($dh,$vm);
     my $mng_if_value = &mng_if_value($vm);
@@ -4184,14 +4151,40 @@ sub make_vm_API_doc {
     # aquí es donde hay que meter las ips de gestion
     # si mng_if es distinto de no, metemos un if id 0
     unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
+
+		# Some virtual machine types, e.g. Dynamips, need
+		# to specify the name of the mgmt interface with a tag like this:
+		#       <if id="0" net="vm_mgmt" name="e0/0">
+   		my $mgmtIfName;
+   		my $if_list = $vm->getElementsByTagName("if");
+   		for ( my $j = 0; $j < $if_list->getLength; $j++) {
+      		my $if = $if_list->item($j);
+      		my $id = $if->getAttribute("id");
+      		print "**** If id=$id\n";
+      		
+			if ($id == 0) { 
+	      		$mgmtIfName = $if->getAttribute("name");
+				print "**** mgmtIfName=$mgmtIfName\n";
+    	  		my $net = $if->getAttribute("net");
+				if ($mgmtIfName eq ''){
+					print "WARNING: no name defined for management if (id=0) of vm $vmName\n"
+				}				
+			}
+   		}
+
     	my $mng_if_tag = $dom->createElement('if');
     	$vm_tag->addChild($mng_if_tag);
+
       	my $mac = &automac($i+1, 0);
-      
         $mng_if_tag->addChild( $dom->createAttribute( mac => $mac));
 
-      	my $mng_addr = &get_admin_address( $manipcounter, $dh->get_vmmgmt_type, 2, $name );
+		if (defined $mgmtIfName) {
+        	$mng_if_tag->addChild( $dom->createAttribute( name => $mgmtIfName));
+		}
+
+      	my $mng_addr = &get_admin_address( $manipcounter, $dh->get_vmmgmt_type, 2, $vmName );
       	$mng_if_tag->addChild( $dom->createAttribute( id => 0));
+
       	my $ipv4_tag = $dom->createElement('ipv4');
       	$mng_if_tag->addChild($ipv4_tag);
       	my $mng_mask = $mng_addr->mask();
@@ -4204,7 +4197,6 @@ sub make_vm_API_doc {
    	# To process all interfaces
    	# To get UML's interfaces list
    	my $if_list = $vm->getElementsByTagName("if");
-   	my $longitud = $if_list->getLength;
 
    	# To process list, we ignore interface zero since it
    	# gets setup as necessary management interface
@@ -4216,117 +4208,121 @@ sub make_vm_API_doc {
       	my $id = $if->getAttribute("id");
       	my $net = $if->getAttribute("net");
 
-      	# To get MAC address
-      	my $mac_list = $if->getElementsByTagName("mac");
-      	my $mac;
-      	# If <mac> is not present, we ask for an automatic one (if
-      	# <automac> is not enable may be null; in this case UML 
-      	# autoconfiguration based in IP address of the interface 
-      	# is used -but it doesn't work with IPv6!)
-      	if ($mac_list->getLength == 1) {
-      	
-         	$mac = &text_tag($mac_list->item(0));
-         	# expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
-         	$mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
-         	$mac = "," . $mac;
-         
-         	#$mac = "," . &text_tag($mac_list->item(0));
-      	}
-      	else {	  #my @group = getgrnam("@TUN_GROUP@");
-         	$mac = &automac($i+1, $id);
-         	# DFC: Moved to automac function 
-         	#$mac =~ s/,//;
-         	# expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
-         	#$mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
-         	#$mac = "," . $mac;
-      	}
-         
-      	# if tags in dom tree 
-      	my $if_tag = $dom->createElement('if');
-      	$vm_tag->addChild($if_tag);
-      	$if_tag->addChild( $dom->createAttribute( id => $id));
-      	$if_tag->addChild( $dom->createAttribute( net => $net));
-      	$if_tag->addChild( $dom->createAttribute( mac => $mac));
-      	try {
-      		my $name = $if->getAttribute("name");
-      		$if_tag->addChild( $dom->createAttribute( name => $name));
-      	} 
-      	catch Error with {
-      	
-      	} ;
-         
-      	# To process interface IPv4 addresses
-      	# The first address has to be assigned without "add" to avoid creating subinterfaces
-      	if ($dh->is_ipv4_enabled) {
-         	my $ipv4_list = $if->getElementsByTagName("ipv4");
-         	#my $command = "";
-         	for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
-
-            	my $ip = &text_tag($ipv4_list->item($j));
-            	my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
-            	if (&valid_ipv4_with_mask($ip)) {
-               		# Implicit slashed mask in the address
-               		$ip =~ /.(\d+)$/;
-               		$ipv4_effective_mask = &slashed_to_dotted_mask($1);
-               		# The IP need to be chomped of the mask suffix
-               		$ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
-               		$ip = "$1.$2.$3.$4";
-            	}
-            	else { 
-               		# Check the value of the mask attribute
-               		my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
-               		if ($ipv4_mask_attr ne "") {
-                  		# Slashed or dotted?
-                  		if (&valid_dotted_mask($ipv4_mask_attr)) {
-                  	 		$ipv4_effective_mask = $ipv4_mask_attr;
-                  		}
-                  		else {
-                     		$ipv4_mask_attr =~ /.(\d+)$/;
-                     		$ipv4_effective_mask = &slashed_to_dotted_mask($1);
-                  		}
-               		} else {
-                  	 	print "WARNING (vm=$name): no mask defined for $ip address of interface $id. Using default mask ($ipv4_effective_mask)\n";
-               		}
-            	}
-	       
-            	my $ipv4_tag = $dom->createElement('ipv4');
-            	$if_tag->addChild($ipv4_tag);
-            	# TODO: cambiar para que el formato sea siempre x.x.x.x/y
-            	# Hay que hacer cambios en los demonios de autoconfig
-            	# Lineas originales:
-            	$ipv4_tag->addChild( $dom->createAttribute( mask => $ipv4_effective_mask));
-            	$ipv4_tag->addChild($dom->createTextNode($ip));
-            	# Nuevas lineas para usar /24:
-            	#$ip = NetAddr::IP->new ($ip, $ipv4_effective_mask)->cidr();
-            	#$ipv4_tag->addChild($dom->createTextNode($ip));
-               
-            }
-		}
-	     
-	# To process interface IPv6 addresses
-  	     if ($dh->is_ipv6_enabled) {
-	        my $ipv6_list = $if->getElementsByTagName("ipv6");
-	        for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
-	           my $ipv6_tag = $dom->createElement('ipv6');
-               $if_tag->addChild($ipv6_tag);
-	           my $ip = &text_tag($ipv6_list->item($j));
-	           if (&valid_ipv6_with_mask($ip)) {
-	              # Implicit slashed mask in the address
-	              $ipv6_tag->addChild($dom->createTextNode($ip));
-	           }
-	           else {
-	              # Check the value of the mask attribute
- 	              my $ipv6_effective_mask = "/64"; # Default mask value	       
-	              my $ipv6_mask_attr = $ipv6_list->item($j)->getAttribute("mask");
-	              if ($ipv6_mask_attr ne "") {
-	                 # Note that, in the case of IPv6, mask are always slashed
-                     $ipv6_effective_mask = $ipv6_mask_attr;
-	              }
-	              
-                  $ipv6_tag->addChild($dom->createTextNode("$ip$ipv6_effective_mask"));
-	            }	       
-	     	}
-  	     }
+		# Ignore if with id=0; it is the mgmt interface which is configured above 
+		if ($id > 0) { 
+	
+	      	# To get MAC address
+	      	my $mac_list = $if->getElementsByTagName("mac");
+	      	my $mac;
+	      	# If <mac> is not present, we ask for an automatic one (if
+	      	# <automac> is not enable may be null; in this case UML 
+	      	# autoconfiguration based in IP address of the interface 
+	      	# is used -but it doesn't work with IPv6!)
+	      	if ($mac_list->getLength == 1) {
+	      	
+	         	$mac = &text_tag($mac_list->item(0));
+	         	# expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
+	         	$mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
+	         	$mac = "," . $mac;
+	         
+	         	#$mac = "," . &text_tag($mac_list->item(0));
+	      	}
+	      	else {	  #my @group = getgrnam("@TUN_GROUP@");
+	         	$mac = &automac($i+1, $id);
+	         	# DFC: Moved to automac function 
+	         	#$mac =~ s/,//;
+	         	# expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
+	         	#$mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
+	         	#$mac = "," . $mac;
+	      	}
+	         
+	      	# if tags in dom tree 
+	      	my $if_tag = $dom->createElement('if');
+	      	$vm_tag->addChild($if_tag);
+	      	$if_tag->addChild( $dom->createAttribute( id => $id));
+	      	$if_tag->addChild( $dom->createAttribute( net => $net));
+	      	$if_tag->addChild( $dom->createAttribute( mac => $mac));
+	      	try {
+	      		my $name = $if->getAttribute("name");
+	      		$if_tag->addChild( $dom->createAttribute( name => $name));
+	      	} 
+	      	catch Error with {
+	      	
+	      	} ;
+	         
+	      	# To process interface IPv4 addresses
+	      	# The first address has to be assigned without "add" to avoid creating subinterfaces
+	      	if ($dh->is_ipv4_enabled) {
+	         	my $ipv4_list = $if->getElementsByTagName("ipv4");
+	         	#my $command = "";
+	         	for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
+	
+	            	my $ip = &text_tag($ipv4_list->item($j));
+	            	my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
+	            	if (&valid_ipv4_with_mask($ip)) {
+	               		# Implicit slashed mask in the address
+	               		$ip =~ /.(\d+)$/;
+	               		$ipv4_effective_mask = &slashed_to_dotted_mask($1);
+	               		# The IP need to be chomped of the mask suffix
+	               		$ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
+	               		$ip = "$1.$2.$3.$4";
+	            	}
+	            	else { 
+	               		# Check the value of the mask attribute
+	               		my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
+	               		if ($ipv4_mask_attr ne "") {
+	                  		# Slashed or dotted?
+	                  		if (&valid_dotted_mask($ipv4_mask_attr)) {
+	                  	 		$ipv4_effective_mask = $ipv4_mask_attr;
+	                  		}
+	                  		else {
+	                     		$ipv4_mask_attr =~ /.(\d+)$/;
+	                     		$ipv4_effective_mask = &slashed_to_dotted_mask($1);
+	                  		}
+	               		} else {
+	                  	 	print "WARNING (vm=$vmName): no mask defined for $ip address of interface $id. Using default mask ($ipv4_effective_mask)\n";
+	               		}
+	            	}
+		       
+	            	my $ipv4_tag = $dom->createElement('ipv4');
+	            	$if_tag->addChild($ipv4_tag);
+	            	# TODO: cambiar para que el formato sea siempre x.x.x.x/y
+	            	# Hay que hacer cambios en los demonios de autoconfig
+	            	# Lineas originales:
+	            	$ipv4_tag->addChild( $dom->createAttribute( mask => $ipv4_effective_mask));
+	            	$ipv4_tag->addChild($dom->createTextNode($ip));
+	            	# Nuevas lineas para usar /24:
+	            	#$ip = NetAddr::IP->new ($ip, $ipv4_effective_mask)->cidr();
+	            	#$ipv4_tag->addChild($dom->createTextNode($ip));
+	               
+	            }
+			}
+		     
+		# To process interface IPv6 addresses
+	  	     if ($dh->is_ipv6_enabled) {
+		        my $ipv6_list = $if->getElementsByTagName("ipv6");
+		        for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
+		           my $ipv6_tag = $dom->createElement('ipv6');
+	               $if_tag->addChild($ipv6_tag);
+		           my $ip = &text_tag($ipv6_list->item($j));
+		           if (&valid_ipv6_with_mask($ip)) {
+		              # Implicit slashed mask in the address
+		              $ipv6_tag->addChild($dom->createTextNode($ip));
+		           }
+		           else {
+		              # Check the value of the mask attribute
+	 	              my $ipv6_effective_mask = "/64"; # Default mask value	       
+		              my $ipv6_mask_attr = $ipv6_list->item($j)->getAttribute("mask");
+		              if ($ipv6_mask_attr ne "") {
+		                 # Note that, in the case of IPv6, mask are always slashed
+	                     $ipv6_effective_mask = $ipv6_mask_attr;
+		              }
+		              
+	                  $ipv6_tag->addChild($dom->createTextNode("$ip$ipv6_effective_mask"));
+		            }	       
+		     	}
+	  	     }
+   		}
 	}
       
      
@@ -4459,45 +4455,49 @@ sub print_console_table_entry {
 	my $con;
 	my @consDesc;
 	
-	foreach $con (@cons) {
-		my $conData= &get_conf_value ($consFile, '', $con);
-		#print "** $consFile $con conData=$conData\n";
-		my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term');
-		if (defined $conData) {
-			if (defined $briefFormat) {
-				#print "** conData=$conData\n";
-			    my @consField = split(/,/, $conData);
-			    if ($consField[1] eq "vnc_display") {
-	 				push (@consDesc, "$con,virt-viewer -c $hypervisor $vmName");		    	
-			    } elsif ($consField[1] eq "telnet") {
-	 				push (@consDesc, "$con,telnet localhost $consField[2]");		    	   	
-			    } elsif ($consField[1] eq "libvirt_pts") {
-	 				push (@consDesc, "$con,virsh -c $hypervisor console $vmName");		    	   		    	
-			    } elsif ($consField[1] eq "uml_pts") {
-			    	my $conLine = VNX::vmAPICommon->open_console ($vmName, $con, $consField[1], $consField[2], 'yes');
-	 				#push (@consDesc, "$con:  '$console_term -T $vmName -e screen -t $vmName $consField[2]'");
-	 				push (@consDesc, "$con,$conLine");
-			    } else {
-			    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
-			    }
-			} else {
-				#print "** conData=$conData\n";
-			    my @consField = split(/,/, $conData);
-			    if ($consField[1] eq "vnc_display") {
-	 				push (@consDesc, "$con:  'virt-viewer -c $hypervisor $vmName' or 'vncviewer $consField[2]'");		    	
-			    } elsif ($consField[1] eq "telnet") {
-	 				push (@consDesc, "$con:  'telnet localhost $consField[2]'");		    	   	
-			    } elsif ($consField[1] eq "libvirt_pts") {
-	 				push (@consDesc, "$con:  'virsh -c $hypervisor console $vmName' or 'screen $consField[2]'");		    	   		    	
-			    } elsif ($consField[1] eq "uml_pts") {
-			    	my $conLine = VNX::vmAPICommon->open_console ($vmName, $con, $consField[1], $consField[2], 'yes');
-	 				#push (@consDesc, "$con:  '$console_term -T $vmName -e screen -t $vmName $consField[2]'");
-	 				push (@consDesc, "$con:  '$conLine'");
-			    } else {
-			    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
-			    }
+	if (-e $consFile) {
+		foreach $con (@cons) {
+			my $conData= &get_conf_value ($consFile, '', $con);
+			#print "** $consFile $con conData=$conData\n";
+			my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term');
+			if (defined $conData) {
+				if (defined $briefFormat) {
+					#print "** conData=$conData\n";
+				    my @consField = split(/,/, $conData);
+				    if ($consField[1] eq "vnc_display") {
+		 				push (@consDesc, "$con,virt-viewer -c $hypervisor $vmName");		    	
+				    } elsif ($consField[1] eq "telnet") {
+		 				push (@consDesc, "$con,telnet localhost $consField[2]");		    	   	
+				    } elsif ($consField[1] eq "libvirt_pts") {
+		 				push (@consDesc, "$con,virsh -c $hypervisor console $vmName");		    	   		    	
+				    } elsif ($consField[1] eq "uml_pts") {
+				    	my $conLine = VNX::vmAPICommon->open_console ($vmName, $con, $consField[1], $consField[2], 'yes');
+		 				#push (@consDesc, "$con:  '$console_term -T $vmName -e screen -t $vmName $consField[2]'");
+		 				push (@consDesc, "$con,$conLine");
+				    } else {
+				    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
+				    }
+				} else {
+					#print "** conData=$conData\n";
+				    my @consField = split(/,/, $conData);
+				    if ($consField[1] eq "vnc_display") {
+		 				push (@consDesc, "$con:  'virt-viewer -c $hypervisor $vmName' or 'vncviewer $consField[2]'");		    	
+				    } elsif ($consField[1] eq "telnet") {
+		 				push (@consDesc, "$con:  'telnet localhost $consField[2]'");		    	   	
+				    } elsif ($consField[1] eq "libvirt_pts") {
+		 				push (@consDesc, "$con:  'virsh -c $hypervisor console $vmName' or 'screen $consField[2]'");		    	   		    	
+				    } elsif ($consField[1] eq "uml_pts") {
+				    	my $conLine = VNX::vmAPICommon->open_console ($vmName, $con, $consField[1], $consField[2], 'yes');
+		 				#push (@consDesc, "$con:  '$console_term -T $vmName -e screen -t $vmName $consField[2]'");
+		 				push (@consDesc, "$con:  '$conLine'");
+				    } else {
+				    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
+				    }
+				}
 			}
 		}
+	} else {
+		push (@consDesc, "No consoles defined");
 	}
 	if (defined $briefFormat) {
 		foreach (@consDesc) {
