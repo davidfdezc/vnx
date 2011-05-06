@@ -2075,12 +2075,11 @@ sub start_VMs {
       # search for <on_boot> tag and if found then process it
       my $on_boot; 
       eval {$on_boot = $vm->getElementsByTagName("on_boot")->item(0)->getFirstChild->getData};
-	  # DFC if ($on_boot eq "define"){
-	  if (defined $on_boot){
-	  	# do not start vm unless specified in -M
-      	unless ($opt_M =~ /^$name,|,$name,|,$name$|^$name$/) {
-			next;
-	    }
+	  if ($on_boot eq 'no'){
+	  		# do not start vm unless specified in -M
+      		unless ($opt_M =~ /^$name,|,$name,|,$name$|^$name$/) {
+				next;
+	    	}
 	  }
 
       
