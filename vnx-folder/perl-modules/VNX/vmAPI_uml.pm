@@ -27,10 +27,14 @@
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 #
 
-package vmAPI_uml;
+package VNX::vmAPI_uml;
 
-@ISA    = qw(Exporter);
-@EXPORT = qw(
+use strict;
+use warnings;
+use Exporter;
+
+our @ISA    = qw(Exporter);
+our @EXPORT = qw(
   init
   defineVM
   undefineVM
@@ -43,14 +47,12 @@ package vmAPI_uml;
   resumeVM
   rebootVM
   resetVM
-  executeCMD);
+  executeCMD
+  );
 
-use strict;
-use warnings;
 
 use Sys::Virt;
 use Sys::Virt::Domain;
-
 use VNX::Globals;
 use VNX::DataHandler;
 use VNX::Execution;
@@ -62,6 +64,7 @@ use VNX::NetChecks;
 use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
+use VNX::vmAPICommon;
 
 #needed for UML_bootfile
 use File::Basename;
@@ -2176,7 +2179,7 @@ sub vm_tun_access {
 #}
 
 
-
+=BEGIN DFC 5/5/2011 moved to vmAPICommon to have it accesible from vnx and all vmAPIs
 ###################################################################
 # get_admin_address
 #
@@ -2302,6 +2305,8 @@ sub get_admin_address_OLD {
    }
    return $ip;
 }
+=END
+=cut
 
 ###################################################################
 # get_kernel_pids;

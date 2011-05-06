@@ -28,15 +28,17 @@
 # document
 
 package VNX::DocumentChecks;
-require(Exporter);
 
-@ISA = qw(Exporter);
-@EXPORT = qw( vm_has_tag 
+use strict;
+use warnings;
+use Exporter;
+
+our @ISA = qw(Exporter);
+our @EXPORT = qw( vm_has_tag 
               at_least_one_vm_without_mng_if 
               at_least_one_vm_with_mng_if 
               mng_if_value);
 
-use strict;
 use VNX::Globals;
 use VNX::TextManipulation;
 

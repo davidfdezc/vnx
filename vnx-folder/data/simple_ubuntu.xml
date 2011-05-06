@@ -12,7 +12,10 @@ Just one Ubuntu virtual machine. Use this specification for testing
     <version>1.92</version>
     <scenario_name>simple_ubuntu</scenario_name>
     <automac offset="4"/>
-    <vm_mgmt type="none" />
+    <!--vm_mgmt type="none" /-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="16">
+       <host_mapping />
+    </vm_mgmt> 
     <vm_defaults>
 	    <console id="0" display="yes"/>
 	    <console id="1" display="yes"/>

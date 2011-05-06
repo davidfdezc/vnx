@@ -29,8 +29,15 @@
 #
 
 #
-#@ISA    = qw(Exporter);
-@EXPORT = qw(
+
+package VNX::vmAPI_dynamips;
+
+use strict;
+use warnings;
+use Exporter;
+
+our @ISA    = qw(Exporter);
+our @EXPORT = qw(
   init
   defineVM
   undefineVM
@@ -46,17 +53,11 @@
   executeCMD
   );
 
-package vmAPI_dynamips;
-
-@ISA    = qw(Exporter);
-#@EXPORT = qw(defineVM);
   
-use strict;
 use feature qw(switch);
 use XML::LibXML;
 use XML::DOM;
 #use XML::DOM::ValParser;
-
 use VNX::Globals;
 use VNX::Execution;
 use VNX::BinariesData;
@@ -170,15 +171,16 @@ sub defineVM {
 
 	# Network interface configuration
 	$ifTagList = $virtualm->getElementsByTagName("if");
-	my $numif = $ifTagList->getLength;
 	# P.ej:
 	# 	interface e0/0
 	# 	 mac-address fefd.0003.0101
 	# 	 ip address 10.1.1.4 255.255.255.0
+	# 	 ip address 11.1.1.4 255.255.255.0 secondary
 	# 	 ipv6 enable
 	# 	 ipv6 address 2001:db8::1/64
+	# 	 ipv6 address 2001:db9::1/64
 	# 	 no shutdown
- 	for ( my $j = 0 ; $j < $numif ; $j++ ) {
+ 	for ( my $j = 0 ; $j < $ifTagList->getLength ; $j++ ) {
  		my $ifTag = $ifTagList->item($j);
 		my $id    = $ifTag->getAttribute("id");
 		my $net   = $ifTag->getAttribute("net");
@@ -189,24 +191,32 @@ sub defineVM {
 		my $nameif   = $ifTag->getAttribute("name");
 		print CONF_CISCO "interface " . $nameif . "\n";	
 		print CONF_CISCO " mac-address " . $mac . "\n";
-		# Damos direccion IPv4		
+		# Configure IPv4 addresses		
 		my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
-		if ( $ipv4_list->getLength != 0 ) {
-			my $ipv4_Tag = $ipv4_list->item(0);
-			my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
-			my $subnetv4 = $ipv4_Tag->getAttribute("mask");
-			print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
-		} else {
+		if ($ipv4_list->getLength == 0) {
 			print CONF_CISCO " no ip address\n";	
-		}
-		# Damos direccion IPv6
+		} else {
+	 		for ( my $i = 0 ; $i < $ipv4_list->getLength ; $i++ ) {
+				my $ipv4_Tag = $ipv4_list->item($i);
+				my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
+				my $subnetv4 = $ipv4_Tag->getAttribute("mask");
+				if ($i == 0) {
+					print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
+				} else {
+					print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . " secondary\n";					
+				}
+	 		}
+ 		}
+		# Configure IPv6 addresses		
 		my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
 		if ( $ipv6_list->getLength != 0 ) {
 			print CONF_CISCO " ipv6 enable\n";	
-			my $ipv6_Tag = $ipv6_list->item(0);
-			my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
-			print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
-			}
+	 		for ( my $i = 0 ; $i < $ipv6_list->getLength ; $i++ ) {
+				my $ipv6_Tag = $ipv6_list->item($i);
+				my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
+				print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
+	 		}
+ 		}
 		# Levantamos la interfaz
 		print CONF_CISCO " no shutdown\n";		
  	}
@@ -348,14 +358,14 @@ sub defineVM {
     foreach my $j (1, 2) {
 		if ($consPortDefInXML{$j} eq "") { # telnet port not defined we choose a free one starting from $CONS_PORT
 			$consolePort[$j] = $VNX::Globals::CONS_PORT;
-			while ( !system("fuser -s -v -n tcp $consolePort[$j]") ) {
+			while ( !system("fuser -n tcp $consolePort[$j]") ) {
 				$consolePort[$j]++;
 			}
 			$VNX::Globals::CONS_PORT = $consolePort[$j] + 1;
 		} else { # telnet port was defined in <console> tag
 		    
 			$consolePort[$j] = $consPortDefInXML{$j};
-			while ( !system("fuser -s -v -n tcp $consolePort[$j]") ) {
+			while ( !system("fuser -n tcp $consolePort[$j]") ) {
 				$consolePort[$j]++;
 			}
 		}
@@ -457,9 +467,7 @@ sub defineVM {
     
     # Connect virtual networks to host interfaces
     $ifTagList = $virtualm->getElementsByTagName("if");
-	$numif     = $ifTagList->getLength;
-    
-	for ( my $j = 0 ; $j < $numif ; $j++ ) {
+	for ( my $j = 0 ; $j < $ifTagList->getLength; $j++ ) {
 		my $ifTag = $ifTagList->item($j);
 		my $name  = $ifTag->getAttribute("name");
 		my $id    = $ifTag->getAttribute("id");
@@ -586,8 +594,8 @@ sub undefineVM{
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
     $t->print("vm destroy $vmName");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    $t->print("hypervisor reset");
-   	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    #$t->print("hypervisor reset");
+   	#$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
 }
 
@@ -615,10 +623,9 @@ sub destroyVM{
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->print("vm delete $vmName");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    $t->print("hypervisor reset");
-   	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    
     #$t->print("hypervisor reset");
-    #$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+   	#$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
 
 }
@@ -656,6 +663,16 @@ sub startVM {
 	unless ($no_consoles eq 1){
 	   VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
 	}	
+	
+	my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type, 2, $vmName );
+	# If host_mapping is in use, append trailer to /etc/hosts config file
+	if ( $dh->get_host_mapping ) {
+		open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
+			or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
+			unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+		print HOSTLINES $net->addr() . " $vmName\n";
+		close HOSTLINES;
+	}
 
 }
 

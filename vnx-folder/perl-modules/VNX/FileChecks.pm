@@ -29,11 +29,13 @@
 # FileChecks implementes several funcitons related with file checks
 
 package VNX::FileChecks;
-#package FileChecks;
-require(Exporter);
 
-@ISA = qw(Exporter);
-@EXPORT = qw(
+use strict;
+use warnings;
+use Exporter;
+
+our @ISA = qw(Exporter);
+our @EXPORT = qw(
   valid_absolute_directoryname 
   valid_absolute_filename 
   do_path_expansion 

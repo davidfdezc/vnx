@@ -27,9 +27,10 @@
 # Arguments class implementation. The instance of Arguments encapsulates 
 # the main program arguments
 
-package Arguments;
+package VNX::Arguments;
 
 use strict;
+use warnings;
 
 ###########################################################################
 # CLASS CONSTRUCTOR

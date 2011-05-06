@@ -291,7 +291,7 @@ sub main {
               'n|no-console' => \$opt_n);
 
    	# Build the argument object
-   	$args = new Arguments(
+   	$args = new VNX::Arguments(
       	$opt_t,$opt_s,$opt_p,$opt_r,$opt_d,
       	$opt_m,$opt_c,$opt_g,$opt_v,$opt_F,
       	$opt_V,$opt_T,$opt_o,$opt_M,$opt_k,
@@ -617,7 +617,7 @@ sub main {
    	&vnx_die ("tmp_dir $tmp_dir is not a valid directory\n") unless (-d _);
 
    	# 5. To build the VNX::BinariesData object
-   	$bd = new BinariesData($exemode);
+   	$bd = new VNX::BinariesData($exemode);
 
    	# 6a. To check mandatory binaries # [JSF] to be updated with new ones
    	if ($bd->check_binaries_mandatory != 0) {
@@ -659,13 +659,13 @@ sub main {
    	my $exeinteractive = $opt_v && $opt_i;
 
    	# Build the VNX::Execution object
-   	$execution = new Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
+   	$execution = new VNX::Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
 
    	# Calculate the directory where the input_file lives
    	my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
    	# Build the VNX::DataHandler object
-   	$dh = new DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
+   	$dh = new VNX::DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
    	$dh->set_boot_timeout($boot_timeout);
    	$dh->set_vnx_dir($vnx_dir);
    	$dh->set_tmp_dir($tmp_dir);
@@ -739,9 +739,9 @@ sub main {
    #&get_vnx_config;
   
    # Initialize vmAPI modules
-   vmAPI_uml->init;
-   vmAPI_libvirt->init;
-   vmAPI_dynamips->init;
+   VNX::vmAPI_uml->init;
+   VNX::vmAPI_libvirt->init;
+   VNX::vmAPI_dynamips->init;
   
    
    ###########################################################
@@ -1006,7 +1006,7 @@ sub mode_undefine{
       }
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type);
+      my $error = "VNX::vmAPI_$vmType"->undefineVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
 }
@@ -1157,7 +1157,7 @@ sub mode_reset {
       }
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->resetVM($name, $merged_type);
+      my $error = "VNX::vmAPI_$vmType"->resetVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
 }
@@ -1183,7 +1183,7 @@ sub mode_save {
 
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->saveVM($name, $merged_type, $filename);
+      my $error = "VNX::vmAPI_$vmType"->saveVM($name, $merged_type, $filename);
       if (!($error eq 0)){print $error}
 
    }
@@ -1209,7 +1209,7 @@ sub mode_restore {
       $filename = $dh->get_vm_dir($name) . "/" . $name . "_savefile";
       #     call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->restoreVM($name, $merged_type, $filename);
+      my $error = "VNX::vmAPI_$vmType"->restoreVM($name, $merged_type, $filename);
       if (!($error eq 0)){print $error}
    }
 }
@@ -1232,7 +1232,7 @@ sub mode_suspend {
       
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->suspendVM($name, $merged_type);
+      my $error = "VNX::vmAPI_$vmType"->suspendVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
 }
@@ -1254,7 +1254,7 @@ sub mode_resume {
       }
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->resumeVM($name, $merged_type);
+      my $error = "VNX::vmAPI_$vmType"->resumeVM($name, $merged_type);
       if (!($error eq 0)){print $error}
    }
 }
@@ -1940,7 +1940,7 @@ sub UML_notify_cleanup {
 #      $docstring = &make_vm_API_doc($vm,$notify_ctl,$i);
 #      # call the corresponding vmAPI
 #      my $vmType = $vm->getAttribute("type");
-#      my $error = "vmAPI_$vmType"->createVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
+#      my $error = "VNX::vmAPI_$vmType"->createVM($name, $merged_type, $docstring, $execution, $bd, $dh,$sock, $manipcounter);
 #      if (!($error eq 0)){print $error}	
 #      $manipcounter++;	  
 #      undef($curr_uml);
@@ -2012,7 +2012,7 @@ sub define_VMs {
 	       
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->defineVM($name, $merged_type, $docstring, $sock, $manipdata);
+      my $error = "VNX::vmAPI_$vmType"->defineVM($name, $merged_type, $docstring, $sock, $manipdata);
       if (!($error eq 0)){print $error}
       $manipcounter++ unless ($manipdata eq "file"); #update only if current value has been used
       undef($curr_uml);
@@ -2096,7 +2096,7 @@ sub start_VMs {
        
       # call the corresponding vmAPI
       my $vmType = $vm->getAttribute("type");
-      my $error = "vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $sock, $manipcounter, $no_console);
+      my $error = "VNX::vmAPI_$vmType"->startVM($name, $merged_type, $docstring, $sock, $manipcounter, $no_console);
       if (!($error eq 0)){print $error} 
 
       #######
@@ -2191,7 +2191,7 @@ sub mode_x {
 		# call the corresponding vmAPI
     	my $vmType = $vm->getAttribute("type");
 
-    	my $error = "vmAPI_$vmType"->executeCMD($merged_type, $seq, $vm, $name, %vm_ips);
+    	my $error = "VNX::vmAPI_$vmType"->executeCMD($merged_type, $seq, $vm, $name, %vm_ips);
      	if (!($error eq 0)){
      		print $error
 		}
@@ -2244,14 +2244,13 @@ sub mode_d {
 
            # call the corresponding vmAPI
            my $vmType = $vm->getAttribute("type");
-           #my $error = "vmAPI_$vmType"->destroyVM($name, $merged_type, $execution, $bd,$dh);
-           my $error = "vmAPI_$vmType"->destroyVM($name, $merged_type);
+           my $error = "VNX::vmAPI_$vmType"->destroyVM($name, $merged_type);
            if (!($error eq 0)){print $error}
       }
       else{
            # call the corresponding vmAPI
            my $vmType = $vm->getAttribute("type");
-           my $error = "vmAPI_$vmType"->shutdownVM($name, $merged_type, $args->get('F'));
+           my $error = "VNX::vmAPI_$vmType"->shutdownVM($name, $merged_type, $args->get('F'));
            if (!($error eq 0)){print $error}
           
       }
@@ -2614,7 +2613,7 @@ sub mode_P {
         # call the corresponding vmAPI
         my $vmType = $vm->getAttribute("type");
         
-        my $error = "vmAPI_$vmType"->undefineVM($name, $merged_type);
+        my $error = "VNX::vmAPI_$vmType"->undefineVM($name, $merged_type);
         if (!($error eq 0)){print $error}
  
     }
@@ -4160,15 +4159,15 @@ sub make_vm_API_doc {
    		for ( my $j = 0; $j < $if_list->getLength; $j++) {
       		my $if = $if_list->item($j);
       		my $id = $if->getAttribute("id");
-      		print "**** If id=$id\n";
+      		#print "**** If id=$id\n";
       		
 			if ($id == 0) { 
 	      		$mgmtIfName = $if->getAttribute("name");
-				print "**** mgmtIfName=$mgmtIfName\n";
+				#print "**** mgmtIfName=$mgmtIfName\n";
     	  		my $net = $if->getAttribute("net");
 				if ($mgmtIfName eq ''){
 					print "WARNING: no name defined for management if (id=0) of vm $vmName\n"
-				}				
+				} else { last }
 			}
    		}
 

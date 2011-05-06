@@ -28,9 +28,11 @@
 # the XML DOM and other static data, providing a interface for date access to the 
 # main program.
 
-package DataHandler;
+package VNX::DataHandler;
 
 use strict;
+use warnings;
+
 use VNX::TextManipulation;
 use VNX::DocumentChecks;
 use VNX::FileChecks;

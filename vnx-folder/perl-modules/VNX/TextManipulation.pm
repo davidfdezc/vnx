@@ -27,15 +27,17 @@
 # This module includes several miscelanous functions to process text.
 
 package VNX::TextManipulation;
-require(Exporter);
 
-@ISA = qw(Exporter);
-@EXPORT = qw( dec2bin bin2dec text_tag text_tag_multiline clean_line
+use strict;
+use warnings;
+use Exporter;
+
+our @ISA = qw(Exporter);
+our @EXPORT = qw( dec2bin bin2dec text_tag text_tag_multiline clean_line
               chompslash remove_heading_slash
               generate_random_string
               slashed_to_dotted_mask);
 
-use strict;
 
 # dec2bin and bin2dec adapted from http://perlmonks.thepen.com/2664.html
 #
