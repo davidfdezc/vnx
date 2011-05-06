@@ -139,7 +139,7 @@ sub defineVM {
 	# Get the configuration file name of the router (if defined) 
 	# form the extended config file
 	my $routerConfFile = get_router_conf_file($extConfFile, $vmName);
-	print "**** conf_dynamips=$routerConfFile\n";
+	#print "**** conf_dynamips=$routerConfFile\n";
 
 	# $newRouterConfFile is the file where we will store the configuration of the new router	
 	$newRouterConfFile = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
@@ -157,120 +157,12 @@ sub defineVM {
 		}
 	} else {
 		# No configuration file defined for the router 
-	}		
- 	open (CONF_CISCO, ">>$newRouterConfFile") || 
- 	   $execution->smartdie("ERROR: Cannot open $newRouterConfFile");
-	#open (CONF_CISCO, ">$newRouterConfFile") || $execution->smartdie("ERROR: No puedo abrir el fichero $newRouterConfFile");
-
-	# Hostname
-	print CONF_CISCO "hostname " . $vmName ."\n";
-
-	# Enable IPv4 and IPv6 routing
-	print CONF_CISCO "ip routing\n";	
-	print CONF_CISCO "ipv6 unicast-routing\n";	
-
-	# Network interface configuration
-	$ifTagList = $virtualm->getElementsByTagName("if");
-	# P.ej:
-	# 	interface e0/0
-	# 	 mac-address fefd.0003.0101
-	# 	 ip address 10.1.1.4 255.255.255.0
-	# 	 ip address 11.1.1.4 255.255.255.0 secondary
-	# 	 ipv6 enable
-	# 	 ipv6 address 2001:db8::1/64
-	# 	 ipv6 address 2001:db9::1/64
-	# 	 no shutdown
- 	for ( my $j = 0 ; $j < $ifTagList->getLength ; $j++ ) {
- 		my $ifTag = $ifTagList->item($j);
-		my $id    = $ifTag->getAttribute("id");
-		my $net   = $ifTag->getAttribute("net");
-		my $mac   = $ifTag->getAttribute("mac");
-		$mac =~ s/,//;
-		my @maclist = split(/:/,$mac);
-		$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
-		my $nameif   = $ifTag->getAttribute("name");
-		print CONF_CISCO "interface " . $nameif . "\n";	
-		print CONF_CISCO " mac-address " . $mac . "\n";
-		# Configure IPv4 addresses		
-		my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
-		if ($ipv4_list->getLength == 0) {
-			print CONF_CISCO " no ip address\n";	
-		} else {
-	 		for ( my $i = 0 ; $i < $ipv4_list->getLength ; $i++ ) {
-				my $ipv4_Tag = $ipv4_list->item($i);
-				my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
-				my $subnetv4 = $ipv4_Tag->getAttribute("mask");
-				if ($i == 0) {
-					print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . "\n";	
-				} else {
-					print CONF_CISCO " ip address " . $ipv4 . " ". $subnetv4 . " secondary\n";					
-				}
-	 		}
- 		}
-		# Configure IPv6 addresses		
-		my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
-		if ( $ipv6_list->getLength != 0 ) {
-			print CONF_CISCO " ipv6 enable\n";	
-	 		for ( my $i = 0 ; $i < $ipv6_list->getLength ; $i++ ) {
-				my $ipv6_Tag = $ipv6_list->item($i);
-				my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
-				print CONF_CISCO " ipv6 address " . $ipv6 . "\n";	
-	 		}
- 		}
-		# Levantamos la interfaz
-		print CONF_CISCO " no shutdown\n";		
- 	}
- 	# IP route configuration
- 	my $routeTagList = $virtualm->getElementsByTagName("route");
- 	my $numroute = $routeTagList->getLength;
- 	for ( my $j = 0 ; $j < $numroute ; $j++ ) {
- 		my $routeTag = 	$routeTagList->item($j);
- 		my $gw = $routeTag->getAttribute("gw");
- 		my $destination = $routeTag->getFirstChild->getData;
- 		my $maskdestination = "";
- 		if ($destination eq "default"){
- 			$destination = "0.0.0.0";
- 			$maskdestination = "0.0.0.0";
- 		}else {
- 			print "****** $destination\n";
- 			#my $ip = new Net::IP ($destination) or $execution->smartdie (Net::IP::Error());
- 			my $ip = new NetAddr::IP ($destination) or $execution->smartdie (NetAddr::IP::Error());
- 			$maskdestination = $ip->mask();
- 			$destination = $ip->addr();
- 		}
- 		print CONF_CISCO "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n";	
- 		
- 	}
- 	# Si en el fichero de configuracion extendida se define un usuario y password.
- 	my @login_users = &get_login_user($extConfFile, $vmName);
- 	my $login_user;
- 	my $check_login_user = 0;
- 	foreach $login_user(@login_users){
- 		my $user=$login_user->[0];
- 		my $pass=$login_user->[1];
- 		if (($user eq "")&&(!($pass eq ""))){
- 			print CONF_CISCO " line con 0 \n";
- 			print CONF_CISCO " password $pass\n";
- 			print CONF_CISCO " login\n";
- 		}elsif((!($user eq ""))&&(!($pass eq ""))){
-			print CONF_CISCO " username $user password 0 $pass\n";
-			$check_login_user= 1;
- 		}
-    }
-    if ($check_login_user eq 1){
-    	print CONF_CISCO " line con 0 \n";
- 		print CONF_CISCO " login local\n";
-    }
-    	
- 	# Si el fichero de configuacion extendida se define una password de enable, se pone.
- 	my $enablepass = get_enable_pass($extConfFile, $vmName);
- 	if (!($enablepass eq "")){
-		print CONF_CISCO " enable password " . $enablepass . "\n";
-    }
-    # Se habilita el ip http server ya que si no se hace, el acceso por telnet se bloquea.
- 	# print CONF_CISCO "ip http server\n";
- 	print CONF_CISCO " end\n";
- 	close(CONF_CISCO);
+	}
+	
+	my @routerConf = &create_router_conf ($vmName, $extConfFile);
+	open (CONF, ">> $newRouterConfFile") or $execution->smartdie("ERROR: Cannot open $newRouterConfFile");
+	print CONF @routerConf;
+	close (CONF);
  	
     # Preparar las variables
     my $memTagList = $virtualm->getElementsByTagName("mem");
@@ -281,11 +173,7 @@ sub defineVM {
 		$mem   = ($memTag->getFirstChild->getData)/1024;
 	} 
 	
-   # my $dynamips_ext_list = $doc2->getElementsByTagName("dynamips_ext");
-
-    
     # Definicion del router
-
 	my $line;
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
@@ -332,14 +220,14 @@ sub defineVM {
     my $consType;
     my %consPortDefInXML = (1,'',2,'');     # % means that consPortDefInXML is a perl associative array 
     my %consDisplayDefInXML = (1,$CONS_DISPLAY_DEFAULT,2,$CONS_DISPLAY_DEFAULT); 
-    print "** $vmName: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
+    #print "** $vmName: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
 	for ( my $j = 0 ; $j < $numcons ; $j++ ) {
 		my $consTag = $consTagList->item($j);
    		my $value = &text_tag($consTag);
 		my $id    = $consTag->getAttribute("id");        # mandatory
 		my $display = $consTag->getAttribute("display"); # optional
 		my $port = $consTag->getAttribute("port");       # optional
-   		print "** console: id=$id, display=$display port=$port value=$value\n" if ($exemode == $EXE_VERBOSE);
+   		#print "** console: id=$id, display=$display port=$port value=$value\n" if ($exemode == $EXE_VERBOSE);
 		if ( ($id eq "1") || ($id eq "2") ) {
 			if ( $value ne "" && $value ne "telnet" ) { 
 				print "WARNING (vm=$vmName): only 'telnet' value is allowed for Dynamips consoles. Value ignored.\n"
@@ -351,7 +239,7 @@ sub defineVM {
 			print "WARNING (vm=$vmName): only consoles with id='1' or '2' allowed for Dynamips virtual machines. Tag with id=$id ignored.\n"
 		} 
 	}
-	print "** $vmName: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
+	#print "** $vmName: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
 
     # Define ports for main console (all) and aux console (only for 7200)
 	my @consolePort = qw();
@@ -474,8 +362,8 @@ sub defineVM {
 		my $net   = $ifTag->getAttribute("net");
 		my ($slot, $dev)= split("/",$name,2);
 		$slot = substr $slot,-1,1;
-		if ( $name =~ /^[gfe]/ ) {
-			print "**** Ethernet interface: $name, slot=$slot, dev=$dev\n";
+		if ( $name =~ /^[gfeGFE]/ ) {
+			#print "**** Ethernet interface: $name, slot=$slot, dev=$dev\n";
 			print("nio create_tap nio_tap_$vmName$slot$dev $vmName-e$id\n");
 			$t->print("nio create_tap nio_tap_$vmName$slot$dev $vmName-e$id");
 	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
@@ -483,9 +371,9 @@ sub defineVM {
 	   		$t->print("vm slot_add_nio_binding $vmName $slot $dev nio_tap_$vmName$slot$dev");
 	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 		}
-		elsif ( $name =~ /^[s]/ ) {
-			print "**** Serial interface: $name, slot=$slot, dev=$dev\n";			
-			print "**** Serial interface: VNX::Globals::SERLINE_PORT=$VNX::Globals::SERLINE_PORT\n";
+		elsif ( $name =~ /^[sS]/ ) {
+			#print "**** Serial interface: $name, slot=$slot, dev=$dev\n";			
+			#print "**** Serial interface: VNX::Globals::SERLINE_PORT=$VNX::Globals::SERLINE_PORT\n";
 			
 			#
 			# Ports used to create the virtual serial line for the pt2pt link are
@@ -503,9 +391,9 @@ sub defineVM {
 			my @vms;
 			my @ports;
 			my $portsFile = $dh->get_networks_dir . "/" . $net . ".ports";
-			print "**** portsFile=$portsFile\n"; 
+			#print "**** portsFile=$portsFile\n"; 
 			if (!-e $portsFile) {
-				print "*** $portsFile does not exist, creating it...\n";
+				#print "*** $portsFile does not exist, creating it...\n";
 				# We choose two free UDP ports
 				for ( my $i = 0 ; $i <= 1 ; $i++ ) {
 					$ports[$i] = $VNX::Globals::SERLINE_PORT;
@@ -523,28 +411,27 @@ sub defineVM {
 				# and we write it to the file
 				open (PORTS_FILE, "> $portsFile") || $execution->smartdie ("ERROR: Cannot open file $portsFile for writting $net serial line ports");
 				for ( my $i = 0 ; $i <= 1 ; $i++ ) {
-					print "**** $vms[$i]=$ports[$i]\n";
+					#print "**** $vms[$i]=$ports[$i]\n";
 					print PORTS_FILE "$vms[$i]=$ports[$i]\n";
 				}
 				close (PORTS_FILE); 				
 			} else {
-				print "*** $portsFile already exists, reading it...\n";
+				#print "*** $portsFile already exists, reading it...\n";
 				# The file already exists; we read it and load the values
 				open (PORTS_FILE, "< $portsFile") || $execution->smartdie("Could not open $portsFile file.");
 				foreach my $line (<PORTS_FILE>) {
 				    chomp($line);               # remove the newline from $line.
-					print "**** line=$line\n";
 				    my $name = $line;				    
 				    $name =~ s/=.*//;  	  
 				    my $port = $line;
 					$port =~ s/.*=//;  
-					print "**** vm=$name, port=$port\n";
+					#print "**** vm=$name, port=$port\n";
 				    push (@vms,$name);
 				    push (@ports,$port);
 				}	
 				close (PORTS_FILE); 							
 			}
-			print "**** Serial interface: ports[0]=$ports[0], ports[1]=$ports[1]\n";
+			#print "**** Serial interface: ports[0]=$ports[0], ports[1]=$ports[1]\n";
 			if ($vms[0] eq $vmName) {
 				print("nio create_udp nio_udp_$vmName$slot$dev $ports[0] 127.0.0.1 $ports[1]\n");
 				$t->print("nio create_udp nio_udp_$vmName$slot$dev $ports[0] 127.0.0.1 $ports[1]");
@@ -570,6 +457,136 @@ sub defineVM {
     
     
 }
+
+sub create_router_conf {
+
+	my $vmName      = shift;
+	my $extConfFile = shift;
+
+	my @routerConf;
+
+	# Load and parse libvirt XML definition of virtual machine
+	my $vmXMLFile = $dh->get_vm_dir($vmName) . '/' . $vmName . '_cconf.xml';
+	open XMLFILE, "$vmXMLFile" or $execution->smartdie("can not open $vmXMLFile file");
+	my $doc = do { local $/; <XMLFILE> };
+
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parse($doc);
+	#my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
+	#my $virtualmList = $globalNode->getElementsByTagName("vm");
+	#my $virtualm     = $virtualmList->item(0);
+	my $vm = $dom->getElementsByTagName("vm")->item(0);
+
+    # Hostname
+	push (@routerConf,  "hostname " . $vmName ."\n");
+
+	# Enable IPv4 and IPv6 routing
+	push (@routerConf,  "ip routing\n");	
+	push (@routerConf,  "ipv6 unicast-routing\n");	
+
+	# Network interface configuration
+	my $ifTagList = $vm->getElementsByTagName("if");
+	# P.ej:
+	# 	interface e0/0
+	# 	 mac-address fefd.0003.0101
+	# 	 ip address 10.1.1.4 255.255.255.0
+	# 	 ip address 11.1.1.4 255.255.255.0 secondary
+	# 	 ipv6 enable
+	# 	 ipv6 address 2001:db8::1/64
+	# 	 ipv6 address 2001:db9::1/64
+	# 	 no shutdown
+ 	for ( my $j = 0 ; $j < $ifTagList->getLength ; $j++ ) {
+ 		my $ifTag = $ifTagList->item($j);
+		my $id    = $ifTag->getAttribute("id");
+		my $net   = $ifTag->getAttribute("net");
+		my $mac   = $ifTag->getAttribute("mac");
+		$mac =~ s/,//;
+		my @maclist = split(/:/,$mac);
+		$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
+		my $nameif   = $ifTag->getAttribute("name");
+		push (@routerConf,  "interface " . $nameif . "\n");	
+		push (@routerConf,  " mac-address " . $mac . "\n");
+		# Configure IPv4 addresses		
+		my $ipv4_list = $ifTag->getElementsByTagName("ipv4");
+		if ($ipv4_list->getLength == 0) {
+			push (@routerConf,  " no ip address\n");	
+		} else {
+	 		for ( my $i = 0 ; $i < $ipv4_list->getLength ; $i++ ) {
+				my $ipv4_Tag = $ipv4_list->item($i);
+				my $ipv4 =  $ipv4_Tag->getFirstChild->getData;
+				my $subnetv4 = $ipv4_Tag->getAttribute("mask");
+				if ($i == 0) {
+					push (@routerConf,  " ip address " . $ipv4 . " ". $subnetv4 . "\n");	
+				} else {
+					push (@routerConf,  " ip address " . $ipv4 . " ". $subnetv4 . " secondary\n");					
+				}
+	 		}
+ 		}
+		# Configure IPv6 addresses		
+		my $ipv6_list = $ifTag->getElementsByTagName("ipv6");
+		if ( $ipv6_list->getLength != 0 ) {
+			push (@routerConf,  " ipv6 enable\n");	
+	 		for ( my $i = 0 ; $i < $ipv6_list->getLength ; $i++ ) {
+				my $ipv6_Tag = $ipv6_list->item($i);
+				my $ipv6 =  $ipv6_Tag->getFirstChild->getData;
+				push (@routerConf,  " ipv6 address " . $ipv6 . "\n");	
+	 		}
+ 		}
+		# Levantamos la interfaz
+		push (@routerConf,  " no shutdown\n");		
+ 	}
+ 	# IP route configuration
+ 	my $routeTagList = $vm->getElementsByTagName("route");
+ 	for ( my $j = 0 ; $j < $routeTagList->getLength ; $j++ ) {
+ 		my $routeTag = 	$routeTagList->item($j);
+ 		my $gw = $routeTag->getAttribute("gw");
+ 		my $destination = $routeTag->getFirstChild->getData;
+ 		my $maskdestination = "";
+ 		if ($destination eq "default"){
+ 			$destination = "0.0.0.0";
+ 			$maskdestination = "0.0.0.0";
+ 		}else {
+ 			print "****** $destination\n";
+ 			my $ip = new NetAddr::IP ($destination) or $execution->smartdie (NetAddr::IP::Error());
+ 			$maskdestination = $ip->mask();
+ 			$destination = $ip->addr();
+ 		}
+ 		push (@routerConf,  "ip route ". $destination . " " . $maskdestination . " " . $gw . "\n");	
+ 		
+ 	}
+ 	# Si en el fichero de configuracion extendida se define un usuario y password.
+ 	my @login_users = &get_login_user($extConfFile, $vmName);
+ 	my $login_user;
+ 	my $check_login_user = 0;
+ 	foreach $login_user(@login_users){
+ 		my $user=$login_user->[0];
+ 		my $pass=$login_user->[1];
+ 		if (($user eq "")&&(!($pass eq ""))){
+ 			push (@routerConf,  " line con 0 \n");
+ 			push (@routerConf,  " password $pass\n");
+ 			push (@routerConf,  " login\n");
+ 		}elsif((!($user eq ""))&&(!($pass eq ""))){
+			push (@routerConf,  " username $user password 0 $pass\n");
+			$check_login_user= 1;
+ 		}
+    }
+    if ($check_login_user eq 1){
+    	push (@routerConf,  " line con 0 \n");
+ 		push (@routerConf,  " login local\n");
+    }
+    	
+ 	# Si el fichero de configuacion extendida se define una password de enable, se pone.
+ 	my $enablepass = get_enable_pass($extConfFile, $vmName);
+ 	if (!($enablepass eq "")){
+		push (@routerConf,  " enable password " . $enablepass . "\n");
+    }
+    # Se habilita el ip http server ya que si no se hace, el acceso por telnet se bloquea.
+ 	# push (@routerConf,  "ip http server\n";
+ 	push (@routerConf,  " end\n");
+
+	return @routerConf;
+}
+
 
 #
 #
@@ -917,29 +934,10 @@ sub executeCMD{
 	close (PORT_CISCO);	
 	#print "** $vmName: console port = $port\n";
 
-=BEGIN
-	my @result;
-	my $result;
-	# Compruebo si alguna ventana con telnet a ese puerto se está ejecutando
-	@result = `ps ax | grep telnet`;
-	foreach $result (@result) {
-		if ($result =~ m/telnet\s*localhost\s*$port/){
-			# Si se esta ejecutando, es que el puerto está ocupado, por lo que se sale
-			# y avisa al usuario de que cierre ese puerto.
-			return "\n------\nERROR: cannot access $vmName console at port $port. Please, release the router console and try again.\n------\n";
-		}
-	}
-	
-	Nuevos comandos Dynamips:
-
-    <exec seq="brief" type="verbatim" mode="telnet" ostype="show">show ip interface brief</exec>
-    <exec seq="brief" type="verbatim" mode="telnet" ostype="set">hostname Router1</exec>
-    <exec seq="brief" type="verbatim" mode="telnet" ostype="load">conf/r1.conf</exec>
-	
-	
-	
-=END
-=cut
+    # Exec tag examples:
+    #   <exec seq="brief" type="verbatim" mode="telnet" ostype="show">show ip interface brief</exec>
+    #   <exec seq="brief" type="verbatim" mode="telnet" ostype="set">hostname Router1</exec>
+    #   <exec seq="brief" type="verbatim" mode="telnet" ostype="load">conf/r1.conf</exec>
 
 	# Loop through all vm <exec> tags 
 	my $command_list = $vm->getElementsByTagName("exec");
@@ -995,9 +993,42 @@ sub executeCMD{
 						$sess->close;
 
 					} if ($ostype eq 'load') {
-						my $confFile = &get_abs_path($command_tag);
-						&reload_conf ($vmName, $confFile, $dynamipsHost, $dynamipsPort, $consFile);					
+						
+						my $newRouterConfFile = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
+						
+						# Parse command
+						if ( $command_tag =~ /merge / ) {
+							# Merge mode: add configuration in VNX spec (hostname, ip addressses and routes)
+							# to the configuration file provided
+							print "*** load merge\n";
+							$command_tag =~ s/merge //;
+							my $confFile = &get_abs_path($command_tag);
+							if (-e $confFile) {
+								# Eliminate end command if it exists
+	   	 						$execution->execute("sed '/^end/d' " . $confFile . ">" . $newRouterConfFile);
+								# Add configuration in VNX spec file to the router config file
+								my @routerConf = &create_router_conf ($vmName, $extConfFile);
+								open (CONF, ">> $newRouterConfFile") or $execution->smartdie("ERROR: Cannot open $newRouterConfFile");
+								print CONF @routerConf;
+								close (CONF);
+								&reload_conf ($vmName, $newRouterConfFile, $dynamipsHost, $dynamipsPort, $consFile);
+							} else {
+								$execution->smartdie("ERROR: configuration file $confFile not found\n") 
+							}
+						} else {
+							# Normal mode: just load the configuration file as it is
+							my $confFile = &get_abs_path($command_tag);
+							if (-e $confFile) {
+								&reload_conf ($vmName, $confFile, $dynamipsHost, $dynamipsPort, $consFile);
+	   	 						# Copy the file loaded config to vm directory
+	   	 						$execution->execute("cat " . $confFile . ">" . $newRouterConfFile);
+							} else {
+								$execution->smartdie("ERROR: configuration file $confFile not found\n") 
+							}
+						}
 					}
+					
+					
 
 # DFC 5/5/2011: command reload deprecated. ostype='load' command type defined to load configurations					
 #					if ($command_tag =~ m/^reload/){

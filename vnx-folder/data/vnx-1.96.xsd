@@ -34,10 +34,6 @@
     <xs:complexType mixed="true" />
   </xs:element>
 
-  <xs:element name="display_console">
-    <xs:complexType mixed="true" />
-  </xs:element>
-
   <xs:element name="exec">
     <xs:complexType mixed="true">
       <xs:attribute name="user" type="xs:string" use="optional" />
