@@ -27,10 +27,12 @@
 # Execution class implementation. The instance of Execution encapsulates methods for
 # dealing with execution of commands.
 
-package Execution;
+package VNX::Execution;
 
 use strict;
 no strict "subs";	# Needed in deamonize subrutine
+use warnings;
+
 use POSIX qw(setsid setuid setgid);	# Needed in deamonize subrutine
 use Term::ReadKey;
 

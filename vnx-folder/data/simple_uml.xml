@@ -13,7 +13,10 @@ Just one Linux virtual machine. Use this specification for testing
     <version>1.92</version>
     <scenario_name>simple_uml</scenario_name>
     <automac offset="2"/>
-    <vm_mgmt type="none" />
+    <!--vm_mgmt type="none" /-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="8">
+       <host_mapping />
+    </vm_mgmt> 
     <vm_defaults exec_mode="mconsole">
     </vm_defaults>
   </global>

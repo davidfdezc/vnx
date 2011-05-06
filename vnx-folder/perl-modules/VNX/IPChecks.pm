@@ -27,14 +27,16 @@
 # IPChecks implementes several functions related with file checks
 
 package VNX::IPChecks;
-require(Exporter);
 
-@ISA = qw(Exporter);
-@EXPORT = qw(valid_ipv4 valid_ipv4_with_mask 
+use strict;
+use warnings;
+use Exporter;
+
+our @ISA = qw(Exporter);
+our @EXPORT = qw(valid_ipv4 valid_ipv4_with_mask 
              valid_ipv4_mask valid_ipv6_mask valid_dotted_mask valid_slashed_mask 
              valid_ipv6 valid_ipv6_with_mask );
 
-use strict;
 use Net::IPv6Addr;
 use NetAddr::IP;
 use VNX::TextManipulation;

@@ -27,9 +27,11 @@
 # BinariesData class implementation. Contain the data related with the binary commands
 # needed by the VNUML parser.
 
-package BinariesData;
+package VNX::BinariesData;
 
 use strict;
+use warnings;
+
 use VNX::Globals;
 use VNX::TextManipulation;
 

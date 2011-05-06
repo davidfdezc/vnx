@@ -31,18 +31,20 @@ package VNX::vmAPICommon;
 use strict;
 use warnings;
 use Exporter;
-use VNX::Execution;
-use VNX::FileChecks;
-use VNX::Globals;
 
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(	
-
 	exec_command_host
 	open_console
 	start_console
 	start_consoles_from_console_file
-);
+	get_admin_address
+	);
+
+use VNX::Execution;
+use VNX::FileChecks;
+use VNX::Globals;
+
 
 
 ###################################################################
@@ -217,6 +219,95 @@ sub start_consoles_from_console_file {
 		} 
 	}	
 
+}
+
+###################################################################
+# get_admin_address
+#
+# Returns a four elements list:
+#
+# - network address
+# - network mask
+# - IPv4 address of one peer
+# - IPv4 address of the other peer
+#
+# This functions takes a single argument, an integer which acts as counter
+# for UML'. It uses NetAddr::IP objects to calculate addresses for TWO hosts,
+# whose addresses and mask returns.
+#
+# Private addresses of 192.168. prefix are used. For now, this is
+# hardcoded in this function. It could, and should, i think, become
+# part of the VNUML dtd.
+#
+# In VIRTUAL SWITCH MODE (net_sw) this function ...
+# which returns UML ip undefined. Or, if one needs UML ip, function 
+# takes two arguments: $vm object and interface id. Interface id zero 
+# is reserved for management interface, and is default is none is supplied
+#
+sub get_admin_address {
+
+   my $seed = shift;
+   my $vmmgmt_type = shift;
+   my $hostnum = shift;
+   my $vmName = shift;
+   my $ip;
+   
+   my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
+   if ($vmmgmt_type eq 'private') {
+      if ($seed eq "file"){
+         #read management ip value from file
+         my $addr = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'addr');
+         my $mask = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'mask');
+         $ip = NetAddr::IP->new($addr.$mask);
+      }else{
+         # check to make sure that the address space won't wrap
+         if ($dh->get_vmmgmt_offset + ($seed << 2) > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
+            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
+         }
+         # create a private subnet from the seed
+         $net += $dh->get_vmmgmt_offset + ($seed << 2);
+         $ip = NetAddr::IP->new($net->addr()."/30") + $hostnum;
+
+         # create mng_ip file in vm dir, unless processing the host
+         unless ($hostnum eq 1){
+         	my $addr_line = "addr=" . $ip->addr();
+            my $mask_line = "mask=" . $ip->mask();
+            my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
+            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
+            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
+         }
+      }     
+   } else {
+	  # vmmgmt type is 'net'
+      if ($seed eq "file"){
+         #read management ip value from file
+         $ip= &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'management_ip');
+      }else{
+         # don't assign the hostip
+         my $hostip = NetAddr::IP->new($dh->get_vmmgmt_hostip."/".$dh->get_vmmgmt_mask);
+         if ($hostip > $net + $dh->get_vmmgmt_offset &&
+            $hostip <= $net + $dh->get_vmmgmt_offset + $seed + 1) {
+         $seed++;
+         }
+
+         # check to make sure that the address space won't wrap
+         if ($dh->get_vmmgmt_offset + $seed > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
+            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
+         }
+
+         # return an address in the vmmgmt subnet
+         $ip = $net + $dh->get_vmmgmt_offset + $seed + 1;
+         
+         # create mng_ip file in run dir
+         my $addr_line = "addr=" . $ip->addr();
+         my $mask_line = "addr=" . $ip->mask();
+         my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
+         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
+         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
+      }
+   }
+
+   return $ip;
 }
 
 1;

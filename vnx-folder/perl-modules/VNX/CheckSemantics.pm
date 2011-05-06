@@ -28,15 +28,17 @@
 # starting processing
 
 package VNX::CheckSemantics;
-require(Exporter);
-
-@ISA = qw(Exporter);
-@EXPORT = qw(
-	validate_xml
-	check_doc
-);
 
 use strict;
+use warnings;
+use Exporter;
+
+our @ISA = qw(Exporter);
+our @EXPORT = qw(
+	validate_xml
+	check_doc
+	);
+
 use NetAddr::IP;
 use Net::Pcap;
 use VNX::Globals;
@@ -45,7 +47,6 @@ use VNX::IPChecks;
 use VNX::NetChecks;
 use VNX::TextManipulation;
 use XML::LibXML;
-
 
 # 
 # validate_xml
@@ -172,6 +173,7 @@ sub validate_xml {
 #                   type="file" only allowed with ostype="show|set"
 # - dynamisp: if management network is defined, then the name of the mgmt if has to be defined with:
 #                    <if id="0" net="vm_mgmt" name="e0/0">
+#             this <if> should not have address associated
 
 sub check_doc {
 	
@@ -514,8 +516,9 @@ sub check_doc {
 		 }
 
          # 9b. To check id 0 is not used
-         return "if id 0 in vm $name is not allowed while vm management is enabled unless <mng_if> is used"
-            if (($id == 0) && $dh->get_vmmgmt_type ne 'none' && ($mng_if_value ne "no"));
+         # DFC 5/5/2011: relaxed to allow define the mngt if name in dynamips routers
+         # return "if id 0 in vm $name is not allowed while vm management is enabled unless <mng_if> is used"
+         #   if (($id == 0) && $dh->get_vmmgmt_type ne 'none' && ($mng_if_value ne "no"));
 
          # 9c. To check if the same id has been seen before
          if ($net eq "lo") {
@@ -536,7 +539,7 @@ sub check_doc {
          }
 
          # 9d. To check that there is a net with this name or "lo"
-         unless (($net eq "lo") || ($net_names{$net} == 1)) {
+         unless (($net eq "lo") || ($net eq "vm_mgnt") || ($net_names{$net} == 1)) {
             return "net $net defined for interface $id of virtual machine $name is not valid: it must be defined in a <net> tag (or use \"lo\")";
          }
          

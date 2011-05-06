@@ -27,10 +27,14 @@
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 #
 
-package vmAPI_libvirt;
+package VNX::vmAPI_libvirt;
 
-@ISA    = qw(Exporter);
-@EXPORT = qw(
+use strict;
+use warnings;
+use Exporter;
+
+our @ISA    = qw(Exporter);
+our @EXPORT = qw(
   init
   defineVM
   undefineVM
@@ -43,10 +47,10 @@ package vmAPI_libvirt;
   resumeVM
   rebootVM
   resetVM
-  executeCMD);
+  executeCMD
+  );
 
-use strict;
-use warnings;
+
 use Sys::Virt;
 use Sys::Virt::Domain;
 use VNX::Globals;
@@ -60,6 +64,7 @@ use VNX::NetChecks;
 use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
+use VNX::vmAPICommon;
 #needed for UML_bootfile
 use File::Basename;
 use XML::DOM;
@@ -3244,6 +3249,7 @@ sub change_vm_status {
 
 
 
+=BEGIN DFC 5/5/2011 moved to vmAPICommon to have it accesible from vnx and all vmAPIs
 ###################################################################
 # get_admin_address
 #
@@ -3442,6 +3448,8 @@ sub get_admin_address {
 
    return $ip;
 }
+=END
+=cut
 
 ###################################################################
 #
