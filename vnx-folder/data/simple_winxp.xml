@@ -8,7 +8,7 @@ Just one Windows XP virtual machine. Use this specification for testing
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.96.xsd">
+     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.97.xsd">
   <global>
     <version>1.92</version>
     <scenario_name>simple_winxp</scenario_name>
@@ -22,15 +22,15 @@ Just one Windows XP virtual machine. Use this specification for testing
     
   <!-- NODES -->
   <vm name="winxp" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
+    <filesystem type="cow">/home/jrodriguez/root_fs_winxp</filesystem>
     <mem>512M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.3/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="c:\temp">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="c:\temp">conf/txtfile</filetree>
-    <exec seq="vnxtxt" type="verbatim" mode="system">start /max notepad c:\temp\vnx.txt</exec>
-    <exec seq="vnxwww" type="verbatim" mode="system">start /max c:\temp\vnx.html</exec>
+    <exec seq="vnxtxt" type="verbatim" mode="exec">notepad c:\temp\vnx.txt</exec>
+    <exec seq="vnxwww" type="verbatim" mode="cmd">start /max c:\temp\vnx.html</exec>
     <exec seq="calc" type="verbatim" mode="system">calc.exe</exec>
     <exec seq="logout" type="verbatim" mode="system">shutdown -l</exec>
     <exec seq="reboot" type="verbatim" mode="system">shutdown -r -t 5</exec>
