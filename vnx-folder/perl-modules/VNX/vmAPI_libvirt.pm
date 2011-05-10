@@ -712,6 +712,10 @@ sub defineVM {
 			my $net   = $ifTag->getAttribute("net");
 			my $mac   = $ifTag->getAttribute("mac");
 
+			# Ignore loopback interfaces (they are configured by the ACED daemon, but
+			# should not be treated by libvirt)
+			if ($net eq "lo") { next}
+			 
 			my $interface_tag = $init_xml->createElement('interface');
 			$devices_tag->addChild($interface_tag);
 			if ($id eq 0){
