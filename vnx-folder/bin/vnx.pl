@@ -1595,6 +1595,7 @@ sub configure_virtual_bridged_networks {
 	           # If VLAN is already configured at this interface, we haven't to configure it
 	           unless (&check_vlan($external_if,$vlan)) {
 	              $execution->execute($bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
+	              $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " set_name_type DEV_PLUS_VID_NO_PAD");
 	              $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
 	           }
 	           $external_if .= ".$vlan";
@@ -2077,7 +2078,7 @@ sub start_VMs {
       eval {$on_boot = $vm->getElementsByTagName("on_boot")->item(0)->getFirstChild->getData};
 	  if ($on_boot eq 'no'){
 	  		# do not start vm unless specified in -M
-      		unless ($opt_M =~ /^$name,|,$name,|,$name$|^$name$/) {
+      		unless ( (defined $opt_M) && ($opt_M =~ /^$name,|,$name,|,$name$|^$name$/) ) {
 				next;
 	    	}
 	  }

@@ -530,9 +530,17 @@ sub autoconfigureUbuntu {
 			my $mac   = $ifTag->getAttribute("mac");
 			$mac =~ s/,//g;
 
-			print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac . 	"\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"eth" . $id . "\"\n\n";
+			my $ifName;
+			# Special case: loopback interface
+			if ( $net eq "lo" ) {
+				$ifName = "lo:" . $id;
+			} else {
+				$ifName = "eth" . $id;
+			}
+
+			print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac . 	"\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
 			#print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
-			print INTERFACES "auto eth" . $id . "\n";
+			print INTERFACES "auto " . $ifName . "\n";
 
 			my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
 			my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
@@ -540,8 +548,8 @@ sub autoconfigureUbuntu {
 			if ( ($ipv4Taglist->getLength == 0 ) && ( $ipv6Taglist->getLength == 0 ) ) {
 				# No addresses configured for the interface. We include the following commands to 
 				# have the interface active on start
-				print INTERFACES "iface eth" . $id . " inet manual\n";
-				print INTERFACES "  up ifconfig eth" . $id . " 0.0.0.0 up\n";
+				print INTERFACES "iface " . $ifName . " inet manual\n";
+				print INTERFACES "  up ifconfig " . $ifName . " 0.0.0.0 up\n";
 			} else {
 				# Config IPv4 addresses
 				for ( my $j = 0 ; $j < $ipv4Taglist->getLength ; $j++ ) {
@@ -551,11 +559,11 @@ sub autoconfigureUbuntu {
 					my $ip      = $ipv4Tag->getFirstChild->getData;
 
 					if ($j == 0) {
-						print INTERFACES "iface eth" . $id . " inet static\n";
+						print INTERFACES "iface " . $ifName . " inet static\n";
 						print INTERFACES "   address " . $ip . "\n";
 						print INTERFACES "   netmask " . $mask . "\n";
 					} else {
-						print INTERFACES "   up /sbin/ifconfig eth" . $id . " inet add " . $ip . " netmask " . $mask . "\n";
+						print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet add " . $ip . " netmask " . $mask . "\n";
 					}
 				}
 				# Config IPv6 addresses
@@ -568,11 +576,11 @@ sub autoconfigureUbuntu {
                 	$ip =~ s/\/.*//;
 
 					if ($j == 0) {
-						print INTERFACES "iface eth" . $id . " inet6 static\n";
+						print INTERFACES "iface " . $ifName . " inet6 static\n";
 						print INTERFACES "   address " . $ip . "\n";
 						print INTERFACES "   netmask " . $mask . "\n\n";
 					} else {
-						print INTERFACES "   up /sbin/ifconfig eth" . $id . " inet6 add " . $ip . "/" . $mask . "\n";
+						print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet6 add " . $ip . "/" . $mask . "\n";
 					}
 				}
 			}
@@ -723,10 +731,18 @@ sub autoconfigureFedora {
 			$mac =~ s/,//g;
 			#if ($i == 0) { $firstIf = "eth$id"};
 			
-			print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac . 	"\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"eth" . $id . "\"\n\n";
+			my $ifName;
+			# Special case: loopback interface
+			if ( $net eq "lo" ) {
+				$ifName = "lo:" . $id;
+			} else {
+				$ifName = "eth" . $id;
+			}
+			
+			print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac . 	"\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
 			#print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
 
-			my $ifFile = "/etc/sysconfig/network-scripts/ifcfg-Auto_eth$id";
+			my $ifFile = "/etc/sysconfig/network-scripts/ifcfg-Auto_$ifName";
 			system "echo \"\" > $ifFile";
 			open IF_FILE, ">" . $ifFile or print "error opening $ifFile";
 	
@@ -734,7 +750,7 @@ sub autoconfigureFedora {
 			print IF_FILE "TYPE=Ethernet\n";
 			#print IF_FILE "BOOTPROTO=none\n";
 			print IF_FILE "ONBOOT=yes\n";
-			print IF_FILE "NAME=\"Auto eth$id\"\n";
+			print IF_FILE "NAME=\"Auto $ifName\"\n";
 			print IF_FILE "IPV6INIT=yes\n";
 			
 			my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
@@ -747,7 +763,7 @@ sub autoconfigureFedora {
 				my $mask    = $ipv4Tag->getAttribute("mask");
 				my $ip      = $ipv4Tag->getFirstChild->getData;
 
-				$firstIPv4If = "eth$id" if $firstIPv4If==''; 
+				$firstIPv4If = "$ifName" if $firstIPv4If==''; 
 
 				if ($j == 0) {
 					print IF_FILE "IPADDR=$ip\n";
@@ -765,7 +781,7 @@ sub autoconfigureFedora {
 				my $ipv6Tag = $ipv6Taglist->item($j);
 				my $ip    = $ipv6Tag->getFirstChild->getData;
 
-				$firstIPv6If = "eth$id" if $firstIPv6If==''; 
+				$firstIPv6If = "$ifName" if $firstIPv6If==''; 
 
 				if ($j == 0) {
 					print IF_FILE "IPV6_AUTOCONF=no\n";
