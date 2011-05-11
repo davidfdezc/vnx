@@ -29,10 +29,10 @@ Just one Cisco 3640 virtual machine. Use this specification for testing
 	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
 	<mem>96M</mem>
   	<console id="1" display="yes"/>
-	<if id="0" net="vm_mgnt" name="e0/0"/>
+	<if id="0" net="vm_mgmt" name="e0/0"/>
 	<if id="1" net="Net0" name="e0/1">
-		<!--ipv4>10.0.0.10/24</ipv4>
-		<ipv4>11.0.0.10/24</ipv4-->
+		<ipv4>10.0.0.10/24</ipv4>
+		<ipv4>11.0.0.10/24</ipv4>
 		<ipv6>2001:db8::10/64</ipv6>
 		<ipv6>2001:db9::10/64</ipv6>
     </if>

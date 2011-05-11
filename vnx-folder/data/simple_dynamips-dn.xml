@@ -10,9 +10,7 @@
        <slot id="0">NM-4E</slot>
        <slot id="1">NM-4T</slot>
      </hw>
-
   </global>
-
 
   <vm name="cisco">
      <conf>conf/cisco.conf</conf>
@@ -25,6 +23,5 @@
      <login user="root" password="xxxx"/>
      <enable password="xxxx"/>
   </vm>
-
 
 </vnx_dynamips>
