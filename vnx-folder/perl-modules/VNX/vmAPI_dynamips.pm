@@ -469,15 +469,13 @@ sub create_router_conf {
 	my $vmXMLFile = $dh->get_vm_dir($vmName) . '/' . $vmName . '_cconf.xml';
 	open XMLFILE, "$vmXMLFile" or $execution->smartdie("can not open $vmXMLFile file");
 	my $doc = do { local $/; <XMLFILE> };
+	close XMLFILE;
 
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parse($doc);
-	#my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-	#my $virtualmList = $globalNode->getElementsByTagName("vm");
-	#my $virtualm     = $virtualmList->item(0);
 	my $vm = $dom->getElementsByTagName("vm")->item(0);
 
-    # Hostname
+    	# Hostname
 	push (@routerConf,  "hostname " . $vmName ."\n");
 
 	# Enable IPv4 and IPv6 routing
@@ -630,20 +628,55 @@ sub destroyVM{
 	my $self   = shift;
 	my $vmName = shift;
 	my $type   = shift;
+	my $line;
 
-	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
+    print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Destroying: $vmName\n" if ($exemode == $EXE_VERBOSE);
-	
+
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm stop $vmName");
-    my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    $t->print("vm delete $vmName");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+
+   	$t->print("vm stop $vmName");
+   	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+   	$t->print("vm delete $vmName");
+   	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+
+	# We have to destroy the tap or udp devices created for the router
+	# using the "nio create_tap" or "nio create_udp" commands 
+
+	# Load and parse libvirt XML definition of virtual machine
+	my $vmXMLFile = $dh->get_vm_dir($vmName) . '/' . $vmName . '_cconf.xml';
+	if (-e $vmXMLFile) {
+		open XMLFILE, "$vmXMLFile" or $execution->smartdie("can not open $vmXMLFile file");
+		my $doc = do { local $/; <XMLFILE> };
+		close XMLFILE;
+		my $parser       = new XML::DOM::Parser;
+		my $dom          = $parser->parse($doc);
+		my $vm = $dom->getElementsByTagName("vm")->item(0);
+	
+		my $ifTagList = $vm->getElementsByTagName("if");
+	 	for ( my $j = 0 ; $j < $ifTagList->getLength ; $j++ ) {
+	 		my $ifTag  = $ifTagList->item($j);
+			my $ifName = $ifTag->getAttribute("name");
+			my ($slot, $dev)= split("/",$ifName,2);
+			$slot = substr $slot,-1,1;
+			print "**** Ethernet interface: $ifName, slot=$slot, dev=$dev\n";
+			if ( $ifName =~ /^[gfeGFE]/ ) {
+				print("nio delete nio_tap_$vmName$slot$dev\n");
+				$t->print("nio delete nio_tap_$vmName$slot$dev");
+		   		my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+			}
+			elsif ( $ifName =~ /^[sS]/ ) {
+				print("nio delete nio_udp_$vmName$slot$dev\n");
+				$t->print("nio delete nio_udp_$vmName$slot$dev");
+		   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+			}
+		}
+	}
     
-    #$t->print("hypervisor reset");
+   	#$t->print("hypervisor reset");
    	#$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    $t->close;
+   	$t->close;
 
 }
 
@@ -709,7 +742,15 @@ sub shutdownVM{
 	my $vmName = shift;
 	my $type   = shift;
 	my $F_flag    = shift;
-		
+	
+	# This is an ordered shutdown. We first save the configuration:
+
+	# To be implemented
+
+    # Then we shutdown and destroy the virtual router:
+    &destroyVM ($self, $vmName, $type);
+    		
+=BEGIN    		
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
 	    
@@ -719,9 +760,12 @@ sub shutdownVM{
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
 	sleep(2);	
+=END
+=cut
 	
 	#&change_vm_status( $dh, $vmName, "REMOVE" );
 	&change_vm_status( $vmName, "REMOVE" );
+
 }
 
 #
