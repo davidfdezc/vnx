@@ -171,7 +171,7 @@ sub validate_xml {
 #       - Olive: only mode="sdisk" allowed
 #       - Dynamips: only mode="telnet" allowed
 #                   type="file" only allowed with ostype="show|set"
-# - dynamisp: if management network is defined, then the name of the mgmt if has to be defined with:
+# - dynamips: if management network is defined, then the name of the mgmt if has to be defined with:
 #                    <if id="0" net="vm_mgmt" name="e0/0">
 #             this <if> should not have address associated
 
@@ -539,7 +539,7 @@ sub check_doc {
          }
 
          # 9d. To check that there is a net with this name or "lo"
-         unless (($net eq "lo") || ($net eq "vm_mgnt") || ($net_names{$net} == 1)) {
+         unless (($net eq "lo") || ($net eq "vm_mgmt") || ($net_names{$net} == 1)) {
             return "net $net defined for interface $id of virtual machine $name is not valid: it must be defined in a <net> tag (or use \"lo\")";
          }
          
