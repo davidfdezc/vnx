@@ -4554,7 +4554,7 @@ sub print_consoles_info{
 
 
 
-
+=BEGIN
 sub get_admin_address {
 
    my $seed = shift;
@@ -4619,7 +4619,8 @@ sub get_admin_address {
    }
    return $ip;
 }
-
+=END 
+=cut
 
 
 

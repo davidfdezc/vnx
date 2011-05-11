@@ -1450,6 +1450,7 @@ sub shutdownVM {
 		my @doms = $con->list_domains();
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
+			print "**** dom_name=$dom_name\n";
 			if ( $dom_name eq $vmName ) {
 				$listDom->shutdown();
 				&change_vm_status( $vmName, "REMOVE" );
@@ -1458,7 +1459,7 @@ sub shutdownVM {
 				# lo habilito para la demo
 				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) . "/*" );
 
-				print "Domain shut down\n" if ($exemode == $EXE_VERBOSE);
+				print "Domain shutdown\n" if ($exemode == $EXE_VERBOSE);
 				return $error;
 			}
 		}
