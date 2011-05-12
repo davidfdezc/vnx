@@ -157,7 +157,7 @@ sub add_additional_xterm_binaries {
 	       # Asumming the xterm string will be something as the
 	       # following pattern: gnome-terminal,-t,-x (this is the 
 	       # format for the xterm= UML switch)
-	       $xterm =~ s/^(.+),.+,.+$/\1/;
+	       $xterm =~ s/^(.+),.+,.+$/$1/;
 	       $xterm_binaries{$1} = 1;		
 	    }
 	}

@@ -130,7 +130,7 @@ sub validate_xml {
 #   - 8g. <net type="ppp"> has exactly two virtual machine interfaces connected to it
 #   - 8h. 3/5/11: Eliminated to allow dynamips ppp links / only <net type="ppp"> networks has <bw> tag
 #   - 8i. sock are readable, writable socket files
-#   - 9a. there is not duplicated UML names (<vm>)
+#   - 9a. there is not duplicated vm names (<vm>)
 #   - 9b. (conditional) there is not <if> with id 0 in any UML (reserved for management),
 #         if not <mng_if>no</mng_if> or vmmgmt_type eq 'none'
 #   - 9c. there is not duplicated interfaces in the same UML (<if>)
@@ -1057,7 +1057,26 @@ sub check_doc {
 		}
 	}
 
-   return 0;
+
+	# Check the vm names in -M option correspond to vms defined in the scenario
+	my $opt_M = $dh->{'vm_to_use'};
+	if ($opt_M) {
+		my @vms = split (/,/, $opt_M);
+		foreach my $vmName (@vms) {
+		   	my %vm_hash = $dh->get_vm_to_use;
+		   	my $vmFound;
+		   	for ( my $i = 0; $i < @vm_ordered; $i++) {
+		      my $vm = $vm_ordered[$i];
+		      my $name = $vm->getAttribute("name");
+		      if ($vmName eq $name) { $vmFound = 'true'}
+		   	}
+		   	if (!$vmFound) {
+		   		return "virtual machine $vmName specified in -M option does not exist"
+		   	}
+		}
+	}
+	
+   	return 0;
 
 }
 
