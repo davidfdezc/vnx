@@ -1,9 +1,9 @@
 # DataHandler.pm
 #
-# This file is a module part of VNUML package.
+# This file is a module part of VNX package.
 #
 # Author: Fermin Galan Marquez (galan@dit.upm.es)
-# Copyright (C) 2005, 	DIT-UPM
+# Copyright (C) 2011, 	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN
@@ -664,7 +664,7 @@ sub get_vm_ordered {
      @vm_ordered = (@vm_ordered, $vm_list->item($vm_index{$_}));
   }
    
-  # Finally, add machines without order, in the same order they appear in the VNUML file
+  # Finally, add machines without order, in the same order they appear in the VNX file
   for (my $i = 0; $i < $vm_list->getLength; $i++) {
      my $order = $vm_list->item($i)->getAttribute("order");
      if ($order =~ /^$/) {
@@ -680,7 +680,7 @@ sub get_vm_ordered {
 # get_vm_to_use
 #
 # Returns a hash with the vm names of the scenario to use with -x mode. By
-# defualt are UMLs defined in the VNUML source file are include, execpt when the -M switch. 
+# default are vms defined in the VNX source file are include, execpt when the -M switch. 
 # is in use.
 #
 # Arguments:

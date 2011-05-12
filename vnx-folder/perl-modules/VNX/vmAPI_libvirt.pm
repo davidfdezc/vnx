@@ -412,7 +412,7 @@ sub defineVM {
 		#                                                               be accessed. If not specified, VNX chooses a free port.
         # For windows vm's only the graphical console is defined (id=0). Other consoles defined with ids different from 0 are ignored 
 		my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
-		open (CONS_FILE, ">> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
+		open (CONS_FILE, "> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
 
 		# Go through <consoles> tag list to get attributes (display, port) and value  
 		my $consTagList = $virtualm->getElementsByTagName("console");
@@ -788,7 +788,7 @@ sub defineVM {
 		#                                                               be accessed. If not specified, VNX chooses a free port.
         # By now ther consoles defined with ids different from 0-1 are ignored 
 		my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
-		open (CONS_FILE, ">> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
+		open (CONS_FILE, "> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
 
 		# Go through <consoles> tag list to get attributes (display, port) and value  
 		my $consTagList = $virtualm->getElementsByTagName("console");

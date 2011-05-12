@@ -744,188 +744,196 @@ sub main {
    VNX::vmAPI_dynamips->init;
   
    
-   ###########################################################
-   # Initialize plugins
+   	###########################################################
+   	# Initialize plugins
  
-   # push (@INC, "@DATADIR@/vnuml/plugins");[JSF]
-   push (@INC, "/usr/share/vnx/plugins");
+   	# push (@INC, "@DATADIR@/vnuml/plugins");[JSF]
+   	push (@INC, "/usr/share/vnx/plugins");
   
-   my $extension_list = $dh->get_doc->getElementsByTagName("extension");
-   for ( my $i = 0; $i < $extension_list->getLength; $i++ ) {
-      my $plugin = $extension_list->item($i)->getAttribute("plugin");
-      my $conf = $extension_list->item($i)->getAttribute("conf");
+   	my $extension_list = $dh->get_doc->getElementsByTagName("extension");
+   	for ( my $i = 0; $i < $extension_list->getLength; $i++ ) {
+      	my $plugin = $extension_list->item($i)->getAttribute("plugin");
+      	my $conf = $extension_list->item($i)->getAttribute("conf");
       
-      # Check configuration file
-      my $effective_conf;
-      if ($conf =~ /^\//) {
-         # Absolute pathname
-         $effective_conf = $conf;
-      }
-      else {
-         # Pathname relative to the place where the VNX spec is ($xml_dir)
-         $effective_conf = "$xml_dir/$conf";
-      }
+      	# Check configuration file
+      	my $effective_conf;
+      	if ($conf =~ /^\//) {
+         	# Absolute pathname
+         	$effective_conf = $conf;
+      	}
+      	else {
+         	# Pathname relative to the place where the VNX spec is ($xml_dir)
+         	$effective_conf = "$xml_dir/$conf";
+      	}
       
-      # Check input file
-      if (! -f $effective_conf) {
-         &vnx_die ("plugin $plugin configuration file $effective_conf is not valid (perhaps does not exists)\n");
-      }
+      	# Check input file
+      	if (! -f $effective_conf) {
+         	&vnx_die ("plugin $plugin configuration file $effective_conf is not valid (perhaps does not exists)\n");
+      	}
             
-      print "Loading pluging $plugin...\n";      
-      # Why we are not using 'use'? See the following thread: 
-      # http://www.mail-archive.com/beginners%40perl.org/msg87441.html)   
+      	print "Loading pluging $plugin...\n";      
+      	# Why we are not using 'use'? See the following thread: 
+      	# http://www.mail-archive.com/beginners%40perl.org/msg87441.html)   
       
-      eval "require $plugin";
-      eval "import $plugin";      
-      if (my $err_msg = $plugin->createPlugin($mode,$effective_conf)) {
-         &vnx_die ("plugin $plugin reports error: $err_msg\n");
-      }
-      push (@plugins,$plugin);
-   }
+      	eval "require $plugin";
+      	eval "import $plugin";      
+      	if (my $err_msg = $plugin->createPlugin($mode,$effective_conf)) {
+         	&vnx_die ("plugin $plugin reports error: $err_msg\n");
+      	}
+      	push (@plugins,$plugin);
+   	}
    
-   ###########################################################
-   # Command execution
+   	###########################################################
+   	# Command execution
 
-   if ($exeinteractive) {
-      print "interactive execution is on: pulse a key after each command\n";
-   }
+   	if ($exeinteractive) {
+      	print "interactive execution is on: pulse a key after each command\n";
+   	}
 
-   # Lock management
-   if (-f $dh->get_vnx_dir . "/LOCK") {
-      my $basename = basename $0;
-      &vnx_die($dh->get_vnx_dir . "/LOCK exists: another instance of $basename seems to be in execution\nIf you are sure that this can't be happening in your system, do 'rm " . $dh->get_vnx_dir . "/LOCK' and try again\n");
-   }
-   else {
-      $execution->execute($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_vnx_dir . "/LOCK");
-      $start_time = time();
-   }
+   	# Lock management
+   	if (-f $dh->get_vnx_dir . "/LOCK") {
+      	my $basename = basename $0;
+      	&vnx_die($dh->get_vnx_dir . "/LOCK exists: another instance of $basename seems to be in execution\nIf you are sure that this can't be happening in your system, do 'rm " . $dh->get_vnx_dir . "/LOCK' and try again\n");
+   	}
+   	else {
+      	$execution->execute($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_vnx_dir . "/LOCK");
+      	$start_time = time();
+   	}
 
-   # Mode selection
+   	# Mode selection
 
-   if ($opt_t||$opt_create) {
-	   if ($exemode != $EXE_DEBUG && !$opt_M && !$opt_start) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
-            if &scenario_exists($dh->get_scename);
-      }
-      &mode_define;
-      &mode_start;
-   }
-   elsif ($opt_x||$opt_execute) {
-      if ($exemode != $EXE_DEBUG) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " does not exists: create it with -t before\n")
-           unless &scenario_exists($dh->get_scename);
-      }
+   	if ($opt_t||$opt_create) {
+	   	if ($exemode != $EXE_DEBUG && !$opt_M && !$opt_start) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
+            	if &scenario_exists($dh->get_scename);
+      	}
+      	&mode_define;
+      	&mode_start;
+   	}
+   	elsif ($opt_x||$opt_execute) {
+      	if ($exemode != $EXE_DEBUG) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exists: create it with -t before\n")
+           		unless &scenario_exists($dh->get_scename);
+      	}
 
-      &mode_x($cmdseq);
-   }
-   elsif ($opt_d||$opt_shutdown) {
-      if ($exemode != $EXE_DEBUG) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-           unless &scenario_exists($dh->get_scename);
-      }
-      &mode_d;
+      	&mode_x($cmdseq);
+   	}
+   	elsif ($opt_d||$opt_shutdown) {
+      	if ($exemode != $EXE_DEBUG) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           		unless &scenario_exists($dh->get_scename);
+      	}
+      	&mode_d;
 #      my $do_not_build_topology = 1;
 
       
-   }
-   elsif ($opt_P||$opt_destroy) {  # elsif ($opt_P) { [JSF]
-      if ($exemode != $EXE_DEBUG) {
-      #   $execution->smartdie ("scenario $scename does not exist\n")
-      #     unless &scenario_exists($scename);
-      }
-      $args->set('F',1);
-      &mode_d;		# First, call destroy mode with force flag activated
-      &mode_P;		# Second, purge other things
-      #&mode_undefine;
-   }
-   elsif ($opt_define){
-      if ($exemode != $EXE_DEBUG && !$opt_M) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
-            if &scenario_exists($dh->get_scename);
-      }
-      &mode_define;
-   }
-   elsif ($opt_undefine){
-      if ($exemode != $EXE_DEBUG && !$opt_M) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-           unless &scenario_exists($dh->get_scename);
-      }
-      &mode_undefine;
-   }
-   elsif ($opt_start) {
-      if ($exemode != $EXE_DEBUG) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-           unless &scenario_exists($dh->get_scename);
-      }
-      &mode_start;
-   }
-   elsif ($opt_reset) {
-      if ($exemode != $EXE_DEBUG) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-           unless &scenario_exists($dh->get_scename);
-      }
-      $args->set('F',1);
-      &mode_d;		# First, call destroy mode with force flag activated
-      &mode_P;		# Second, purge other things
-      sleep(1);     # Let it finish
-      &mode_define;
-      &mode_start;
-   }
+   	}
+   	elsif ($opt_P||$opt_destroy) {  # elsif ($opt_P) { [JSF]
+      	if ($exemode != $EXE_DEBUG) {
+      	#   $execution->smartdie ("scenario $scename does not exist\n")
+      	#     unless &scenario_exists($scename);
+      	}
+      	$args->set('F',1);
+      	&mode_d;		# First, call destroy mode with force flag activated
+      	&mode_P;		# Second, purge other things
+      	#&mode_undefine;
+   	}
+   	elsif ($opt_define){
+      	if ($exemode != $EXE_DEBUG && !$opt_M) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
+            	if &scenario_exists($dh->get_scename);
+      	}
+      	&mode_define;
+   	}
+   	elsif ($opt_undefine){
+      	if ($exemode != $EXE_DEBUG && !$opt_M) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           		unless &scenario_exists($dh->get_scename);
+      	}
+      	&mode_undefine;
+   	}
+   	elsif ($opt_start) {
+      	if ($exemode != $EXE_DEBUG) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           		unless &scenario_exists($dh->get_scename);
+      	}
+      	&mode_start;
+   	}
+   	elsif ($opt_reset) {
+      	if ($exemode != $EXE_DEBUG) {
+         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+           		unless &scenario_exists($dh->get_scename);
+      	}
+      	$args->set('F',1);
+      	&mode_d;		# First, call destroy mode with force flag activated
+      	&mode_P;		# Second, purge other things
+      	sleep(1);     # Let it finish
+      	&mode_define;
+      	&mode_start;
+   	}
    
-   elsif ($opt_reboot) {
-     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        unless &scenario_exists($dh->get_scename);
-     }
-     &mode_d;
-     &mode_start;
-   }
+   	elsif ($opt_reboot) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        	unless &scenario_exists($dh->get_scename);
+     	}
+     	&mode_d;
+     	&mode_start;
+   	}
    
-   elsif ($opt_save) {
-     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        unless &scenario_exists($dh->get_scename);
-     }
-     &mode_save;
-   }
-   elsif ($opt_restore) {
-     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        unless &scenario_exists($dh->get_scename);
-     }
-     &mode_restore;
-   }
+   	elsif ($opt_save) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        	unless &scenario_exists($dh->get_scename);
+     	}
+     	&mode_save;
+   	}
+   	elsif ($opt_restore) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        		unless &scenario_exists($dh->get_scename);
+     	}
+     	&mode_restore;
+   	}
    
-   elsif ($opt_suspend) {
-     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        unless &scenario_exists($dh->get_scename);
-     }
-     &mode_suspend;
-   }
+   	elsif ($opt_suspend) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        		unless &scenario_exists($dh->get_scename);
+     	}
+     	&mode_suspend;
+   	}
    
-   elsif ($opt_resume) {
-     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        unless &scenario_exists($dh->get_scename);
-     }
-     &mode_resume;
-   }
+   	elsif ($opt_resume) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        	unless &scenario_exists($dh->get_scename);
+     	}
+     	&mode_resume;
+   	}
    
-   elsif ($opt_showmap) {
-#     if ($exemode != $EXE_DEBUG) {
-#        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-#        unless &scenario_exists($dh->get_scename);
-#     }
-     &mode_showmap;
-   }
+   	elsif ($opt_showmap) {
+#     	if ($exemode != $EXE_DEBUG) {
+#        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+#        	unless &scenario_exists($dh->get_scename);
+#     	}
+     	&mode_showmap;
+   	}
    
-   elsif ($opt_console) {
+   	elsif ($opt_console) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        	unless &scenario_exists($dh->get_scename);
+     	}
 		&mode_console;
-   }
-   elsif ($opt_consoleinfo) {
+   	}
+   	elsif ($opt_consoleinfo) {
+     	if ($exemode != $EXE_DEBUG) {
+        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        	unless &scenario_exists($dh->get_scename);
+     	}
    		&mode_consoleinfo;
-   }
+   	}
    
    
    else {
