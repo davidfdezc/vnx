@@ -1,4 +1,5 @@
-<domain type='kvm'>
+<?xml version="1.0" encoding="UTF-8"?>
+<domain type="kvm" xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">
   <name>Freebsd</name>
   <memory>524288</memory>
   <vcpu>1</vcpu>
