@@ -1,5 +1,5 @@
-<domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
-<!--domain type='kvm'-->
+<?xml version="1.0" encoding="UTF-8"?>
+<domain type="kvm" xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">
   <name>Olive</name>
   <memory>1048576</memory>
   <vcpu>1</vcpu>
