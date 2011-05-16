@@ -1032,7 +1032,7 @@ sub defineVM {
 				$mng_if_mac =~ s/,//;
 				my $qemuarg_tag2 = $init_xml->createElement('qemu:arg');
 				$qemucommandline_tag->addChild($qemuarg_tag2);
-				$qemuarg_tag2->addChild( $init_xml->createAttribute( value => "rtl8139,vlan=0,macaddr=$mng_if_mac" ) );
+				$qemuarg_tag2->addChild( $init_xml->createAttribute( value => "rtl8139,vlan=0,mac=$mng_if_mac" ) );
 				
 				my $qemuarg_tag3 = $init_xml->createElement('qemu:arg');
 				$qemucommandline_tag->addChild($qemuarg_tag3);
@@ -1343,7 +1343,7 @@ sub startVM {
 			    # 
     			
    				# First, we have to change the 'UNK_VNC_DISPLAY' and 'UNK_PTS_DEV' tags 
-				# we temporarely wrote to console files (./vnx/.../vms/$vmName/console) 
+				# we temporarily wrote to console files (./vnx/.../vms/$vmName/console) 
 				# by the correct values assigned by libvirt to the virtual machine
 				my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
   	

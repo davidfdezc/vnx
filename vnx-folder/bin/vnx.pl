@@ -4189,6 +4189,7 @@ sub make_vm_API_doc {
         	$mng_if_tag->addChild( $dom->createAttribute( name => $mgmtIfName));
 		}
 
+
       	my $mng_addr = &get_admin_address( $manipcounter, $dh->get_vmmgmt_type, 2, $vmName );
       	$mng_if_tag->addChild( $dom->createAttribute( id => 0));
 
