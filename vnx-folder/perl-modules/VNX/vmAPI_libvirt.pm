@@ -705,6 +705,8 @@ sub defineVM {
         # network <interface> tags
 		my $ifTagList = $virtualm->getElementsByTagName("if");
 		my $numif     = $ifTagList->getLength;
+		my $mng_if_exists = 0;
+		my $mng_if_mac;
 
 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
 			my $ifTag = $ifTagList->item($j);
@@ -719,6 +721,9 @@ sub defineVM {
 			my $interface_tag = $init_xml->createElement('interface');
 			$devices_tag->addChild($interface_tag);
 			if ($id eq 0){
+				$mng_if_exists = 1;
+				$mac =~ s/,//;
+				$mng_if_mac = $mac;		
 				$interface_tag->addChild(
 				$init_xml->createAttribute( type => 'network' ) );
 				$interface_tag->addChild(
@@ -1013,6 +1018,31 @@ sub defineVM {
 			$qemucmdline_tag->addChild($qemuarg2_tag);
 			$qemuarg2_tag->addChild( $init_xml->createAttribute( value => "bios-0.10.6.bin" ) );
         }
+		
+		
+		if ($mng_if_exists){		
+		
+				my $qemucommandline_tag = $init_xml->createElement('qemu:commandline');
+				$domain_tag->addChild($qemucommandline_tag);
+				
+				my $qemuarg_tag = $init_xml->createElement('qemu:arg');
+				$qemucommandline_tag->addChild($qemuarg_tag);
+				$qemuarg_tag->addChild( $init_xml->createAttribute( value => "-device" ) );
+				
+				$mng_if_mac =~ s/,//;
+				my $qemuarg_tag2 = $init_xml->createElement('qemu:arg');
+				$qemucommandline_tag->addChild($qemuarg_tag2);
+				$qemuarg_tag2->addChild( $init_xml->createAttribute( value => "rtl8139,vlan=0,macaddr=$mng_if_mac" ) );
+				
+				my $qemuarg_tag3 = $init_xml->createElement('qemu:arg');
+				$qemucommandline_tag->addChild($qemuarg_tag3);
+				$qemuarg_tag3->addChild( $init_xml->createAttribute( value => "-net" ) );
+				
+				my $qemuarg_tag4 = $init_xml->createElement('qemu:arg');
+				$qemucommandline_tag->addChild($qemuarg_tag4);
+				$qemuarg_tag4->addChild( $init_xml->createAttribute( value => "tap,vlan=0,ifname=$vmName-e0,script=no" ) );
+				
+		}
 		     
 #   ############<graphics type='sdl' display=':0.0'/>
 #      my $graphics_tag2 = $init_xml->createElement('graphics');
