@@ -217,7 +217,7 @@ sub start_consoles_from_console_file {
 	    if ($consField[0] eq 'yes') {  # console with display='yes'
 	        open_console ($self, $vmName, $con_id, $consField[1], $consField[2]);
 		} 
-	}	
+	}
 
 }
 
@@ -251,7 +251,7 @@ sub get_admin_address {
    my $hostnum = shift;
    my $vmName = shift;
    my $ip;
-   
+
    my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
    if ($vmmgmt_type eq 'private') {
       if ($seed eq "file"){
