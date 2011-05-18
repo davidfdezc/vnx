@@ -349,6 +349,8 @@ sub defineVM {
         # network <interface> tags
 		my $ifTagList = $virtualm->getElementsByTagName("if");
 		my $numif     = $ifTagList->getLength;
+		my $mng_if_exists = 0;
+		my $mng_if_mac;
 
 		for ( my $j = 0 ; $j < $numif ; $j++ ) {
 			my $ifTag = $ifTagList->item($j);
@@ -359,6 +361,23 @@ sub defineVM {
 			my $interface_tag = $init_xml->createElement('interface');
 			$devices_tag->addChild($interface_tag);
 			if ($id eq 0){
+#				$interface_tag->addChild(
+#				$init_xml->createAttribute( type => 'network' ) );
+#				$interface_tag->addChild(
+#				$init_xml->createAttribute( name => "eth" . $id ) );
+#				$interface_tag->addChild(
+#				$init_xml->createAttribute( onboot => "yes" ) );
+#			    my $source_tag = $init_xml->createElement('source');
+#			    $interface_tag->addChild($source_tag);
+#			    $source_tag->addChild(
+#				$init_xml->createAttribute( network => 'default') );
+#				my $mac_tag = $init_xml->createElement('mac');
+#			    $interface_tag->addChild($mac_tag);
+#			    $mac =~ s/,//;
+#			    $mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+				$mng_if_exists = 1;
+				$mac =~ s/,//;
+				$mng_if_mac = $mac;		
 				$interface_tag->addChild(
 				$init_xml->createAttribute( type => 'network' ) );
 				$interface_tag->addChild(
@@ -463,6 +482,31 @@ sub defineVM {
 		my $target_tag = $init_xml->createElement('target');
 		$serial_tag->addChild($target_tag);
 		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
+
+
+		if ($mng_if_exists){		
+		
+				my $qemucommandline_tag = $init_xml->createElement('qemu:commandline');
+				$domain_tag->addChild($qemucommandline_tag);
+				
+				my $qemuarg_tag = $init_xml->createElement('qemu:arg');
+				$qemucommandline_tag->addChild($qemuarg_tag);
+				$qemuarg_tag->addChild( $init_xml->createAttribute( value => "-device" ) );
+				
+				$mng_if_mac =~ s/,//;
+				my $qemuarg_tag2 = $init_xml->createElement('qemu:arg');
+				$qemucommandline_tag->addChild($qemuarg_tag2);
+				$qemuarg_tag2->addChild( $init_xml->createAttribute( value => "rtl8139,vlan=0,mac=$mng_if_mac" ) );
+				
+				my $qemuarg_tag3 = $init_xml->createElement('qemu:arg');
+				$qemucommandline_tag->addChild($qemuarg_tag3);
+				$qemuarg_tag3->addChild( $init_xml->createAttribute( value => "-net" ) );
+				
+				my $qemuarg_tag4 = $init_xml->createElement('qemu:arg');
+				$qemucommandline_tag->addChild($qemuarg_tag4);
+				$qemuarg_tag4->addChild( $init_xml->createAttribute( value => "tap,vlan=0,ifname=$vmName-e0,script=no" ) );
+				
+		}
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
@@ -702,7 +746,7 @@ sub defineVM {
         	
         }
         
-        # network <interface> tags
+        # network <interface> tags linux
 		my $ifTagList = $virtualm->getElementsByTagName("if");
 		my $numif     = $ifTagList->getLength;
 		my $mng_if_exists = 0;
