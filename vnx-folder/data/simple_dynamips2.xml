@@ -13,7 +13,7 @@ Just one Cisco virtual machine. Use this specification for testing
   <global>
     <version>1.92</version>
     <scenario_name>simple_dynamips2</scenario_name>
-    <automac offset="11"/>
+    <automac offset="12"/>
     <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="44">
        <host_mapping />
     </vm_mgmt> 
@@ -32,8 +32,8 @@ Just one Cisco virtual machine. Use this specification for testing
   	<console id="1" display="yes"/>
 	<if id="0" net="vm_mgnt" name="fa0/0"/>
 	<if id="1" net="Net0" name="fa0/1">
-		<ipv4>10.0.0.11/24</ipv4>
-		<ipv6>2001:db8::11/64</ipv6>
+		<ipv4>10.0.0.12/24</ipv4>
+		<ipv6>2001:db8::12/64</ipv6>
     </if>
     <exec seq="brief"    type="verbatim" mode="telnet" ostype="show">show ip interface brief</exec>
     <exec seq="showcfg"  type="verbatim" mode="telnet" ostype="show">show running-config</exec>

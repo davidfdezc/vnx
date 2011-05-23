@@ -5,10 +5,12 @@ use POSIX;
 use Sys::Syslog;
 use XML::DOM;
 
-my @platform;
-
 use constant LINUX_TTY => '/dev/ttyS1';
 use constant FREEBSD_TTY => '/dev/cuau1';
+
+my @platform;
+my $mountCmd;
+my $umountCmd; 
 
 
 sleep 10;
@@ -24,6 +26,20 @@ sub main{
 	#chomp ($platform = `$command`);
 		
 	@platform = split(/,/, &getOSDistro);
+	
+	if ($platform[0] eq 'Linux'){
+		if ($platform[1] eq 'Ubuntu')    { 
+			$mountCmd = 'mount /media/cdrom';
+			$umountCmd = 'umount /media/cdrom';
+		}			
+		elsif ($platform[1] eq 'Fedora') { 
+			$mountCmd = 'udisks --mount /dev/sr0';
+			$umountCmd = 'udisks --unmount /dev/sr0';			
+		}
+	} elsif ($platform[0] eq 'FreeBSD'){
+		$mountCmd = 'mount /cdrom';
+		$umountCmd = 'umount -f /cdrom';
+	}
 	
 	# if this is the first run...
 	unless (-f "/root/.vnx/LOCK"){
@@ -114,7 +130,8 @@ sub listen {
 		my @files = </media/*>;
 		my $commands_file;
 		sleep 5;
-		system "mount /media/cdrom";
+		#system "mount /media/cdrom";
+		system "$mountCmd";
 		while (1){
 			foreach my $file (@files){
 				my @files2 = <$file/*>;
@@ -159,9 +176,11 @@ sub listen {
 					}
 				}
 			}
-			system "umount /media/cdrom";
+			#system "umount /media/cdrom";
+			system "$umountCmd";
 			sleep 5;
-			system "mount /media/cdrom";
+			#system "mount /media/cdrom";
+			system "$mountCmd";
 		}
 
 	}
@@ -180,7 +199,8 @@ sub listen {
 		# no esta montado el CD-ROM. Si no da errores de otro tipo se podra quitar del todo.
 		#system "umount -f /cdrom";
 		sleep 5;
-		system "mount /cdrom";
+		#system "mount /cdrom";
+		system "$mountCmd";
 		while (1){
 
 			foreach my $file (@files){
@@ -229,9 +249,11 @@ sub listen {
 					}
 				}
 			}
-			system "umount -f /cdrom";
+			#system "umount -f /cdrom";
+			system "$umountCmd";
 			sleep 5;
-			system "mount /cdrom";
+			#system "mount /cdrom";
+			system "$mountCmd";
 		}
 	}
 }

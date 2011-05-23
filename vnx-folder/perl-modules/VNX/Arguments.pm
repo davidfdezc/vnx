@@ -1,6 +1,6 @@
 # Arguments.pm
 #
-# This file is a module part of VNUML package.
+# This file is a module part of VNX package.
 #
 # Author: Fermin Galan Marquez (galan@dit.upm.es)
 # Copyright (C) 2005, 	DIT-UPM

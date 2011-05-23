@@ -1,6 +1,6 @@
 # BinariesData.pm
 #
-# This file is a module part of VNUML package.
+# This file is a module part of VNX package.
 #
 # Author: Fermin Galan Marquez (galan@dit.upm.es)
 # Copyright (C) 2005, 	DIT-UPM
@@ -25,7 +25,7 @@
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 
 # BinariesData class implementation. Contain the data related with the binary commands
-# needed by the VNUML parser.
+# needed by the VNX parser.
 
 package VNX::BinariesData;
 
@@ -64,7 +64,7 @@ sub new {
    
    # List of optional binaries for xterm, vlan, screen and
    # uml_switch (defaults are empty: the add_additional_*_binaries 
-   # methods add required binaries, based on the VNUML specification
+   # methods add required binaries, based on the VNX specification
    my @binaries_xterm = ();
    my @binaries_vlan = ();
    my @binaries_screen = ();
@@ -92,7 +92,7 @@ sub new {
 # add_additional_xterm_binaries
 #
 # Arguments:
-#	- The DataHandler object describin the VNUML XML specification
+#	- The DataHandler object describin the VNX XML specification
 #
 sub add_additional_xterm_binaries {
 	my $self = shift;
@@ -172,7 +172,7 @@ sub add_additional_xterm_binaries {
 # add_additional_vlan_binaries
 #
 # Arguments:
-#	- The DataHandler object describing the VNUML XML specification
+#	- The DataHandler object describing the VNX XML specification
 #
 sub add_additional_vlan_binaries {
    my $self = shift;
@@ -189,7 +189,7 @@ sub add_additional_vlan_binaries {
 # add_additional_screen_binaries
 #
 # Arguments:
-#	- The DataHandler object describing the VNUML XML specification
+#	- The DataHandler object describing the VNX XML specification
 #
 sub add_additional_screen_binaries {
    my $self = shift;
@@ -214,7 +214,7 @@ sub add_additional_screen_binaries {
 # add_additional_uml_switch_binaries
 #
 # Arguments:
-#	- The DataHandler object describing the VNUML XML specification
+#	- The DataHandler object describing the VNX XML specification
 #
 sub add_additional_uml_switch_binaries {
    my $self = shift;
@@ -241,7 +241,7 @@ sub add_additional_uml_switch_binaries {
 # add_additional_bridge_binaries
 #
 # Arguments:
-#	- The DataHandler object describing the VNUML XML specification
+#	- The DataHandler object describing the VNX XML specification
 #
 sub add_additional_bridge_binaries {
    my $self = shift;
@@ -322,7 +322,7 @@ sub get_binaries_path_ref {
 
 # check_binaries
 #
-# Check if the binaries needed for VNUML operation are available.
+# Check if the binaries needed for VNX operation are available.
 # First argument is the list of binaries to check. Return the
 # number of unchecked binaries (0 if all the binaries were found).
 #
