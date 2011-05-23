@@ -21,7 +21,7 @@ commit
   <global>
     <version>1.92</version>
     <scenario_name>simple_olive</scenario_name>
-    <automac offset="12"/>
+    <automac offset="13"/>
     <vm_mgmt type="none" />
   </global>
     
@@ -32,12 +32,12 @@ commit
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_olive</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0" name="fxp0">
-      <ipv4>10.0.0.12/24</ipv4>
-      <ipv6>2001:db8::11/64</ipv6>
+      <ipv4>10.0.0.13/24</ipv4>
+      <ipv6>2001:db8::13/64</ipv6>
     </if>
     <if id="2" net="Net0" name="fxp1">
-      <ipv4>10.0.0.13/24</ipv4>
-      <ipv6>2001:db8::12/64</ipv6>
+      <ipv4>10.0.0.14/24</ipv4>
+      <ipv6>2001:db8::14/64</ipv6>
     </if>
     <route type="ipv4" gw="10.0.0.1">default</route>
   	<route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
