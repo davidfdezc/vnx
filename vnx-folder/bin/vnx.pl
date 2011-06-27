@@ -1288,12 +1288,18 @@ sub mode_showmap {
 	$execution->execute("vnx2dot ${input_file} > ${scedir}/${scename}.dot");
    	$execution->execute("neato -Tpng -o${scedir}/${scename}.png ${scedir}/${scename}.dot");
    
-   	my $gnome=`w -sh | grep gnome-session`;
-   	my $viewapp;
-   	if ($gnome ne "") { $viewapp="gnome-open" }
-                else { $viewapp="xdg-open" }
+   
+    # Read png_viewer variable from config file to see if the user has 
+    # specified a viewer
+	my $pngViewer = &get_conf_value ($vnxConfigFile, 'general', "png_viewer");
+	# If not defined use default values
+    if (!defined $pngViewer) { 
+   		my $gnome=`w -sh | grep gnome-session`;
+   		if ($gnome ne "") { $pngViewer="gnome-open" }
+        	         else { $pngViewer="xdg-open" }
+    }
    	#$execution->execute("eog ${scedir}/${scename}.png");
-   	$execution->execute("$viewapp ${scedir}/${scename}.png &");
+   	$execution->execute("$pngViewer ${scedir}/${scename}.png &");
 
 }
 
@@ -2093,7 +2099,7 @@ sub start_VMs {
       # search for <on_boot> tag and if found then process it
       my $on_boot; 
       eval {$on_boot = $vm->getElementsByTagName("on_boot")->item(0)->getFirstChild->getData};
-	  if ($on_boot eq 'no'){
+	  if ( (defined $on_boot) and ($on_boot eq 'no')) {
 	  		# do not start vm unless specified in -M
       		unless ( (defined $opt_M) && ($opt_M =~ /^$name,|,$name,|,$name$|^$name$/) ) {
 				next;
@@ -4136,7 +4142,6 @@ sub make_vm_API_doc {
    	}
    	
    	# conf tag
-	print "***  antes de conf \n";
    	my $conf;
    	my $conf_list = $vm->getElementsByTagName("conf");
    	if ($conf_list->getLength == 1) {
