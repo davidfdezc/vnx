@@ -26,10 +26,41 @@
 #
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 
+MNTDIR=/mnt
 VNXBOOT=$1
 
 alias ExeSetCmd='{ echo "configure"; echo "$CMD"; echo "commit check"; echo "commit"; echo "exit"; } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp; cat /var/tmp/cmdoutput.tmp' 
 
+# Execute cli for the first time to avoid a "Retry connection ..." question
+# which is asked the first time
+CLIREADY=`echo "" | /usr/sbin/cli`
+echo $CLIREADY
+
+# First, we process the <conf> tag if it exists and we load the associated 
+# configuration file. We do it in this order to give preference to the configuration
+# values (name, ip address, etc) specified in the VNX XML scenario description. 
+
+CONFFILE=`cat $VNXBOOT | grep '<conf>' | sed -e 's/.*<conf>//' -e 's/<\/conf>.*//'`
+if [ "$CONFFILE" != "" ]
+then
+	CONFFILE=`basename $CONFFILE`
+    echo "** Processing <conf> tag"
+    echo "**   Loading $CONFFILE configuration..."
+	CMD="load override $MNTDIR/$CONFFILE"
+	{   echo "configure"
+	    echo "$CMD"
+	    echo "commit check"
+	    echo "commit"
+	    echo "exit"
+	} | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
+	cat /var/tmp/cmdoutput.tmp
+else
+    echo "** No <conf> tag found"
+fi
+
+#
+# Then, we process the rest of vnxboot.xml file
+#
 count=0
 ifcount=0
 routecount=0

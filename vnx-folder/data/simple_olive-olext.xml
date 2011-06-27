@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<vnx_olive xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/olive-0.1.xsd"> 
+
+  <vm name="juniper">
+     <conf>conf/juniper.conf</conf>
+  </vm>
+
+</vnx_olive>

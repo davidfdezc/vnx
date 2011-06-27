@@ -2,10 +2,13 @@
 
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
   
-  <xs:element name="dynamips_conf">
+  <!--xs:element name="dynamips_conf">
+    <xs:complexType mixed="true" />
+  </xs:element-->
+  <xs:element name="dynamips_ext">
     <xs:complexType mixed="true" />
   </xs:element>
-  <xs:element name="dynamips_ext">
+  <xs:element name="olive_ext">
     <xs:complexType mixed="true" />
   </xs:element>
   <xs:element name="automac">
@@ -19,6 +22,10 @@
   </xs:element>
 
   <xs:element name="bw">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="conf">
     <xs:complexType mixed="true" />
   </xs:element>
 
@@ -137,7 +144,8 @@
         <xs:element ref="tun_device" minOccurs="0" />
         <xs:element ref="vm_defaults" minOccurs="0" />
         <xs:element ref="extension" minOccurs="0" maxOccurs="unbounded" />
-        <xs:element ref="dynamips_ext" minOccurs="0" />
+        <xs:element ref="dynamips_ext" minOccurs="0" maxOccurs="1"/>
+        <xs:element ref="olive_ext" minOccurs="0" maxOccurs="1"/>
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -378,12 +386,13 @@
     <xs:complexType>
       <xs:sequence>
         <xs:element ref="filesystem" minOccurs="0" />
-        <xs:element ref="dynamips_conf" minOccurs="0" />
+        <!--xs:element ref="dynamips_conf" minOccurs="0" /-->
         <xs:element ref="mem" minOccurs="0" />
-        <xs:element ref="kernel" minOccurs="0" />
-        <xs:element ref="shell" minOccurs="0" />
+        <xs:element ref="kernel"  minOccurs="0" />
+        <xs:element ref="conf"    minOccurs="0" />
+        <xs:element ref="shell"   minOccurs="0" />
         <xs:element ref="basedir" minOccurs="0" />
-        <xs:element ref="mng_if" minOccurs="0" />
+        <xs:element ref="mng_if"  minOccurs="0" />
         <xs:element ref="console" minOccurs="0" maxOccurs="unbounded" />
         <xs:element ref="on_boot" minOccurs="0" />
         <!--xs:element ref="display_console" minOccurs="0" /-->

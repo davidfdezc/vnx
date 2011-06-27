@@ -114,6 +114,8 @@ sub defineVM {
 	my $counter = shift;
 	
 	my $error = 0;
+	my $extConfFile;
+	
 
 	my $doc2       = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
@@ -205,6 +207,18 @@ sub defineVM {
 		}
 	}
 
+	#
+	# Read extended configuration files
+	#
+	if ( $type eq "libvirt-kvm-olive" ) {
+		# Get the extended configuration file if it exists
+		$extConfFile = $dh->get_default_olive();
+		#print "*** oliveconf=$extConfFile\n";
+		if ($extConfFile ne "0"){
+			$extConfFile = &get_abs_path ($extConfFile);
+		}
+	}
+
 
 	###################################################################
 	#                  defineVM for libvirt-kvm-windows               #
@@ -280,6 +294,8 @@ sub defineVM {
 		my $type_tag = $init_xml->createElement('type');
 		$os_tag->addChild($type_tag);
 		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
+        # DFC 23/6/2011: Added machine attribute to avoid a problem in CentOS hosts
+		$type_tag->addChild( $init_xml->createAttribute( machine => "pc" ) );
 		$type_tag->addChild( $init_xml->createTextNode("hvm") );
 		my $boot1_tag = $init_xml->createElement('boot');
 		$os_tag->addChild($boot1_tag);
@@ -361,20 +377,6 @@ sub defineVM {
 			my $interface_tag = $init_xml->createElement('interface');
 			$devices_tag->addChild($interface_tag);
 			if ($id eq 0){
-#				$interface_tag->addChild(
-#				$init_xml->createAttribute( type => 'network' ) );
-#				$interface_tag->addChild(
-#				$init_xml->createAttribute( name => "eth" . $id ) );
-#				$interface_tag->addChild(
-#				$init_xml->createAttribute( onboot => "yes" ) );
-#			    my $source_tag = $init_xml->createElement('source');
-#			    $interface_tag->addChild($source_tag);
-#			    $source_tag->addChild(
-#				$init_xml->createAttribute( network => 'default') );
-#				my $mac_tag = $init_xml->createElement('mac');
-#			    $interface_tag->addChild($mac_tag);
-#			    $mac =~ s/,//;
-#			    $mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
 				$mng_if_exists = 1;
 				$mac =~ s/,//;
 				$mng_if_mac = $mac;		
@@ -508,7 +510,6 @@ sub defineVM {
 				
 		}
 
-		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -593,6 +594,14 @@ sub defineVM {
 		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 
+		# conf tag
+		my $confFile = '';
+		my $confTagList = $virtualm->getElementsByTagName("conf");
+        if ($confTagList->getLength == 1) {
+			$confFile = $confTagList->item(0)->getFirstChild->getData;
+			print "****    confFile = $confFile\n";
+        }
+
 		# create XML for libvirt
 		my $init_xml;
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
@@ -636,6 +645,8 @@ sub defineVM {
 		my $type_tag = $init_xml->createElement('type');
 		$os_tag->addChild($type_tag);
 		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
+		# DFC 23/6/2011: Added machine attribute to avoid a problem in CentOS hosts
+		$type_tag->addChild( $init_xml->createAttribute( machine => "pc" ) );
 		$type_tag->addChild( $init_xml->createTextNode("hvm") );
 		my $boot1_tag = $init_xml->createElement('boot');
 		$os_tag->addChild($boot1_tag);
@@ -726,6 +737,11 @@ sub defineVM {
 			$execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $vmmnt_dir );
 			# Copy autoconfiguration (vnxboot.xml) file to shared disk
 			$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $path/vnxboot $vmmnt_dir/vnxboot.xml" );
+			# Copy initial router configuration if defined in extended config file
+			print "****    confFile = $confFile\n";
+			if ($confFile ne '') {
+				$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $confFile $vmmnt_dir/" );
+			}
 			$execution->execute(
 				$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
 			# Dismount shared disk
@@ -1098,7 +1114,6 @@ sub defineVM {
 #   ############
 
 		# We connect with libvirt to define the virtual machine
-		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -3932,6 +3947,70 @@ sub merge_vm_type {
 	return $merged_type;
 	
 }
+
+#
+# Get the value of a simple tag in extended configuration file
+# 
+# Returns the value of the parameter or the default value if not found 
+# 
+sub get_simple_conf {
+
+	my $extConfFile = shift;
+	my $vmName      = shift;
+	my $tagName     = shift;
+	
+	my $global_tag = 1;
+	my $result;
+	
+	#if     ($tagName eq 'sparsemem') { $result = 'true'; }
+	#elsif  ($tagName eq 'ghostios')  { $result = 'false'; }
+	#elsif  ($tagName eq 'npe')       { $result = '200'; }
+	#elsif  ($tagName eq 'chassis')   { $result = '3640'; }
+		
+	# If the extended config file is not defined, return default value 
+	if ($extConfFile eq '0'){
+		return "$result\n";
+	}
+	
+	# Parse the extended config file
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($extConfFile);
+	my $globalNode   = $dom->getElementsByTagName("vnx_olive")->item(0);
+	my $virtualmList = $globalNode->getElementsByTagName("vm");
+			
+	# First, we look for a definition in the $vmName <vm> section 
+	for ( my $j = 0 ; $j < $virtualmList->getLength ; $j++ ) {
+	 	# We get name attribute
+	 	my $virtualm = $virtualmList->item($j);
+		my $name = $virtualm->getAttribute("name");
+		if ( $name eq $vmName ) {
+			my $tag_list = $virtualm->getElementsByTagName("$tagName");
+			if ($tag_list->getLength gt 0){
+				my $tag = $tag_list->item(0);
+				$result = &text_tag($tag);
+	 			$global_tag = 0;
+	                        print "*** vmName = $name, specific entry found ($result)\n";
+			}
+			last;
+		}
+	}
+	# Then, if a virtual machine specific definition was not found, 
+	# have a look in the <global> section
+	if ($global_tag eq 1){
+		my $globalList = $globalNode->getElementsByTagName("global");
+		if ($globalList->getLength gt 0){
+			my $globaltag = $globalList->item(0);
+			my $tag_gl_list = $globaltag->getElementsByTagName("$tagName");
+			if ($tag_gl_list->getLength gt 0){
+				my $tag_gl = $tag_gl_list->item(0);
+				$result = &text_tag($tag_gl);
+                print "*** vmName = $vmName, global entry found ($result)\n";
+			}
+		}	
+	}
+	return $result;
+}
+
 
 sub para {
 	my $mensaje = shift;

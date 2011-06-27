@@ -192,6 +192,7 @@ sub new {
    else {
  	  $global_data{'host_mapping'} = 0;             # by default, management addresses are not mapped in /etc/hosts
    }
+
    # Dynamips mapping
    my $dynamipsmapping_list = $self->{'doc'}->getElementsByTagName("dynamips_ext");
    if ($dynamipsmapping_list->getLength == 1) {
@@ -199,6 +200,15 @@ sub new {
    }
    else {
  	  $global_data{'dynamips_ext'} = 0;             
+   }
+   
+   # Olive mapping
+   my $olivemapping_list = $self->{'doc'}->getElementsByTagName("olive_ext");
+   if ($olivemapping_list->getLength == 1) {
+      $global_data{'olive_ext'} =  &text_tag($olivemapping_list->item(0));
+   }
+   else {
+ 	  $global_data{'olive_ext'} = 0;             
    }
 
    # Network configuration options, if <netconfig> is present
@@ -572,6 +582,7 @@ sub get_default_xterm {
    my $self = shift;
    return $self->{'global_data'}->{'default_xterm'};
 }
+
 # get_default_dynamips
 #
 # Return the default dynamips
@@ -581,6 +592,14 @@ sub get_default_dynamips {
    return $self->{'global_data'}->{'dynamips_ext'};
 }
 
+# get_default_olive
+#
+# Return the default olive
+#
+sub get_default_olive {
+   my $self = shift;
+   return $self->{'global_data'}->{'olive_ext'};
+}
 
 # get_default_forwarding_type
 #
