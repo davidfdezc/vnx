@@ -1390,12 +1390,15 @@ sub startVM {
 				print "Domain started\n" if ($exemode == $EXE_VERBOSE);
 
 				# save pid in run dir
+				print "*** Before calling get_uuid_string\n";
 				my $uuid = $listDom->get_uuid_string();
+				print "*** After calling get_uuid_string\n";
 				$execution->execute( "ps aux | grep kvm | grep " 
 					  . $uuid
 					  . " | grep -v grep | awk '{print \$2}' > "
 					  . $dh->get_run_dir($vmName)
 					  . "/pid" );
+				print "*** After calling ps\n";
 				
 				#		
 			    # Console management
@@ -1410,7 +1413,16 @@ sub startVM {
 				if ($type ne "libvirt-kvm-olive" ) { # Olive routers do not have graphical consoles
 					# TODO: use $execution->execute
 					my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system vncdisplay $vmName";
+				print "*** Before calling vncdisplay: $cmd\n";
 			       	my $vncDisplay=`$cmd`;
+				print "*** Resultado: $vncDisplay\n";
+			       	while ($vncDisplay eq '') {
+					    &para ("vncdisplay fallo, repetimos llamada: $cmd");
+			       		sleep 2;
+			       		$vncDisplay=`$cmd`;
+				print "*** Resultado: $vncDisplay\n";
+			       	}
+			       	
 			       	$vncDisplay =~ s/\s+$//;    # Delete linefeed at the end		
 					$execution->execute ($bd->get_binaries_path_ref->{"sed"}." -i -e 's/UNK_VNC_DISPLAY/$vncDisplay/' $consFile");
 					#print "****** sed -i -e 's/UNK_VNC_DISPLAY/$vncDisplay/' $consFile\n";
