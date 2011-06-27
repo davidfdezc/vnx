@@ -695,6 +695,15 @@ sub main {
 	        &vnx_die ("Dynamips XML configuration file ($dmipsConfFile) validation failed:\n$error\n");
 		}
 	}
+	# Olive
+	my $oliveConfFile = $dh->get_default_olive();
+	if ($oliveConfFile ne "0"){
+		$oliveConfFile = get_abs_path ($oliveConfFile);
+		my $error = validate_xml ($oliveConfFile);
+		if ( $error ) {
+	        &vnx_die ("Olive XML configuration file ($oliveConfFile) validation failed:\n$error\n");
+		}
+	}
 
    	# 6b (delayed because it required the $dh object constructed)
    	# To check optional screen binaries
@@ -4125,7 +4134,21 @@ sub make_vm_API_doc {
       	# include a 'default' in dom tree
       	$kernel_tag->addChild($dom->createTextNode('default'));
    	}
-
+   	
+   	# conf tag
+	print "***  antes de conf \n";
+   	my $conf;
+   	my $conf_list = $vm->getElementsByTagName("conf");
+   	if ($conf_list->getLength == 1) {
+		# get config file from the <conf> tag
+      	$conf = &get_abs_path ( &text_tag($conf_list->item(0)) );
+   		print "***  conf=$conf\n";
+	   	# create <conf> tag in dom tree
+		my $conf_tag = $dom->createElement('conf');
+	   	$vm_tag->addChild($conf_tag);
+	   	$conf_tag->addChild($dom->createTextNode($conf));
+   	}
+   
    	# Add console tags
    	# Get the array of consoles for that VM
    	my @console_list = $dh->merge_console($vm);

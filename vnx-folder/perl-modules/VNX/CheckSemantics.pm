@@ -162,6 +162,8 @@ sub validate_xml {
 #   - <vm> and <net> names max of $max_name_length characters
 #   - <vm> and <net> 'name' attribute and does not have any whitespace
 # 
+#   - Check that files specified in <conf> tag exist and are readable
+
 # The functions returns error string describing problem or 1 if all is right
 #
 
@@ -1075,6 +1077,15 @@ sub check_doc {
 		   	}
 		}
 	}
+	
+	# Check that files specified in <conf> tag exist and are readable
+    my $conf_list = $doc->getElementsByTagName("conf");
+    for ( my $i = 0 ; $i < $conf_list->getLength; $i++) {
+       my $conf = $conf_list->item(0);
+       $conf = &get_abs_path (&text_tag($conf));
+       # <conf> are valid, readable/executable files
+       return "$conf (conf) does not exist or is not readable/executable (user $uid_name)" unless (-r $conf);
+    }
 	
    	return 0;
 

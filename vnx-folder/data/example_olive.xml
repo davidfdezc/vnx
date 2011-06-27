@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+example_olive scenario
+
+Three Juniper olive virtual routers in a triangle topology with three Ubuntu hosts 
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.97.xsd">
+  <global>
+    <version>1.92</version>
+    <scenario_name>example_olive</scenario_name>
+    <automac offset="0"/>
+    <vm_mgmt type="none" />
+    <vm_defaults>
+            <console id="0" display="no"/>
+            <console id="1" display="yes"/>
+    </vm_defaults>
+    <!--olive_ext>simple_olive-olext.xml</olive_ext-->
+  </global>
+    
+  <net name="Lan1" mode="virtual_bridge" />
+  <net name="Lan2" mode="virtual_bridge" />
+  <net name="Lan3" mode="virtual_bridge" />
+  <net name="ptp12" mode="virtual_bridge" />
+  <net name="ptp13" mode="virtual_bridge" />
+  <net name="ptp23" mode="virtual_bridge" />
+      
+  <!-- NODES -->
+  <vm name="r1" type="libvirt" subtype="kvm" os="olive">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_olive</filesystem>
+    <mem>256M</mem>
+    <conf>conf/example_olive/r1.conf</conf>
+    <if id="1" net="Lan1" name="fxp0">
+      <ipv4>10.0.1.1/24</ipv4>
+      <ipv6>2001:db8:1::1/64</ipv6>
+    </if>
+    <if id="2" net="ptp12" name="fxp1">
+      <ipv4>10.0.0.1/30</ipv4>
+      <ipv6>2001:db8:12::1/64</ipv6>
+    </if>
+    <if id="3" net="ptp13" name="fxp2">
+      <ipv4>10.0.0.9/30</ipv4>
+      <ipv6>2001:db8:13::1/64</ipv6>
+    </if>
+  </vm>
+
+  <vm name="r2" type="libvirt" subtype="kvm" os="olive">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_olive</filesystem>
+    <mem>256M</mem>
+    <conf>conf/example_olive/r2.conf</conf>
+    <if id="1" net="Lan2" name="fxp0">
+      <ipv4>10.0.2.1/24</ipv4>
+      <ipv6>2001:db8:2::1/64</ipv6>
+    </if>
+    <if id="2" net="ptp12" name="fxp1">
+      <ipv4>10.0.0.2/30</ipv4>
+      <ipv6>2001:db8:12::2/64</ipv6>
+    </if>
+    <if id="3" net="ptp23" name="fxp2">
+      <ipv4>10.0.0.5/30</ipv4>
+      <ipv6>2001:db8:23::1/64</ipv6>
+    </if>
+  </vm>
+
+  <vm name="r3" type="libvirt" subtype="kvm" os="olive">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_olive</filesystem>
+    <mem>256M</mem>
+    <conf>conf/example_olive/r3.conf</conf>
+    <if id="1" net="Lan3" name="fxp0">
+      <ipv4>10.0.3.1/24</ipv4>
+      <ipv6>2001:db8:3::1/64</ipv6>
+    </if>
+    <if id="2" net="ptp13" name="fxp1">
+      <ipv4>10.0.0.10/30</ipv4>
+      <ipv6>2001:db8:12::2/64</ipv6>
+    </if>
+    <if id="3" net="ptp23" name="fxp2">
+      <ipv4>10.0.0.6/30</ipv4>
+      <ipv6>2001:db8:13::2/64</ipv6>
+    </if>
+  </vm>
+
+  <vm name="h1" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Lan1">
+      <ipv4>10.0.1.2/24</ipv4>
+      <ipv6>2001:db8:1::2/64</ipv6>
+    </if>
+  </vm>
+
+  <vm name="h2" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Lan2">
+      <ipv4>10.0.2.2/24</ipv4>
+      <ipv6>2001:db8:2::2/64</ipv6>
+    </if>
+  </vm>
+
+  <vm name="h3" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Lan3">
+      <ipv4>10.0.3.2/24</ipv4>
+      <ipv6>2001:db8:3::2/64</ipv6>
+    </if>
+  </vm>
+
+  <host>
+    <hostif net="Lan1">
+       <ipv4>10.0.1.3/24</ipv4>
+       <ipv6>2001:db8:1::3/64</ipv6>
+    </hostif>
+  </host>
+  
+</vnx>

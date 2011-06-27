@@ -54,7 +54,7 @@ our @EXPORT = qw(
   );
 
   
-use feature qw(switch);
+#use feature qw(switch);
 use XML::LibXML;
 use XML::DOM;
 #use XML::DOM::ValParser;
@@ -1306,12 +1306,20 @@ sub get_simple_conf {
 	my $result;
 	
 	# Set default value
-	given ($tagName) {
-	    when ('sparsemem') { $result = 'true'; }
-	    when ('ghostios')  { $result = 'false'; }
-	    when ('npe')       { $result = '200'; }
-	    when ('chassis')   { $result = '3640'; }
-	}
+# DFC: Changed to make the code compatible with perl 5.8. 
+#	given ($tagName) {
+#	    when ('sparsemem') { $result = 'true'; }
+#	    when ('ghostios')  { $result = 'false'; }
+#	    when ('npe')       { $result = '200'; }
+#	    when ('chassis')   { $result = '3640'; }
+#	}
+
+	if     ($tagName eq 'sparsemem') { $result = 'true'; }
+	elsif  ($tagName eq 'ghostios')  { $result = 'false'; }
+	elsif  ($tagName eq 'npe')       { $result = '200'; }
+	elsif  ($tagName eq 'chassis')   { $result = '3640'; }
+
+
 		
 	# If the extended config file is not defined, return default value 
 	if ($extConfFile eq '0'){

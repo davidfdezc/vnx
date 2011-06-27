@@ -17,12 +17,13 @@ commit
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.96.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.97.xsd">
   <global>
     <version>1.92</version>
     <scenario_name>simple_olive</scenario_name>
     <automac offset="13"/>
     <vm_mgmt type="none" />
+    <olive_ext>simple_olive-olext.xml</olive_ext>
   </global>
     
   <net name="Net0" mode="virtual_bridge" />
@@ -31,6 +32,7 @@ commit
   <vm name="juniper" type="libvirt" subtype="kvm" os="olive">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_olive</filesystem>
     <mem>256M</mem>
+    <conf>conf/juniper.conf</conf>
     <if id="1" net="Net0" name="fxp0">
       <ipv4>10.0.0.13/24</ipv4>
       <ipv6>2001:db8::13/64</ipv6>
