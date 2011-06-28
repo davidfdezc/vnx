@@ -122,6 +122,7 @@ sub defineVM {
 
 	my $path;
 	my $filesystem;
+	my $con;
 
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 
@@ -511,7 +512,7 @@ sub defineVM {
 		}
 
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		##my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -532,7 +533,7 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 				$error = "Domain $vmName already defined\n";
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
@@ -541,12 +542,12 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 				$error = "Domain $vmName already defined and started\n";
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		my $domain = $con->define_domain($xmlstring);
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 
 		return $error;
 
@@ -1117,7 +1118,7 @@ sub defineVM {
 
 		# We connect with libvirt to define the virtual machine
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1139,7 +1140,7 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 				$error = "Domain $vmName already defined\n";
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
@@ -1148,12 +1149,12 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 				$error = "Domain $vmName already defined and started\n";
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		my $domain = $con->define_domain($xmlstring);
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		
 		return $error;
 
@@ -1183,6 +1184,7 @@ sub undefineVM {
 	my $type   = shift;
 
 	my $error;
+	my $con;
 
 
 	###################################################################
@@ -1193,7 +1195,7 @@ sub undefineVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1206,12 +1208,12 @@ sub undefineVM {
 				$listDom->undefine();
 				print "Domain undefined.\n" if ($exemode == $EXE_VERBOSE);
 				$error = 0;
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain $vmName does not exist.\n";
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 	}
 
@@ -1241,6 +1243,8 @@ sub destroyVM {
 #	$dh        = shift;
 
 	my $error = 0;
+	my $con;
+	
 	
 	###################################################################
 	#                  destroyVM for libvirt-kvm-windows/linux/freebsd#
@@ -1250,7 +1254,7 @@ sub destroyVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1272,7 +1276,7 @@ sub destroyVM {
 
 		# Remove vm fs directory (cow and iso filesystems)
 		$execution->execute( "rm " . $dh->get_fs_dir($vmName) . "/*" );
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1306,6 +1310,7 @@ sub startVM {
 	my $no_consoles = shift;
 
 	my $error;
+	my $con;
 	
 	#print "**********  STARTVM *****************\n";
 	
@@ -1381,7 +1386,7 @@ sub startVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1417,9 +1422,10 @@ sub startVM {
 					my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system vncdisplay $vmName";
 			       	my $vncDisplay=`$cmd`;
 			       	if ($vncDisplay eq '') { # wait and repeat command again
+			       		print "*** command $cmd failed. Retrying...\n";
 			       		sleep 2;
 			       		$vncDisplay=`$cmd`;
-			       		if ($cmd eq '') {execution->smartdie ("Cannot get display for $vmName. Error executing command: $cmd")}
+			       		if ($vncDisplay eq '') {execution->smartdie ("Cannot get display for $vmName. Error executing command: $cmd")}
 			       	}
 			       	
 			       	$vncDisplay =~ s/\s+$//;    # Delete linefeed at the end		
@@ -1436,6 +1442,12 @@ sub startVM {
 					    if ($consField[1] eq 'libvirt_pts') {
 			        		my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system ttyconsole $vmName";
 			           		my $ptsDev=`$cmd`;
+					       	if ($ptsDev eq '') { # wait and repeat command again
+					       		print "*** command $cmd failed. Retrying...\n";
+					       		sleep 2;
+					       		$ptsDev=`$cmd`;
+					       		if ($ptsDev eq '') {execution->smartdie ("Cannot get pts device for $vmName. Error executing command: $cmd")}
+					       	}
 			           		$ptsDev =~ s/\s+$//;    # Delete linefeed at the end		
 							$execution->execute ($bd->get_binaries_path_ref->{"sed"}." -i -e 's#UNK_PTS_DEV#$ptsDev#' $consFile");
 					    }
@@ -1499,12 +1511,12 @@ sub startVM {
 				}
 
 				$error = 0;
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist\n";
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1532,6 +1544,7 @@ sub shutdownVM {
 	my $F_flag = shift; # Not used here, only in vmAPI_uml
 
 	my $error = 0;
+	my $con;
 
 	# Sample code
 	print "Shutting down vm $vmName of type $type\n" if ($exemode == $EXE_VERBOSE);
@@ -1544,7 +1557,7 @@ sub shutdownVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1562,12 +1575,12 @@ sub shutdownVM {
 				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) . "/*" );
 
 				print "Domain shutdown\n" if ($exemode == $EXE_VERBOSE);
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist..\n";
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1593,12 +1606,9 @@ sub saveVM {
 	my $vmName   = shift;
 	my $type     = shift;
 	my $filename = shift;
-#	$dh        = shift;
-#	$bd        = shift;
-#	$execution = shift;
-	
 
 	my $error = 0;
+	my $con;
 
 	# Sample code
 	print "dummy plugin: saving vm $vmName of type $type\n" if ($exemode == $EXE_VERBOSE);
@@ -1607,7 +1617,7 @@ sub saveVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1621,12 +1631,12 @@ sub saveVM {
 				print "Domain saved to file $filename\n" if ($exemode == $EXE_VERBOSE);
 				#&change_vm_status( $dh, $vmName, "paused" );
 				&change_vm_status( $vmName, "paused" );
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist..\n";
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1638,7 +1648,7 @@ sub saveVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1652,12 +1662,12 @@ sub saveVM {
 				print "Domain saved to file $filename\n" if ($exemode == $EXE_VERBOSE);
 				#&change_vm_status( $dh, $vmName, "paused" );
 				&change_vm_status( $vmName, "paused" );
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist...\n";
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1685,6 +1695,7 @@ sub restoreVM {
 	my $filename = shift;
 
 	my $error = 0;
+	my $con;
 
 	print
 	  "dummy plugin: restoring vm $vmName of type $type from file $filename\n";
@@ -1698,7 +1709,7 @@ sub restoreVM {
 	    
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1707,7 +1718,7 @@ sub restoreVM {
 		print("Domain restored from file $filename\n");
 		#&change_vm_status( $dh, $vmName, "running" );
 		&change_vm_status( $vmName, "running" );
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1734,6 +1745,7 @@ sub suspendVM {
 	my $type   = shift;
 
 	my $error = 0;
+	my $con;
 
 	###################################################################
 	#                  suspendVM for libvirt-kvm-windows/linux/freebsd#
@@ -1743,7 +1755,7 @@ sub suspendVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1755,12 +1767,12 @@ sub suspendVM {
 			if ( $dom_name eq $vmName ) {
 				$listDom->suspend();
 				print "Domain suspended\n" if ($exemode == $EXE_VERBOSE);
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist.\n";
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1787,6 +1799,7 @@ sub resumeVM {
 	my $type   = shift;
 
 	my $error = 0;
+	my $con;
 
 	# Sample code
 	print "dummy plugin: resuming vm $vmName\n" if ($exemode == $EXE_VERBOSE);
@@ -1799,7 +1812,7 @@ sub resumeVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1811,12 +1824,12 @@ sub resumeVM {
 			if ( $dom_name eq $vmName ) {
 				$listDom->resume();
 				print "Domain resumed\n" if ($exemode == $EXE_VERBOSE);
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist.\n";
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1843,6 +1856,7 @@ sub rebootVM {
 	my $type   = shift;
 
 	my $error = 0;
+	my $con;
 
 	###################################################################
 	#                  rebootVM for libvirt-kvm-windows/linux/freebsd #
@@ -1852,7 +1866,7 @@ sub rebootVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1864,12 +1878,12 @@ sub rebootVM {
 			if ( $dom_name eq $vmName ) {
 				$listDom->reboot(&Sys::Virt::Domain::REBOOT_RESTART);
 				print "Domain rebooting\n" if ($exemode == $EXE_VERBOSE);
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist\n";
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1897,6 +1911,7 @@ sub resetVM {
 	my $type   = shift;
 
 	my $error;
+	my $con;
 
 	# Sample code
 	print "dummy plugin: reseting vm $vmName\n" if ($exemode == $EXE_VERBOSE);
@@ -1909,7 +1924,7 @@ sub resetVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		my $con;
+		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1922,12 +1937,12 @@ sub resetVM {
 				$listDom->reboot(&Sys::Virt::Domain::REBOOT_DESTROY);
 				print "Domain reset" if ($exemode == $EXE_VERBOSE);
 				$error = 0;
-				undef ($con);
+				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist\n";
-		undef ($con);
+		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}else {
