@@ -532,6 +532,7 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 				$error = "Domain $vmName already defined\n";
+				undef ($con);
 				return $error;
 			}
 		}
@@ -540,11 +541,12 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 				$error = "Domain $vmName already defined and started\n";
+				undef ($con);
 				return $error;
 			}
 		}
-		
 		my $domain = $con->define_domain($xmlstring);
+		undef ($con);
 
 		return $error;
 
@@ -1137,6 +1139,7 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 				$error = "Domain $vmName already defined\n";
+				undef ($con);
 				return $error;
 			}
 		}
@@ -1145,12 +1148,13 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vmName ) {
 				$error = "Domain $vmName already defined and started\n";
+				undef ($con);
 				return $error;
 			}
 		}
-		
 		my $domain = $con->define_domain($xmlstring);
-
+		undef ($con);
+		
 		return $error;
 
 	}
@@ -1202,12 +1206,13 @@ sub undefineVM {
 				$listDom->undefine();
 				print "Domain undefined.\n" if ($exemode == $EXE_VERBOSE);
 				$error = 0;
+				undef ($con);
 				return $error;
 			}
 		}
 		$error = "Domain $vmName does not exist.\n";
+		undef ($con);
 		return $error;
-
 	}
 
 	else {
@@ -1262,17 +1267,17 @@ sub destroyVM {
 				# Delete vm directory (DFC 21/01/2010)
 				$error = 0;
 				last;
-
 			}
 		}
 
 		# Remove vm fs directory (cow and iso filesystems)
 		$execution->execute( "rm " . $dh->get_fs_dir($vmName) . "/*" );
+		undef ($con);
 		return $error;
 
 	}
 	else {
-		$error = "Tipo aun no soportado...\n";
+		$error = "destroyVM for type $type not implemented yet.\n";
 		return $error;
 	}
 }
@@ -1390,15 +1395,12 @@ sub startVM {
 				print "Domain started\n" if ($exemode == $EXE_VERBOSE);
 
 				# save pid in run dir
-				print "*** Before calling get_uuid_string\n";
 				my $uuid = $listDom->get_uuid_string();
-				print "*** After calling get_uuid_string\n";
 				$execution->execute( "ps aux | grep kvm | grep " 
 					  . $uuid
 					  . " | grep -v grep | awk '{print \$2}' > "
 					  . $dh->get_run_dir($vmName)
 					  . "/pid" );
-				print "*** After calling ps\n";
 				
 				#		
 			    # Console management
@@ -1413,14 +1415,11 @@ sub startVM {
 				if ($type ne "libvirt-kvm-olive" ) { # Olive routers do not have graphical consoles
 					# TODO: use $execution->execute
 					my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system vncdisplay $vmName";
-				print "*** Before calling vncdisplay: $cmd\n";
 			       	my $vncDisplay=`$cmd`;
-				print "*** Resultado: $vncDisplay\n";
-			       	while ($vncDisplay eq '') {
-					    &para ("vncdisplay fallo, repetimos llamada: $cmd");
+			       	if ($vncDisplay eq '') { # wait and repeat command again
 			       		sleep 2;
 			       		$vncDisplay=`$cmd`;
-				print "*** Resultado: $vncDisplay\n";
+			       		if ($cmd eq '') {execution->smartdie ("Cannot get display for $vmName. Error executing command: $cmd")}
 			       	}
 			       	
 			       	$vncDisplay =~ s/\s+$//;    # Delete linefeed at the end		
@@ -1500,10 +1499,12 @@ sub startVM {
 				}
 
 				$error = 0;
+				undef ($con);
 				return $error;
 			}
 		}
 		$error = "Domain does not exist\n";
+		undef ($con);
 		return $error;
 
 	}
@@ -1561,10 +1562,12 @@ sub shutdownVM {
 				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) . "/*" );
 
 				print "Domain shutdown\n" if ($exemode == $EXE_VERBOSE);
+				undef ($con);
 				return $error;
 			}
 		}
 		$error = "Domain does not exist..\n";
+		undef ($con);
 		return $error;
 
 	}
@@ -1618,10 +1621,12 @@ sub saveVM {
 				print "Domain saved to file $filename\n" if ($exemode == $EXE_VERBOSE);
 				#&change_vm_status( $dh, $vmName, "paused" );
 				&change_vm_status( $vmName, "paused" );
+				undef ($con);
 				return $error;
 			}
 		}
 		$error = "Domain does not exist..\n";
+		undef ($con);
 		return $error;
 
 	}
@@ -1647,10 +1652,12 @@ sub saveVM {
 				print "Domain saved to file $filename\n" if ($exemode == $EXE_VERBOSE);
 				#&change_vm_status( $dh, $vmName, "paused" );
 				&change_vm_status( $vmName, "paused" );
+				undef ($con);
 				return $error;
 			}
 		}
 		$error = "Domain does not exist...\n";
+		undef ($con);
 		return $error;
 
 	}
@@ -1700,6 +1707,7 @@ sub restoreVM {
 		print("Domain restored from file $filename\n");
 		#&change_vm_status( $dh, $vmName, "running" );
 		&change_vm_status( $vmName, "running" );
+		undef ($con);
 		return $error;
 
 	}
@@ -1747,10 +1755,12 @@ sub suspendVM {
 			if ( $dom_name eq $vmName ) {
 				$listDom->suspend();
 				print "Domain suspended\n" if ($exemode == $EXE_VERBOSE);
+				undef ($con);
 				return $error;
 			}
 		}
 		$error = "Domain does not exist.\n";
+		undef ($con);
 		return $error;
 
 	}
@@ -1801,10 +1811,12 @@ sub resumeVM {
 			if ( $dom_name eq $vmName ) {
 				$listDom->resume();
 				print "Domain resumed\n" if ($exemode == $EXE_VERBOSE);
+				undef ($con);
 				return $error;
 			}
 		}
 		$error = "Domain does not exist.\n";
+		undef ($con);
 		return $error;
 
 	}
@@ -1852,10 +1864,12 @@ sub rebootVM {
 			if ( $dom_name eq $vmName ) {
 				$listDom->reboot(&Sys::Virt::Domain::REBOOT_RESTART);
 				print "Domain rebooting\n" if ($exemode == $EXE_VERBOSE);
+				undef ($con);
 				return $error;
 			}
 		}
 		$error = "Domain does not exist\n";
+		undef ($con);
 		return $error;
 
 	}
@@ -1908,10 +1922,12 @@ sub resetVM {
 				$listDom->reboot(&Sys::Virt::Domain::REBOOT_DESTROY);
 				print "Domain reset" if ($exemode == $EXE_VERBOSE);
 				$error = 0;
+				undef ($con);
 				return $error;
 			}
 		}
 		$error = "Domain does not exist\n";
+		undef ($con);
 		return $error;
 
 	}else {
