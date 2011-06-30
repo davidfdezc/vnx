@@ -1,0 +1,66 @@
+#
+# PACKAGE CONFIGURATION FILE
+# Author: David Fernandez (david@dit.upm.es)
+#
+# Package name (it should not include "catr-" prefix and should be in lowercase)
+#
+PNAME="pname"
+#
+# Package major and minor version numbers
+#
+#PVERS1="0"
+#PVERS2="1"
+
+# Package version number
+#
+PVERS="version"
+
+
+#
+# CCSTYPE defines whether a CCS is registered on Bus during installation or not
+#        ="server" --> register/unregister during installation/uninstallation
+#        ="client" --> do not register/unregister
+#
+# CCSTYPE="server"
+#
+# Package configuration file name. It is the name of the CCS main
+# configuration file that will be modified and copied to $CATR_HOME/conf
+# during installation
+#
+# PCONFNAME="pname.conf"
+#
+# OPTIONAL: Package XML configuration file name. It is used to store
+#           properties that can be retrieved using the GetProperty 
+#           used by Bus Connector services
+# 
+# PXMLCONFNAME="pxmlname.xml"
+#
+# Package configuration variables that can be modified during
+# installation (a list separated by spaces). 
+# Normally it contains all the parameters (or a subset of them)
+# included in the main configuration file. 
+#
+#PCONFVARS="BUS_URL CCSWS_HNAME CCSWS_PORT"
+#
+# Package short description
+#
+SHORT_DESC="pname short description"
+#
+# Package long description
+#
+LONG_DESC="pname long description"
+#
+# Package maintainer
+#
+MAINTAINER="David Fernandez <david@dit.upm.es>"
+#
+# OPTIONAL: Variables to control the CCS_ID customization in .aar files
+# If MODIFY_CCS_ID_IN_AAR is set to true, the postinstall script will 
+# modify the CCS_ID inside the file ccsws/WS_$ORIG_CCS_ID.aar before 
+# deploying it to AXIS2 server. The new CCS_ID must be specified in 
+# the main configuration file.
+# This is used for components based on model 1 template (not useable for 
+# model 3 or 4).
+# 
+#MODIFY_CCS_ID_IN_AAR="true"
+#ORIG_CCS_ID="TRAGSA_CDS_e0f1bac3ca5a326cb0a76980609b30ff"
