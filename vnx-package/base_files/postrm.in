@@ -1,0 +1,147 @@
+#!/bin/bash
+
+include(PVARS)
+
+TIME=$(date)
+
+
+
+#***************
+VNX_VERSION="0.14b"
+ROOTFS_VERSION="es-v023b"
+EDIV_ALG_MODULES_DIR="/usr/share/ediv/algorithms"
+
+# Move to the directory where this script is
+cdir=$( dirname $0 )
+cd $cdir
+
+# Get perl modules directory (/usr/local/share/perl/5.10.0/ in Ubuntu)
+PERL_LIBS=$(perl -e 'use Config; print $Config{installvendorlib}')
+if [ ! $PERL_LIBS ]
+then
+   echo "ERROR: cannot find perl modules directory"
+   exit 1
+fi
+VNX_LIBS="$PERL_LIBS/VNX/"
+EDIV_LIBS="$PERL_LIBS/EDIV/"
+
+echo "** "
+echo "** Installing VNX v${VNX_VERSION}... "
+echo "** "
+
+#
+# Create directories if not already created
+#
+rm -rf ${VNX_LIBS}
+rm -rf ${EDIV_LIBS}
+rm -rf ${EDIV_ALG_MODULES_DIR}
+rm -rf /usr/share/xml/vnx
+rm -rf /usr/share/vnx/bin
+rm -rf /usr/share/vnx/examples/
+rm -rf /usr/share/vnx/filesystems
+rm -rf /usr/share/vnx/kernels
+rm -rf /usr/share/vnx/aced
+rm -rf /etc/ediv
+
+#
+# Remove vnx
+#
+rm /usr/bin/vnx
+
+#
+# Remove ediv executables
+#
+rm -rf /usr/bin/ediv* /usr/bin/vn
+
+#
+# Remove other utilities
+#
+rm /usr/bin/vnx2dot
+
+#
+# Remove vnx perl modules
+#
+rm -rf ${VNX_LIBS}
+
+
+#
+# Remove ediv perl modules
+#
+rm -rf ${VNX_LIBS}*
+rm -rf ${EDIV_ALG_MODULES_DIR}
+
+
+#
+# Remove VNX xsd
+#
+rm -rf /usr/share/xml/vnx
+
+#
+# Remove examples
+#
+rm -rf /usr/share/vnx/examples
+
+#
+# Remove other utils
+#
+rm -rf /usr/share/vnx/bin
+
+#
+# Remove vnx config file
+#
+rm /etc/vnx.conf.sample
+
+
+#
+# Remove ediv config file
+#
+rm /etc/ediv/cluster.conf.sample
+
+
+#
+# Remove ace daemons 
+#
+rm -rf /usr/share/vnx/aced
+
+
+#
+# Create vnx user and group (taken from postinst script of vnumlXXX.deb
+#
+
+VNX_TUN=/dev/net/tun
+TUN_GROUP=uml-net
+VNX_USER=vnx
+VNX_GROUP=vnx
+DATA=/var/run/vnx
+
+#if ! grep "^$TUN_GROUP:" /etc/group > /dev/null 2>&1
+#then
+#   echo "creating TUN group: $TUN_GROUP"
+   groupdel $TUN_GROUP
+#fi
+
+#if ! grep "^$VNX_GROUP:" /etc/group > /dev/null 2>&1       
+#then 
+#   echo "creating VNX group: $VNX_GROUP"
+   groupdel $VNX_GROUP
+#fi
+
+#if ! grep "^$VNX_USER:" /etc/passwd > /dev/null 2>&1
+#then
+#   echo "creating VNX user: $VNX_USER"
+   userdel $VNX_USER
+#fi
+
+#if ! [ -e $DATA ]
+#then
+   # FIXME: is this the right place for mkdir?
+#   echo "creating data dir: $DATA"
+#   mkdir -p $DATA
+rm -rf $DATA
+#fi
+
+#chgrp $TUN_GROUP $VNX_TUN
+#chmod g+w $VNX_TUN
+#chown $VNX_USER:$VNX_GROUP $DATA
+#chmod 755 $DATA
+

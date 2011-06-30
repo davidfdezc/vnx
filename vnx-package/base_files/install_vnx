@@ -1,0 +1,158 @@
+#!/bin/sh
+
+VNX_VERSION="0.14b"
+ROOTFS_VERSION="es-v023b"
+EDIV_ALG_MODULES_DIR="/usr/share/ediv/algorithms"
+
+# Move to the directory where this script is
+cdir=$( dirname $0 )
+cd $cdir
+
+# Get perl modules directory (/usr/local/share/perl/5.10.0/ in Ubuntu)
+PERL_LIBS=$(perl -e 'use Config; print $Config{installvendorlib}')
+if [ ! $PERL_LIBS ]
+then
+   echo "ERROR: cannot find perl modules directory"
+   exit 1
+fi
+VNX_LIBS="$PERL_LIBS/VNX/"
+EDIV_LIBS="$PERL_LIBS/EDIV/"
+
+echo "** "
+echo "** Installing VNX v${VNX_VERSION}... "
+echo "** "
+
+#
+# Create directories if not already created
+#
+mkdir -vp ${VNX_LIBS}
+mkdir -vp ${EDIV_LIBS}
+mkdir -vp ${EDIV_ALG_MODULES_DIR}
+mkdir -vp /usr/share/xml/vnx
+mkdir -vp /usr/share/vnx/bin
+mkdir -vp /usr/share/vnx/examples/
+mkdir -vp /usr/share/vnx/filesystems
+mkdir -vp /usr/share/vnx/kernels
+mkdir -vp /usr/share/vnx/aced
+mkdir -vp /etc/ediv
+
+#
+# Copy vnx
+#
+cp -v bin/vnx.pl /usr/bin/vnx
+chmod +x /usr/bin/vnx
+
+#
+# Copy ediv executables
+#
+cp -v bin/ediv_* bin/vn /usr/bin
+mv /usr/bin/ediv_ctl_vnx.pl /usr/bin/ediv
+chmod +x /usr/bin/ediv* /usr/bin/vn
+
+#
+# Copy other utilities
+#
+cp -v bin/vnx2dot.pl /usr/bin/vnx2dot
+chmod +x /usr/bin/vnx2dot
+
+#
+# Copy vnx perl modules
+#
+cp -v perl-modules/VNX/* ${VNX_LIBS}
+chmod 644 ${VNX_LIBS}*
+
+#
+# Copy ediv perl modules
+#
+cp -v perl-modules/EDIV/* ${EDIV_LIBS}
+chmod 644 ${VNX_LIBS}*
+cp -v perl-modules/algorithms/* ${EDIV_ALG_MODULES_DIR}
+chmod 644 ${VNX_LIBS}*
+
+#
+# Copy VNX xsd
+#
+#cp -v data/*.dtd /usr/share/xml/vnx/
+cp -v data/*.xsd /usr/share/xml/vnx/
+
+#
+# Copy examples
+#
+cp -v data/*.xml data/*.net /usr/share/vnx/examples/
+cp -vr data/conf /usr/share/vnx/examples/
+chmod 644 /usr/share/vnx/examples/*
+chmod +x /usr/share/vnx/examples/conf
+
+#
+# Copy other utils
+#
+cp -v bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
+cp -v bin/vnx_modify_rootfs.sh /usr/share/vnx/bin/vnx_modify_rootfs
+cp -v bin/vnx_modify_rootfs2.sh /usr/share/vnx/bin/vnx_modify_rootfs2
+cp -v bin/vnx_update.sh /usr/share/vnx/bin/vnx_update
+chmod 755 /usr/share/vnx/bin/*
+
+#
+# Copy vnx config file
+#
+#if [ -e /etc/vnx.conf ]; then
+#	mv /etc/vnx.conf /etc/vnx.conf.bak
+#fi
+cp -v etc/vnx.conf /etc/vnx.conf.sample
+chmod 600 /etc/vnx.conf.sample
+
+#
+# Copy ediv config file
+#
+cp -v etc/cluster.conf /etc/ediv/cluster.conf.sample
+chmod 600 /etc/ediv/cluster.conf.sample
+
+#
+# Copy ace daemons 
+#
+cp -v aced/* /usr/share/vnx/aced
+
+echo "** "
+echo "** ...done"
+echo "** "
+
+#
+# Create vnx user and group (taken from postinst script of vnumlXXX.deb
+#
+
+VNX_TUN=/dev/net/tun
+TUN_GROUP=uml-net
+VNX_USER=vnx
+VNX_GROUP=vnx
+DATA=/var/run/vnx
+
+if ! grep "^$TUN_GROUP:" /etc/group > /dev/null 2>&1
+then
+   echo "creating TUN group: $TUN_GROUP"
+   groupadd $TUN_GROUP
+fi
+
+if ! grep "^$VNX_GROUP:" /etc/group > /dev/null 2>&1       
+then 
+   echo "creating VNX group: $VNX_GROUP"
+   groupadd $VNX_GROUP
+fi
+
+if ! grep "^$VNX_USER:" /etc/passwd > /dev/null 2>&1
+then
+   echo "creating VNX user: $VNX_USER"
+   useradd -d $DATA -g $VNX_GROUP -G $TUN_GROUP -s /bin/false $VNX_USER
+fi
+
+if ! [ -e $DATA ]
+then
+   # FIXME: is this the right place for mkdir?
+   echo "creating data dir: $DATA"
+   mkdir -p $DATA
+fi
+
+chgrp $TUN_GROUP $VNX_TUN
+chmod g+w $VNX_TUN
+chown $VNX_USER:$VNX_GROUP $DATA
+chmod 755 $DATA
+

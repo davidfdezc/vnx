@@ -1,0 +1,138 @@
+#!/bin/bash
+
+#
+# make: Basic script to create Debian and Cygwin packages for CCSs and SCTs
+# Author: David Fernandez (david@dit.upm.es)
+# C@R Project, 2009
+#
+
+DIR=$( pwd )         # Directory where we are. We save it to return to it at the end
+PDIR=$(dirname $0)   # Base directory where all the package scripts and files are
+cd $PDIR             # Move to package directory (all script paths are relative to it)
+
+############################################################
+# Load user defined functions and variables script (make-p)
+# All particularizations should be done in make-p script
+# Do not modify this script
+############################################################
+. ./make-p
+
+# Load Package variables (name, vers, etc)
+source PVARS
+
+# Debian
+VNX_HOME=""
+
+VNXREPOHOST=""
+VNXREPODIR=""
+VNXREPO=${VNXREPOHOST}:${VNXREPODIR}
+VNXREPOUNAME=""
+
+
+Usage='
+    make [deb|upload|all|clean]
+'
+
+PBINDIR=$PNAME-v$PVERS1$PVERS2
+
+
+function CopyCommonFiles {
+
+    # Create package directory
+    mkdir -p pkg/${PNAME}
+    # Call user defined function
+    CopyUserCommonFiles
+
+}
+
+function CopyDebFiles {
+
+    # Copy Debian files
+    mkdir -p ${PBINDIR}
+    cp -r src/* ${PBINDIR}/
+    # Process m4 macros to include PVARS in scripts
+    m4 ${PBINDIR}/DEBIAN/postinst.in > ${PBINDIR}/DEBIAN/postinst
+    m4 ${PBINDIR}/DEBIAN/prerm.in    > ${PBINDIR}/DEBIAN/prerm
+    m4 ${PBINDIR}/DEBIAN/postrm.in   > ${PBINDIR}/DEBIAN/postrm
+    chmod 755 ${PBINDIR}/DEBIAN/p*
+    rm ${PBINDIR}/DEBIAN/postinst.in ${PBINDIR}/DEBIAN/prerm.in ${PBINDIR}/DEBIAN/postrm.in
+    sed --in-place \
+      -e "s/%%PNAME%%/vnx-${PNAME}/" \
+      -e "s/%%PVERS%%/${PVERS1}.${PVERS2}/" \
+      -e "s/%%MAINTAINER%%/${MAINTAINER}/" \
+      -e "s/%%SHORT_DESC%%/${SHORT_DESC}/" \
+      ${PBINDIR}/DEBIAN/control
+    # Call user defined function
+    CopyUserDebFiles
+
+}
+
+
+function CleanPkg {
+
+    echo rm -rf pkg/*
+    rm -rf pkg/*
+
+}
+
+function CleanBindir {
+
+    echo rm -rf ${PBINDIR}/*
+    rm -rf ${PBINDIR}/*
+
+}
+
+function CleanAll {
+    echo "-- Cleaning ${PBINDIR} and pkg/${PNAME} directories"
+    CleanPkg
+    CleanBindir
+}
+
+
+function MakeDeb {
+
+    #Clean
+    echo "-- Creating ${PBINDIR}.deb Debian package"
+    CopyCommonFiles
+    CopyDebFiles
+    # Delete .svn directories
+    find ${PBINDIR} -name ".svn" -exec rm -rf {} \; &> /dev/null
+    dpkg-deb --build ${PBINDIR} ${PBINDIR}.deb
+    mv ${PBINDIR}.deb pkg/${PNAME}
+
+}
+
+function Uploadrepo {
+
+    echo "-- Uploading packages to ${VNXREPOHOST} repository"
+    touch pkg/${PNAME}-unlock
+    knock $VNXREPOHOST $VNXREPOOPKS
+    scp -r pkg/${PNAME} pkg/${PNAME}-unlock ${VNXREPOUNAME}@${VNXREPOHOST}:
+    knock $VNXREPOHOST $VNXREPOCPKS
+
+}
+
+
+case $1 in
+    deb) 
+         CleanBindir
+         MakeDeb
+         ;;
+    upload) 
+         Uploadrepo
+         ;;
+    all) 
+         CleanAll
+         CleanBindir
+         MakeDeb
+         Uploadrepo
+         ;;
+    clean) 
+         CleanAll
+         ;;
+    *) 
+         echo "$Usage"
+         exit
+esac
+
+cd $DIR  # return to original directory before exit
