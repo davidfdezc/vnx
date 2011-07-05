@@ -66,10 +66,6 @@
           <xs:restriction base="xs:NMTOKEN">
             <xs:enumeration value="mconsole" />
             <xs:enumeration value="net" />
-            <xs:enumeration value="pts" />
-            <xs:enumeration value="system" />
-            <xs:enumeration value="cmd" />
-            <xs:enumeration value="exec" />
             <xs:enumeration value="cdrom" />
             <xs:enumeration value="sdisk" />
             <xs:enumeration value="telnet" />
@@ -79,6 +75,9 @@
       <xs:attribute name="ostype" use="optional">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="system" />
+            <xs:enumeration value="exec" />
+            <xs:enumeration value="cmd" />
             <xs:enumeration value="show" />
             <xs:enumeration value="set" />
             <xs:enumeration value="load" />

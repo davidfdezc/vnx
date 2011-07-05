@@ -47,6 +47,8 @@ use VNX::IPChecks;
 use VNX::NetChecks;
 use VNX::TextManipulation;
 use XML::LibXML;
+use VNX::vmAPICommon;
+
 
 # 
 # validate_xml
@@ -1087,8 +1089,89 @@ sub check_doc {
        return "$conf (conf) does not exist or is not readable/executable (user $uid_name)" unless (-r $conf);
     }
 	
-   	return 0;
+	# Check that files specified in <conf> tag exist and are readable
+    $conf_list = $doc->getElementsByTagName("conf");
+    for ( my $i = 0 ; $i < $conf_list->getLength; $i++) {
+       my $conf = $conf_list->item(0);
+       $conf = &get_abs_path (&text_tag($conf));
+       # <conf> are valid, readable/executable files
+       return "$conf (conf) does not exist or is not readable/executable (user $uid_name)" unless (-r $conf);
+    }
+        
+ 	# Check <exec> mode and ostype attribute values in relation with the VM type and set default 
+ 	# values if not specified in the XML file
+    $vm_list = $doc->getElementsByTagName("vm");
+    # For each virtual machine 
+    for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
+        my $vm = $vm_list->item($i);
+        my $vmName = $vm->getAttribute("name");
+        my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+        
+        my $exec_list = $vm->getElementsByTagName("exec");
+        # For each <exec> in the vm
+        for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
+        	my $cmd = $exec_list->item($j);
+            my $cmdMode = $cmd->getAttribute("mode");
+            my $cmdOSType = $cmd->getAttribute("ostype");
+            print ("****** vm=$vmName,type=$typeos, exec_mode=$cmdMode, exec_ostype=$cmdOSType\n");
 
+            if ($typeos eq 'uml') {
+            	if ($cmdMode eq '') { # Set default value 
+            		$cmd->setAttribute( 'mode', "$EXEC_MODES_UML[0]" );
+            	} elsif ( "@EXEC_MODES_UML" !~ $cmdMode )  {
+       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+            	if ($cmdOSType eq '') { # Set default value 
+            		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_UML[0]" );
+            	} elsif ( "@EXEC_OSTYPE_UML" !~ $cmdOSType )  {
+       				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+
+            } elsif ($typeos eq 'libvirt-kvm-linux') {
+            	if ($cmdMode eq '') { # Set default value 
+            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_LINUX[0]" );
+            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $cmdMode )  {
+       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
+            	if ($cmdOSType eq '') { # Set default value 
+            		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_LINUX[0]" );
+            	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_LINUX" !~ $cmdOSType )  {
+       				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
+
+            } elsif ($typeos eq 'libvirt-kvm-windows') {
+            	if ($cmdMode eq '') { # Set default value 
+            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_WINDOWS[0]" );
+            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_WINDOWS" !~ $cmdMode )  {
+       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+            	if ($cmdOSType eq '') { # Set default value 
+            		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS[0]" );
+            	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS" !~ $cmdOSType )  {
+       				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+
+            } elsif ($typeos eq 'libvirt-kvm-olive') {
+            	if ($cmdMode eq '') { # Set default value 
+            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_OLIVE[0]" );
+            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_OLIVE" !~ $cmdMode )  {
+       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+            	if ($cmdOSType eq '') { # Set default value 
+            		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_OLIVE[0]" );
+            	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_OLIVE" !~ $cmdOSType )  {
+       				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+
+            } elsif ( ($typeos eq 'dynamips-c3600') or ($typeos eq 'dynamips-c7200') )  {
+            	if ($cmdMode eq '') { # Set default value 
+            		$cmd->setAttribute( 'mode', "$EXEC_MODES_DYNAMIPS[0]" );
+            	} elsif ( "@EXEC_MODES_DYNAMIPS" !~ $cmdMode )  {
+       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+            	if ($cmdOSType eq '') { # Set default value 
+            		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_DYNAMIPS[0]" );
+            	} elsif ( "@EXEC_OSTYPE_DYNAMIPS" !~ $cmdOSType )  {
+       				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+
+            }
+            
+        }               
+	}       
+
+
+   	return 0;
 }
 
 #
