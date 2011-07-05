@@ -7,7 +7,7 @@ Just one Ubuntu virtual machine. Use this specification for testing
 
 -->
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.96.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.97.xsd">
   <global>
     <version>1.92</version>
     <scenario_name>simple_ubuntu</scenario_name>
@@ -33,10 +33,10 @@ Just one Ubuntu virtual machine. Use this specification for testing
     </if>
     <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
-    <exec seq="movefile" type="verbatim" mode="system">mv /tmp/vnx.txt /root/</exec>
-    <exec seq="start-www" type="verbatim" mode="system">chmod 644 /var/www/*</exec>
-    <exec seq="start-www" type="verbatim" mode="system">service apache2 start</exec>
-    <exec seq="stop-www" type="verbatim" mode="system">service apache2 stop</exec>
+    <exec seq="movefile" type="verbatim"  mode="cdrom" ostype="system">mv /tmp/vnx.txt /root/</exec>
+    <exec seq="start-www" type="verbatim" mode="cdrom" ostype="system">chmod 644 /var/www/*</exec>
+    <exec seq="start-www" type="verbatim" mode="cdrom" ostype="system">service apache2 start</exec>
+    <exec seq="stop-www" type="verbatim"  mode="cdrom" ostype="system">service apache2 stop</exec>
   </vm>
 
   <host>

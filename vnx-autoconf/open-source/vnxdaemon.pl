@@ -340,14 +340,14 @@ sub execute_commands {
 		my $execTagList = $globalNode->getElementsByTagName("exec");
 		my $numexec        = $execTagList->getLength;
 		for (my $j = 0 ; $j < $numexec ; $j++){
-			my $execTag     = $execTagList->item($j);
-			my $seq       = $execTag->getAttribute("seq");
+			my $execTag    = $execTagList->item($j);
+			my $seq        = $execTag->getAttribute("seq");
 			my $type       = $execTag->getAttribute("type");
-			my $mode       = $execTag->getAttribute("mode");
-			my $command2    = $execTag->getFirstChild->getData;
+			my $ostype     = $execTag->getAttribute("ostype");
+			my $command2   = $execTag->getFirstChild->getData;
 			
-			if ($mode eq "exec"){
-				print LOG "   executing: '$command2'\n   in mode: 'exec'\n";
+			if ($ostype eq "exec"){
+				print LOG "   executing: '$command2'\n   in ostype mode: 'exec'\n";
 				# Fork
 				my $pid2 = fork;
 				die "Couldn't fork: $!" unless defined($pid2);
@@ -359,44 +359,14 @@ sub execute_commands {
 					exec "DISPLAY=:0.0 $command2";
 
 				}
-			}elsif($mode eq "system"){
-					print LOG "   executing: '$command2'\n   in mode: 'system'\n";
+			}elsif($ostype eq "system"){
+					print LOG "   executing: '$command2'\n   in ostype mode: 'system'\n";
 					#system $command2;
 					system "DISPLAY=:0.0 $command2";
 			}else{
-				print LOG "   command mode '$mode' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
+				print LOG "   command ostype mode '$ostype' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
 			}
 					
-			
-#			if ($mode eq "system"){
-#				print LOG "   executing: '$command2'\n   in mode: 'system'\n";
-#				# Fork
-#				my $pid2 = fork;
-#				die "Couldn't fork: $!" unless defined($pid2);
-#				if ($pid2){
-#					# parent does nothing
-#				}else{
-#					# child executes command and dies
-#					#exec "xterm -display :0.0 -e $command2";
-#					exec "DISPLAY=:0.0 $command2";
-#				}
-#			}elsif($mode eq "processn"){
-#				print LOG "   executing: '$command2'\n   in mode: 'processn'\n";
-#				# Fork
-#				my $pid2 = fork;
-#				die "Couldn't fork: $!" unless defined($pid2);
-#				if ($pid2){
-#					# parent does nothing
-#				}else{
-#					# child executes command and dies
-#					exec $command2;
-#				}
-#			}elsif($mode eq "processy"){
-#				print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
-#				system $command2;
-#			}else{
-#				print LOG "   Command mode '$mode' not available. Aborting execution...\n";
-#			}
 		}
 	}
 
@@ -412,15 +382,15 @@ sub execute_commands {
 		my $execTagList = $globalNode->getElementsByTagName("exec");
 		my $numexec        = $execTagList->getLength;
 		for (my $j = 0 ; $j < $numexec ; $j++){
-			my $execTag     = $execTagList->item($j);
+			my $execTag   = $execTagList->item($j);
 			my $seq       = $execTag->getAttribute("seq");
-			my $type       = $execTag->getAttribute("type");
-			my $mode       = $execTag->getAttribute("mode");
-			my $command2    = $execTag->getFirstChild->getData;
+			my $type      = $execTag->getAttribute("type");
+			my $ostype    = $execTag->getAttribute("ostype");
+			my $command2  = $execTag->getFirstChild->getData;
 
 
-			if ($mode eq "exec"){
-				print LOG "   executing: '$command2'\n   in mode: 'exec'\n";
+			if ($ostype eq "exec"){
+				print LOG "   executing: '$command2'\n   in ostype mode: 'exec'\n";
 				# Fork
 				my $pid2 = fork;
 				die "Couldn't fork: $!" unless defined($pid2);
@@ -432,51 +402,13 @@ sub execute_commands {
 					exec "DISPLAY=:0.0 $command2";
 					#exec $command2;
 				}
-			}elsif($mode eq "system"){
-					print LOG "   executing: '$command2'\n   in mode: 'system'\n";
+			}elsif($ostype eq "system"){
+					print LOG "   executing: '$command2'\n   in ostype mode: 'system'\n";
 					system "DISPLAY=:0.0 $command2";
 			}else{
-				print LOG "   command mode '$mode' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
+				print LOG "   command ostype mode '$ostype' not available, use \"exec\" or \"system\" instead. Aborting execution...\n";
 			}
 
-
-#			if ($mode eq "system"){
-#				print LOG "   executing: '$command2'\n   in mode: 'system'\n";
-#				# Fork
-#				#my $pid2 = fork;
-#				#die "Couldn't fork: $!" unless defined($pid2);
-#				#if ($pid2){
-#					# parent does nothing
-#				#}else{
-#					# child executes command and dies
-#					system "su - vnx -c \"$command2\"";
-#					system $command2;
-#					system "$command2";
-#					system "xterm -e $command2";
-#					system "xterm --display:0.0 -e $command2";
-#					exec "xterm -e $command2";
-#					exec "xterm --display:0.0 -e $command2";
-#				#}
-#			}elsif($mode eq "processn"){
-#				print LOG "   executing: '$command2'\n   in mode: 'processn'\n";
-#				# Fork
-#				my $pid2 = fork;
-#				die "Couldn't fork: $!" unless defined($pid2);
-#				if ($pid2){
-#					# parent does nothing
-#				}else{
-#					# child executes command and dies
-#					exec $command2;
-#				}
-#			}elsif($mode eq "processy"){
-#				print LOG "   executing: '$command2'\n   in mode: 'processy'\n";
-#				system $command2;
-#			}else{
-#				print LOG "   Command mode '$mode' not available. Aborting execution...\n";
-#			}
-			
-			
-			
 		}
 
 
@@ -530,6 +462,9 @@ sub autoconfigureUbuntu {
 
 		my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
+        # Delete /etc/resolv.conf file
+        system "rm -f /etc/resolv.conf";
+        
 		# before the loop, backup /etc/udev/...70
 		# and /etc/network/interfaces
 		# and erase their contents
@@ -1154,7 +1089,7 @@ sub filetree {
 	my $filetreeTagList = $globalNode->getElementsByTagName("filetree");
 	my $numfiletree        = $filetreeTagList->getLength;
 	for (my $j = 0 ; $j < $numfiletree ; $j++){
-		my $filetreeTag     = $filetreeTagList->item(0);
+		my $filetreeTag     = $filetreeTagList->item($j);
 		my $seq       = $filetreeTag->getAttribute("seq");
 		my $root       = $filetreeTag->getAttribute("root");
 		my $folder = $j + 1;
@@ -1164,6 +1099,7 @@ sub filetree {
 			system "mkdir -p $root";
 		}
 		print LOG "   executing 'cp -R $source_path $root'...\n";
+		system "ls -R $source_path >> /var/log/vnxdaemon.log";
 		system "cp -R $source_path $root";
 			
 	}

@@ -2557,7 +2557,7 @@ sub executeCMD {
 #			$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
             $execution->execute( "cp " . $dh->get_vm_tmp_dir($name) . "/command.xml" . " " . "$filetree_host" );
 #			$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
-			$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
+			$execution->execute("mkisofs -d -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
 			my $disk_command_windows_xml;
 			$disk_command_windows_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 			
@@ -3079,7 +3079,7 @@ sub executeCMD {
 			$execution->execute("mkdir  /tmp/disk.$random_id/destination");
 			$execution->execute( "cp " . $dh->get_vm_tmp_dir($name) . "/command.xml" . " " . "$filetree_host" );
 			#$execution->execute( "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/destination" );
-			$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
+			$execution->execute("mkisofs -d -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
 			$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 			print "Sending command to client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket'."... " if ($exemode == $EXE_VERBOSE);
 			waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
@@ -3971,25 +3971,6 @@ sub filetree_wait {
 	return 0;
 }
 
-
-
-###################################################################
-#
-sub merge_vm_type {
-	my $type = shift;
-	my $subtype = shift;
-	my $os = shift;
-	my $merged_type = $type;
-	
-	if (!($subtype eq "")){
-		$merged_type = $merged_type . "-" . $subtype;
-		if (!($os eq "")){
-			$merged_type = $merged_type . "-" . $os;
-		}
-	}
-	return $merged_type;
-	
-}
 
 #
 # Get the value of a simple tag in extended configuration file

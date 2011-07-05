@@ -68,6 +68,19 @@ our @EXPORT = qw(
 	$EXE_DEBUG
 	$EXE_VERBOSE
 	$EXE_NORMAL
+	
+	@EXEC_MODES_UML
+	@EXEC_MODES_LIBVIRT_KVM_LINUX
+	@EXEC_MODES_LIBVIRT_KVM_WINDOWS
+	@EXEC_MODES_LIBVIRT_KVM_OLIVE
+	@EXEC_MODES_DYNAMIPS
+
+	@EXEC_OSTYPE_UML
+	@EXEC_OSTYPE_LIBVIRT_KVM_LINUX
+	@EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS
+	@EXEC_OSTYPE_LIBVIRT_KVM_OLIVE
+	@EXEC_OSTYPE_DYNAMIPS
+
 );
 
 # Version information
@@ -119,5 +132,20 @@ Readonly::Scalar our $EXE_DEBUG => 0;	#	- does not execute, only shows
 Readonly::Scalar our $EXE_VERBOSE => 1;	#	- executes and shows
 Readonly::Scalar our $EXE_NORMAL => 2;	#	- executes
 
+# Allowed and default modes in <exec> tags for each virtual machine type
+# Default mode is always the first value in array
+our @EXEC_MODES_UML                 = qw( net mconsole );
+our @EXEC_MODES_LIBVIRT_KVM_LINUX   = qw( cdrom net sdisk );
+our @EXEC_MODES_LIBVIRT_KVM_WINDOWS = qw( cdrom sdisk );
+our @EXEC_MODES_LIBVIRT_KVM_OLIVE   = qw( sdisk net );
+our @EXEC_MODES_DYNAMIPS            = qw( telnet );
+
+# Allowed and default ostypes in <exec> tags for each virtual machine type
+# Default mode is always the first value in array
+our @EXEC_OSTYPE_UML                 = qw( );
+our @EXEC_OSTYPE_LIBVIRT_KVM_LINUX   = qw( system exec );
+our @EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS = qw( cmd system exec );
+our @EXEC_OSTYPE_LIBVIRT_KVM_OLIVE   = qw( show set load );
+our @EXEC_OSTYPE_DYNAMIPS            = qw( show set load );
 
 1;

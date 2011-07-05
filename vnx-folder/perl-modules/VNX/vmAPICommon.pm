@@ -39,6 +39,7 @@ our @EXPORT = qw(
 	start_console
 	start_consoles_from_console_file
 	get_admin_address
+	merge_vm_type	
 	);
 
 use VNX::Execution;
@@ -309,5 +310,24 @@ sub get_admin_address {
 
    return $ip;
 }
+
+###################################################################
+#
+sub merge_vm_type {
+	my $type = shift;
+	my $subtype = shift;
+	my $os = shift;
+	my $merged_type = $type;
+	
+	if (!($subtype eq "")){
+		$merged_type = $merged_type . "-" . $subtype;
+		if (!($os eq "")){
+			$merged_type = $merged_type . "-" . $os;
+		}
+	}
+	return $merged_type;
+	
+}
+
 
 1;
