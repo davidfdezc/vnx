@@ -46,6 +46,10 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
       <ipv4>10.0.0.9/30</ipv4>
       <ipv6>2001:db8:13::1/64</ipv6>
     </if>
+    <route type="ipv4" gw="10.0.0.2">10.0.2.0/24</route>
+    <route type="ipv4" gw="10.0.0.10">10.0.3.0/24</route>
+    <route type="ipv6" gw="2001:db8:12::2">2001:db8:2::/64</route>
+    <route type="ipv6" gw="2001:db8:13::2">2001:db8:3::/64</route>
   </vm>
 
   <vm name="r2" type="libvirt" subtype="kvm" os="olive">
@@ -64,6 +68,10 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
       <ipv4>10.0.0.5/30</ipv4>
       <ipv6>2001:db8:23::1/64</ipv6>
     </if>
+    <route type="ipv4" gw="10.0.0.1">10.0.1.0/24</route>
+    <route type="ipv4" gw="10.0.0.6">10.0.3.0/24</route>
+    <route type="ipv6" gw="2001:db8:12::1">2001:db8:1::/64</route>
+    <route type="ipv6" gw="2001:db8:23::2">2001:db8:3::/64</route>
   </vm>
 
   <vm name="r3" type="libvirt" subtype="kvm" os="olive">
@@ -76,12 +84,16 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
     </if>
     <if id="2" net="ptp13" name="fxp1">
       <ipv4>10.0.0.10/30</ipv4>
-      <ipv6>2001:db8:12::2/64</ipv6>
+      <ipv6>2001:db8:13::2/64</ipv6>
     </if>
     <if id="3" net="ptp23" name="fxp2">
       <ipv4>10.0.0.6/30</ipv4>
-      <ipv6>2001:db8:13::2/64</ipv6>
+      <ipv6>2001:db8:23::2/64</ipv6>
     </if>
+    <route type="ipv4" gw="10.0.0.9">10.0.1.0/24</route>
+    <route type="ipv4" gw="10.0.0.5">10.0.2.0/24</route>
+    <route type="ipv6" gw="2001:db8:13::1">2001:db8:1::/64</route>
+    <route type="ipv6" gw="2001:db8:23::2">2001:db8:2::/64</route>    
   </vm>
 
   <vm name="h1" type="libvirt" subtype="kvm" os="linux">
@@ -91,6 +103,8 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
       <ipv4>10.0.1.2/24</ipv4>
       <ipv6>2001:db8:1::2/64</ipv6>
     </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>    
+    <route type="ipv6" gw="2001:db8:1::1">default</route>    
   </vm>
 
   <vm name="h2" type="libvirt" subtype="kvm" os="linux">
@@ -100,6 +114,8 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
       <ipv4>10.0.2.2/24</ipv4>
       <ipv6>2001:db8:2::2/64</ipv6>
     </if>
+    <route type="ipv4" gw="10.0.2.1">default</route>    
+    <route type="ipv6" gw="2001:db8:2::1">default</route>    
   </vm>
 
   <vm name="h3" type="libvirt" subtype="kvm" os="linux">
@@ -109,6 +125,8 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
       <ipv4>10.0.3.2/24</ipv4>
       <ipv6>2001:db8:3::2/64</ipv6>
     </if>
+    <route type="ipv4" gw="10.0.3.1">default</route>    
+    <route type="ipv6" gw="2001:db8:3::1">default</route>    
   </vm>
 
   <host>
@@ -116,6 +134,8 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
        <ipv4>10.0.1.3/24</ipv4>
        <ipv6>2001:db8:1::3/64</ipv6>
     </hostif>
+    <route type="ipv4" gw="10.0.1.1">10.0.0.0/16</route>    
+    <route type="ipv6" gw="2001:db8:1::1">2001:db8::/32</route>    
   </host>
   
 </vnx>

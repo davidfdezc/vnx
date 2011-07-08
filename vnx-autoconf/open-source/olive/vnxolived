@@ -39,7 +39,7 @@ exec 3<>$SERIAL    # set file descriptor 3 to serial line
 
 #
 # Alias for sending commands to juniper cli
-# TODO: These alias do not work in this script as they does in vnx-jconfig.
+# TODO: These alias do not work in this script as they do in vnx-jconfig.
 #       To further investigate...
 #alias ExeShowCmd='echo "$CMD" | /usr/sbin/cli > /var/tmp/cmdoutput.tmp; cat /var/tmp/cmdoutput.tmp'
 #alias ExeSetCmd='{ echo "configure"; echo "$CMD"; echo "commit check"; echo "commit"; echo "exit"; } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp; cat /var/tmp/cmdoutput.tmp'
