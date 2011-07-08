@@ -1,9 +1,43 @@
 #!/usr/bin/perl
 #
-# Nota:
-#  networks -> circle
-#  vms -> squares
-#  interfaces -> lines
+# vnx2dot.pl
+#
+# This file is a module part of VNX package.
+#
+# Author: David Fernández (david@dit.upm.es), based on a previous version for VNUML
+#         made by Francisco J. Monserrat (RedIRIS)
+# Copyright (C) 2011, 	DIT-UPM
+# 			Departamento de Ingenieria de Sistemas Telematicos
+#			Universidad Politecnica de Madrid
+#			SPAIN
+#			
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+# An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
+#
+# vnx2dot.pl creates a graphviz graph from a VNX XML virtual network scenario description
+#
+
+#  
+# Note:
+#  VNX element     is represented as
+#  ----------------------------------
+#  networks    ->  circle
+#  vms         ->  squares
+#  interfaces  ->  lines
+#
 
 use strict;
 use XML::DOM;
@@ -27,7 +61,11 @@ my $dom          = $parser->parsefile($ARGV[0]);
 
 print<<FIN;
  
-// Graph of VNUML configuration from $ARGV[0] 
+// --------------------------------------------------------------
+// Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx 
+// --------------------------------------------------------------
+// vnx2dot.pl: graph created from $ARGV[0] scenario 
+//
 graph G {
 overlap=scale
 splines=true
@@ -122,6 +160,8 @@ for (my $j = 0; $j < $n; $j++) {
     my $net = $hostif->getAttribute ("net");
     my $net2 = $net;
    	$net2 =~ tr/-/_/;        
+
+=BEGIN
     #print "  if: $id $net \n";
     my $ipv4s = $hostif->getElementsByTagName ("ipv4");
     my $n = $ipv4s->getLength;
@@ -132,6 +172,25 @@ for (my $j = 0; $j < $n; $j++) {
         print "//   if $id with IP address $ip connected to network $net\n" ;
         print "host -- $net2  [ label = \"$ip\", fontsize=\"9\", style=\"bold\" ];\n" ;
     }
+=END
+=cut
+
+    my $ipaddrs;
+    my $ipv4s = $hostif->getElementsByTagName ("ipv4");
+    my $n = $ipv4s->getLength;
+    for (my $k = 0; $k < $n; $k++) {
+        my $ipv4 = $ipv4s->item ($k)->getChildNodes->item(0);
+        $ipaddrs = $ipaddrs . ' \n' . $ipv4->getNodeValue;
+    }
+    my $ipv6s = $hostif->getElementsByTagName ("ipv6");
+    $n = $ipv6s->getLength;
+    for (my $k = 0; $k < $n; $k++) {
+        my $ipv6 = $ipv6s->item ($k)->getChildNodes->item(0);
+        $ipaddrs = $ipaddrs . ' \n' . $ipv6->getNodeValue;
+    }
+    print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
+    print "host -- $net2  [ label = \"$ipaddrs\", fontsize=\"9\", style=\"bold\" ];\n" ;
+
 }
 
 print "\n}\n" ;
