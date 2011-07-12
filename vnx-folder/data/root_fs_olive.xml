@@ -30,15 +30,11 @@
       <model type="i82559er"/>
     </interface>
     <serial type="pty">
-      <target port="1"/>
-    </serial>
+      <target port="0"/>
+    </serial>    
     <console type="pty">
-      <target port="1"/>
+      <target port="0"/>
     </console>
-    <!--serial type="unix">
-      <source mode="bind" path="/root/.vnx/scenarios/simple_olive/vms/juniper/juniper_socket"/>
-      <target port="2"/>
-    </serial!-->
   </devices>
   <qemu:commandline>
     <qemu:arg value="-bios"/>

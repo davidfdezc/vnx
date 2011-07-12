@@ -1113,7 +1113,7 @@ sub check_doc {
         	my $cmd = $exec_list->item($j);
             my $cmdMode = $cmd->getAttribute("mode");
             my $cmdOSType = $cmd->getAttribute("ostype");
-            print ("****** vm=$vmName,type=$typeos, exec_mode=$cmdMode, exec_ostype=$cmdOSType\n");
+            #print ("****** vm=$vmName,type=$typeos, exec_mode=$cmdMode, exec_ostype=$cmdOSType\n");
 
             if ($typeos eq 'uml') {
             	if ($cmdMode eq '') { # Set default value 
