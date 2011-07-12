@@ -40,7 +40,8 @@ exec 3<>$SERIAL    # set file descriptor 3 to serial line
 #
 # Alias for sending commands to juniper cli
 # TODO: These alias do not work in this script as they do in vnx-jconfig.
-#       To further investigate...
+#       To further investigate...the problem is related with the "cat $CMDFILE | grep "</filetree>" | while read LINE"
+#       line used. The while read LINE is executed as a subshell and therefore has no access to the alias defined...
 #alias ExeShowCmd='echo "$CMD" | /usr/sbin/cli > /var/tmp/cmdoutput.tmp; cat /var/tmp/cmdoutput.tmp'
 #alias ExeSetCmd='{ echo "configure"; echo "$CMD"; echo "commit check"; echo "commit"; echo "exit"; } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp; cat /var/tmp/cmdoutput.tmp'
 
@@ -125,7 +126,7 @@ do
           #cat $MNTDIR/juniper.conf
 
           # we process command.xml file
-	  CMDFILE=$MNTDIR/command.xml
+	  	  CMDFILE=$MNTDIR/command.xml
           echo "-- command.xml received"
           cat $CMDFILE | sed -e 's/\(.\)/    \1/'
           echo "-----------------------"
