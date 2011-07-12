@@ -825,6 +825,7 @@ sub defineVM {
 				my $model_tag = $init_xml->createElement('model');
 				$interface_tag->addChild($model_tag);
 				$model_tag->addChild( $init_xml->createAttribute( type => 'i82559er') );
+				#$model_tag->addChild( $init_xml->createAttribute( type => 'e1000') );
 			}
 			
 		}

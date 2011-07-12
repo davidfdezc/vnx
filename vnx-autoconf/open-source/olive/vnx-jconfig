@@ -47,13 +47,7 @@ then
     echo "** Processing <conf> tag"
     echo "**   Loading $CONFFILE configuration..."
 	CMD="load override $MNTDIR/$CONFFILE"
-	{   echo "configure"
-	    echo "$CMD"
-	    echo "commit check"
-	    echo "commit"
-	    echo "exit"
-	} | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
-	cat /var/tmp/cmdoutput.tmp
+	ExeSetCmd
 else
     echo "** No <conf> tag found"
 fi
@@ -64,7 +58,8 @@ fi
 count=0
 ifcount=0
 routecount=0
-cat $VNXBOOT | while read LINE
+CMD=""
+while read LINE
 do
    count=`expr $count + 1`
 
@@ -75,7 +70,6 @@ do
        echo "** $count: $LINE"
        NAME=`echo $LINE | sed -e 's/.* name\s*=\s*"\([^"]*\)".*/\1/'`
        CMD="set system host-name $NAME"
-       ExeSetCmd
    fi
    IF=`echo $LINE | grep '<if '`
    if [ "$IF" != "" ]
@@ -100,8 +94,8 @@ do
                MASK=`echo $LINE | sed -e 's/.* mask\s*=\s*"\([^"]*\)".*/\1/'`
 	       echo "    ** IP=$IP, MASK=$MASK"
                PLEN=`sh /usr/local/sbin/mask2cidr $MASK`	
-               CMD="set interfaces $NAME unit 0 family inet address $IP$PLEN"
-               ExeSetCmd
+               CMD="${CMD}
+set interfaces $NAME unit 0 family inet address $IP$PLEN"
            fi 
 	   IPv6=`echo $LINE | grep '<ipv6>'`
 	   if [ "$IPv6" != "" ]
@@ -110,8 +104,8 @@ do
                echo "    ** $count: $LINE"
                IP=`echo $LINE | sed -e 's/.*<ipv6[^>]*>//' -e 's/<\/ipv6>//'`
 	       echo "    ** IP=$IP"
-               CMD="set interfaces $NAME unit 0 family inet6 address $IP"
-               ExeSetCmd
+               CMD="${CMD}
+set interfaces $NAME unit 0 family inet6 address $IP"
            fi 
 	   ENDIF=`echo $LINE | grep '</if>'`
 	   if [ "$ENDIF" != "" ]
@@ -135,12 +129,17 @@ do
            if [ "$TYPE" = "ipv6" ]; then PREFIX="::/0"; fi
        fi
        if [ "$TYPE" = "ipv4" ]; then 
-         CMD="set routing-options static route $PREFIX next-hop $GW"
+         CMD="${CMD}
+set routing-options static route $PREFIX next-hop $GW"
        fi
        if [ "$TYPE" = "ipv6" ]; then 
-         CMD="set routing-options rib inet6.0 static route $PREFIX next-hop $GW"
+         CMD="${CMD}
+set routing-options rib inet6.0 static route $PREFIX next-hop $GW"
        fi
-       ExeSetCmd
    fi
     
-done
+done < $VNXBOOT  
+
+# Execute all commands stored in CMD variable
+#echo "$CMD"
+ExeSetCmd
