@@ -2050,6 +2050,7 @@ sub define_VMs {
    }
 }
 
+=BEGIN
 sub merge_vm_type {
 	my $type = shift;
 	my $subtype = shift;
@@ -2065,6 +2066,8 @@ sub merge_vm_type {
 	return $merged_type;
 	
 }
+=END
+=cut
 
 sub start_VMs {
 

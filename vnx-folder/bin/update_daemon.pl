@@ -100,10 +100,11 @@ system "mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -
 system "rm -rf $tmpisodir";
 
 print "-- Attaching cdrom to $vmName virtual machine...\n";
+# DFC 12/7/2011: option "--driver file" eliminated to make it work with libvirt 0.9.3
 print "--   virsh -c qemu:///system 'attach-disk \"$vmName\" $tmpdir/vnx_update.iso" .
-      "  hdb --mode readonly --driver file --type cdrom'\n";
+      "  hdb --mode readonly --type cdrom'\n";
 system "virsh -c qemu:///system 'attach-disk \"$vmName\" $tmpdir/vnx_update.iso " . 
-      "hdb --mode readonly --driver file --type cdrom'";
+      "hdb --mode readonly --type cdrom'";
 
 print "\n...done\n\n";
 exit(0);

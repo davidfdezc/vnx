@@ -29,10 +29,10 @@
       <source network='default'/>
     </interface>
     <serial type="pty">
-      <target port="1"/>
+      <target port="0"/>
     </serial>
     <console type="pty">
-      <target port="1"/>
+      <target port="0"/>
     </console>
     <graphics type='vnc'/>
   </devices>
