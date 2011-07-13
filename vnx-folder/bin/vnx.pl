@@ -230,6 +230,9 @@ my $curr_uml;
 # VNX scenario file
 my $input_file;
 
+# Delay between virtual machines startup
+my $vmStartupDelay;
+
 &main;
 exit(0);
 
@@ -265,7 +268,8 @@ sub main {
       $opt_suspend, $opt_resume,$opt_reboot,
       $opt_reset,$opt_execute,$opt_f,$opt_showmap,
       $opt_console,$opt_consoleinfo,$opt_cid,
-      $opt_C, $opt_config, $opt_D, $opt_b, $opt_n);
+      $opt_C, $opt_config, $opt_D, $opt_b, $opt_n,
+      $opt_y);
       
    	Getopt::Long::Configure ("bundling"); # case sensitive single-character options
    	GetOptions('t' => \$opt_t, 's=s' => \$opt_s, 'p=s' => \$opt_p, 
@@ -288,7 +292,7 @@ sub main {
               'show-map' => \$opt_showmap, 'console' => \$opt_console,
               'cid=s' => \$opt_cid, 'console-info' => \$opt_consoleinfo,
               'C|config=s' => \$opt_config, 'D' => \$opt_D, 'b' => \$opt_b,
-              'n|no-console' => \$opt_n);
+              'n|no-console' => \$opt_n, 'y|st-delay=s' => \$opt_y);
 
    	# Build the argument object
    	$args = new VNX::Arguments(
@@ -303,7 +307,7 @@ sub main {
       	$opt_suspend,$opt_resume,$opt_reboot,
       	$opt_reset,$opt_execute,$opt_f,$opt_showmap,
       	$opt_console,$opt_cid,$opt_consoleinfo,
-      	$opt_config, $opt_D, $opt_b, $opt_n);
+      	$opt_config, $opt_D, $opt_b, $opt_n, $opt_y);
 
    	# FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
    	# it by default
@@ -551,7 +555,10 @@ sub main {
    	my $enable_6 = 1;
    	$enable_4 = 0 if ($opt_6);
    	$enable_6 = 0 if ($opt_4);   
-
+   	
+   	# Delay between vm startup
+   	$vmStartupDelay = $opt_y if ($opt_y);
+   	   	
    	# 3. To extract and check input
    	my $input;
    	$input = $opt_f if ($opt_f);
@@ -1071,76 +1078,6 @@ sub mode_start {
 		print " Scenario \"$scename\" started\n";
         # Print information about vm consoles
         &print_consoles_info;
-
-#[jsf] movido a print_consoles_info
-=BEGIN    	
-        # Print information about vm consoles
-        my @vm_ordered = $dh->get_vm_ordered;
-        my $first = 1;
-        my $scename = $dh->get_scename;
-        for ( my $i = 0; $i < @vm_ordered; $i++) {
-			my $vm = $vm_ordered[$i];
-			
-			my $name = $vm->getAttribute("name");
-			my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
-			
-			if ($first eq 1){
-				&print_console_table_header ($scename);
-				$first = 0;
-			}
-
-			if ( ($vm->getAttribute("type") eq "libvirt") || ( $vm->getAttribute("type") eq "dynamips") ) {
-				my $port;
-				my $cons0Cmd;
-				my $cons1Cmd;
-				my $consFile = $dh->get_vm_dir($name) . "/console";
-				&print_console_table_entry ($name, $merged_type, $consFile, $vm->getAttribute("type"));
-=BEGIN
-			if ($merged_type eq "libvirt-kvm-olive"){
-				my $port;
-				my $portfile = $dh->get_vm_dir($name) . "/console";
-				if (-e $portfile ){
-					open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
-					$port= <CONPORT>;
-					close (CONPORT);
-					printf "%-12s  %-20s  telnet localhost %s\n", $name, $merged_type, $port;
-				}else {
-					printf "%-12s  %-20s  ERROR: cannot open file $portfile \n", $name, $merged_type;
-				}
-			
-			}
-			elsif ( ($vm->getAttribute("type") eq "libvirt") && ( $merged_type ne "libvirt-kvm-olive" ) ) {
-# DFC			my $vnc_port = 6900 + $i;
-# DFC			print $name . ": " . $vnc_port . "\n";
-                my $display=`virsh -c qemu:///system vncdisplay $name`;
-                $display =~ s/\s+$//;    # Delete linefeed at the end		
-				printf "%-12s  %-20s  virt-viewer %s   or   vncviewer %s\n", $name, $merged_type, $name, $display;
-=END
-
-
-			} elsif ( $vm->getAttribute("type") eq "uml") {
-			    # xterm -T uml -e screen -t uml /dev/pts/0
-			    my $vnx_dir = $dh->get_vnx_dir;
-			    my $pts=`cat $vnx_dir/scenarios/$scename/vms/$name/run/pts`;
-			    $pts =~ s/\s+$//;        # Delete linefeed at the end
-				printf "%-12s  %-20s  xterm -T %s -e screen -t %s %s\n", $name, $merged_type, $name, $name, $pts;
-=BEGIN
-			} elsif ( $vm->getAttribute("type") eq "dynamips"){
-				my $port;
-				#$port = 900 + $i;
-				my $portfile = $dh->get_vm_dir($name) . "/console";
-				if (-e $portfile ){
-					open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
-					$port= <CONPORT>;
-					close (CONPORT);
-					printf "%-12s  %-20s  telnet localhost %s\n", $name, $merged_type, $port;
-				}else {
-					printf "%-12s  %-20s  ERROR: cannot open file $portfile \n", $name, $merged_type;
-				}
-=END
-=cut
-#			}
-#		}
         
     } 
     catch Vnx::Exception with {
@@ -2050,25 +1987,6 @@ sub define_VMs {
    }
 }
 
-=BEGIN
-sub merge_vm_type {
-	my $type = shift;
-	my $subtype = shift;
-	my $os = shift;
-	my $merged_type = $type;
-	
-	if (!($subtype eq "")){
-		$merged_type = $merged_type . "-" . $subtype;
-		if (!($os eq "")){
-			$merged_type = $merged_type . "-" . $os;
-		}
-	}
-	return $merged_type;
-	
-}
-=END
-=cut
-
 sub start_VMs {
 
    my $sock = shift; # only needed for uml vms
@@ -2108,7 +2026,6 @@ sub start_VMs {
 				next;
 	    	}
 	  }
-
       
       $curr_uml = $name;
       
@@ -2142,6 +2059,15 @@ sub start_VMs {
       $manipcounter++;
       undef($curr_uml);
       &change_vm_status($name,"running");
+          
+      if ( (defined $vmStartupDelay)    # delay has been specified in command line and... 
+            && ( $i < @vm_ordered-2 ) ) { # ...it is not the last virtual machine to start...
+   			for ( my $count = $vmStartupDelay; $count > 0; --$count ) {
+   				printf "** Waiting $count seconds...\n";
+      			sleep 1;
+      			print "\e[A";
+   			}
+      }
 
    }
 
@@ -4798,6 +4724,7 @@ Options:
        -C|--config cfgfile -> use cfgfile as configuration file instead of default one (/etc/vnx.conf)
        -D              -> delete LOCK file
        -n|--noconsole -> do not display the console of any vm. To be used with -t|--create options
+       -y|--st-delay num -> wait num secs. between virtual machines startup (0 by default)
 
 EOF
 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<create_conf>
+  <id>juniper-NO5Y2X</id>
+  <vm name="juniper">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_olive</filesystem>
+    <mem>262144</mem>
+    <kernel>default</kernel>
+    <conf>/usr/share/vnx/examples/conf/juniper.conf</conf>
+    <if id="1" net="Net0" mac=",02:fd:00:0d:01:01" name="fxp0">
+      <ipv4 mask="255.255.255.0">10.0.0.13</ipv4>
+      <ipv6>2001:db8::13/64</ipv6>
+    </if>
+    <if id="2" net="Net0" mac=",02:fd:00:0d:01:02" name="fxp1">
+      <ipv4 mask="255.255.255.0">10.0.0.14</ipv4>
+      <ipv6>2001:db8::14/64</ipv6>
+    </if>
+    <route type="ipv4" gw="10.0.0.1">default</route>
+    <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
+    <o_flag></o_flag>
+    <e_flag></e_flag>
+    <Z_flag>1</Z_flag>
+    <F_flag>0</F_flag>
+    <notify_ctl>/tmp/vnx_notify.ctl.GyBQUn</notify_ctl>
+  </vm>
+</create_conf>

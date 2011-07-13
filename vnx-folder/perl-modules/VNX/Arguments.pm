@@ -99,6 +99,7 @@ sub new {
    $self->{'b'} = shift;
    $self->{'n'} = shift;
    $self->{'no_console'} = shift;
+   $self->{'y'} = shift;
    
    return $self;
 }
