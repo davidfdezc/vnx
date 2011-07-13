@@ -213,7 +213,8 @@ $SIG{TERM} = \&handle_sig;
 # Version information (variables moved to VNX::Globals)
 # my $version = "[arroba]PACKAGE_VERSION[arroba]";[JSF]
 # my $release = "[arroba]RELEASE_DATE[arroba]";[JSF]
-$version = "1.92beta1";
+#$version = "1.92beta1";
+$version = "MM.mm.rrrr"; # major.minor.revision
 $release = "DD/MM/YYYY";
 $branch = "";
 
