@@ -1,0 +1,5 @@
+<command>
+<id>juniper-dKwDag</id>
+<filetree seq="copyconfig2" root="/var/tmp">conf/</filetree>
+<filetree seq="copyconfig2" root="/var/tmp">conf/txtfile/</filetree>
+</command>
