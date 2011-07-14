@@ -324,7 +324,7 @@ sub main {
    	print ("Using configuration file: $vnxConfigFile\n");
    
    	# Check the existance of the VNX configuration file 
-   	unless(-e $vnxConfigFile) {
+   	unless ( (-e $vnxConfigFile) or ($opt_V) or ($opt_H) ) {
    	 	print "\nERROR: VNX configuration file $vnxConfigFile not found\n\n";
    	 	exit(1);   	 
    	}

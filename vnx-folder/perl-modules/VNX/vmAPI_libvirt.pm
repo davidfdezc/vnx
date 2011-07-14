@@ -2624,7 +2624,7 @@ sub readSocketResponse
 	while (1) {
 		my $line = <$socket>;
 		#chomp ($line);		
-		print "** $line" if ($exemode == $EXE_VERBOSE);
+		print "** $line"; # if ($exemode == $EXE_VERBOSE);
 		last if ( ( $line =~ /^OK/) || ( $line =~ /^NOTOK/) );
 	}
 
