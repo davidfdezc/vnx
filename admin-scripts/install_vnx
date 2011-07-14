@@ -156,3 +156,5 @@ chmod g+w $VNX_TUN
 chown $VNX_USER:$VNX_GROUP $DATA
 chmod 755 $DATA
 
+# Show VNX version
+vnx -V

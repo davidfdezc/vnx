@@ -3260,27 +3260,6 @@ sub set_file_user {
 }
 
 
-
-###################################################################
-#
-sub merge_vm_type {
-	my $type = shift;
-	my $subtype = shift;
-	my $os = shift;
-	my $merged_type = $type;
-	
-	if (!($subtype eq "")){
-		$merged_type = $merged_type . "-" . $subtype;
-		if (!($os eq "")){
-			$merged_type = $merged_type . "-" . $os;
-		}
-	}
-	return $merged_type;
-	
-}
-
-
-
 ###################################################################
 # Clean up listen socket
 sub UML_notify_cleanup {
