@@ -7,7 +7,7 @@
 VNX_MAJOR="0"
 VNX_MINOR="15"
 # Automatically self updated (do not edit):
-VNX_LATEST_REVISION="111"
+VNX_LATEST_REVISION="113"
 
 #
 # Build version names

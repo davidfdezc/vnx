@@ -50,6 +50,11 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
     <route type="ipv4" gw="10.0.0.10">10.0.3.0/24</route>
     <route type="ipv6" gw="2001:db8:12::2">2001:db8:2::/64</route>
     <route type="ipv6" gw="2001:db8:13::2">2001:db8:3::/64</route>
+    <exec seq="showint"       type="verbatim" ostype="show">show interfaces fxp0</exec>
+    <exec seq="config1"       type="verbatim" ostype="load">override conf/juniper.conf</exec>
+    <exec seq="configif"      type="verbatim" ostype="set">set interfaces fxp0 unit 0 family inet address 10.0.0.10/24</exec>
+    <exec seq="enable-ssh"    type="verbatim" ostype="set">set system services ssh</exec>
+    <exec seq="enable-telnet" type="verbatim" ostype="set">set system services telnet</exec>
   </vm>
 
   <vm name="r2" type="libvirt" subtype="kvm" os="olive">
