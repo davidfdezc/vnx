@@ -244,7 +244,7 @@ sub main {
 	
    	print "----------------------------------------------------------------------------------\n";
    	print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es          \n";
-   	print "Version: $version" . "$branch (build on $release)\n";
+   	print "Version: $version" . "$branch (built on $release)\n";
    	print "----------------------------------------------------------------------------------\n";
 
    	$ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
