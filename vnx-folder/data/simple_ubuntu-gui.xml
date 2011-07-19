@@ -2,15 +2,31 @@
 
 <!--
 
-Simple scenario
-Just one Ubuntu virtual machine. Use this specification for testing
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        simple_ubuntu-gui
+Description: Just one Ubuntu virtual machine with GUI connected to a Network named Net0 with address 10.0.0.5. 
+             The host has an interface in Net0 with address 10.0.0.1  
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
 
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.96.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
-    <version>1.92</version>
+    <version>2.0</version>
     <scenario_name>simple_ubuntu-gui</scenario_name>
     <automac offset="5"/>
     <vm_mgmt type="none" />
@@ -32,18 +48,18 @@ Just one Ubuntu virtual machine. Use this specification for testing
     <filetree seq="vnxtxt" root="/tmp">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="/tmp">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
-    <exec seq="vnxtxt" type="verbatim" mode="system">gedit /tmp/vnx.txt</exec>
-    <exec seq="vnxtxt" type="verbatim" mode="system">sleep 3; wmctrl -r vnx.txt -b add,maximized_vert,maximized_horz</exec>
-    <exec seq="vnxtxtoff" type="verbatim" mode="system">pkill gedit; rm /tmp/vnx.*</exec>
-    <exec seq="vnxwww" type="verbatim" mode="system">epiphany /tmp/vnx.html</exec>
-    <exec seq="vnxwwwoff" type="verbatim" mode="system">pkill epiphany; rm /tmp/vnx.*</exec>
-    <exec seq="calc" type="verbatim" mode="system">gcalctool</exec>
-    <exec seq="calcoff" type="verbatim" mode="system">pkill gcalctool</exec>
-    <exec seq="ping" type="verbatim" mode="system">'ping 10.0.0.1'</exec>
-    <exec seq="showlog" type="verbatim" mode="system">tail -f /var/log/vnxdaemon.log</exec>
-    <exec seq="start-www" type="verbatim" mode="system">chmod 644 /var/www/*</exec>
-    <exec seq="start-www" type="verbatim" mode="system">service apache2 start</exec>
-    <exec seq="stop-www" type="verbatim" mode="system">service apache2 stop</exec>
+    <exec seq="vnxtxt"    type="verbatim" ostype="system">gedit /tmp/vnx.txt</exec>
+    <exec seq="vnxtxt"    type="verbatim" ostype="system">sleep 3; wmctrl -r vnx.txt -b add,maximized_vert,maximized_horz</exec>
+    <exec seq="vnxtxtoff" type="verbatim" ostype="system">pkill gedit; rm /tmp/vnx.*</exec>
+    <exec seq="vnxwww"    type="verbatim" ostype="system">epiphany /tmp/vnx.html</exec>
+    <exec seq="vnxwwwoff" type="verbatim" ostype="system">pkill epiphany; rm /tmp/vnx.*</exec>
+    <exec seq="calc"      type="verbatim" ostype="system">gcalctool</exec>
+    <exec seq="calcoff"   type="verbatim" ostype="system">pkill gcalctool</exec>
+    <exec seq="ping"      type="verbatim" ostype="system">'ping 10.0.0.1'</exec>
+    <exec seq="showlog"   type="verbatim" ostype="system">tail -f /var/log/vnxdaemon.log</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="stop-www"  type="verbatim" ostype="system">service apache2 stop</exec>
   </vm>
 
   <host>

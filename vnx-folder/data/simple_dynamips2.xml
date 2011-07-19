@@ -1,17 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-
 <!--
 
-Simple scenario
-Just one Cisco virtual machine. Use this specification for testing
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        simple_dynamips2
+Description: Just one Dynamips C7200 router connected to a Network named Net0 with address 10.0.0.12. 
+             The host has an interface in Net0 with address 10.0.0.1  
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
 
 -->
 
+
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.96.xsd">
+     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
-    <version>1.92</version>
+    <version>2.0</version>
     <scenario_name>simple_dynamips2</scenario_name>
     <automac offset="12"/>
     <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="44">
