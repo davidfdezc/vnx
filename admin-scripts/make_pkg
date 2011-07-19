@@ -1,0 +1,158 @@
+#!/bin/bash
+
+# make_pkg: Creates the source files needed for the package from the latest tar file.
+#           Creates the .deb package
+
+# Move to the upper directory where this script is
+
+cdir=$( dirname $0 )
+cd $cdir/.. # estoy en vnx/
+
+# Extract names and versions
+TARNAME=$( readlink distrib/vnx-latest.tgz )  # vnx-latest.tgz is a symbolic link
+                                              # with stat we get the name of the 
+                                              # file pointed by the link
+DIRNAME=$( echo "$TARNAME" | sed s/.tgz$// )
+LONGVERNAME=$( echo "$DIRNAME" | sed s/vnx-// )
+VERNAME=$( echo "$LONGVERNAME" | sed 's/-.*//g' )
+MAJOR=$( echo "$VERNAME" | awk -F \. {'print $1'})
+MINOR=$( echo "$VERNAME" | awk -F \. {'print $2'})
+REVISION=$( echo "$VERNAME" | awk -F \. {'print $3'})
+
+
+echo "TARNAME=$TARNAME"
+echo "DIRNAME=$DIRNAME"
+echo "LONGVERNAME=$LONGVERNAME"
+echo "VERNAME=$VERNAME"
+echo "MAJOR=$MAJOR"
+echo "MINOR=$MINOR"
+echo "REVISION=$REVISION"
+
+# Temporal extraction dir and package dir
+TMP_EXTRACT_DIR=/tmp/vnx_extract
+PACKAGE_DIR=vnx-package/package
+
+
+# Clean/Create destination folders
+rm -rf ${PACKAGE_DIR}/*
+mkdir -vp ${PACKAGE_DIR}/src/DEBIAN
+mkdir -vp ${PACKAGE_DIR}/src/usr/share/xml/vnx
+mkdir -vp ${PACKAGE_DIR}/src/usr/share/vnx/bin
+mkdir -vp ${PACKAGE_DIR}/src/usr/share/vnx/examples
+mkdir -vp ${PACKAGE_DIR}/src/usr/share/vnx/filesystems
+mkdir -vp ${PACKAGE_DIR}/src/usr/share/vnx/kernels
+mkdir -vp ${PACKAGE_DIR}/src/usr/share/vnx/aced
+mkdir -vp ${PACKAGE_DIR}/src/etc/ediv
+
+
+#para estos habra que hacer un ${DST_TREE_DIR}/tmpxxx y al instalar mover a su sitio en la maquina
+VNX_LIBS=/tmp/vnx_libs
+EDIV_LIBS=/tmp/ediv_libs
+EDIV_ALG_MODULES_DIR=/tmp/ediv_alg_modules_dir
+mkdir -vp ${VNX_LIBS}
+mkdir -vp ${EDIV_LIBS}
+mkdir -vp ${EDIV_ALG_MODULES_DIR}
+
+
+# Extract tar file to temp dir, removing first directory
+#tar -C vnx-package/package/src/tmp/VNX_tmp_install_files/ -xvf distrib/$TARNAME --strip 1
+mkdir ${TMP_EXTRACT_DIR}
+tar -C ${TMP_EXTRACT_DIR} -xvf distrib/$TARNAME --strip 1
+
+#
+# Copy vnx
+#
+cp -v ${TMP_EXTRACT_DIR}/bin/vnx.pl ${PACKAGE_DIR}/src/usr/bin/vnx
+chmod +x ${PACKAGE_DIR}/src/usr/bin/vnx
+
+#
+# Copy ediv executables
+#
+cp -v ${TMP_EXTRACT_DIR}/bin/ediv_* ${TMP_EXTRACT_DIR}/bin/vn ${PACKAGE_DIR}/src/usr/bin
+mv ${PACKAGE_DIR}/src/usr/bin/ediv_ctl_vnx.pl ${PACKAGE_DIR}/src/usr/bin/ediv
+chmod +x ${PACKAGE_DIR}/src/usr/bin/ediv* ${PACKAGE_DIR}/src/usr/bin/vn
+
+#
+# Copy other utilities
+#
+cp -v ${TMP_EXTRACT_DIR}/bin/vnx2dot.pl ${PACKAGE_DIR}/src/usr/bin/vnx2dot
+chmod +x ${PACKAGE_DIR}/src/usr/bin/vnx2dot
+
+#
+# Copy vnx perl modules
+#
+cp -v ${TMP_EXTRACT_DIR}/perl-modules/VNX/* ${PACKAGE_DIR}/src${VNX_LIBS}
+chmod 644 ${PACKAGE_DIR}/src${VNX_LIBS}*
+
+#
+# Copy ediv perl modules
+#
+cp -v ${TMP_EXTRACT_DIR}/perl-modules/EDIV/* ${PACKAGE_DIR}/src${EDIV_LIBS}
+chmod 644 ${PACKAGE_DIR}/src${EDIV_LIBS}
+cp -v ${TMP_EXTRACT_DIR}/perl-modules/algorithms/* ${PACKAGE_DIR}/src${EDIV_ALG_MODULES_DIR}
+chmod 644 ${PACKAGE_DIR}/src${EDIV_ALG_MODULES_DIR}*
+
+#
+# Copy VNX xsd
+#
+cp -v ${TMP_EXTRACT_DIR}/data/*.xsd ${PACKAGE_DIR}/src/usr/share/xml/vnx/
+
+#
+# Copy examples
+#
+cp -v ${TMP_EXTRACT_DIR}/data/*.xml ${TMP_EXTRACT_DIR}/data/*.net ${PACKAGE_DIR}/src/usr/share/vnx/examples/
+cp -vr ${TMP_EXTRACT_DIR}/data/conf ${PACKAGE_DIR}/src/usr/share/vnx/examples/
+chmod 644 ${PACKAGE_DIR}/src/usr/share/vnx/examples/*
+chmod +x ${PACKAGE_DIR}/src/usr/share/vnx/examples/conf
+
+#
+# Copy other utils
+#
+cp -v ${TMP_EXTRACT_DIR}/bin/update_daemon.pl ${PACKAGE_DIR}/src/usr/share/vnx/bin/vnx_update_aced
+cp -v ${TMP_EXTRACT_DIR}/bin/vnx_modify_rootfs.sh ${PACKAGE_DIR}/src/usr/share/vnx/bin/vnx_modify_rootfs
+cp -v ${TMP_EXTRACT_DIR}/bin/vnx_modify_rootfs2.sh ${PACKAGE_DIR}/src/usr/share/vnx/bin/vnx_modify_rootfs2
+cp -v ${TMP_EXTRACT_DIR}/bin/vnx_update.sh ${PACKAGE_DIR}/src/usr/share/vnx/bin/vnx_update
+chmod 755 ${PACKAGE_DIR}/src/usr/share/vnx/bin/*
+
+#
+# Copy vnx config file
+#
+cp -v ${TMP_EXTRACT_DIR}/etc/vnx.conf ${PACKAGE_DIR}/src/etc/vnx.conf.sample
+chmod 600 ${PACKAGE_DIR}/src/etc/vnx.conf.sample
+
+#
+# Copy ediv config file
+#
+cp -v ${TMP_EXTRACT_DIR}/etc/cluster.conf ${PACKAGE_DIR}/src/etc/ediv/cluster.conf.sample
+chmod 600 ${PACKAGE_DIR}/src/etc/ediv/cluster.conf.sample
+
+#
+# Copy ace daemons 
+#
+cp -v ${TMP_EXTRACT_DIR}/aced/* ${PACKAGE_DIR}/src/usr/share/vnx/aced
+
+
+#
+# Copy package files and update keys
+#
+cp vnx-package/base_files/PVARS vnx-package/package/
+sed --in-place -e 's/PNAME\=\("pname"\)/PNAME\=\"vnx-all"/g' vnx-package/package/PVARS
+sed --in-place -e 's/MAJOR\=\("major"\)/MAJOR\=\"'$MAJOR'"/g' vnx-package/package/PVARS
+sed --in-place -e 's/MINOR\=\("minor"\)/MINOR\=\"'$MINOR'"/g' vnx-package/package/PVARS
+sed --in-place -e 's/REVISION\=\("revision"\)/REVISION\=\"'$REVISION'"/g' vnx-package/package/PVARS
+cp vnx-package/base_files/make vnx-package/base_files/make-p vnx-package/package/
+cp vnx-package/base_files/control vnx-package/base_files/install_vnx vnx-package/base_files/postinst.in vnx-package/base_files/postrm.in vnx-package/base_files/prerm.in vnx-package/package/src/DEBIAN
+
+#
+# Make .deb package
+#
+vnx-package/package/make deb
+#
+# Clean package temp files
+#
+#rm -rf vnx-package/package/src vnx-package/package/vnx* vnx-package/package/m*   vnx-package/package/P*
+
+
+echo "** "
+echo "** ...done"
+echo "** "

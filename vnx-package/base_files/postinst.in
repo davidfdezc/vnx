@@ -1,6 +1,6 @@
 #!/bin/bash
 
-include(PVARS)
+#include(PVARS)
 
 TIME=$(date)
 
@@ -26,103 +26,132 @@ fi
 VNX_LIBS="$PERL_LIBS/VNX/"
 EDIV_LIBS="$PERL_LIBS/EDIV/"
 
-echo "** "
-echo "** Installing VNX v${VNX_VERSION}... "
-echo "** "
 
 #
+# Allocate vnx perl modules
+#
+cp -v /tmp/vnx_libs/* ${VNX_LIBS}
+chmod 644 ${VNX_LIBS}*
+rm -rf /tmp/vnx_libs
+
+#
+# Allocate ediv perl modules
+#
+cp -v /tmp/ediv_libs/* ${EDIV_LIBS}
+chmod 644 ${EDIV_LIBS}*
+rm -rf /tmp/ediv_libs
+
+cp -v /tmp/ediv_alg_modules_dir/* ${EDIV_ALG_MODULES_DIR}
+chmod 644 ${EDIV_ALG_MODULES_DIR}*
+rm -rf /tmp/ediv_alg_modules_dir
+
+
+
+
+
+
+
+
+
+#echo "** "
+#echo "** Installing VNX v${VNX_VERSION}... "
+#echo "** "
+
+# MOVIDO
 # Create directories if not already created
 #
-mkdir -vp ${VNX_LIBS}
-mkdir -vp ${EDIV_LIBS}
-mkdir -vp ${EDIV_ALG_MODULES_DIR}
-mkdir -vp /usr/share/xml/vnx
-mkdir -vp /usr/share/vnx/bin
-mkdir -vp /usr/share/vnx/examples/
-mkdir -vp /usr/share/vnx/filesystems
-mkdir -vp /usr/share/vnx/kernels
-mkdir -vp /usr/share/vnx/aced
-mkdir -vp /etc/ediv
+#mkdir -vp ${VNX_LIBS}
+#mkdir -vp ${EDIV_LIBS}
+#mkdir -vp ${EDIV_ALG_MODULES_DIR}
+#mkdir -vp /usr/share/xml/vnx
+#mkdir -vp /usr/share/vnx/bin
+#mkdir -vp /usr/share/vnx/examples/
+#mkdir -vp /usr/share/vnx/filesystems
+#mkdir -vp /usr/share/vnx/kernels
+#mkdir -vp /usr/share/vnx/aced
+#mkdir -vp /etc/ediv
 
-#
+#MOVIDO
 # Copy vnx
 #
-cp -v bin/vnx.pl /usr/bin/vnx
-chmod +x /usr/bin/vnx
+#cp -v bin/vnx.pl /usr/bin/vnx
+#chmod +x /usr/bin/vnx
 
-#
+#MOVIDO
 # Copy ediv executables
 #
-cp -v bin/ediv_* bin/vn /usr/bin
-mv /usr/bin/ediv_ctl_vnx.pl /usr/bin/ediv
-chmod +x /usr/bin/ediv* /usr/bin/vn
+#cp -v bin/ediv_* bin/vn /usr/bin
+#mv /usr/bin/ediv_ctl_vnx.pl /usr/bin/ediv
+#chmod +x /usr/bin/ediv* /usr/bin/vn
 
-#
+#MOVIDO
 # Copy other utilities
 #
-cp -v bin/vnx2dot.pl /usr/bin/vnx2dot
-chmod +x /usr/bin/vnx2dot
+#cp -v bin/vnx2dot.pl /usr/bin/vnx2dot
+#chmod +x /usr/bin/vnx2dot
 
-#
+#MOVIDO
 # Copy vnx perl modules
 #
-cp -v perl-modules/VNX/* ${VNX_LIBS}
-chmod 644 ${VNX_LIBS}*
+#cp -v perl-modules/VNX/* ${VNX_LIBS}
+#chmod 644 ${VNX_LIBS}*
 
-#
+#movido
 # Copy ediv perl modules
 #
-cp -v perl-modules/EDIV/* ${EDIV_LIBS}
-chmod 644 ${VNX_LIBS}*
-cp -v perl-modules/algorithms/* ${EDIV_ALG_MODULES_DIR}
-chmod 644 ${VNX_LIBS}*
+#cp -v perl-modules/EDIV/* ${EDIV_LIBS}
+#chmod 644 ${VNX_LIBS}*
+#cp -v perl-modules/algorithms/* ${EDIV_ALG_MODULES_DIR}
+#chmod 644 ${VNX_LIBS}*
 
-#
+#movido
 # Copy VNX xsd
 #
-#cp -v data/*.dtd /usr/share/xml/vnx/
-cp -v data/*.xsd /usr/share/xml/vnx/
+#cp -v data/*.xsd /usr/share/xml/vnx/
 
-#
+##movido
 # Copy examples
 #
-cp -v data/*.xml data/*.net /usr/share/vnx/examples/
-cp -vr data/conf /usr/share/vnx/examples/
-chmod 644 /usr/share/vnx/examples/*
-chmod +x /usr/share/vnx/examples/conf
+#cp -v data/*.xml data/*.net /usr/share/vnx/examples/
+#cp -vr data/conf /usr/share/vnx/examples/
+#chmod 644 /usr/share/vnx/examples/*
+#chmod +x /usr/share/vnx/examples/conf
 
-#
+#movido
 # Copy other utils
 #
-cp -v bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
-cp -v bin/vnx_modify_rootfs.sh /usr/share/vnx/bin/vnx_modify_rootfs
-cp -v bin/vnx_modify_rootfs2.sh /usr/share/vnx/bin/vnx_modify_rootfs2
-cp -v bin/vnx_update.sh /usr/share/vnx/bin/vnx_update
-chmod 755 /usr/share/vnx/bin/*
+#cp -v bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
+#cp -v bin/vnx_modify_rootfs.sh /usr/share/vnx/bin/vnx_modify_rootfs
+#cp -v bin/vnx_modify_rootfs2.sh /usr/share/vnx/bin/vnx_modify_rootfs2
+#cp -v bin/vnx_update.sh /usr/share/vnx/bin/vnx_update
+#chmod 755 /usr/share/vnx/bin/*
 
-#
+#movido
 # Copy vnx config file
 #
 #if [ -e /etc/vnx.conf ]; then
 #	mv /etc/vnx.conf /etc/vnx.conf.bak
 #fi
-cp -v etc/vnx.conf /etc/vnx.conf.sample
-chmod 600 /etc/vnx.conf.sample
+#cp -v etc/vnx.conf /etc/vnx.conf.sample
+#chmod 600 /etc/vnx.conf.sample
 
-#
+#movido
 # Copy ediv config file
 #
-cp -v etc/cluster.conf /etc/ediv/cluster.conf.sample
-chmod 600 /etc/ediv/cluster.conf.sample
+#cp -v etc/cluster.conf /etc/ediv/cluster.conf.sample
+#chmod 600 /etc/ediv/cluster.conf.sample
 
-#
+#movido
 # Copy ace daemons 
 #
-cp -v aced/* /usr/share/vnx/aced
+#cp -v aced/* /usr/share/vnx/aced
 
-echo "** "
-echo "** ...done"
-echo "** "
+#echo "** "
+#echo "** ...done"
+#echo "** "
+
+
+
 
 #
 # Create vnx user and group (taken from postinst script of vnumlXXX.deb

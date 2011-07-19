@@ -33,8 +33,7 @@ Usage='
     make [deb|upload|all|clean]
 '
 
-#PBINDIR=$PNAME-v$PVERS1$PVERS2
-PBINDIR=$PNAME-v$PVERS
+PBINDIR=$PNAME-v$MAJOR.$MINOR.$REVISION
 
 
 function CopyCommonFiles {
@@ -58,16 +57,9 @@ function CopyDebFiles {
     chmod 755 ${PBINDIR}/DEBIAN/p*
     rm ${PBINDIR}/DEBIAN/postinst.in ${PBINDIR}/DEBIAN/prerm.in ${PBINDIR}/DEBIAN/postrm.in
 
-#    sed --in-place \
-#      -e "s/%%PNAME%%/vnx-${PNAME}/" \
-#      -e "s/%%PVERS%%/${PVERS1}.${PVERS2}/" \
-#      -e "s/%%MAINTAINER%%/${MAINTAINER}/" \
-#      -e "s/%%SHORT_DESC%%/${SHORT_DESC}/" \
-#      ${PBINDIR}/DEBIAN/control
-
     sed --in-place \
-      -e "s/%%PNAME%%/vnx-${PNAME}/" \
-      -e "s/%%PVERS%%/${PVERS}/" \
+      -e "s/%%PNAME%%/${PNAME}/" \
+      -e "s/%%PVERS%%/${MAJOR}.${MINOR}.${REVISION}/" \
       -e "s/%%MAINTAINER%%/${MAINTAINER}/" \
       -e "s/%%SHORT_DESC%%/${SHORT_DESC}/" \
       ${PBINDIR}/DEBIAN/control
