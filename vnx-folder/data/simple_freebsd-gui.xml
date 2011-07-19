@@ -2,15 +2,32 @@
 
 <!--
 
-Simple scenario
-Just one FreeBSD virtual machine. Use this specification for testing
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        simple_freebsd-gui
+Description: Just one Freebsd virtual machine with GUI connected to a Network named Net0 with address 10.0.0.7. 
+             The host has an interface in Net0 with address 10.0.0.1  
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
 
 -->
 
+
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.96.xsd">
+     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
-    <version>1.92</version>
+    <version>2.0</version>
     <scenario_name>simple_freebsd-gui</scenario_name>
     <automac offset="7"/>
     <vm_mgmt type="none" />
@@ -31,12 +48,12 @@ Just one FreeBSD virtual machine. Use this specification for testing
     </if>
     <filetree seq="vnxtxt" root="/tmp">conf/txtfile</filetree>
     <filetree seq="start-www" root="/usr/local/www/apache22/data">conf/txtfile</filetree>
-    <exec seq="vnxtxt" type="verbatim" mode="system">gedit /tmp/vnx.txt</exec>
-    <exec seq="vnxtxt2" type="verbatim" mode="system">'sleep 5; wmctrl -r vnx.txt -b add,maximized_vert,maximized_horz'</exec>
-    <exec seq="showlog" type="verbatim" mode="system">tail -f /var/log/vnxdaemon.log</exec>
-    <exec seq="start-www" type="verbatim" mode="system">chown www:www /usr/local/www/apache22/data/*</exec>
-    <exec seq="start-www" type="verbatim" mode="system">/usr/local/etc/rc.d/apache22 onestart</exec>
-    <exec seq="stop-www" type="verbatim" mode="system">/usr/local/etc/rc.d/apache22 onestop</exec>    
+    <exec seq="vnxtxt"    type="verbatim" ostype="system">gedit /tmp/vnx.txt</exec>
+    <exec seq="vnxtxt2"   type="verbatim" ostype="system">'sleep 5; wmctrl -r vnx.txt -b add,maximized_vert,maximized_horz'</exec>
+    <exec seq="showlog"   type="verbatim" ostype="system">tail -f /var/log/vnxdaemon.log</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">chown www:www /usr/local/www/apache22/data/*</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">/usr/local/etc/rc.d/apache22 onestart</exec>
+    <exec seq="stop-www"  type="verbatim" ostype="system">/usr/local/etc/rc.d/apache22 onestop</exec>    
   </vm>
 
   <host>

@@ -6,8 +6,8 @@
 VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
-Name:        simple_fedora-gui
-Description: Just one Fedora virtual machine with GUI connected to a Network named Net0 with address 10.0.0.10. 
+Name:        simple_fedora
+Description: Just one Fedora virtual machine connected to a Network named Net0 with address 10.0.0.9. 
              The host has an interface in Net0 with address 10.0.0.1  
              This simple scenario is supposed to be used for testing the different 
              types of virtual machines supported by VNX. You can start several simple_*.xml
@@ -28,7 +28,7 @@ SPAIN
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
     <version>2.0</version>
-    <scenario_name>simple_fedora-gui</scenario_name>
+    <scenario_name>simple_fedora</scenario_name>
     <automac offset="10"/>
     <vm_mgmt type="none" />
     <vm_defaults>
@@ -41,10 +41,10 @@ SPAIN
   
   <!-- NODES -->
   <vm name="fedora-gui" type="libvirt" subtype="kvm" os="linux">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_fedora-gui</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_fedora</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.10/24</ipv4>
+      <ipv4>10.0.0.9/24</ipv4>
     </if>
     <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www/html">conf/txtfile</filetree>

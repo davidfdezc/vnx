@@ -2,24 +2,32 @@
 
 <!--
 
-Simple scenario
-Just one Juniper olive virtual machine. Use this specification for testing
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
 
-Configuration to load in the router:
+Name:        simple_olive
+Description: Just one Olive router connected to a Network named Net0 with address 10.0.0.13. 
+             The host has an interface in Net0 with address 10.0.0.1  
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
 
-cli
-edit 
-set system root-authentication plain-text-password 
-set system services ssh 
-set interfaces fxp0 unit 0 family inet address 10.0.0.11/24
-commit
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
 
 -->
 
+
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.97.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
-    <version>1.92</version>
+    <version>2.0</version>
     <scenario_name>simple_olive</scenario_name>
     <automac offset="13"/>
     <vm_mgmt type="none" />
@@ -37,12 +45,7 @@ commit
       <ipv4>10.0.0.13/24</ipv4>
       <ipv6>2001:db8::13/64</ipv6>
     </if>
-    <if id="2" net="Net0" name="fxp1">
-      <ipv4>10.0.0.14/24</ipv4>
-      <ipv6>2001:db8::14/64</ipv6>
-    </if>
     <route type="ipv4" gw="10.0.0.1">default</route>
-  	<route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
 
     <filetree seq="copyconfig2" root="/var/tmp">conf/</filetree>
     <filetree seq="copyconfig2" root="/var/tmp">conf/txtfile/</filetree>
@@ -52,10 +55,6 @@ commit
     <exec seq="enable-telnet" type="verbatim" mode="sdisk" ostype="set">set system services telnet</exec>
     <exec seq="showint"       type="verbatim" mode="sdisk" ostype="show">show interfaces</exec>
     <exec seq="file"          type="file"     mode="sdisk">comandos/commands-file</exec>
-
-    <exec seq="copyconfig" type="verbatim" mode="sdisk" ostype="set">set interfaces fxp0 unit 0 family inet address 192.168.122.10/24</exec>
-    <exec seq="copyconfig" type="verbatim" mode="sdisk" ostype="show">show interfaces</exec>
-    <exec seq="copyconfig" type="verbatim" mode="sdisk" ostype="show">show interfaces</exec>    
   </vm>
 
   <host>
