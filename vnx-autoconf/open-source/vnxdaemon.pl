@@ -1,5 +1,39 @@
 #!/usr/bin/perl
 
+#
+# Name: vnxace
+#
+# Description: 
+#   vnxace is the Linux and FreeBSD Autoconfiguration and Command Execution Daemon (ACED) 
+#   of VNX project. It reads autoconfiguration or command execution XML files provided
+#   to the virtual machine through dynamically mounted cdroms and process them, executing 
+#   the needed commands.  
+#
+# This file is a module part of VNX package.
+#
+# Author: Jorge Somavilla (somavilla@dit.upm.es), David Fernández (david@dit.upm.es)
+# Copyright (C) 2011, 	DIT-UPM
+# 			Departamento de Ingenieria de Sistemas Telematicos
+#			Universidad Politecnica de Madrid
+#			SPAIN
+#			
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+# An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
+#
+
 use strict;
 use POSIX;
 use Sys::Syslog;
@@ -8,10 +42,13 @@ use XML::DOM;
 use constant LINUX_TTY => '/dev/ttyS1';
 use constant FREEBSD_TTY => '/dev/cuau1';
 
+use constant VNXACED_PID => '/var/run/vnxaced.pid';
+use constant VNXACED_LOG => '/var/log/vnxaced.log';
+
+
 my @platform;
 my $mountCmd;
 my $umountCmd; 
-
 
 sleep 10;
 &main;
@@ -21,10 +58,6 @@ sub main{
 
 	my $command;
 
-	#detect platform (values: 'Linux', 'FreeBSD')
-	#$command = "uname";
-	#chomp ($platform = `$command`);
-		
 	@platform = split(/,/, &getOSDistro);
 	
 	if ($platform[0] eq 'Linux'){
@@ -53,24 +86,24 @@ sub main{
 		# generate run dir
 		#system "mkdir -p /var/run/vnxdaemon/";
 		# remove residual log file
-		system "rm -f /var/log/vnxdaemon.log";
+		system "rm -f " . VNXACED_LOG;
 		# remove residual PID file
-		system "rm -f /var/run/vnxdaemon.pid";
+		system "rm -f " . VNXACED_PID;
 		# generate new log file
-		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+		open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 		print LOG "\n";
 		print LOG "\n";
 		$command = "date";
 		chomp (my $now = `$command`);
 		print LOG "#########################################################################\n";
-		print LOG "#### vnxdaemon log sequence started at $now  ####\n";
+		print LOG "#### vnxaced log sequence started at $now  ####\n";
 		print LOG "#########################################################################\n";
 		close LOG;
 	}
 
-	if (-f "/var/run/vnxdaemon.pid"){
-		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
-		print LOG "Another instance of vnxdaemon (PID " . "/var/run/vnxdaemon.pid" . ") seems to be running, aborting current execution (PID $$)\n";
+	if (-f VNXACED_PID){
+		open LOG, ">>" . VNXACED_LOG or print "error opening log file";
+		print LOG "Another instance of vnxaced (PID " . VNXACED_PID . ") seems to be running, aborting current execution (PID $$)\n";
 		exit 1;
 	}
 	
@@ -86,7 +119,7 @@ sub main{
 
 sub daemonize {
 		
-	open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+	open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 	print LOG "\n";	
 	print LOG "## Daemonizing process ##\n";
 
@@ -96,7 +129,7 @@ sub daemonize {
 #	die "Couldn't fork: $!" unless defined($pid);
 
 	# store process pid
-	system "echo $$ > /var/run/vnxdaemon.pid";
+	system "echo $$ > " . VNXACED_PID;
 
 	# Become session leader (independent from shell and terminal)
 	setsid();
@@ -128,7 +161,7 @@ sub listen {
 	#############################
 	if ($platform[0] eq 'Linux'){
 
-		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+		open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 		print LOG "## Listening ##\n\n";
 		system "mkdir -p /root/.vnx";
 		my @files = </media/*>;
@@ -193,7 +226,7 @@ sub listen {
 	# listen for FreeBSD        #
 	#############################
 	elsif ($platform[0] eq 'FreeBSD'){
-		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+		open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 		print LOG "## Listening ##\n\n";
 		system "mkdir -p /root/.vnx";
 		my @files = </*>;
@@ -269,9 +302,23 @@ sub autoupdate {
 	# update for Linux          #
 	#############################
 	if ($platform[0] eq 'Linux'){
-		print LOG "   updating vnxdaemon for Linux\n";
-		system "cp /media/cdrom/vnxdaemon.pl /etc/init.d/";
-		system "cp /media/cdrom/unix/* /etc/init/";
+		print LOG "   updating vnxaced for Linux\n";
+
+		if ( ($platform[1] eq 'Ubuntu') or   
+         	 ($platform[1] eq 'Fedora') ) { 
+
+        # Use VNXACED based on upstart
+
+			system "cp /media/cdrom/vnxdaemon.pl /etc/init.d/";
+			system "cp /media/cdrom/unix/* /etc/init/";
+
+		} elsif ($platform[1] eq 'CentOS') { 
+
+			# Use VNXACED based on init.d
+			system "cp -v vnxdaemon.pl /usr/local/bin/vnxaced";
+			system "cp -v unix/init.d/vnxace /etc/init.d/";
+
+		}
 	}
 	#############################
 	# update for FreeBSD        #
@@ -292,7 +339,7 @@ sub autoupdate {
 ############### check id of a file ################
 
 sub check_if_new_file {
-open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 	my $file = shift;
 	my $type = shift;	
 	my $parser       = new XML::DOM::Parser;
@@ -333,7 +380,7 @@ sub execute_commands {
 	#######################################
 	if ($platform[0] eq 'Linux'){
 		my $commands_file = shift;
-		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+		open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 		my $parser       = new XML::DOM::Parser;
 		my $dom          = $parser->parsefile($commands_file);
 		my $globalNode   = $dom->getElementsByTagName("command")->item(0);
@@ -375,7 +422,7 @@ sub execute_commands {
 	#######################################
 	elsif ($platform[0] eq 'FreeBSD'){
 		my $commands_file = shift;
-		open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+		open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 		my $parser       = new XML::DOM::Parser;
 		my $dom          = $parser->parsefile($commands_file);
 		my $globalNode   = $dom->getElementsByTagName("command")->item(0);
@@ -422,12 +469,12 @@ sub execute_commands {
 sub autoconfigure {
 
 	my $vnxboot_file = shift;
-	open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+	open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 
 	# autoconfigure for Linux             #
 	if ($platform[0] eq 'Linux'){
 		if ($platform[1] eq 'Ubuntu')    { &autoconfigureUbuntu ($vnxboot_file)}			
-		elsif ($platform[1] eq 'Fedora') { &autoconfigureFedora ($vnxboot_file)}
+		elsif ( ($platform[1] eq 'Fedora') or ($platform[1] eq 'CentOS') ) { &autoconfigureFedora ($vnxboot_file)}
 	}
 	# autoconfigure for FreeBSD           #
 	elsif ($platform[0] eq 'FreeBSD'){
@@ -444,7 +491,7 @@ sub autoconfigureUbuntu {
 	
 	my $vnxboot_file = shift;
 
-	open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+	open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($vnxboot_file);
 	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
@@ -645,7 +692,7 @@ sub autoconfigureFedora {
 
 	my $vnxboot_file = shift;
 	
-	open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+	open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($vnxboot_file);
 	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
@@ -670,13 +717,19 @@ sub autoconfigureFedora {
 		system "echo NETWORKING_IPV6=yes >> /etc/sysconfig/network";
 
 		# before the loop, backup /etc/udev/...70
-		# and /etc/network/interfaces
 		# and erase their contents
-		print LOG "   configuring /etc/udev/rules.d/70-persistent-net.rules and /etc/network/interfaces...\n";
-		my $rules_file = "/etc/udev/rules.d/70-persistent-net.rules";
-		system "cp $rules_file $rules_file.backup";
-		system "echo \"\" > $rules_file";
+		my $rules_file;
+#		if ($platform[1] eq 'Fedora') { 
+			$rules_file = "/etc/udev/rules.d/70-persistent-net.rules";
+			system "cp $rules_file $rules_file.backup";
+			system "echo \"\" > $rules_file";
+
+		print LOG "   configuring $rules_file...\n";
 		open RULES, ">" . $rules_file or print "error opening $rules_file";
+#		} elsif ($platform[1] eq 'CentOS') { 
+#			$rules_file = "/etc/udev/rules.d/60-net.rules";
+#			system "cp $rules_file $rules_file.backup";
+#		}
 
 		# Network interfaces configuration: <if> tags
 		my $numif        = $ifTaglist->getLength;
@@ -700,18 +753,37 @@ sub autoconfigureFedora {
 				$ifName = "eth" . $id;
 			}
 			
-			print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac . 	"\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
-			#print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
+			if ($platform[1] eq 'Fedora') { 
+				print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac . 	"\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
+				#print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
 
-			my $ifFile = "/etc/sysconfig/network-scripts/ifcfg-Auto_$ifName";
+			} elsif ($platform[1] eq 'CentOS') { 
+#				print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"" . $ifName . "\"\n\n";
+			}
+
+
+			my $ifFile;
+			if ($platform[1] eq 'Fedora') { 
+				$ifFile = "/etc/sysconfig/network-scripts/ifcfg-Auto_$ifName";
+			} elsif ($platform[1] eq 'CentOS') { 
+				$ifFile = "/etc/sysconfig/network-scripts/ifcfg-$ifName";
+			}
 			system "echo \"\" > $ifFile";
 			open IF_FILE, ">" . $ifFile or print "error opening $ifFile";
 	
+			if ($platform[1] eq 'CentOS') { 
+				print IF_FILE "DEVICE=$ifName\n";
+			}
 			print IF_FILE "HWADDR=$mac\n";
 			print IF_FILE "TYPE=Ethernet\n";
 			#print IF_FILE "BOOTPROTO=none\n";
 			print IF_FILE "ONBOOT=yes\n";
-			print IF_FILE "NAME=\"Auto $ifName\"\n";
+			if ($platform[1] eq 'Fedora') { 
+				print IF_FILE "NAME=\"Auto $ifName\"\n";
+			} elsif ($platform[1] eq 'CentOS') { 
+				print IF_FILE "NAME=\"$ifName\"\n";
+			}
+
 			print IF_FILE "IPV6INIT=yes\n";
 			
 			my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
@@ -874,7 +946,7 @@ sub autoconfigureFreeBSD {
 	
 	my $vnxboot_file = shift;
 
-	open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+	open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 	print LOG "begin of autoconfigureFreeBSD\n";
 	
 	my $parser       = new XML::DOM::Parser;
@@ -1080,7 +1152,7 @@ sub autoconfigureFreeBSD {
 sub filetree {
 	my $path = shift;
 
-	open LOG, ">>" . "/var/log/vnxdaemon.log" or print "error opening log file";
+	open LOG, ">>" . VNXACED_LOG or print "error opening log file";
 	my $filetree_file = $path . "/command.xml";
 	my @files_array = <$path/*>;
 	my $parser       = new XML::DOM::Parser;
@@ -1099,7 +1171,7 @@ sub filetree {
 			system "mkdir -p $root";
 		}
 		print LOG "   executing 'cp -R $source_path $root'...\n";
-		system "ls -R $source_path >> /var/log/vnxdaemon.log";
+		system "ls -R $source_path >> " . VNXACED_LOG;
 		system "cp -R $source_path $root";
 			
 	}
