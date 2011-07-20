@@ -36,6 +36,7 @@ PACKAGE_DIR=vnx-package/package
 # Clean/Create destination folders
 rm -rf ${PACKAGE_DIR}/*
 mkdir -vp ${PACKAGE_DIR}/src/DEBIAN
+mkdir -vp ${PACKAGE_DIR}/src/usr/bin/
 mkdir -vp ${PACKAGE_DIR}/src/usr/share/xml/vnx
 mkdir -vp ${PACKAGE_DIR}/src/usr/share/vnx/bin
 mkdir -vp ${PACKAGE_DIR}/src/usr/share/vnx/examples
@@ -49,14 +50,15 @@ mkdir -vp ${PACKAGE_DIR}/src/etc/ediv
 VNX_LIBS=/tmp/vnx_libs
 EDIV_LIBS=/tmp/ediv_libs
 EDIV_ALG_MODULES_DIR=/tmp/ediv_alg_modules_dir
-mkdir -vp ${VNX_LIBS}
-mkdir -vp ${EDIV_LIBS}
-mkdir -vp ${EDIV_ALG_MODULES_DIR}
+mkdir -vp mkdir -vp ${PACKAGE_DIR}/src${VNX_LIBS}
+mkdir -vp mkdir -vp ${PACKAGE_DIR}/src/${EDIV_LIBS}
+mkdir -vp mkdir -vp ${PACKAGE_DIR}/src/${EDIV_ALG_MODULES_DIR}
 
 
 # Extract tar file to temp dir, removing first directory
 #tar -C vnx-package/package/src/tmp/VNX_tmp_install_files/ -xvf distrib/$TARNAME --strip 1
-mkdir ${TMP_EXTRACT_DIR}
+mkdir -p ${TMP_EXTRACT_DIR}
+rm -rf ${TMP_EXTRACT_DIR}/*
 tar -C ${TMP_EXTRACT_DIR} -xvf distrib/$TARNAME --strip 1
 
 #
@@ -81,16 +83,16 @@ chmod +x ${PACKAGE_DIR}/src/usr/bin/vnx2dot
 #
 # Copy vnx perl modules
 #
-cp -v ${TMP_EXTRACT_DIR}/perl-modules/VNX/* ${PACKAGE_DIR}/src${VNX_LIBS}
-chmod 644 ${PACKAGE_DIR}/src${VNX_LIBS}*
+cp -v ${TMP_EXTRACT_DIR}/perl-modules/VNX/* ${PACKAGE_DIR}/src${VNX_LIBS}/
+chmod 644 ${PACKAGE_DIR}/src${VNX_LIBS}/*
 
 #
 # Copy ediv perl modules
 #
-cp -v ${TMP_EXTRACT_DIR}/perl-modules/EDIV/* ${PACKAGE_DIR}/src${EDIV_LIBS}
-chmod 644 ${PACKAGE_DIR}/src${EDIV_LIBS}
-cp -v ${TMP_EXTRACT_DIR}/perl-modules/algorithms/* ${PACKAGE_DIR}/src${EDIV_ALG_MODULES_DIR}
-chmod 644 ${PACKAGE_DIR}/src${EDIV_ALG_MODULES_DIR}*
+cp -v ${TMP_EXTRACT_DIR}/perl-modules/EDIV/* ${PACKAGE_DIR}/src${EDIV_LIBS}/
+chmod 644 ${PACKAGE_DIR}/src${EDIV_LIBS}/*
+cp -v ${TMP_EXTRACT_DIR}/perl-modules/algorithms/* ${PACKAGE_DIR}/src${EDIV_ALG_MODULES_DIR}/
+chmod 644 ${PACKAGE_DIR}/src${EDIV_ALG_MODULES_DIR}/*
 
 #
 # Copy VNX xsd
@@ -152,6 +154,36 @@ vnx-package/package/make deb
 #
 #rm -rf vnx-package/package/src vnx-package/package/vnx* vnx-package/package/m*   vnx-package/package/P*
 
+
+if [ "$1" = "upload" ]
+then
+
+  #
+  # Upload to repositories (default debian-testing)
+  #
+  # REPO=debian
+    REPO=debian-testing
+  scp -r vnx-package/package/pkg/vnx-all/* vnuml@jungla.dit.upm.es:/home/vnuml/lib/www/vnx/${REPO}/binary/
+  scp -r distrib/$TARNAME vnuml@jungla.dit.upm.es:/home/vnuml/lib/www/vnx/${REPO}/source/
+  #
+  # Update Packages.gz and Sources.gz
+  # TODO: (necesita permisos de root en jungla)
+  #
+  #ssh vnuml@jungla.dit.upm.es 'cd /home/vnx/lib/www/vnx/${REPO} && dpkg-scanpackages binary /dev/null | gzip -9c > binary/Packages.gz && dpkg-scansources source /dev/null | gzip -9c > source/Sources.gz'
+
+  else
+  if [ "$1" != "" ]
+  then
+    echo "** "
+    echo "** Usage: make_pkg"
+    echo "**        make_pkg upload"
+  fi
+fi
+
+#
+# Remove temp extraction dir
+#
+rm -rf ${TMP_EXTRACT_DIR}
 
 echo "** "
 echo "** ...done"
