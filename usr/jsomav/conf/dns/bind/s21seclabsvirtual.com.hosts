@@ -1,0 +1,66 @@
+$ttl 38400
+s21seclabsvirtual.com.	IN	SOA	dns.s21seclabsvirtual.com. root.s21seclabsvirtual.com. (
+			1227930636
+			10800
+			3600
+			604800
+			38400 )
+
+s21seclabsvirtual.com.	IN	NS	dns.s21seclabsvirtual.com.
+
+; Internet
+r2-inet.s21seclabsvirtual.com.  IN      A       10.1.1.81
+h1-ext.s21seclabsvirtual.com.   IN      A       10.1.1.83
+
+; ExtNet
+fw1-ext.s21seclabsvirtual.com.  IN      A       192.168.0.1
+r2-ext.s21seclabsvirtual.com.   IN      A       192.168.0.2
+ext-1.s21seclabsvirtual.com.    IN      A       192.168.0.11
+ext-2.s21seclabsvirtual.com.    IN      A       192.168.0.12
+ext-3.s21seclabsvirtual.com.    IN      A       192.168.0.13
+ext-4.s21seclabsvirtual.com.    IN      A       192.168.0.14
+ext-5.s21seclabsvirtual.com.    IN      A       192.168.0.15
+ext-6.s21seclabsvirtual.com.    IN      A       192.168.0.16
+ext-7.s21seclabsvirtual.com.    IN      A       192.168.0.17
+ext-8.s21seclabsvirtual.com.    IN      A       192.168.0.18
+
+; IntNet
+fw1-int.s21seclabsvirtual.com.  IN      A       10.0.0.1
+r1-int.s21seclabsvirtual.com.   IN      A       10.0.0.2
+
+; DMZ
+fw1-dmz.s21seclabsvirtual.com.  IN      A       10.0.10.1
+dns.s21seclabsvirtual.com.      IN      A       10.0.10.2
+www.s21seclabsvirtual.com.      IN      A       10.0.10.4
+mail.s21seclabsvirtual.com.     IN      A       10.0.10.3
+
+; Subnet1
+r1-s1.s21seclabsvirtual.com.    IN      A       10.0.1.1
+vpn.s21seclabsvirtual.com.      IN      A       10.0.1.2
+bbdd.s21seclabsvirtual.com.     IN      A       10.0.1.3
+tomcat.s21seclabsvirtual.com.   IN      A       10.0.1.4
+gfish.s21seclabsvirtual.com.    IN      A       10.0.1.5
+net1-1.s21seclabsvirtual.com.   IN      A       10.0.1.11
+net1-2.s21seclabsvirtual.com.   IN      A       10.0.1.12
+
+; Subnet2
+r1-s2.s21seclabsvirtual.com.    IN      A       10.0.2.1
+net2-1.s21seclabsvirtual.com.   IN      A       10.0.2.11
+net2-2.s21seclabsvirtual.com.   IN      A       10.0.2.12
+net2-3.s21seclabsvirtual.com.   IN      A       10.0.2.13
+net2-4.s21seclabsvirtual.com.   IN      A       10.0.2.14
+net2-5.s21seclabsvirtual.com.   IN      A       10.0.2.15
+net2-6.s21seclabsvirtual.com.   IN      A       10.0.2.16
+net2-7.s21seclabsvirtual.com.   IN      A       10.0.2.17
+net2-8.s21seclabsvirtual.com.   IN      A       10.0.2.18
+
+; Subnet3
+r1-s3.s21seclabsvirtual.com.    IN      A       10.0.3.1
+net3-1.s21seclabsvirtual.com.   IN      A       10.0.3.11
+net3-2.s21seclabsvirtual.com.   IN      A       10.0.3.12
+net3-3.s21seclabsvirtual.com.   IN      A       10.0.3.13
+net3-4.s21seclabsvirtual.com.   IN      A       10.0.3.14
+net3-5.s21seclabsvirtual.com.   IN      A       10.0.3.15
+net3-6.s21seclabsvirtual.com.   IN      A       10.0.3.16
+net3-7.s21seclabsvirtual.com.   IN      A       10.0.3.17
+net3-8.s21seclabsvirtual.com.   IN      A       10.0.3.18

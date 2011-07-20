@@ -1,0 +1,159 @@
+#!/bin/bash
+
+#
+# Version format: major.minor.revision
+#
+# To be manually updated:
+VNX_MAJOR="0"
+VNX_MINOR="15"
+# Automatically self updated (do not edit):
+VNX_LATEST_REVISION="111"
+
+#
+# Build version names
+#
+VNX_NEW_REVISION=`expr $VNX_LATEST_REVISION + 1`
+VNX_VERSION=${VNX_MAJOR}.${VNX_MINOR}.${VNX_NEW_REVISION}
+VNX_VERSION_DATE=${VNX_VERSION}-`date +%Y%m%d%H%M`
+
+#
+# User must have the latest version of this file, check repositories
+#
+echo "** "
+echo "** Will now build VNX tar file, version $VNX_VERSION"
+echo "** "
+echo "** IMPORTANT NOTE: Before running this script, please make sure to pull the latest project changeset from the repositories in order to synchronize version numbers."
+read -p "** Continue? (y/n)" -n 1
+if [[ ! $REPLY =~ ^[Yy]$ ]]
+then
+  echo "** cancelled."
+  echo ""
+  exit 1
+fi
+echo "** "
+
+
+#
+# Other versions and tar file name
+#
+ACED_OLIVE_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
+ACED_LF_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
+ACED_WIN_VERSION="0.1b"
+#ROOTFS_VERSION="es-v023b"
+FNAME=vnx-${VNX_VERSION_DATE}
+
+#
+# Move to the upper directory where this script is
+#
+cdir=$( dirname $0 )
+cd $cdir/..
+
+#
+# Create tar file dir
+#
+echo "** "
+echo "** Creating ${FNAME}.tgz file... "
+mkdir -p distrib
+mkdir -p tmp
+rm -rf tmp/*
+mkdir -p tmp/${FNAME}
+
+#
+# Create ACE tar files
+#
+mkdir -p tmp/aced
+rm -rf tmp/aced/*
+#
+# Olive
+#
+mkdir -p tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION
+cp vnx-autoconf/open-source/olive/*  tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION
+cd tmp/aced
+tar cfvz vnx-aced-olive-${ACED_OLIVE_VERSION}.tgz vnx-aced-olive-$ACED_OLIVE_VERSION
+rm -rf vnx-aced-olive-$ACED_OLIVE_VERSION
+cd ../..
+#
+# Windows
+#
+cp vnx-autoconf/windows/vnx-aced-win-${ACED_WIN_VERSION}.exe tmp/aced
+
+#
+# Linux & Freebsd
+#
+mkdir -p tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
+cp -r vnx-autoconf/open-source/freebsd vnx-autoconf/open-source/unix \
+      vnx-autoconf/open-source/vnxdaemon.pl vnx-autoconf/open-source/install-vnxdaemon \
+      tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
+cd tmp/aced
+tar cfvz vnx-aced-lf-${ACED_LF_VERSION}.tgz vnx-aced-lf-$ACED_LF_VERSION
+rm -rf vnx-aced-lf-$ACED_LF_VERSION
+cd ../..
+
+
+#
+# Copy all the files to tmp/${FNAME} directory to build the tar file from there 
+#
+cp -r vnx-folder/doc  \
+      vnx-folder/etc  \
+      vnx-folder/bin  \
+      vnx-folder/perl-modules \
+      vnx-folder/data \
+      tmp/aced        \
+      vnx-ediv/bin    \
+      vnx-ediv/etc    \
+      vnx-ediv/perl-modules \
+      tmp/${FNAME}
+
+#
+# Change $release variable in vnx
+#
+RELDATE=$( date +%d/%m/%Y_%H:%M )
+echo "** \$release=$RELDATE"
+echo "** "
+sed --in-place -e "s%DD/MM/YYYY%$RELDATE%" tmp/${FNAME}/bin/vnx.pl
+sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/${FNAME}/bin/vnx.pl
+cp admin-scripts/install_vnx tmp/${FNAME}
+mv tmp/${FNAME}/doc/00-readme.txt tmp/${FNAME}
+
+#
+# Create tar file and move it to distrib directory
+#
+cd tmp
+tar cfvz  ${FNAME}.tgz ${FNAME}
+mv ${FNAME}.tgz ../distrib
+cd ../distrib
+#
+# Create a symbolic link named vnx-latest.tgz to the new version
+# 
+rm vnx-latest.tgz
+ln -s ${FNAME}.tgz vnx-latest.tgz
+# rm -rf tmp/*
+cd ..
+
+#
+# Update this file with the new value of VNX_LATEST_REVISION 
+#
+sed --in-place -e 's/^VNX_LATEST_REVISION.*/VNX_LATEST_REVISION\=\"'$VNX_NEW_REVISION'"/g' admin-scripts/build_vnx_tar
+
+
+echo "** "
+echo "** ...done"
+echo "** "
+
+#
+# Copy new version to idefix webserver (only if this script is executed from idefix)
+#
+HNAME=$( hostname -f )
+if [ $HNAME = 'idefix.dit.upm.es' ]; then
+  if [ -d /var/www/download/vnx ]; then 
+    echo "Copying new version to http://idefix.dit.upm.es/download/vnx..."
+    cp -v ${FNAME}.tgz /var/www/download/vnx
+    rm -v /var/www/download/vnx/vnx-latest.tgz
+    ln -s /var/www/download/vnx/${FNAME}.tgz /var/www/download/vnx/vnx-latest.tgz
+    echo "...done"
+  fi  
+fi
+
+
+echo "** REMINDER: This script has been modified, please make sure to push the new changeset to the repositories, in order to register the new version."
+
