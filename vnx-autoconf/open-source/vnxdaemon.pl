@@ -70,7 +70,7 @@ sub main{
 			$umountCmd = 'udisks --unmount /dev/sr0';			
 		}
 		elsif ($platform[1] eq 'CentOS') { 
-			$mountCmd = 'mount /dev/cdrom /media/cdrom';
+			$mountCmd = 'eject cdrom; mount /dev/cdrom /media/cdrom';
 			$umountCmd = 'umount /media/cdrom';			
 		}
 	} elsif ($platform[0] eq 'FreeBSD'){

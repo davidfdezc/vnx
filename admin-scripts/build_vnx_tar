@@ -154,7 +154,7 @@ HNAME=$( hostname -f )
 if [ $HNAME = 'idefix.dit.upm.es' ]; then
   if [ -d /var/www/download/vnx ]; then 
     echo "Copying new version to http://idefix.dit.upm.es/download/vnx..."
-    cp -v ${FNAME}.tgz /var/www/download/vnx
+    cp -v distrib/${FNAME}.tgz /var/www/download/vnx
     rm -v /var/www/download/vnx/vnx-latest.tgz
     ln -s /var/www/download/vnx/${FNAME}.tgz /var/www/download/vnx/vnx-latest.tgz
     echo "...done"
@@ -162,5 +162,5 @@ if [ $HNAME = 'idefix.dit.upm.es' ]; then
 fi
 
 
-echo "** REMINDER: This script has been modified, please make sure to push the new changeset to the repositories, in order to register the new version."
+#echo "** REMINDER: This script has been modified, please make sure to push the new changeset to the repositories, in order to register the new version."
 
