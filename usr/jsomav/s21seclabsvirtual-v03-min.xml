@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+S21SecLabs scenario v0.3
+-->
+
+<!DOCTYPE vnx [
+  <!ENTITY VNXDIR "/usr/share/vnx/">
+  <!ENTITY REDIR  "&lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;">
+]>
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.93.xsd">
+
+	<global>
+		<version>1.92</version>
+		<scenario_name>s21seclabsvirtual-v03</scenario_name>
+		<ssh_version>2</ssh_version>
+		<ssh_key>~/.ssh/identity.pub</ssh_key>
+		<automac offset="50"/>
+		<vm_mgmt type="none"/>
+    	<vm_defaults exec_mode="mconsole">
+			<filesystem type="cow">&VNXDIR;filesystems/root_fs_light</filesystem>
+			<kernel>/usr/share/vnx/kernels/linux</kernel>
+		    <console id="0"/>
+		    <console id="1"/>
+		</vm_defaults>
+		<!--dynamips_ext>simple_dynamips-dn.xml</dynamips_ext-->
+	</global>
+
+	<!--NETS START-->
+
+    <!-- Red exterior: 10.1.1.0/24 -->
+	<net name="br0" mode="virtual_bridge" sock="" type="lan" 
+         external="" vlan="" hub="no"/>
+
+    <!-- Red exterior: 192.168.0.0/24 -->
+	<net name="ExtNet" mode="virtual_bridge" sock="" type="lan" 
+         external="" vlan="" hub="no"/>
+
+    <!-- Red DMZ: 10.0.10.0/24 -->
+	<net name="DMZ" mode="virtual_bridge" sock="" type="lan" 
+         external="" vlan="" hub="no"/>
+
+    <!-- Red IntNet: 10.0.0.0/24 -->
+	<net name="IntNet" mode="virtual_bridge" sock="" type="lan" 
+         external="" vlan="" hub="no"/>
+
+    <!-- Red SubNet1: 10.0.1.0/24 -->
+	<net name="SubNet1" mode="virtual_bridge" sock="" type="lan" 
+         external="" vlan="" hub="no"/>
+
+    <!-- Red SubNet2: 10.0.2.0/24 -->
+	<net name="SubNet2" mode="virtual_bridge" sock="" type="lan" 
+         external="" vlan="" hub="no"/>
+
+    <!-- Red SubNet3: 10.0.3.0/24 -->
+	<net name="SubNet3" mode="virtual_bridge" sock="" type="lan" 
+         external="" vlan="" hub="no"/>
+ 	<!--NETS END-->
+
+
+	<!-- Máquinas virtuales -->
+
+	<!-- Routers y firewall -->
+
+	<!-- FIREWALL -->
+	<vm name="fw" type="uml" subtype="" os="">
+		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
+        <mem>64M</mem>
+		<console id="1">xterm</console>
+		<if id="1" net="ExtNet">
+			<ipv4 mask="255.255.255.0">192.168.0.1</ipv4>
+	    </if>
+		<if id="2" net="DMZ">
+			<ipv4 mask="255.255.255.0">10.0.10.1</ipv4>
+	    </if>
+		<if id="3" net="IntNet">
+			<ipv4 mask="255.255.255.0">10.0.0.1</ipv4>
+	    </if>
+		<route type="ipv4" gw="10.0.0.2">10.0.0.0/16</route>
+		<route type="ipv4" gw="192.168.0.2">default</route>
+		<forwarding type="ip"/>
+
+
+	</vm>
+
+
+	<!-- ROUTER principal (R1) -->
+	 <vm name="R1" type="dynamips" subtype="3600" os="">
+		<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
+		<mem>96M</mem>
+		<console id="1"/>
+		<if id="1" net="IntNet" name="e0/0">
+			<ipv4 mask="255.255.255.0">10.0.0.2</ipv4>
+	    	</if>
+		<if id="2" net="SubNet1" name="e0/1">
+			<ipv4 mask="255.255.255.0">10.0.1.1</ipv4>
+	    	</if>
+		<if id="3" net="SubNet2" name="e0/2">
+			<ipv4 mask="255.255.255.0">10.0.2.1</ipv4>
+	    	</if>
+		<if id="4" net="SubNet3" name="e0/3">
+			<ipv4 mask="255.255.255.0">10.0.3.1</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.0.1">default</route>
+	    <exec seq="brief" type="verbatim">show ip interface brief</exec>
+	    <!--exec seq="reload" type="verbatim">reload /home/jrodriguez/R1.txt</exec-->
+    </vm>	
+
+	
+    <vm name="winxp" type="libvirt" subtype="kvm" os="windows">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
+    <mem>512M</mem>
+
+    <filetree seq="vnxtxt" root="c:\temp">conf/</filetree>
+    <filetree seq="vnxwww" root="c:\temp">conf/</filetree>
+    <exec seq="vnxtxt" type="verbatim" mode="system">start /max notepad c:\temp\vnx.txt</exec>
+    <exec seq="vnxwww" type="verbatim" mode="system">start /max c:\temp\vnx.html</exec>
+    <exec seq="calc" type="verbatim" mode="system">calc.exe</exec>
+    <exec seq="logout" type="verbatim" mode="system">shutdown -l</exec>
+    <exec seq="reboot" type="verbatim" mode="system">shutdown -r -t 5</exec>
+  </vm>
+
+
+</vnx>

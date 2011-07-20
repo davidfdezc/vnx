@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+Simple scenario
+Just one Linux virtual machine. Use this specification for testing
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.95.xsd">
+  <global>
+    <version>1.92</version>
+    <scenario_name>simple_uml</scenario_name>
+    <automac offset="2"/>
+    <vm_mgmt type="none" />
+    <vm_defaults exec_mode="mconsole">
+    </vm_defaults>
+  </global>
+
+  <net name="Net0" mode="virtual_bridge" />
+
+  <!-- NODES -->
+  <vm name="uml" type="uml" subtype="" os="">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
+    <mem>64M</mem>
+    <kernel>/usr/share/vnx/kernels/linux</kernel>
+    <console id="0" display="yes">xterm</console>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.2/24</ipv4>
+    </if>
+
+  </vm>
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>
+  
+</vnx>

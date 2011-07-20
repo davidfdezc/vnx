@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+VNUML Root Scenario (1)
+See the tutorial/index.html document for details
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.93.xsd">
+  <global>
+    <version>1.92</version>
+    <scenario_name>tutorial_root2_all</scenario_name>
+    <automac offset="0"/> 
+    <vm_mgmt type="private" network="10.250.0.0" mask="24">
+       <host_mapping />
+    </vm_mgmt> 
+    <vm_defaults exec_mode="mconsole">
+        <basedir>/home/jorge/workspace/ediv_testing/</basedir>
+    </vm_defaults>
+    <dynamips_ext>/home/jorge/workspace/vnx/vnx-folder/data/simple_dynamips-dn.xml</dynamips_ext>
+  </global>
+
+  <net name="Net0" mode="virtual_bridge" />
+  <net name="Net1" mode="virtual_bridge" />
+
+<vm name="UML" type="uml" subtype="" os="">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
+    <mem>64M</mem>
+    <kernel>/usr/share/vnx/kernels/linux</kernel>
+    <console id="0">xterm</console>
+    <if id="1" net="Net1">
+      <ipv4>10.0.1.4</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>
+  </vm>
+
+  <vm name="Ubuntu" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_linux</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.3</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.0.1">default</route>
+    <exec seq="comando" type="verbatim" mode="exec">gnome-calculator</exec>
+  </vm>
+
+
+
+
+
+  <vm name="XP" type="libvirt" subtype="kvm" os="windows">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.2</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.0.1">default</route>
+  </vm>
+
+  <vm name="FBSD" type="libvirt" subtype="kvm" os="freebsd">
+  <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_freebsd</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net1">
+      <ipv4>10.0.1.3</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>
+    <exec seq="comando" type="verbatim" mode="exec">gnome-calculator</exec>
+  </vm>
+
+  <vm name="Win7" type="libvirt" subtype="kvm" os="windows">
+  <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_win7</filesystem>
+  <mem>256M</mem>
+    <if id="1" net="Net1">
+      <ipv4>10.0.1.2</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>
+  </vm>
+
+  <!--vm name="FBSD" type="libvirt" subtype="kvm" os="freebsd">
+  <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_freebsd</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net1">
+      <ipv4>10.0.1.3</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>
+    <exec seq="comando" type="verbatim" mode="exec">gnome-calculator</exec>
+  </vm-->
+
+  
+
+</vnx>

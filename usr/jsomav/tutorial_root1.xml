@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+VNUML Root Scenario (1)
+See the tutorial/index.html document for details
+
+NOTE: if you are experiencing problems with the conventional xterm, we recommend you
+to uncomment the <xterm> tag, in order to use gnome-terminal, that seems to be more 
+stable. Of course, you will need the gnome-terminal installed
+in your system.
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.95.xsd">
+    <global>
+    <version>1.92</version>
+    <scenario_name>tutorial-r1</scenario_name>
+    <automac/>
+    <vm_mgmt type="none" />
+    <vm_defaults exec_mode="mconsole">
+       <filesystem type="cow">/usr/share/vnuml/filesystems/root_fs_tutorial</filesystem>
+       <kernel>/usr/share/vnuml/kernels/linux</kernel>
+       <console id="0">xterm</console>
+       <!--xterm>gnome-terminal,-t,-x</xterm-->
+    </vm_defaults>
+  </global>
+
+  <net name="Net0" mode="uml_switch" />
+  <net name="Net1" mode="uml_switch" />
+  <net name="Net2" mode="uml_switch" />
+  <net name="Net3" mode="uml_switch" />
+
+  <vm name="uml1" type="uml">
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.1/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.0.3">default</route>
+    <exec seq="start" type="verbatim">nohup /usr/bin/hello &lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp; </exec>
+    <exec seq="stop" type="verbatim">killall hello</exec>
+  </vm>
+
+  <vm name="uml2" type="uml">
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.2/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.0.3">default</route>
+  </vm>
+
+  <vm name="uml3" type="uml">
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.3/24</ipv4>
+    </if>
+    <if id="2" net="Net1">
+      <ipv4>10.0.1.1/24</ipv4>
+    </if>
+    <if id="3" net="Net3">
+      <ipv4>10.0.3.1/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
+    <forwarding type="ip" />
+  </vm>
+  
+  <vm name="uml4" type="uml">
+    <if id="1" net="Net1">
+      <ipv4>10.0.1.2/24</ipv4>
+    </if>
+    <if id="2" net="Net2">
+      <ipv4>10.0.2.1/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>
+    <forwarding type="ip" />
+  </vm>
+
+  <vm name="uml5" type="uml">
+    <if id="1" net="Net2">
+      <ipv4>10.0.2.2/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.2.1">default</route>
+  </vm>
+
+  <host>
+    <hostif net="Net3">
+       <ipv4>10.0.3.2/24</ipv4>
+    </hostif>
+    <route type="ipv4" gw="10.0.3.1">10.0.0.0/16</route>
+  </host>
+
+</vnx>

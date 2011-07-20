@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+Simple scenario
+Just one Ubuntu virtual machine. Use this specification for testing
+
+-->
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.96.xsd">
+  <global>
+    <version>1.92</version>
+    <scenario_name>simple_ubuntu</scenario_name>
+    <automac offset="4"/>
+    <vm_mgmt type="private" network="10.250.0.0" mask="24">
+       <host_mapping />
+    </vm_mgmt> 
+    <vm_defaults>
+	    <console id="0" display="yes"/>
+	    <console id="1" display="yes"/>
+    </vm_defaults>
+  </global>
+    
+  <net name="Net0" mode="virtual_bridge" />
+  
+  <!-- NODES -->
+  <vm name="ubuntu" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.4/24</ipv4>
+    </if>
+  </vm>
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>
+  
+</vnx>
