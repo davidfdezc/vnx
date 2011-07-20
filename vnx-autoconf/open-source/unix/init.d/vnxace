@@ -11,7 +11,7 @@
 # Source function library.
 . /etc/init.d/functions
 
-binary="/usr/bin/vnxaced"
+binary="/usr/local/bin/vnxaced"
 
 [ -x $binary ] || exit 0
 
@@ -19,13 +19,15 @@ RETVAL=0
 
 start() {
     echo -n "Starting VNX ACED: "
-    daemon $binary
+    daemonize $binary
     RETVAL=$?
     PID=$!
     echo
     [ $RETVAL -eq 0 ] && touch /var/lock/vnxaced
 
-    echo $PID > /var/run/vnxaced.pid
+    # Already done in vnxaced 
+    # echo $PID > /var/run/vnxaced.pid
+    status
 }
 
 stop() {
@@ -40,7 +42,7 @@ stop() {
 }
 
 status() {
-        ps uaxw | grep vnxaced
+        ps uaxw | grep "/usr/local/bin/vnxaced" | grep -v grep
 }
 
 restart() {
