@@ -40,7 +40,7 @@ SPAIN
   <net name="Net0" mode="virtual_bridge" />
   
   <!-- NODES -->
-  <vm name="fedora-gui" type="libvirt" subtype="kvm" os="linux">
+  <vm name="fedora" type="libvirt" subtype="kvm" os="linux">
     <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_fedora</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
