@@ -96,7 +96,7 @@ if ($platform[0] eq 'Linux'){
 	print "-- Unknown platform\n";
 }
 
-system "rm -rv /root/.vnx/LOCK";
+system "rm -fr /root/.vnx/LOCK";
 
 
 #
