@@ -183,7 +183,7 @@ sub start_console {
 		if ($con_id eq $consId) {	
 		    #print "** CONS_FILE: $line\n";
 		    my @consField = split(/,/, $line);
-		    print "** CONS_FILE: $consField[0] $consField[1] $consField[2]\n";
+		    #print "** CONS_FILE: $consField[0] $consField[1] $consField[2]\n";
 		    #if ($consField[0] eq 'yes') {  # console with display='yes'
 		    # We open the console independently of display value
 		    open_console ($self, $vmName, $con_id, $consField[1], $consField[2]);
@@ -214,7 +214,7 @@ sub start_consoles_from_console_file {
 	    $line =~ s/con.=//;  		# eliminate the "conX=" part of the line
 	    #print "** CONS_FILE: $line\n";
 	    my @consField = split(/,/, $line);
-	    print "** CONS_FILE: $consField[0] $consField[1] $consField[2]\n";
+	    #print "** CONS_FILE: $consField[0] $consField[1] $consField[2]\n";
 	    if ($consField[0] eq 'yes') {  # console with display='yes'
 	        open_console ($self, $vmName, $con_id, $consField[1], $consField[2]);
 		} 

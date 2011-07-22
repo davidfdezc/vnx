@@ -764,7 +764,6 @@ sub main {
    	###########################################################
    	# Initialize plugins
  
-   	# push (@INC, "@DATADIR@/vnuml/plugins");[JSF]
    	push (@INC, "/usr/share/vnx/plugins");
   
    	my $extension_list = $dh->get_doc->getElementsByTagName("extension");
@@ -791,9 +790,26 @@ sub main {
       	print "Loading pluging $plugin...\n";      
       	# Why we are not using 'use'? See the following thread: 
       	# http://www.mail-archive.com/beginners%40perl.org/msg87441.html)   
-      
+
+		printf "** Loading plugin: $plugin\n";      
+      	
       	eval "require $plugin";
-      	eval "import $plugin";      
+      	eval "import $plugin";
+      	
+=BEGIN
+      	eval {
+    		require $plugin;
+    		#$plugin->import();
+    		import $plugin;
+    		1;
+		} or do {
+   			my $error = $@;
+   			print "** ERROR loading plugin: $error";
+		};
+=END
+=cut	
+      	
+      	      
       	if (my $err_msg = $plugin->createPlugin($mode,$effective_conf)) {
          	&vnx_die ("plugin $plugin reports error: $err_msg\n");
       	}
