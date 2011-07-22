@@ -1,0 +1,52 @@
+#! /bin/sh
+
+. /etc/rc.subr
+
+name="vnxaced"
+start_cmd="${name}_start"
+stop_cmd="${name}_stop"
+status_cmd="${name}_status"
+restart_cmd="${name}_restart"
+
+extra_commands="status restart"
+
+vnxaced_start()
+{
+   echo 'starting vnxaced...'
+   echo 'running' > /var/run/${name}.status
+   perl /usr/sbin/vnxaced &
+   echo '...done'
+}
+vnxaced_stop()
+{
+   echo 'stopping vnxaced...'
+   echo 'stopped' > /var/run/${name}.status
+#   kill -INT `cat /var/run/vnxaced.pid`
+   kill `cat /var/run/vnxaced.pid`
+   rm /var/run/vnxaced.pid
+   echo '...done'
+}
+vnxaced_status()
+{
+   echo 'vnxaced status: '
+   cat /var/run/${name}.status
+}
+vnxaced_restart()
+{
+   echo 'restarting vnxaced...'
+   
+   if [ -f /var/run/vnxaced.pid ]
+   then
+ #     kill -INT `cat /var/run/vnxaced.pid`
+      kill `cat /var/run/vnxaced.pid`
+      echo 'stopped' > /var/run/${name}.status
+      rm /var/run/vnxaced.pid
+   fi
+   
+   perl /usr/sbin/vnxaced &
+   echo 'running' > /var/run/${name}.status
+   echo '...done'
+}
+
+load_rc_config $name
+run_rc_command "$1"

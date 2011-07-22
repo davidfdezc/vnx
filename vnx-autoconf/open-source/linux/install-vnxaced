@@ -59,20 +59,20 @@ if ($platform[0] eq 'Linux'){
 #		system "chown root:root /etc/init/vnxdaemon.conf";
 #		system "chmod 644 /etc/init/vnxdaemon.conf";
 
-		system "cp -v vnxdaemon.pl /usr/local/bin/vnxaced";
+		system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
 		system "chown root:root /usr/local/bin/vnxaced";
 		system "chmod 755 /usr/local/bin/vnxaced";
-		system "cp -v unix/upstart/vnxace.conf /etc/init/";
+		system "cp -v linux/upstart/vnxace.conf /etc/init/";
 		system "chown root:root /etc/init/vnxace.conf";
 		system "chmod 644 /etc/init/vnxace.conf";
 
 	} elsif ($platform[1] eq 'CentOS') { 
 
 		# Use VNXACED based on init.d
-		system "cp -v vnxdaemon.pl /usr/local/bin/vnxaced";
+		system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
 		system "chown root:root /usr/local/bin/vnxaced";
 		system "chmod 755 /usr/local/bin/vnxaced";
-		system "cp -v unix/init.d/vnxace /etc/init.d/";
+		system "cp -v linux/init.d/vnxace /etc/init.d/";
 		system "chown root:root /etc/init.d/vnxace";
 		system "chmod 755 /etc/init.d/vnxace";
 		system "chkconfig --add vnxace";
@@ -84,7 +84,7 @@ if ($platform[0] eq 'Linux'){
 	#  Update for FreeBSD       
 	# ~~~~~~~~~~~~~~~~~~~~
 	print "-- FreeBSD platform detected\n";
-	system "cp -v vnxdaemon.pl /usr/sbin/vnxaced";
+	system "cp -v vnxaced.pl /usr/sbin/vnxaced";
 	system "chown root:wheel /usr/sbin/vnxaced";
 	system "chmod 555 /usr/sbin/vnxaced";
 	system "cp -v freebsd/vnxace /etc/rc.d/";
