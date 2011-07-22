@@ -1,0 +1,9 @@
+De momento la sintaxis es la siguiente
+
+./make-iso -s ubuntu-10.04.2-desktop-i386.iso -o CD -i basic
+
+Son dos scripts, make-iso y script_chroot.sh dado que el segundo (lanzado por el primero) se ejecuta dentro de la jaula chroot.
+
+El modo -o usbkey no está implementado todavía. El modo -i full intenta instalar todos los filesystems y no es recomendable, el modo -i basic instala uml y una ubuntu server.
+
+Existe un bug en Ubuntu 10.10 que impide crear llaves usb a partir de isos de ubuntu 10.04. Para crear una usb live hacerlo desde una Ubuntu 10.04, con el programa de creación de discos de inicio que viene por defecto, a partir de una iso de 10.04.
