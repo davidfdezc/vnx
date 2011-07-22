@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        simple_ubuntu
+Description: Just one Ubuntu virtual machine connected to a Network named Net0 with address 10.0.0.4. 
+             The host has an interface in Net0 with address 10.0.0.1  
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>simple_ubuntu</scenario_name>
+    <automac offset="4"/>
+    <!--vm_mgmt type="none" /-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="16">
+       <host_mapping />
+    </vm_mgmt> 
+    <vm_defaults>
+	    <console id="0" display="yes"/>
+	    <console id="1" display="yes"/>
+    </vm_defaults>
+    <extension plugin="ospf" conf="simple_ubuntu-ospf_conf.xml" />
+  </global>
+    
+  <net name="Net0" mode="virtual_bridge" />
+  
+  <!-- NODES -->
+  <vm name="ubuntu" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.4/24</ipv4>
+    </if>
+    <!--filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
+    <filetree seq="start-www" root="/var/www">conf/txtfile</filetree-->
+    <exec seq="movefile" type="verbatim"  mode="cdrom" ostype="system">mv /tmp/vnx.txt /root/</exec>
+    <exec seq="start-www" type="verbatim" mode="cdrom" ostype="system">chmod 644 /var/www/*</exec>
+    <exec seq="start-www" type="verbatim" mode="cdrom" ostype="system">service apache2 start</exec>
+    <exec seq="stop-www" type="verbatim"  mode="cdrom" ostype="system">service apache2 stop</exec>
+  </vm>
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>
+  
+</vnx>

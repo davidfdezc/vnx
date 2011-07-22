@@ -166,7 +166,7 @@ sub execute {
 	     }
       }
       elsif ($exe_mode == EXE_NORMAL) {
-         system $command;
+         system "$command > /dev/null";
          $retval = $?;
          if ($exe_interactive) {
             &pulse_a_key;

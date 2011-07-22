@@ -111,6 +111,18 @@ cp -r vnx-folder/doc  \
       vnx-ediv/perl-modules \
       tmp/${FNAME}
 
+# 
+# Plugins
+#
+mkdir -p tmp/${FNAME}/plugins
+rm -rf tmp/${FNAME}/plugins/*
+# For each plugin
+for p in `ls vnx-plugins`
+do 
+	cp -v vnx-plugins/$p/$p.pm  tmp/${FNAME}/plugins 
+	cp -v vnx-plugins/$p/$p.dtd tmp/${FNAME}/plugins 
+done
+
 #
 # Change $release variable in vnx
 #

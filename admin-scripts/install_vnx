@@ -34,6 +34,7 @@ mkdir -vp /usr/share/vnx/examples/
 mkdir -vp /usr/share/vnx/filesystems
 mkdir -vp /usr/share/vnx/kernels
 mkdir -vp /usr/share/vnx/aced
+mkdir -vp /usr/share/vnx/plugins
 mkdir -vp /etc/ediv
 
 #
@@ -111,6 +112,13 @@ chmod 600 /etc/ediv/cluster.conf.sample
 # Copy ace daemons 
 #
 cp -v aced/* /usr/share/vnx/aced
+
+#
+# Copy plugins
+#
+cp -v plugins/*.pm /usr/share/vnx/plugins/
+cp -v plugins/*.dtd /usr/share/xml/vnx/
+
 
 echo "** "
 echo "** ...done"
