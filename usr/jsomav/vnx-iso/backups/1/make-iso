@@ -145,6 +145,8 @@ label hd
 	cd ../../..
 	##############
 
+echo "pulsa tecla"
+read a
 
 
 	# Custom Background for GNOME
@@ -152,25 +154,22 @@ label hd
 	#   1. /usr/share/gnome-background-properties/ubuntu-wallpapers.xml and
 	#   2. /usr/share/gconf/defaults/16_ubuntu-wallpapers or other files in the same directory. by changing the string /usr/share/backgrounds/warty-final-ubuntu.png to point to your file
 
-
-
-# MUY IMPORTANTE, si se dejan con UID > 1000 el LiveCD no pasa del menú principal
-
 	# After customization make sure that there are no users with a UID > 999. Otherwise your image won't boot because no initial user is available (see /usr/share/initramfs-tools/scripts/casper-bottom/10adduser). While in chroot:
 	#awk -F: '$3 > 999' /etc/passwd
 	#If you get any hits, try changing the uid:
 	#usermod -u 500 $hit
 	#chroot edit awk -F: '$3 > 999' /etc/passwd | awk -F: '{print "usermod -u 500" $1}' | bash
-echo "mirar que los users no tengan UID > 1000"
+
 read b
 	# sustituir 2.6.15-26-k7 por la versión del kernel que salga en /lib/modules
 	# hacer ls de /lib/modules, guardarlo en variable, y hacer mk... $variable
 	#mkinitramfs -o /initrd.gz 2.6.32-28-generic
 #	kvers=$(ls /lib/modules)
 #       mkinitramfs -o /initrd.lz $kvers
-	chroot edit mkinitramfs -o /initrd.lz $(ls /lib/modules)
+#	chroot edit mkinitramfs -o /initrd.lz $(ls /lib/modules)
+# hacerlo yo!!
 
-
+read c	
 
 	# Exit from the chroot jail and move this file to extract-cd/casper:
 	#exit
