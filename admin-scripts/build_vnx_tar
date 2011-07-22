@@ -88,9 +88,12 @@ cp vnx-autoconf/windows/vnx-aced-win-${ACED_WIN_VERSION}.exe tmp/aced
 # Linux & Freebsd
 #
 mkdir -p tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
-cp -r vnx-autoconf/open-source/freebsd vnx-autoconf/open-source/unix \
-      vnx-autoconf/open-source/vnxdaemon.pl vnx-autoconf/open-source/install-vnxdaemon \
+cp -r vnx-autoconf/open-source/freebsd \
+      vnx-autoconf/open-source/linux \
+      vnx-autoconf/open-source/vnxaced.pl \
+      vnx-autoconf/open-source/linux/install-vnxaced \
       tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
+#mv tmp/aced/vnx-aced-lf-$ACED_LF_VERSION/linux/install_vnxaced tmp/aced/vnx-aced-lf-$ACED_LF_VERSION/      
 cd tmp/aced
 tar cfvz vnx-aced-lf-${ACED_LF_VERSION}.tgz vnx-aced-lf-$ACED_LF_VERSION
 rm -rf vnx-aced-lf-$ACED_LF_VERSION
