@@ -163,9 +163,9 @@ export HOME=/root
 export LC_ALL=C
 
 
-#install_basic
-echo "instalo basic ($INSTALL_TYPE)"
-sleep 10
+install_basic
+#echo "instalo basic ($INSTALL_TYPE)"
+#sleep 10
 if [[ $INSTALL_TYPE = "full" ]]; then
 	install_rest
 fi
@@ -173,8 +173,8 @@ fi
 	# sustituir 2.6.15-26-k7 por la versión del kernel que salga en /lib/modules
 	# hacer ls de /lib/modules, guardarlo en variable, y hacer mk... $variable
 	#mkinitramfs -o /initrd.gz 2.6.32-28-generic
-	kvers=$(ls /lib/modules)
-        mkinitramfs -o /initrd.lz $kvers
+#	kvers=$(ls /lib/modules)
+#        mkinitramfs -o /initrd.lz $kvers
 
 
 
