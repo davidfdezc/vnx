@@ -90,7 +90,7 @@ cp vnx-autoconf/windows/vnx-aced-win-${ACED_WIN_VERSION}.exe tmp/aced
 mkdir -p tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
 cp -r vnx-autoconf/open-source/freebsd \
       vnx-autoconf/open-source/linux \
-      vnx-autoconf/open-source/vnxaced.pl \
+      vnx-autoconf/open-source/linux/vnxaced.pl \
       vnx-autoconf/open-source/linux/install-vnxaced \
       tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
 #mv tmp/aced/vnx-aced-lf-$ACED_LF_VERSION/linux/install_vnxaced tmp/aced/vnx-aced-lf-$ACED_LF_VERSION/      
