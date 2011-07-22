@@ -93,6 +93,8 @@ label hd
         # Show logo during main menu
 	sed --in-place -e 's/hidden-timeout=2/hidden-timeout=1/g' extract-cd/isolinux/gfxboot.cfg
 
+	# Copy images
+	cp ${sdir}/access.pcx ${sdir}/splash.pcx extract-cd/isolinux/
 
 
 	# Install VNX
