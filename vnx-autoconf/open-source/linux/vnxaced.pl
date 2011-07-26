@@ -68,6 +68,8 @@ my $usage = <<EOF;
 Usage: vnxaced [-v|--verbose] [-g|--debug]
        vnxaced -V|--version
        vnxaced -h|--help
+       vnxaced -m|--monitor
+       
 EOF
 
 my $version= <<EOF;
@@ -90,11 +92,8 @@ EOF
 
 # Command line arguments process 
 if ($#ARGV >= 2) {
-    print "usage: vnxaced [-v|--verbose] [-g|--debug]\n";
-    print "       vnxaced -h|--help\n";
-    print "       vnxaced -V|--version\n";
-    print "       vnxaced -m|--monitor\n";
-    exit;
+    print "$usage";
+    exit (1);
 }
 
 for (my $i=0; $i <= $#ARGV; $i++) {
@@ -301,6 +300,7 @@ sub listen {
 					unless (&check_if_new_file($file2,"command")){
 						next;				
 					}
+					if ($VERBOSE) { my $f=`cat $file2`; writeLOG "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
 					my $path = $file;
 					chomp (my $now = `date`);						
 					writeLOG ("~~ $now:");
@@ -318,6 +318,7 @@ sub listen {
 					unless (&check_if_new_file($file2,"create_conf")){
 						next;				
 					}
+					if ($VERBOSE) { my $f=`cat $file2`; writeLOG "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
 					chomp (my $now = `date`);						
 					writeLOG ("~~ $now:");
 					writeLOG ("     configuration file received in $file2");
@@ -327,6 +328,7 @@ sub listen {
 					unless (&check_if_new_file($file2,"vnx_update") eq '1'){
 						next;				
 					}
+					if ($VERBOSE) { my $f=`cat $file2`; writeLOG "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
 					chomp (my $now = `date`);						
 					writeLOG ("~~ $now:");
 					writeLOG ("     update files received in $file2");
