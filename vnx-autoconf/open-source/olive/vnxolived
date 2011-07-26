@@ -26,6 +26,9 @@
 #
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 
+VNXACED_VER='MM.mm.rrrr'
+VNXACED_BUILT='DD/MM/YYYY'
+
 SERIAL=/dev/cuad2
 LOGFILE=/var/log/vnxolived.log
 MNTDIR=/mnt
@@ -46,9 +49,10 @@ exec 3<>$SERIAL    # set file descriptor 3 to serial line
 #alias ExeSetCmd='{ echo "configure"; echo "$CMD"; echo "commit check"; echo "commit"; echo "exit"; } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp; cat /var/tmp/cmdoutput.tmp'
 
 DATE=`date`
-echo "--------------------------------------------------------------" 
-echo "-- vnxolived daemon started at $DATE"
-echo "--------------------------------------------------------------"
+echo "--------------------------------------------------------------------" 
+echo "-- vnxolive daemon version $VNXACED_VER (built on $VNXACED_BUILT)"
+echo "-- started at $DATE"
+echo "--------------------------------------------------------------------"
 
 # Check if vnxolived is already running and kill other copies in that case
 PROCESSES=`ps uaxw"`

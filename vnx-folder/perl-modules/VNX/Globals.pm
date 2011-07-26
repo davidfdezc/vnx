@@ -143,7 +143,7 @@ our @EXEC_MODES_DYNAMIPS            = qw( telnet );
 # Allowed and default ostypes in <exec> tags for each virtual machine type
 # Default mode is always the first value in array
 our @EXEC_OSTYPE_UML                 = qw( );
-our @EXEC_OSTYPE_LIBVIRT_KVM_LINUX   = qw( system exec );
+our @EXEC_OSTYPE_LIBVIRT_KVM_LINUX   = qw( system exec xsystem xexec );
 our @EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS = qw( cmd system exec );
 our @EXEC_OSTYPE_LIBVIRT_KVM_OLIVE   = qw( show set load );
 our @EXEC_OSTYPE_DYNAMIPS            = qw( show set load );

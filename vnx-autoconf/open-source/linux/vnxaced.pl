@@ -11,7 +11,7 @@
 #
 # This file is a module part of VNX package.
 #
-# Author: Jorge Somavilla (somavilla@dit.upm.es), David Fernández (david@dit.upm.es)
+# Authors: Jorge Somavilla (somavilla@dit.upm.es), David Fernández (david@dit.upm.es)
 # Copyright (C) 2011, 	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
@@ -41,6 +41,8 @@ use XML::DOM;
 use IO::Handle;
 use File::Basename;
 
+my $VNXACED_VER='MM.mm.rrrr';
+my $VNXACED_BUILT='DD/MM/YYYY';
 
 use constant LINUX_TTY   => '/dev/ttyS1';
 use constant FREEBSD_TTY => '/dev/cuau1';
@@ -60,36 +62,148 @@ my $umountCmd;
 my $DEBUG;
 my $VERBOSE;
 
+#~~~~~~ Usage & Version messages ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# Process command line arguments
+my $usage = <<EOF;
+Usage: vnxaced [-v|--verbose] [-g|--debug]
+       vnxaced -V|--version
+       vnxaced -h|--help
+EOF
+
+my $version= <<EOF;
+
+----------------------------------------------------------------------------------
+Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es          
+----------------------------------------------------------------------------------
+VNX Linux and FreeBSD Autoconfiguration and Command Execution Daemon (VNXACED)
+Version: $VNXACED_VER ($VNXACED_BUILT)
+EOF
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#~~~~~~~~~~           main code         ~~~~~~~~~~~~~~~
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Set INT signal handler
+# Commented...seems it provokes problems with upstart...
+#$SIG{'INT'} = 'IntHandler';
+
+# Command line arguments process 
 if ($#ARGV >= 2) {
     print "usage: vnxaced [-v|--verbose] [-g|--debug]\n";
+    print "       vnxaced -h|--help\n";
+    print "       vnxaced -V|--version\n";
+    print "       vnxaced -m|--monitor\n";
     exit;
 }
 
 for (my $i=0; $i <= $#ARGV; $i++) {
-	if ( ($ARGV[$i] eq "-g") or ($ARGV[$i] eq "--debug") ) {
-    		$DEBUG='true';
-	} elsif ( ($ARGV[$i] eq "-v") or ($ARGV[$i] eq "--verbose") ) {
-    		$VERBOSE='true';
-	} else {
-    		print "Unknown command option: $ARGV[$i]\n";
-    		print "usage: vnxaced [-v|--verbose] [-g|--debug]\n";
-    		exit;
-	}
+        if ( ($ARGV[$i] eq "-g") or ($ARGV[$i] eq "--debug") ) {
+                $DEBUG='true';
+        } elsif ( ($ARGV[$i] eq "-v") or ($ARGV[$i] eq "--verbose") ) {
+                $VERBOSE='true';
+        } elsif ( ($ARGV[$i] eq "-V") or ($ARGV[$i] eq "--version") ) {
+                print "$version\n";
+                exit (0);
+        } elsif ( ($ARGV[$i] eq "-h") or ($ARGV[$i] eq "--help") ) {
+                print "$version\n";
+                print "$usage\n";
+                exit (1);
+        } elsif ( ($ARGV[$i] eq "-m") or ($ARGV[$i] eq "--monitor") ) {
+                my $res=`ps uaxw | grep '/usr/local/bin/vnxaced' | grep -v watch | grep -v grep | grep -v ' -m'`;
+                print "$res\n";
+                exit (0);
+        } else {
+                print "Unknown command option: $ARGV[$i]\n";
+                print "$usage\n";
+                exit (1);
+        }
 }
 
 if ($DEBUG) { print "DEBUG mode\n"; }
 if ($VERBOSE) { print "VERBOSE mode\n"; }
 
-&main;
+@platform = split(/,/, &getOSDistro);
+	
+if ($platform[0] eq 'Linux'){
+	if ($platform[1] eq 'Ubuntu')    { 
+		$mountCmd = 'mount /media/cdrom';
+		$umountCmd = 'umount /media/cdrom';
+	}			
+	elsif ($platform[1] eq 'Fedora') { 
+		$mountCmd = 'udisks --mount /dev/sr0';
+		$umountCmd = 'udisks --unmount /dev/sr0';			
+	}
+	elsif ($platform[1] eq 'CentOS') { 
+		$mountCmd = 'mount /dev/cdrom /media/cdrom';
+		$umountCmd = 'eject; umount /media/cdrom';			
+	}
+} elsif ($platform[0] eq 'FreeBSD'){
+	$mountCmd = 'mount /cdrom';
+	$umountCmd = 'umount -f /cdrom';
+} else {
+	writeLOG ("ERROR: unknown platform ($platform[0]). Only Linux and FreeBSD supported.");
+	exit (1);
+}
+
+# delete file log content without deleting the file
+#if (open(LOG, ">>" . VNXACED_LOG)) {
+#	truncate LOG,0;
+# 	close LOG;
+#}
+chomp (my $now = `date`);
+writeLOG ("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+writeLOG ("~~ vnxaced version $VNXACED_VER (built on $VNXACED_BUILT)");
+writeLOG ("~~   started at $now");
+writeLOG ("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+
+#if (-f VNXACED_PID){
+#	my $cmd="cat " . VNXACED_PID;
+#	my $pid=`$cmd`; chomp ($pid);
+#	writeLOG ("Another instance of vnxaced (PID $pid) seems to be running, killing it... ");
+#	system "kill -9 $pid"; 
+#	system "rm -f " . VNXACED_PID; 
+#}
+open my $pids, "ps uax | grep 'perl /usr/local/bin/vnxaced' | grep -v grep | grep -v 'sh -e -c exec' | awk '{print \$2}' |";
+while (<$pids>) {
+        my $pid=$_; chomp($pid);
+	if ($pid ne $$) {
+		writeLOG ("Another instance of vnxaced (PID $pid) seems to be running, killing it... ");
+        	system "kill $pid";
+        }
+}
+
+# store process pid
+system "echo $$ > " . VNXACED_PID;
+
+writeLOG ("~~ Waiting initial delay of " . INIT_DELAY . " seconds...");
+sleep INIT_DELAY;
+
+if (! $DEBUG) { 
+	&daemonize;
+}
+&listen;
 exit(0);
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+sub IntHandler {
+	my $cmd="cat " . VNXACED_PID;
+	my $pid=`$cmd`; chomp ($pid);
+        print "** pid in pid file = $pid\n";
+        print "** my pid = $$\n";
+	if ($pid eq $$) { 
+		system "rm -f " . VNXACED_PID; 
+	}
+	writeLOG ("INT signal received. Exiting.");
+	exit (0);
+}
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 sub writeLOG {
 
-        my $msg = shift;
+    my $msg = shift;
 
 	if ($DEBUG) { 
    		print "$msg\n"; 
@@ -104,90 +218,26 @@ sub writeLOG {
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-sub exeCmd {
+#
+# exeMountCmd
+#
+# Executes the mount/umount cdrom commands in a silent or verbose way
+# Used to debug mount/umount problems
+#
+sub exeMountCmd {
 
 	my $cmd = shift;
 
 	if ($VERBOSE) {
 		my $res=`$cmd`;
-		writeLOG ("exeCmd: $cmd (res=$res)") if ($VERBOSE);
+		writeLOG ("exeMountCmd: $cmd (res=$res)") if ($VERBOSE);
 	} else {
 		$cmd="$cmd >/dev/null 2>&1";
 		system "$cmd";
-		#my $res=`$cmd`;
 	}
-
 }
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-sub main{
-
-	my $command;
-
-	@platform = split(/,/, &getOSDistro);
-	
-	if ($platform[0] eq 'Linux'){
-		if ($platform[1] eq 'Ubuntu')    { 
-			$mountCmd = 'mount /media/cdrom';
-			$umountCmd = 'umount /media/cdrom';
-		}			
-		elsif ($platform[1] eq 'Fedora') { 
-			$mountCmd = 'udisks --mount /dev/sr0';
-			$umountCmd = 'udisks --unmount /dev/sr0';			
-		}
-		elsif ($platform[1] eq 'CentOS') { 
-			$mountCmd = 'mount /dev/cdrom /media/cdrom';
-			$umountCmd = 'eject; umount /media/cdrom';			
-		}
-	} elsif ($platform[0] eq 'FreeBSD'){
-		$mountCmd = 'mount /cdrom';
-		$umountCmd = 'umount -f /cdrom';
-	}
-	
-	# if this is the first run...
-	#unless (-f "/root/.vnx/LOCK"){
-		# generate LOCK file
-		#system "mkdir -p /root/.vnx/";
-		#system "touch /root/.vnx/LOCK";
-		# generate run dir
-		#system "mkdir -p /var/run/vnxdaemon/";
-
-	# delete file log content without deleting the file
-    if (open(LOG, ">>" . VNXACED_LOG)) {
-       	truncate LOG,0;
-        close LOG;
-    }
-	chomp (my $now = `date`);
-	writeLOG ("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-	writeLOG ("~~ vnxaced started at $now");
-	writeLOG ("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-
-	writeLOG ("~~ Waiting initial delay of " . INIT_DELAY . " seconds...");
-	sleep INIT_DELAY;
-
-	if (-f VNXACED_PID){
-
-                my $cmd="cat " . VNXACED_PID;
-                my $pid=`$cmd`; chomp ($pid);
-		writeLOG ("Another instance of vnxaced (PID $pid) seems to be running, killing it... ");
-                exeCmd ("kill -9 $pid"); 
-                exeCmd ("rm -f " . VNXACED_PID); 
-		#exit 1;
-	}
-	# store process pid
-	system "echo $$ > " . VNXACED_PID;
-
-	if (! $DEBUG) { 
-		&daemonize;
-	}
-	&listen;
-	
-
-}
-
-
-############### daemonize process ################
 
 sub daemonize {
 		
@@ -198,16 +248,12 @@ sub daemonize {
 #	exit if $pid;
 #	die "Couldn't fork: $!" unless defined($pid);
 
-	# store process pid
-	#system "echo $$ > " . VNXACED_PID;
-
 	# Become session leader (independent from shell and terminal)
 	setsid();
 
 	# Close descriptors
-        # If we close STDERR and STDOUT, commands are not executed correctly. To further investigate...
-	#close(STDERR);
-	#close(STDOUT);
+	close(STDERR);
+	close(STDOUT);
 	close(STDIN);
 
 	# Set permissions for temporary files
@@ -218,149 +264,86 @@ sub daemonize {
 }
 
 
-
-############### listen for events ################
+#~~~~~~~~~~~~~~ listen for events ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 sub listen {
 
-
-	#############################
-	# listen for Linux          #
-	#############################
+	writeLOG ("~~ Waiting for commands...");
+	system "mkdir -p /root/.vnx";
+	my @files;
 	if ($platform[0] eq 'Linux'){
-
-		writeLOG ("~~ Waiting for commands...");
-		system "mkdir -p /root/.vnx";
-		my @files = </media/*>;
-		my $commands_file;
-		sleep 5;
-		#system "mount /media/cdrom";
-		system "$mountCmd";
-		while (1){
-			foreach my $file (@files){
-				my @files2 = <$file/*>;
-				foreach my $file2 (@files2){
-					if ($file2 eq "/media/cdrom/command.xml"){
-						unless (&check_if_new_file($file2,"command")){
-							next;				
-						}
-						my $path = $file;
-						chomp (my $now = `date`);						
-						writeLOG ("   $now");
-						writeLOG ("   command received in $file2");
-						&filetree($path);
-						&execute_commands($file2);
-						writeLOG ("   sending 'done' signal to host...\n");
-						system "echo finished! > " . LINUX_TTY;
-						
-					}elsif ($file2 eq "/media/cdrom/vnxboot"){
-						unless (&check_if_new_file($file2,"create_conf")){
-							next;				
-						}
-						chomp (my $now = `date`);						
-						writeLOG ("   $now");
-						writeLOG ("   configuration file received in $file2");
-						&autoconfigure($file2);
-						writeLOG ("");
-					}elsif ($file2 eq "/media/cdrom/vnx_update.xml"){
-						unless (&check_if_new_file($file2,"vnx_update") eq '1'){
-							next;				
-						}
-						chomp (my $now = `date`);						
-						writeLOG ("   $now");
-						writeLOG ("   update files received in $file2");
-						&autoupdate;
-						writeLOG ("");
-
-					}else {
-						# unknown file, do nothing
-					}
-				}
-			}
-			#system "umount /media/cdrom";
-			system "$umountCmd";
-			sleep 5;
-			#system "mount /media/cdrom";
-			system "$mountCmd";
-		}
-
+		@files = </media/*>;
+	} elsif ($platform[0] eq 'FreeBSD'){
+		@files = </*>;
 	}
+	my $commands_file;
+	
+	# JSF: comentado porque al rearrancar el servicio a mano pinta error por pantalla si
+	# no esta montado el CD-ROM. Si no da errores de otro tipo se podra quitar del todo.
+	#system "umount -f /cdrom";
+	sleep 5;
+	exeMountCmd ($mountCmd);
+        if ($VERBOSE) {
+		my $lscmd;
+		if    ($platform[0] eq 'Linux')   { $lscmd = 'ls -l /cdrom' }
+		elsif ($platform[0] eq 'FreeBSD') { $lscmd = 'ls -l /media/cdrom' }
+		my $res=`$lscmd`; writeLOG ("cdrom content: $res")
+	}
+	while (1){
 
-	#############################
-	# listen for FreeBSD        #
-	#############################
-	elsif ($platform[0] eq 'FreeBSD'){
-		writeLOG ("~~ Waiting for commands...");
-		system "mkdir -p /root/.vnx";
-		my @files = </*>;
-		my $commands_file;
-		
-		# JSF: comentado porque al rearrancar el servicio a mano pinta error por pantalla si
-		# no esta montado el CD-ROM. Si no da errores de otro tipo se podra quitar del todo.
-		#system "umount -f /cdrom";
-		sleep 5;
-		#system "$mountCmd";
-		exeCmd ($mountCmd);
-		my $res=`ls -l /cdrom`; writeLOG ("cdrom content: $res") if ($VERBOSE);
-		while (1){
+		foreach my $file (@files){
+			my @files2 = <$file/*>;
 
-			foreach my $file (@files){
-				my @files2 = <$file/*>;
-
-				foreach my $file2 (@files2){
-					
-					my $fname = basename ($file2);
-					if ($fname eq "command.xml"){
-						unless (&check_if_new_file($file2,"command")){
-							next;				
-						}
-						my $path = $file;
-						chomp (my $now = `date`);						
-						writeLOG ("   $now:");
-						writeLOG ("     command received in $file2");
-						&filetree($path);
-						&execute_commands($file2);
-						writeLOG ("     sending 'done' signal to host...\n");
-						system "echo finished! > " . FREEBSD_TTY;
-					
-					}elsif ($fname eq "vnxboot"){
-						unless (&check_if_new_file($file2,"create_conf")){
-							next;				
-						}
-						chomp (my $now = `date`);						
-						writeLOG ("   $now:");
-						writeLOG ("     configuration file received in $file2");
-						&autoconfigure($file2);
-						writeLOG ("");
-
-					}elsif ($fname eq "vnx_update.xml"){
-						unless (&check_if_new_file($file2,"vnx_update") eq '1'){
-							next;				
-						}
-						chomp (my $now = `date`);						
-						writeLOG ("   $now::");
-						writeLOG ("     update files received in $file2");
-						&autoupdate;
-						writeLOG ("");
-
-					}else {
-						# unknown file, do nothing
+			foreach my $file2 (@files2){
+				
+				my $fname = basename ($file2);
+				if ($fname eq "command.xml"){
+					unless (&check_if_new_file($file2,"command")){
+						next;				
 					}
+					my $path = $file;
+					chomp (my $now = `date`);						
+					writeLOG ("~~ $now:");
+					writeLOG ("     command received in $file2");
+					&filetree($path);
+					&execute_commands($file2);
+					writeLOG ("     sending 'done' signal to host...\n");
+					if ($platform[0] eq 'Linux'){
+						system "echo finished! > " . LINUX_TTY;
+					} elsif ($platform[0] eq 'FreeBSD'){
+						system "echo finished! > " . FREEBSD_TTY;
+					}
+				
+				}elsif ($fname eq "vnxboot"){
+					unless (&check_if_new_file($file2,"create_conf")){
+						next;				
+					}
+					chomp (my $now = `date`);						
+					writeLOG ("~~ $now:");
+					writeLOG ("     configuration file received in $file2");
+					&autoconfigure($file2);
+
+				}elsif ($fname eq "vnx_update.xml"){
+					unless (&check_if_new_file($file2,"vnx_update") eq '1'){
+						next;				
+					}
+					chomp (my $now = `date`);						
+					writeLOG ("~~ $now:");
+					writeLOG ("     update files received in $file2");
+					&autoupdate;
+
+				}else {
+					# unknown file, do nothing
 				}
 			}
-			#system "$umountCmd";
-			exeCmd ($umountCmd);
-			#my $res=`$umountCmd`;
-                	#writeLOG ("Executing umount command: $umountCmd (res=$res)") if ($VERBOSE);
-			sleep 5;
-			#system "$mountCmd";
-			exeCmd ($mountCmd);
-			#my $res=`$mountCmd`;
-                	#writeLOG ("Executing mount command: $mountCmd (res=$res)") if ($VERBOSE);
 		}
+		exeMountCmd ($umountCmd);
+		sleep 5;
+		exeMountCmd ($mountCmd);
 	}
 }
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 sub autoupdate {
 	
@@ -369,40 +352,35 @@ sub autoupdate {
 	#############################
 	if ($platform[0] eq 'Linux'){
 		writeLOG ("   updating vnxaced for Linux");
-
-		if ( ($platform[1] eq 'Ubuntu') or   
-         	 ($platform[1] eq 'Fedora') ) { 
-
-        	# Use VNXACED based on upstart
-			system "cp /media/cdrom/vnxaced.pl /usr/local/bin/vnxaced";
-			system "cp /media/cdrom/linux/upstart/vnxace.conf /etc/init/";
-
-		} elsif ($platform[1] eq 'CentOS') { 
-
-			# Use VNXACED based on init.d
-			system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
-			system "cp -v unix/init.d/vnxace /etc/init.d/";
-
-		}
+		system "perl /media/cdrom/uninstall_vnxaced -n";
+		system "perl /media/cdrom/install_vnxaced";
+		#if ( ($platform[1] eq 'Ubuntu') or   
+        # 	 ($platform[1] eq 'Fedora') ) { 
+        #	# Use VNXACED based on upstart
+		#	system "cp /media/cdrom/vnxaced.pl /usr/local/bin/vnxaced";
+		#	system "cp /media/cdrom/linux/upstart/vnxace.conf /etc/init/";
+		#} elsif ($platform[1] eq 'CentOS') { 
+		#	# Use VNXACED based on init.d
+		#	system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
+		#	system "cp -v unix/init.d/vnxace /etc/init.d/";
+		#}
 	}
 	#############################
 	# update for FreeBSD        #
 	#############################
 	elsif ($platform[0] eq 'FreeBSD'){
 		writeLOG ("   updating vnxdaemon for FreeBSD");
-		system "cp /cdrom/vnxaced.pl /usr/sbin/vnxaced";
-		system "cp /cdrom/freebsd/vnxace /etc/rc.d/vnxace";
+		system "/cdrom/uninstall_vnxaced -n";
+		system "/cdrom/install_vnxaced";
+		#system "cp /cdrom/vnxaced.pl /usr/local/bin/vnxaced";
+		#system "cp /cdrom/freebsd/vnxace /etc/rc.d/vnxace";
 	}
-	
-	#system "rm /root/.vnx/LOCK";
 	sleep 1;
-	#system "reboot";
 	system "shutdown -r now '  VNX:  autoconfiguration daemon updated...rebooting'";
 	return;
 }
 
-
-############### check id of a file ################
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 sub check_if_new_file {
 	my $file = shift;
@@ -434,100 +412,144 @@ sub check_if_new_file {
 }
 
 
-############### command execution ##############
+#~~~~~~~~~~~~~~ command execution ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#
+# exeCmd
+#
+# Executes the commands received in the commands.xml file according 
+# to the value of the ostype parameter of <exec> tag:
+#
+#   - exec:     commands with no gui; script does not wait for the command 
+#               to finish execution (a new process is forked for the command)
+#   - system:   commands with no gui; script waits till command ends execution 
+#   - xexec:    commands with gui; script does not wait 
+#   - xsystem:  commands with gui; script waits
+#
+sub exeCmd {
+
+    my $cmd = shift;
+    my $ostype = shift;
+
+    writeLOG ("~~ Command output:");
+	if ($ostype eq 'system') {
+		# Execution mode for commands with no graphical user interface
+		if ($DEBUG) {
+			# vnxace has been started from the command line with -g option
+      		# No problems with input/ouptut redirection. We execute it using 
+			# backticks to capture output
+			my $res=`$cmd`;
+            writeLOG ($res);
+		} else {
+			# vnxace has been started as a deamon with input/output closed
+			# We have to use this way to execute the command to avoid 
+			# problems. Other ways tested (using exec or system with all kind of 
+			# input/output redirections made some commands fail (for example, when 
+			# starting apache: the server starts but does not answer requests and 
+			# shows and error in logs related to sockets). 
+        	exeCmdAux ("$cmd");
+		} 
+	} elsif ($ostype eq 'exec') {
+		# Execution mode for commands with no graphical user interface using fork and exec
+		my $pid2 = fork;
+		die "Couldn't fork: $!" unless defined($pid2);
+		if ($pid2){
+	       	# parent does nothing
+		}else{
+	       	# child executes command and dies
+			if ($DEBUG) {
+				my $res=`$cmd`;
+            	writeLOG ($res);
+			} else {
+                exeCmdAux ("$cmd");
+				exit (0);
+			} 
+		}
+	} elsif ( ($ostype eq 'xexec') or ($ostype eq 'xsystem') ) { 
+		# Execution mode for commands with graphical user interface
+		# We execute the commands using the xsu utility described in 
+		# http://wiki.tldp.org/Remote-X-Apps.
+		# Basically, the applications are executed from the vnxaced
+		# script run as root making a 'su' to the user who owns 
+		# the DISPLAY :0.0  
+
+		# Guess the user who owns display :0.0
+		my $w=`w | grep ' :0 '`;
+		my @userOnDisplay0 = split (/ /, $w);
+ 		if (! $userOnDisplay0[0]) {
+			writeLOG ("     ERROR: no user logged on display :0.0. Command $cmd not executed.");
+		} else {
+			writeLOG "User on display :0.0 -->$userOnDisplay0[0]\n";
+
+			if($ostype eq "xexec"){
+				my $pid2 = fork;
+				die "Couldn't fork: $!" unless defined($pid2);
+				if ($pid2){
+		        	# parent does nothing
+				}else{
+		        	# child executes command and dies
+		        	if ($platform[0] eq 'Linux'){
+		        		writeLOG ("exec \"setsid sh -c \\\"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] \'$cmd\'\\\"\" < /dev/null > /dev/null 2>&1");
+                    	exec "setsid sh -c \"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] '$cmd'\" > /dev/null 2>&1 < /dev/null";
+		        	} elsif ($platform[0] eq 'FreeBSD'){
+		        		writeLOG ("system \"detach sh -c \\\"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] \'$cmd\'\\\"\" < /dev/null > /dev/null 2>&1");
+                    	system "detach sh -c \"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] '$cmd'\" > /dev/null 2>&1 < /dev/null";
+                    	exit (0);
+		        	}
+                    
+				}
+
+			} elsif($ostype eq "xsystem"){
+       			writeLOG ("DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] '$cmd' ");
+       			my $res= `DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] '$cmd' < /dev/null 2>&1`;
+                writeLOG ($res);
+   			}
+		}
+
+	} else {
+		writeLOG ("   ERROR: command ostype mode '$ostype' unknown, use 'exec', 'system', 'xexec' or 'xsystem'. ");
+	}
+    writeLOG ("~~~~~~~~~~~~~~~~~~");
+}
+
+sub exeCmdAux {
+	my $cmd = shift;
+	open my $command, "$cmd < /dev/null 2>&1 |";
+	open my $output, ">> " . VNXACED_LOG;
+        while (<$command>) { print $output $_; }
+        close $command;
+        close $output;
+}
+
+#~~~~~~~~~~~~~~ command execution ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#
+# execute_commands
+#
+# Executes the commands received in the commands.xml file 
+#
 
 sub execute_commands {
 
-	
-
-	#######################################
-	# execute_commands for Linux          #
-	#######################################
-	if ($platform[0] eq 'Linux'){
-		my $commands_file = shift;
-		my $parser       = new XML::DOM::Parser;
-		my $dom          = $parser->parsefile($commands_file);
-		my $globalNode   = $dom->getElementsByTagName("command")->item(0);
-		my $execTagList = $globalNode->getElementsByTagName("exec");
-		my $numexec        = $execTagList->getLength;
-		for (my $j = 0 ; $j < $numexec ; $j++){
-			my $execTag    = $execTagList->item($j);
-			my $seq        = $execTag->getAttribute("seq");
-			my $type       = $execTag->getAttribute("type");
-			my $ostype     = $execTag->getAttribute("ostype");
-			my $command2   = $execTag->getFirstChild->getData;
+	my $commands_file = shift;
+	my $parser       = new XML::DOM::Parser;
+	my $dom          = $parser->parsefile($commands_file);
+	my $globalNode   = $dom->getElementsByTagName("command")->item(0);
+	my $execTagList = $globalNode->getElementsByTagName("exec");
+	my $numexec        = $execTagList->getLength;
+	for (my $j = 0 ; $j < $numexec ; $j++){
+		my $execTag    = $execTagList->item($j);
+		my $seq        = $execTag->getAttribute("seq");
+		my $type       = $execTag->getAttribute("type");
+		my $ostype     = $execTag->getAttribute("ostype");
+		my $command2   = $execTag->getFirstChild->getData;
 			
-			if ($ostype eq "exec"){
-				writeLOG ("     executing: '$command2'\n     in ostype mode: 'exec'");
-				# Fork
-				my $pid2 = fork;
-				die "Couldn't fork: $!" unless defined($pid2);
-				if ($pid2){
-					# parent does nothing
-				}else{
-					# child executes command and dies
-					#exec "xterm -display :0.0 -e $command2";					
-					exec "DISPLAY=:0.0 $command2";
-
-				}
-			}elsif($ostype eq "system"){
-					writeLOG ("     executing: '$command2'\n     in ostype mode: 'system'");
-					#system $command2;
-					system "DISPLAY=:0.0 $command2";
-			}else{
-				writeLOG ("   command ostype mode '$ostype' not available, use \"exec\" or \"system\" instead. Aborting execution...");
-			}
-					
-		}
+		writeLOG ("     executing: '$command2' in ostype mode: '$ostype'");
+		exeCmd ($command2, $ostype);
 	}
-
-	#######################################
-	# execute_commands for FreeBSD        #
-	#######################################
-	elsif ($platform[0] eq 'FreeBSD'){
-		my $commands_file = shift;
-		my $parser       = new XML::DOM::Parser;
-		my $dom          = $parser->parsefile($commands_file);
-		my $globalNode   = $dom->getElementsByTagName("command")->item(0);
-		my $execTagList = $globalNode->getElementsByTagName("exec");
-		my $numexec        = $execTagList->getLength;
-		for (my $j = 0 ; $j < $numexec ; $j++){
-			my $execTag   = $execTagList->item($j);
-			my $seq       = $execTag->getAttribute("seq");
-			my $type      = $execTag->getAttribute("type");
-			my $ostype    = $execTag->getAttribute("ostype");
-			my $command2  = $execTag->getFirstChild->getData;
-
-
-			if ($ostype eq "exec"){
-				writeLOG ("     executing: '$command2'\n     in ostype mode: 'exec'");
-				# Fork
-				my $pid2 = fork;
-				die "Couldn't fork: $!" unless defined($pid2);
-				if ($pid2){
-					# parent does nothing
-				}else{
-					# child executes command and dies
-					#exec "xterm -display :0.0 -e $command2";
-					exec "DISPLAY=:0.0 $command2";
-					#exec $command2;
-				}
-			}elsif($ostype eq "system"){
-					writeLOG ("     executing: '$command2'\n     in ostype mode: 'system'");
-					system "DISPLAY=:0.0 $command2";
-			}else{
-				writeLOG ("   command ostype mode '$ostype' not available, use \"exec\" or \"system\" instead. Aborting execution...");
-			}
-
-		}
-
-
-	}
-
 }
 
-
-############### autoconfiguration ##############
+#~~~~~~~~~~~~~~ autoconfiguration ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 sub autoconfigure {
 
@@ -535,6 +557,9 @@ sub autoconfigure {
 
 	# autoconfigure for Linux             #
 	if ($platform[0] eq 'Linux'){
+		# Send a message to consoles
+		#system "shutdown -k now 'VNX system autoconfiguration in progress...wait until the system reboots...'";
+		
 		if ($platform[1] eq 'Ubuntu')    { &autoconfigureUbuntu ($vnxboot_file)}			
 		elsif ( ($platform[1] eq 'Fedora') or ($platform[1] eq 'CentOS') ) { &autoconfigureFedora ($vnxboot_file)}
 	}
@@ -543,6 +568,15 @@ sub autoconfigure {
 		writeLOG ("calling autoconfigureFreeBSD");
 		&autoconfigureFreeBSD ($vnxboot_file)
 	}
+	# Change the message of the day (/etc/motd) to eliminate the
+	# message asking to wait for reboot
+	#system "sed -i -e '/~~~~~/d' /etc/motd";
+	
+	# Reboot system
+	writeLOG ("   rebooting...\n");
+	sleep 5;
+	system "shutdown -r now '  VNX:  autoconfiguration finished...rebooting'";
+	sleep 100; # wait for system to reboot
 }
 
 
@@ -735,11 +769,6 @@ sub autoconfigureUbuntu {
 		system "mv /tmp/hostname.tpm $hostname_file";
 
 		system "hostname $vmName";
-		writeLOG ("   rebooting...\n");
-		sleep 5;
-		#system "reboot";
-		system "shutdown -r now '  VNX:  autoconfiguration finished...rebooting'";
-		sleep 100; # wait for system to reboot
 	}
 	
 }
@@ -986,11 +1015,6 @@ sub autoconfigureFedora {
 		system "mv /etc/sysconfig/network /etc/sysconfig/network.bak";
 		system "cat /etc/sysconfig/network.bak | grep -v HOSTNAME > /etc/sysconfig/network";
 		system "echo HOSTNAME=$vmName >> /etc/sysconfig/network";
-		
-		writeLOG ("   rebooting...\n");
-		sleep 5;
-		system "reboot";
-		sleep 100; # wait for system to reboot
 	}
 	
 }
@@ -1187,19 +1211,12 @@ sub autoconfigureFreeBSD {
 #		#/etc/hosts: and delete the third line (former second line)
 #		system "sed '3 d' $hosts_file > /tmp/hosts.tmp";
 #		system "mv /tmp/hosts.tmp $hosts_file";
-
-		system "hostname $vmName";
-		writeLOG ("   rebooting...\n");
-		sleep 5;
-		system "reboot";
-		sleep 100; # wait for system to reboot
 	}
 	
 }
 
 
-
-################ filetree processing ################
+#~~~~~~~~~~~~~~ filetree processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 sub filetree {
 	my $path = shift;
@@ -1223,10 +1240,15 @@ sub filetree {
 		}
 		writeLOG ("     executing 'cp -R $source_path $root'...");
 		my $res=`ls -R $source_path`; writeLOG ("cdrom content: $res") if ($VERBOSE);
-		exeCmd ("cp -R $source_path $root");
+		my $cmd="cp -vR $source_path $root";
+                my $res=`$cmd`;
+		writeLOG ("Copying filetree files:") if ($VERBOSE);
+		writeLOG ("$res") if ($VERBOSE);
 	}
 }
 
+#
+# getOSDistro
 #
 # Detects which OS, release, distribution name, etc 
 # This is an improved adaptation to perl the script found here: 

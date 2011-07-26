@@ -47,13 +47,30 @@ SPAIN
       <ipv4>10.0.0.7/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="/tmp">conf/txtfile</filetree>
+    <filetree seq="vnxwww" root="/tmp">conf/txtfile</filetree>
     <filetree seq="start-www" root="/usr/local/www/apache22/data">conf/txtfile</filetree>
-    <exec seq="vnxtxt"    type="verbatim" ostype="system">gedit /tmp/vnx.txt</exec>
-    <exec seq="vnxtxt2"   type="verbatim" ostype="system">'sleep 5; wmctrl -r vnx.txt -b add,maximized_vert,maximized_horz'</exec>
-    <exec seq="showlog"   type="verbatim" ostype="system">tail -f /var/log/vnxdaemon.log</exec>
+
+    <!-- Start xeyes application -->
+    <exec seq="xeyes"     type="verbatim" ostype="xexec">xeyes</exec>
+
+    <!-- Start xeyes application and wait until it is closed -->
+    <exec seq="xeyes2"    type="verbatim" ostype="xsystem">xeyes</exec>
+
+    <!-- Start gedit, maximize the window and show a text file -->
+    <exec seq="vnxtxt"    type="verbatim" ostype="system">chmod 666 /tmp/vnx.txt</exec>
+    <exec seq="vnxtxt"    type="verbatim" ostype="xexec">gedit /tmp/vnx.txt</exec>
+    <exec seq="vnxtxt"    type="verbatim" ostype="xexec">sleep 3; wmctrl -r vnx.txt -b add,maximized_vert,maximized_horz</exec>
+    <exec seq="vnxtxtoff" type="verbatim" ostype="system">pkill gedit; rm /tmp/vnx.*</exec>
+
+    <!-- Start calculator  -->
+    <exec seq="calc"      type="verbatim" ostype="xexec">gcalctool</exec>
+    <exec seq="calcoff"   type="verbatim" ostype="system">pkill gcalctool</exec>
+
+    <!-- Start/stop apache www server -->
     <exec seq="start-www" type="verbatim" ostype="system">chown www:www /usr/local/www/apache22/data/*</exec>
     <exec seq="start-www" type="verbatim" ostype="system">/usr/local/etc/rc.d/apache22 onestart</exec>
     <exec seq="stop-www"  type="verbatim" ostype="system">/usr/local/etc/rc.d/apache22 onestop</exec>    
+
   </vm>
 
   <host>

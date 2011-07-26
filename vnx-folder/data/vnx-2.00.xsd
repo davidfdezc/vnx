@@ -87,6 +87,8 @@ e-mail: vnx@dit.upm.es
           <xs:restriction base="xs:NMTOKEN">
             <xs:enumeration value="system" />
             <xs:enumeration value="exec" />
+            <xs:enumeration value="xsystem" />
+            <xs:enumeration value="xexec" />
             <xs:enumeration value="cmd" />
             <xs:enumeration value="show" />
             <xs:enumeration value="set" />

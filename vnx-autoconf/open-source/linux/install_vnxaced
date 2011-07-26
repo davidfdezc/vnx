@@ -52,19 +52,15 @@ if ($platform[0] eq 'Linux'){
          ($platform[1] eq 'Fedora') ) { 
 
         # Use VNXACED based on upstart
-#		system "cp -v vnxdaemon.pl /etc/init.d/";
-#		system "chown root:root /etc/init.d/vnxdaemon.pl";
-#		system "chmod 755 /etc/init.d/vnxdaemon.pl";
-#		system "cp -v unix/vnxdaemon.conf /etc/init/";
-#		system "chown root:root /etc/init/vnxdaemon.conf";
-#		system "chmod 644 /etc/init/vnxdaemon.conf";
-
 		system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
 		system "chown root:root /usr/local/bin/vnxaced";
 		system "chmod 755 /usr/local/bin/vnxaced";
 		system "cp -v linux/upstart/vnxace.conf /etc/init/";
 		system "chown root:root /etc/init/vnxace.conf";
 		system "chmod 644 /etc/init/vnxace.conf";
+		system "cp -v linux/bin/xsu /usr/local/bin";
+		system "chown root:root /usr/local/bin/xsu";
+		system "chmod 755 /usr/local/bin/xsu";
 
 	} elsif ($platform[1] eq 'CentOS') { 
 
@@ -76,6 +72,9 @@ if ($platform[0] eq 'Linux'){
 		system "chown root:root /etc/init.d/vnxace";
 		system "chmod 755 /etc/init.d/vnxace";
 		system "chkconfig --add vnxace";
+		system "cp -v linux/bin/xsu /usr/local/bin";
+		system "chown root:root /usr/local/bin/xsu";
+		system "chmod 755 /usr/local/bin/xsu";
 
 	}
 } elsif ($platform[0] eq 'FreeBSD'){
@@ -84,12 +83,15 @@ if ($platform[0] eq 'Linux'){
 	#  Update for FreeBSD       
 	# ~~~~~~~~~~~~~~~~~~~~
 	print "-- FreeBSD platform detected\n";
-	system "cp -v vnxaced.pl /usr/sbin/vnxaced";
-	system "chown root:wheel /usr/sbin/vnxaced";
-	system "chmod 555 /usr/sbin/vnxaced";
+	system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
+	system "chown root:wheel /usr/local/bin/vnxaced";
+	system "chmod 555 /usr/local/bin/vnxaced";
 	system "cp -v freebsd/vnxace /etc/rc.d/";
 	system "chown root:wheel /etc/rc.d/vnxace";
 	system "chmod 555 /etc/rc.d/vnxace";
+	system "cp -v linux/bin/xsu /usr/local/bin";
+	system "chown root:wheel /usr/local/bin/xsu";
+	system "chmod 755 /usr/local/bin/xsu";
 
 } else {
 	print "-- Unknown platform\n";

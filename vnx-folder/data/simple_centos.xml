@@ -46,12 +46,21 @@ SPAIN
     <if id="1" net="Net0">
       <ipv4>10.0.0.15/24</ipv4>
     </if>
+    
+    <!-- Copy the files under conf/txtfile to vm /tmp directory -->
     <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
+    
+    <!-- Copy the files under conf/txtfile to vm /var/www directory -->
     <filetree seq="start-www" root="/var/www/html">conf/txtfile</filetree>
-    <exec seq="movefile"  type="verbatim" ostype="system">mv /tmp/vnx.txt /root/</exec>
+
+    <!-- Start/stop apache www server -->
     <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/html/*</exec>
     <exec seq="start-www" type="verbatim" ostype="system">service httpd start</exec>
     <exec seq="stop-www"  type="verbatim" ostype="system">service httpd stop</exec>
+    
+    <!-- Simple command to move a file -->
+    <exec seq="movefile" type="verbatim"  ostype="system">mv /tmp/vnx.txt /root/</exec>    
+    
   </vm>
 
   <host>
