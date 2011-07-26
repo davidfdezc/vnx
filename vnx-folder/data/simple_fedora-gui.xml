@@ -46,12 +46,37 @@ SPAIN
     <if id="1" net="Net0">
       <ipv4>10.0.0.10/24</ipv4>
     </if>
-    <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
+    <filetree seq="vnxtxt" root="/tmp">conf/txtfile</filetree>
+    <filetree seq="vnxwww" root="/tmp">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www/html">conf/txtfile</filetree>
-    <exec seq="movefile"  type="verbatim" ostype="system">mv /tmp/vnx.txt /root/</exec>
-    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/html/*</exec>
+
+    <!-- Start xeyes application -->
+    <exec seq="xeyes"     type="verbatim" ostype="xexec">xeyes</exec>
+
+    <!-- Start xeyes application and wait until it is closed -->
+    <exec seq="xeyes2"    type="verbatim" ostype="xsystem">xeyes</exec>
+
+    <!-- Start gedit, maximize the window and show a text file -->
+    <exec seq="vnxtxt"    type="verbatim" ostype="system">chmod 666 /tmp/vnx.txt</exec>
+    <exec seq="vnxtxt"    type="verbatim" ostype="xexec">gedit /tmp/vnx.txt</exec>
+    <exec seq="vnxtxt"    type="verbatim" ostype="xexec">sleep 3; wmctrl -r vnx.txt -b add,maximized_vert,maximized_horz</exec>
+    <exec seq="vnxtxtoff" type="verbatim" ostype="system">pkill gedit; rm /tmp/vnx.*</exec>
+
+    <!-- Start firefox and load vnx.html, copied by means of a <filetree> -->
+    <exec seq="vnxwww"    type="verbatim" ostype="system">chmod 666 /tmp/vnx.html</exec>
+    <exec seq="vnxwww"    type="verbatim" ostype="xexec">firefox /tmp/vnx.html</exec>
+    <exec seq="vnxwwwoff" type="verbatim" ostype="system">pkill firefox; rm /tmp/vnx.*</exec>
+
+    <!-- Start calculator  -->
+    <exec seq="calc"      type="verbatim" ostype="xexec">gcalctool</exec>
+    <exec seq="calcoff"   type="verbatim" ostype="system">pkill gcalctool</exec>
+
+    <!-- Start/stop apache www server -->
     <exec seq="start-www" type="verbatim" ostype="system">service httpd start</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/html/*</exec>
     <exec seq="stop-www"  type="verbatim" ostype="system">service httpd stop</exec>
+    <exec seq="start-www2" type="verbatim" ostype="exec">service httpd start</exec>
+
   </vm>
 
   <host>

@@ -1,0 +1,53 @@
+#!/usr/bin/perl
+
+#
+# Name: uninstall-vnxaced
+#
+# Description: 
+#   script to uninstall vnxaced (Autoconfiguration and Command Execution Daemon) over Linux and FreeBSD 
+#
+# This file is a module part of VNX package.
+#
+# Author: David Fernández (david@dit.upm.es) 
+# Copyright (C) 2011, 	DIT-UPM
+# 			Departamento de Ingenieria de Sistemas Telematicos
+#			Universidad Politecnica de Madrid
+#			SPAIN
+#			
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+# An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
+#
+
+use strict;
+
+print "-- Uninstalling VNX ACE daemon \n";
+
+if ($ARGV[0] eq '-n') {
+	print "-- Option -n: not stopping services\n";
+} else {
+ 	print "-- Stopping vnxaced if running\n";
+	if (-e '/etc/init/vnxace.conf')    { system "service vnxace stop" }
+	if (-e '/etc/init/vnxdaemon.conf') { system "service vnxdaemon stop" }
+	if (-e '/etc/init.d/vnxace')       { system "/etc/init.d/vnxace stop" }
+	if (-e '/etc/init.d/vnxdaemon')    { system "/etc/init.d/vnxdaemon stop" }
+	if (-e '/etc/rc.d/vnxace')         { system "/etc/rc.d/vnxace stop" }
+	if (-e '/etc/rc.d/vnxdaemon')      { system "/etc/rc.d/vnxace stop" }
+}
+
+print "-- Deleting files\n";
+system "rm -f /etc/init/vnxace.conf /etc/init/vnxdaemon.conf /etc/init.d/vnxace /etc/init.d/vnxdaemon";
+system "rm -f /etc/rc.d/vnxace /etc/rc.d/vnxdaemon";
+system "rm -f /etc/init.d/vnxdaemon.pl /usr/local/bin/vnxaced /usr/sbin/vnxaced";

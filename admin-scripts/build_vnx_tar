@@ -9,6 +9,8 @@
 # Automatically self updated (do not edit):
 #VNX_LATEST_REVISION="118"
 
+RELDATE=$( date +%d/%m/%Y_%H:%M )
+
 # Load current version numbers
 cdir=$( dirname $0 )
 source $cdir/VERSION
@@ -75,6 +77,9 @@ rm -rf tmp/aced/*
 #
 mkdir -p tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION
 cp vnx-autoconf/open-source/olive/*  tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION
+# Update version numbers in olived
+sed --in-place -e "s%DD/MM/YYYY%$RELDATE%"     tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION/vnxolived
+sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION/vnxolived
 cd tmp/aced
 tar cfvz vnx-aced-olive-${ACED_OLIVE_VERSION}.tgz vnx-aced-olive-$ACED_OLIVE_VERSION
 rm -rf vnx-aced-olive-$ACED_OLIVE_VERSION
@@ -91,9 +96,12 @@ mkdir -p tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
 cp -r vnx-autoconf/open-source/freebsd \
       vnx-autoconf/open-source/linux \
       vnx-autoconf/open-source/linux/vnxaced.pl \
-      vnx-autoconf/open-source/linux/install-vnxaced \
+      vnx-autoconf/open-source/linux/install_vnxaced \
+      vnx-autoconf/open-source/linux/uninstall_vnxaced \
       tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
-#mv tmp/aced/vnx-aced-lf-$ACED_LF_VERSION/linux/install_vnxaced tmp/aced/vnx-aced-lf-$ACED_LF_VERSION/      
+# Update version in vnxaced
+sed --in-place -e "s%DD/MM/YYYY%$RELDATE%"     tmp/aced/vnx-aced-lf-$ACED_LF_VERSION/vnxaced.pl
+sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/aced/vnx-aced-lf-$ACED_LF_VERSION/vnxaced.pl
 cd tmp/aced
 tar cfvz vnx-aced-lf-${ACED_LF_VERSION}.tgz vnx-aced-lf-$ACED_LF_VERSION
 rm -rf vnx-aced-lf-$ACED_LF_VERSION
@@ -129,7 +137,6 @@ done
 #
 # Change $release variable in vnx
 #
-RELDATE=$( date +%d/%m/%Y_%H:%M )
 echo "** \$release=$RELDATE"
 echo "** "
 sed --in-place -e "s%DD/MM/YYYY%$RELDATE%" tmp/${FNAME}/bin/vnx.pl

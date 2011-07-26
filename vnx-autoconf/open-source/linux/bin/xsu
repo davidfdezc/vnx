@@ -1,0 +1,25 @@
+#!/bin/sh
+
+if [ $# -lt 2 ]
+then echo "usage: `basename $0` clientuser command" >&2
+	exit 2
+fi
+
+CLIENTUSER="$1"
+shift
+
+# FD 4 becomes stdin too
+exec 4>&0
+
+xauth list "$DISPLAY" | sed -e 's/^/add /' | {
+
+    # FD 3 becomes xauth output
+    # FD 0 becomes stdin again
+    # FD 4 is closed
+    exec 3>&0 0>&4 4>&-
+
+    exec su - "$CLIENTUSER" -c \
+         "xauth -q <&3
+          exec env DISPLAY='$DISPLAY' "'"$SHELL"'" -c '$*' 3>&-"
+
+}

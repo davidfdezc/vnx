@@ -14,7 +14,7 @@ vnxaced_start()
 {
    echo 'starting vnxaced...'
    echo 'running' > /var/run/${name}.status
-   perl /usr/sbin/vnxaced &
+   perl /usr/local/bin/vnxaced &
    echo '...done'
 }
 vnxaced_stop()
@@ -43,7 +43,7 @@ vnxaced_restart()
       rm /var/run/vnxaced.pid
    fi
    
-   perl /usr/sbin/vnxaced &
+   perl /usr/local/bin/vnxaced &
    echo 'running' > /var/run/${name}.status
    echo '...done'
 }
