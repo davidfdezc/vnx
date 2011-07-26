@@ -91,6 +91,7 @@ cp -v bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
 cp -v bin/vnx_modify_rootfs.sh /usr/share/vnx/bin/vnx_modify_rootfs
 cp -v bin/vnx_modify_rootfs2.sh /usr/share/vnx/bin/vnx_modify_rootfs2
 cp -v bin/vnx_update.sh /usr/share/vnx/bin/vnx_update
+cp -v bin/vnx_set_def_rootfs.pl /usr/share/vnx/bin/vnx_set_def_rootfs
 chmod 755 /usr/share/vnx/bin/*
 
 #
