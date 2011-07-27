@@ -12,13 +12,13 @@ Usage: vnx_set_def_rootfs <rootfs_name> <dist_version> <rootfs_version>
 Examples: 
   'vnx_set_def_rootfs ubuntu 10.04 v021' command creates the following link:
 
-        /usr/share/vnx/filesystems/root_fs_ubuntu -->
-            /usr/share/vnx/filesystems/root_fs_ubuntu-10.04-v021.qcow2
+        /usr/share/vnx/filesystems/rootfs_ubuntu -->
+            /usr/share/vnx/filesystems/vnx_rootfs_ubuntu-10.04-v021.qcow2
        
   'vnx_set_def_rootfs fedora-gui 14 v021' command creates the following link:
 
-        /usr/share/vnx/filesystems/root_fs_fedora-gui -->
-            /usr/share/vnx/filesystems/root_fs_fedora-14-gui-v021.qcow2
+        /usr/share/vnx/filesystems/vnx_rootfs_fedora-gui -->
+            /usr/share/vnx/filesystems/vnx_rootfs_fedora-14-gui-v021.qcow2
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 EOF
 
@@ -54,11 +54,11 @@ if ($rootfsType =~ /.*-gui/) {
 }
 
 if ($guiDist) {
-	$rootfsFname = "$VNXFSDIR/root_fs_$rootfsType-$distVersion-gui-$rootfsVersion.qcow2";
-	$linkName = "$VNXFSDIR/root_fs_$rootfsType-gui";
+	$rootfsFname = "$VNXFSDIR/vnx_rootfs_$rootfsType-$distVersion-gui-$rootfsVersion.qcow2";
+	$linkName = "$VNXFSDIR/rootfs_$rootfsType-gui";
 } else {
-	$rootfsFname = "$VNXFSDIR/root_fs_$rootfsType-$distVersion-$rootfsVersion.qcow2";
-	$linkName = "$VNXFSDIR/root_fs_$rootfsType";
+	$rootfsFname = "$VNXFSDIR/vnx_rootfs_$rootfsType-$distVersion-$rootfsVersion.qcow2";
+	$linkName = "$VNXFSDIR/rootfs_$rootfsType";
 }
 
 #print "$rootfsFname\n";
