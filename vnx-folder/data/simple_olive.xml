@@ -38,7 +38,7 @@ SPAIN
       
   <!-- NODES -->
   <vm name="juniper" type="libvirt" subtype="kvm" os="olive">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_olive</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_olive</filesystem>
     <mem>256M</mem>
     <conf>conf/juniper.conf</conf>
     <if id="1" net="Net0" name="fxp0">

@@ -1,0 +1,38 @@
+#!/bin/bash
+
+TMPDIR=/usr/share/vnx/filesystems/tmp
+CDIR=$( dirname $0 )
+echo $CDIR
+
+ALLROOTFS="root_fs_centos-5.6-gui-v021.qcow2 root_fs_centos-5.6-v021.qcow2 root_fs_fedora-14-gui-v021.qcow2 root_fs_fedora-14-v021.qcow2 root_fs_freebsd-7.4-gui-v021.qcow2 root_fs_freebsd-7.4-v021.qcow2 root_fs_freebsd-8.2-gui-v021.qcow2 root_fs_freebsd-8.2-v021.qcow2 root_fs_tutorial-0.6.0 root_fs_ubuntu-10.04-gui-v021.qcow2 root_fs_ubuntu-10.04-v021.qcow2 root_fs_ubuntu-10.10-gui-v021.qcow2 root_fs_ubuntu-10.10-v021.qcow2 root_fs_ubuntu-11.04-gui-v021.qcow2 root_fs_ubuntu-11.04-v021.qcow2 root_fs_ubuntu-9.10-v021.qcow2"
+
+if [ "$1" == "all" ]; then
+	FILES=$ALLROOTFS 
+else
+	FILES="$@"
+fi
+echo "--"
+echo "-- Preparing the following root filesystems for distribution: $FILES"
+echo "--"
+
+mkdir -p $TMPDIR
+for ROOTFS in $FILES
+do
+
+	ROOTFSNAME=$(basename $ROOTFS)
+
+	#echo "root_fs=$ROOTFS"
+	#echo "root_fs_name=$ROOTFSNAME"
+
+	echo "--"
+	echo "-- Preparing $ROOTFS for distribution..."
+	echo "--"
+	cp -v $1 $TMPDIR
+	cd $TMPDIR
+	md5sum $ROOTFSNAME > $ROOTFSNAME.md5
+	bzip2 -9 $ROOTFSNAME
+	echo "--"
+	echo "-- ...done. Files located in $TMPDIR"
+	echo "--"
+
+done

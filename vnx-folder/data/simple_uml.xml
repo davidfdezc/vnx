@@ -41,7 +41,7 @@ SPAIN
 
   <!-- NODES -->
   <vm name="uml" type="uml" subtype="" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_uml</filesystem>
     <mem>64M</mem>
     <kernel>/usr/share/vnx/kernels/linux</kernel>
     <console id="0" display="yes">xterm</console>

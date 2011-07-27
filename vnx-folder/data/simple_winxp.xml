@@ -38,7 +38,7 @@ SPAIN
     
   <!-- NODES -->
   <vm name="winxp" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_winxp</filesystem>
     <mem>512M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.3/24</ipv4>

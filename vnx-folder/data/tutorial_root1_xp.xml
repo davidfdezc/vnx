@@ -13,7 +13,7 @@ See the tutorial/index.html document for details
     <automac/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
-       <!--filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial</filesystem-->
+       <!--filesystem type="cow">/usr/share/vnx/filesystems/rootfs_tutorial</filesystem-->
        <mem>64M</mem>
        <!--kernel>/usr/share/vnx/kernels/linux</kernel-->
        <console id="0">xterm</console>
@@ -36,7 +36,7 @@ See the tutorial/index.html document for details
   </vm>
 
   <vm name="h2" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_win7</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_win7</filesystem>
     <mem>1G</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.2/24</ipv4>
@@ -66,7 +66,7 @@ See the tutorial/index.html document for details
   </vm>
 
   <vm name="h4" type="libvirt" subtype="kvm" os="windows">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_winxp</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_winxp</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net1">
       <ipv4>10.0.1.2/24</ipv4>
@@ -79,7 +79,7 @@ See the tutorial/index.html document for details
   </vm>
 
   <vm name="h5" type="libvirt" subtype="kvm" os="linux">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net2">
       <ipv4>10.0.2.2/24</ipv4>

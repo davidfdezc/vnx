@@ -1,29 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!--
-VNUML Root Scenario (1)
-See the tutorial/index.html document for details
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        tutorial_ubuntu
+Description: As simple tutorial scenario made of 6 Ubuntu virtual machines (4 hosts: h1, h2, h3 and h4; 
+			 and 2 routers: r1 and r2) connected through three virtual networks. The host participates 
+			 in the scenario having a network interface in Net3.     
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.95.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
-    <version>1.92</version>
-    <scenario_name>tutorial-r1_all</scenario_name>
+    <version>2.0</version>
+    <scenario_name>tutorial_ubuntu</scenario_name>
     <automac/>
-    <vm_mgmt type="none"/>
-    <!--vm_mgmt type="private" network="10.250.0.0" mask="24">
-       <host_mapping />
-    </vm_mgmt--> 
-    <vm_defaults exec_mode="mconsole">
-    	<console id="0" display="no"/>
+    <vm_mgmt type="none" />
+    <vm_defaults>
+	    <console id="0" display="no"/>
 	    <console id="1" display="yes"/>
     </vm_defaults>
-    <dynamips_ext>tutorial_root1_ubuntu_dynamips-dn.xml</dynamips_ext>
   </global>
 
   <net name="Net0" mode="virtual_bridge" />
-  <net name="Net1" type='ppp' mode="virtual_bridge" />
+  <net name="Net1" mode="virtual_bridge" />
   <net name="Net2" mode="virtual_bridge" />
   <net name="Net3" mode="virtual_bridge" />
 
@@ -45,25 +56,25 @@ See the tutorial/index.html document for details
     <route type="ipv4" gw="10.0.0.3">default</route>
   </vm>
 
-  <vm name="r1" type="dynamips" subtype="3600" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
-    <mem>96M</mem>
-    <if id="1" net="Net0" name="e0/0">
+  <vm name="r1" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
+    <mem>128M</mem>
+    <if id="1" net="Net0">
       <ipv4>10.0.0.3/24</ipv4>
     </if>
-    <if id="2" net="Net1" name="s1/0">
+    <if id="2" net="Net1">
       <ipv4>10.0.1.1/24</ipv4>
     </if>
-    <if id="3" net="Net3" name="e0/1">
+    <if id="3" net="Net3">
       <ipv4>10.0.3.1/24</ipv4>
     </if>
     <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
-    <exec seq="brief" type="verbatim">show ip interface brief</exec>
+    <forwarding type="ip" />
   </vm>
 
-  <vm name="r2" type="dynamips" subtype="3600" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
-    <mem>96M</mem>
+  <vm name="r2" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
+    <mem>128M</mem>
     <if id="1" net="Net1" name="s1/0">
       <ipv4>10.0.1.2/24</ipv4>
     </if>
@@ -71,7 +82,7 @@ See the tutorial/index.html document for details
       <ipv4>10.0.2.1/24</ipv4>
     </if>
     <route type="ipv4" gw="10.0.1.1">default</route>
-    <exec seq="brief" type="verbatim">show ip interface brief</exec>
+    <forwarding type="ip" />
   </vm>
 
   <vm name="h3" type="libvirt" subtype="kvm" os="linux">

@@ -20,7 +20,7 @@ in your system.
     <automac/>
     <vm_mgmt type="none" />
     <vm_defaults exec_mode="mconsole">
-       <filesystem type="cow">/usr/share/vnuml/filesystems/root_fs_tutorial</filesystem>
+       <filesystem type="cow">/usr/share/vnuml/filesystems/rootfs_tutorial</filesystem>
        <kernel>/usr/share/vnuml/kernels/linux</kernel>
        <console id="0">xterm</console>
        <!--xterm>gnome-terminal,-t,-x</xterm-->
