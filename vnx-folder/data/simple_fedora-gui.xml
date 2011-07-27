@@ -41,7 +41,7 @@ SPAIN
   
   <!-- NODES -->
   <vm name="fedora-gui" type="libvirt" subtype="kvm" os="linux">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_fedora-gui</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_fedora-gui</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.10/24</ipv4>

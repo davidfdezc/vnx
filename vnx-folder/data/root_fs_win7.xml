@@ -17,7 +17,7 @@
   <devices>
     <emulator>/usr/bin/kvm</emulator>
     <disk type='file' device='disk'>
-      <source file='/usr/share/vnx/filesystems/root_fs_win7'/>
+      <source file='/usr/share/vnx/filesystems/rootfs_win7'/>
       <target dev='hda'/>
       <driver name="qemu" type="qcow2"/>
     </disk>
