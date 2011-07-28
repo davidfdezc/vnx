@@ -4666,7 +4666,7 @@ sub usage {
 	
 	my $basename = basename $0;
 	
-my $usage = <<EOF;
+my $usage_alloptions = <<EOF;
 
 Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnx_dir] [-u user]
                  [-T tmp_dir] [-i] [-w timeout] [-B]
@@ -4744,6 +4744,79 @@ Options:
        -y|--st-delay num -> wait num secs. between virtual machines startup (0 by default)
 
 EOF
+
+my $usage = <<EOF;
+
+Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnx_dir] [-u user]
+                 [-T tmp_dir] [-i] [-w timeout] [-B]
+                 [-e screen_file] [-4] [-6] [-v] [-g] [-M vm_list] [-D]
+       vnx -f VNX_file [-x|--execute cmd_seq] [-T tmp_dir] [-M vm_list] [-i] [-B] [-4] [-6] [-v] [-g]
+       vnx -f VNX_file [-d|--shutdown] [-c vnx_dir] [-F] [-T tmp_dir] [-i] [-B] [-4] [-6] [-v] [-g]
+       vnx -f VNX_file [-P|--destroy] [-T tmp_file] [-i] [-v] [-u user] [-g]
+       vnx -f VNX_file [--define] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--start] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--undefine] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--save] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--restore] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--suspend] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--resume] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--reboot] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--reset] [-M vm_list] [-v] [-u user] [-i]
+       vnx -f VNX_file [--show-map] 
+       vnx -h
+       vnx -V
+
+Main modes:
+       -t|--create   -> build topology, or create virtual machine (if -M), using VNX_file as source.
+       -x cmd_seq    -> execute the cmd_seq command sequence, using VNX_file as source.
+       -d|--shutdown -> destroy current scenario, or virtual machine (if -M), using VNX_file as source.
+       -P|--destroy  -> purge scenario, or virtual machine (if -M), (warning: it will remove cowed 
+                        filesystems!)
+       --define      -> define all machines, or the ones speficied (if -M), using VNX_file as source.
+       --undefine    -> undefine all machines, or the ones speficied (if -M), using VNX_file as source.
+       --start       -> start all machines, or the ones speficied (if -M), using VNX_file as source.
+       --save        -> save all machines, or the ones speficied (if -M), using VNX_file as source.
+       --restore     -> restore all machines, or the ones speficied (if -M), using VNX_file as source.
+       --suspend     -> suspend all machines, or the ones speficied (if -M), using VNX_file as source.
+       --resume      -> resume all machines, or the ones speficied (if -M), using VNX_file as source.
+       --reboot      -> reboot all machines, or the ones speficied (if -M), using VNX_file as source.
+	
+Console management modes:
+       --console-info       -> shows information about all virtual machine consoles or the 
+                               one specified with -M option.
+       --console-info -b    -> the same but the information is provided in a compact format
+       --console            -> opens the consoles of all vms, or just the ones speficied if -M is used. 
+                               Only the consoles defined with display="yes" in VNX_file are opened.
+       --console --cid conX -> opens 'conX' console (being conX the id of a console: con0, con1, etc) 
+                               of all vms, or just the ones speficied if -M is used.                              
+       Examples:
+       		vnx -f ex1.xml --console
+       		vnx -f ex1.xml --console --cid con0 -M A --> open console 0 of vm A of scenario ex1.xml
+
+Other modes:
+       --show-map    -> shows a map of the network scenarios build using graphviz.
+
+Pseudomodes:
+       -V, show program version and exit.
+       -H, show this help message and exit.
+
+Options:
+       -c vnx_dir      -> vnx working directory (default is ~/.vnx)
+       -F              -> force stopping of UMLs (warning: UML filesystems may be corrupted)
+       -w timeout      -> waits timeout seconds for a UML to boot before prompting the user 
+                          for further action; a timeout of 0 indicates no timeout (default is 30)
+       -B              -> blocking mode
+       -e screen_file  -> make screen configuration file for pts devices
+       -v              -> verbose mode on
+       -T tmp_dir      -> temporal files directory (default is /tmp)
+       -M vm_list      -> start/stop/restart scenario in vm_list UMLs (a list of names separated by ,)
+       -C|--config cfgfile -> use cfgfile as configuration file instead of default one (/etc/vnx.conf)
+       -D              -> delete LOCK file
+       -n|--noconsole -> do not display the console of any vm. To be used with -t|--create options
+       -y|--st-delay num -> wait num secs. between virtual machines startup (0 by default)
+
+EOF
+
 
 print "$usage\n";   
 
