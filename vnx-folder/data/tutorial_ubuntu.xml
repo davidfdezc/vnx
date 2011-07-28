@@ -40,13 +40,13 @@ SPAIN
 
   <vm name="h1" type="libvirt" subtype="kvm" os="linux">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu-gui</filesystem>
-    <mem>256M</mem>
+    <mem>384M</mem>
     <console id="0" display="yes"/>
     <console id="1" display="no"/>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.1/24</ipv4>
+      <ipv4>10.0.0.2/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.0.3">default</route>
+    <route type="ipv4" gw="10.0.0.1">default</route>
     
     <filetree seq="vnxtxt" root="/tmp">conf/txtfile</filetree>
 
@@ -64,7 +64,7 @@ SPAIN
 
     <!-- Start firefox and connect to h3 web server -->
     <exec seq="www-h3"    type="verbatim" ostype="xexec">firefox http://10.0.2.2</exec>
-    <exec seq="www-h3-off" type="verbatim" ostype="system">pkill firefox; rm /tmp/vnx.*</exec>
+    <exec seq="www-h3-off" type="verbatim" ostype="system">pkill firefox</exec>
 
     <!-- Start calculator  -->
     <exec seq="calc"      type="verbatim" ostype="xexec">gcalctool</exec>
@@ -76,16 +76,16 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>128M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.2/24</ipv4>
+      <ipv4>10.0.0.3/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.0.3">default</route>
+    <route type="ipv4" gw="10.0.0.1">default</route>
   </vm>
 
   <vm name="r1" type="libvirt" subtype="kvm" os="linux">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>128M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.3/24</ipv4>
+      <ipv4>10.0.0.1/24</ipv4>
     </if>
     <if id="2" net="Net1">
       <ipv4>10.0.1.1/24</ipv4>
