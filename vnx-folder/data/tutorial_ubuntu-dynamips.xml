@@ -6,9 +6,9 @@ See the tutorial/index.html document for details
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.95.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
-    <version>1.92</version>
+    <version>2.0</version>
     <scenario_name>tutorial-r1_all</scenario_name>
     <automac/>
     <vm_mgmt type="none"/>
@@ -19,7 +19,7 @@ See the tutorial/index.html document for details
     	<console id="0" display="no"/>
 	    <console id="1" display="yes"/>
     </vm_defaults>
-    <dynamips_ext>tutorial_root1_ubuntu_dynamips-dn.xml</dynamips_ext>
+    <dynamips_ext>tutorial_ubuntu-dynamips-dn.xml</dynamips_ext>
   </global>
 
   <net name="Net0" mode="virtual_bridge" />
