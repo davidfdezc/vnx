@@ -37,6 +37,8 @@ SPAIN
   <net name="Net0" mode="uml_switch" />
   <net name="Net1" mode="uml_switch" />
   <net name="Net2" mode="uml_switch" />
+  <net name="Net3" mode="uml_switch" />
+  
 
   <vm name="uml1" type="uml">
     <if id="1" net="Net0">
@@ -61,6 +63,9 @@ SPAIN
     <if id="2" net="Net1">
       <ipv4>10.0.1.1/24</ipv4>
     </if>
+    <if id="3" net="Net3">
+      <ipv4>10.0.3.1/24</ipv4>
+    </if>    
     <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
     <forwarding type="ip" />
   </vm>
@@ -83,4 +88,11 @@ SPAIN
     <route type="ipv4" gw="10.0.2.1">default</route>
   </vm>
 
+  <host>
+    <hostif net="Net3">
+       <ipv4>10.0.3.2/24</ipv4>
+    </hostif>
+    <route type="ipv4" gw="10.0.3.1">10.0.0.0/16</route>
+  </host>
+  
 </vnx>
