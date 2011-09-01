@@ -28,6 +28,7 @@
 # dealing with execution of commands.
 
 package VNX::Execution;
+use VNX::Globals;
 
 use strict;
 no strict "subs";	# Needed in deamonize subrutine
@@ -36,11 +37,10 @@ use warnings;
 use POSIX qw(setsid setuid setgid);	# Needed in deamonize subrutine
 use Term::ReadKey;
 
-# TODO: constant should be included in a .pm that would be loaded from each module
-# that needs them
-use constant EXE_DEBUG => 0;	#	- does not execute, only shows
-use constant EXE_VERBOSE => 1;	#	- executes and shows
-use constant EXE_NORMAL => 2;	#	- executes
+our @ISA    = qw(Exporter);
+our @EXPORT = qw( wlog press_any_key pak );
+
+
 
 ###########################################################################
 # CLASS CONSTRUCTOR
@@ -55,22 +55,27 @@ use constant EXE_NORMAL => 2;	#	- executes
 # - the mconsole_binary (needed in execute_mconsole method)
 #
 sub new {
-   my $class = shift;
-   my $self = {};
-   bless $self;
+    my $class = shift;
+    my $self = {};
+    bless $self;
 
-   $self->{'vnx_dir'} = shift;
-   $self->{'exe_mode'} = shift;
-   $self->{'verb_prompt'} = shift;
-   $self->{'exe_interactive'} = shift;
-   $self->{'uid'} = shift;
+    my @verb_prompt;  # Prompt behaves now as stack implemented with an array 
+
+    $self->{'vnx_dir'} = shift;
+    $self->{'exe_mode'} = shift;
+#    $self->{'verb_prompt'} = shift;
+    unshift (@verb_prompt, shift);
+    $self->{'exe_interactive'} = shift;
+    $self->{'uid'} = shift;
+
+    $self->{'verb_prompt'} = \@verb_prompt;  
+
+    # This field is not set at construction time, due to the DataHandler object 
+    # holding the data is constructed after the Execution object. The
+    # set_mconsole_binary method has to be used 
+    $self->{'mconsole_binary'} = "";
    
-   # This field is not set at construction time, due to the DataHandler object 
-   # holding the data is constructed after the Execution object. The
-   # set_mconsole_binary method has to be used 
-   $self->{'mconsole_binary'} = "";
-   
-   return $self;  
+    return $self;  
 }
 
 ###########################################################################
@@ -90,8 +95,9 @@ sub get_exe_mode {
 # Returns the exe_mode
 #
 sub get_verb_prompt {
-   my $self = shift;
-   return $self->{'verb_prompt'};
+    my $self = shift;
+#   return $self->{'verb_prompt'};
+    return @{$self->{'verb_prompt'}}[0];
 } 
 
 # set_verb_prompt
@@ -99,9 +105,20 @@ sub get_verb_prompt {
 # Set the verb_prompt
 #
 sub set_verb_prompt {
-   my $self = shift;
-   my $verb_prompt = shift;
-   $self->{'verb_prompt'} = $verb_prompt;
+    my $self = shift;
+    my $verb_prompt = shift;
+    unshift (@{$self->{'verb_prompt'}}, $verb_prompt);
+    #$self->{'verb_prompt'} = $verb_prompt;
+} 
+
+# pop_verb_prompt
+#
+# Pop a verb_prompt to the stack
+#
+sub pop_verb_prompt {
+    my $self = shift;
+    shift (@{$self->{'verb_prompt'}});
+    #$self->{'verb_prompt'} = $verb_prompt;
 } 
 
 # get_uid
@@ -145,49 +162,50 @@ sub set_mconsole_binary {
 # and, in addition, whit D- in debug mode
 
 sub execute {
-   my $self = shift;
+    my $self = shift;
    
-   my $exe_mode = $self->{'exe_mode'};
-   my $verb_prompt = $self->{'verb_prompt'};
-   my $exe_interactive = $self->{'exe_interactive'};
+    my $exe_mode = $self->{'exe_mode'};
+    #my $verb_prompt = $self->{'verb_prompt'};
+    my $verb_prompt = @{$self->{'verb_prompt'}}[0];
+    my $exe_interactive = $self->{'exe_interactive'};
 
-   my $retval = 0;	# By default, all right
-   if ((my ($command, $CMD_OUT) = @_) == 1) {
-      # Direct mode
-      if ($exe_mode == EXE_DEBUG) {
-         print "D-" . $verb_prompt . "$command\n";
-      }
-      elsif ($exe_mode == EXE_VERBOSE) {
-         print $verb_prompt . "$command\n";
-         system $command;
-         $retval = $?;
-         if ($exe_interactive) {
-            &pulse_a_key;
-	     }
-      }
-      elsif ($exe_mode == EXE_NORMAL) {
-         system "$command > /dev/null";
-         $retval = $?;
-         if ($exe_interactive) {
-            &pulse_a_key;
-	     }
-      }
-   }
-   else {
-      # Recording mode
-      if ($exe_mode == EXE_DEBUG) {
-         print "D-" . $verb_prompt . "$command\n";
-      }
-      elsif ($exe_mode == EXE_VERBOSE) {
-         print $verb_prompt . "$command\n";
-         print $CMD_OUT "$command\n";
-      }
-      elsif ($exe_mode == EXE_NORMAL) {
-         print $CMD_OUT "$command\n";
-      }
-   }
+    my $retval = 0;	# By default, all right
+    if ((my ($command, $CMD_OUT) = @_) == 1) {
+        # Direct mode
+        if ($exe_mode == $EXE_DEBUG) {
+            print "D-" . $verb_prompt . "$command\n";
+        }
+        elsif ($exe_mode == $EXE_VERBOSE) {
+            print $verb_prompt . "$command\n";
+            system $command;
+            $retval = $?;
+            if ($exe_interactive) {
+                &press_any_key;
+            }
+        }
+        elsif ($exe_mode == $EXE_NORMAL) {
+            system "$command > /dev/null";
+            $retval = $?;
+            if ($exe_interactive) {
+                &press_any_key;
+            }
+        }
+    }
+    else {
+        # Recording mode
+        if ($exe_mode == $EXE_DEBUG) {
+            print "D-" . $verb_prompt . "$command\n";
+        }
+        elsif ($exe_mode == $EXE_VERBOSE) {
+            print $verb_prompt . "$command\n";
+            print $CMD_OUT "$command\n";
+        }
+        elsif ($exe_mode == $EXE_NORMAL) {
+            print $CMD_OUT "$command\n";
+        }
+    }
 
-   return $retval;
+    return $retval;
 
 }
 
@@ -210,20 +228,20 @@ sub execute_bg {
    my $output = shift;
    my $gid = shift;
 
-   if ($exe_mode == EXE_DEBUG) {
+   if ($exe_mode == $EXE_DEBUG) {
       print "D-daemon: $command\n";
    }
-   elsif ($exe_mode == EXE_VERBOSE) {
+   elsif ($exe_mode == $EXE_VERBOSE) {
       print "daemon: $command\n";
       $self->daemonize($command,$output,$gid);
       if ($exe_interactive) {
-         &pulse_a_key;
+         &press_any_key;
       }
    }
-   elsif ($exe_mode == EXE_NORMAL) {
+   elsif ($exe_mode == $EXE_NORMAL) {
       $self->daemonize($command,$output,$gid);
       if ($exe_interactive) {
-         &pulse_a_key;
+         &press_any_key;
       }
    }
 }
@@ -318,7 +336,11 @@ sub daemonize {
    die "Could not execute $command!";
 }
 
-sub pulse_a_key {
+sub press_any_key {
+	
+    my $msg = shift;
+    
+    if ($msg) { print "**********************************\n$msg\n**********************************\n" }	
 
    # Copy-paste from http://perlmonks.thepen.com/33566.html
    # A simpler alternative to this code is <>, but that is ugly :)
@@ -331,5 +353,38 @@ sub pulse_a_key {
    ReadMode 0; # Reset tty mode before exiting
 
 }
+
+sub pak { 
+
+    my $msg = shift;
+    press_any_key ($msg);
+	
+}
+
+# wlog 
+#
+# Write log message depending on the verbosity level ($execution->get_exe_mode()).
+# Adds a "\n" to the end of the message. Uses the $execution object, so it has to
+# initialized before calling it.
+# 
+# Call with: 
+#    log (V, "log message")  
+#    log (VV, "log message")  
+#    log (VVV, "log message")
+#  
+sub wlog {
+	
+	my $msg_level = shift;   # Posible values: V, VV, VVV
+	my $msg       = shift;
+	
+	my $exe_mode = $execution->get_exe_mode();
+	#print "~~ wlog: msg_level=$msg_level, exe_mode=$exe_mode, EXE_VERBOSITY_LEVEL=$EXE_VERBOSITY_LEVEL\n";		
+	if (   ($msg_level == N) || 
+	       ($exe_mode == $EXE_DEBUG) || 
+	       ( ($exe_mode == $EXE_VERBOSE) && ( $msg_level <= $EXE_VERBOSITY_LEVEL ) )   ) { 
+		print "vnx-log-$EXE_VERBOSITY_LEVEL>  $msg\n";		
+	}  
+}
+
 
 1;

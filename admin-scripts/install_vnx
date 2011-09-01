@@ -120,6 +120,12 @@ cp -v aced/* /usr/share/vnx/aced
 cp -v plugins/*.pm /usr/share/vnx/plugins/
 cp -v plugins/*.dtd /usr/share/xml/vnx/
 
+#
+# Copy bios for olive routers
+#
+mkdir -p /usr/share/kvm/
+cp -v lib/bios-olive.bin /usr/share/kvm/
+
 
 echo "** "
 echo "** ...done"

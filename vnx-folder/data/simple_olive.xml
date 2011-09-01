@@ -36,7 +36,6 @@ SPAIN
     
   <net name="Net0" mode="virtual_bridge" />
       
-  <!-- NODES -->
   <vm name="juniper" type="libvirt" subtype="kvm" os="olive">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_olive</filesystem>
     <mem>256M</mem>
@@ -47,14 +46,36 @@ SPAIN
     </if>
     <route type="ipv4" gw="10.0.0.1">default</route>
 
+    <!-- Virtual machine command examples -->
+
+    <!-- filetree commands -->    
+    <!-- Copy file conf/on_boot.txt to /root directory during 
+         vm startup. All filetree and exec commands with seq='on_boot
+         are automatically executed during vm startup -->
+    <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
+
     <filetree seq="copyconfig2" root="/var/tmp">conf/</filetree>
     <filetree seq="copyconfig2" root="/var/tmp">conf/txtfile/</filetree>
-    <exec seq="config1"       type="verbatim" mode="sdisk" ostype="load">override conf/juniper.conf</exec>
-    <exec seq="configif"      type="verbatim" mode="sdisk" ostype="set">set interfaces fxp0 unit 0 family inet address 10.0.0.10/24</exec>
-    <exec seq="enable-ssh"    type="verbatim" mode="sdisk" ostype="set">set system services ssh</exec>
-    <exec seq="enable-telnet" type="verbatim" mode="sdisk" ostype="set">set system services telnet</exec>
-    <exec seq="showint"       type="verbatim" mode="sdisk" ostype="show">show interfaces</exec>
-    <exec seq="file"          type="file"     mode="sdisk">comandos/commands-file</exec>
+
+    <!-- Copy file conf/on_shutdown.txt to /root directory just before 
+         vm shutdown. All filetree and exec commands with seq='on_shutdown
+         are automatically executed before sending the shutdown signam to the vm -->
+    <filetree seq="on_shutdown" root="/root/">conf/on_shutdown.txt</filetree>
+
+    <!-- exec commands -->    
+    <!-- Make a copy of on_boot.txt file during vm startup. -->
+    <exec seq="on_boot" type="verbatim" ostype="system">cp /root/on_boot.txt /root/on_boot2.txt</exec>
+
+    <exec seq="config1"       type="verbatim" ostype="load">override conf/juniper.conf</exec>
+    <exec seq="configif"      type="verbatim" ostype="set">set interfaces fxp0 unit 0 family inet address 10.0.0.10/24</exec>
+    <exec seq="enable-ssh"    type="verbatim" ostype="set">set system services ssh</exec>
+    <exec seq="enable-telnet" type="verbatim" ostype="set">set system services telnet</exec>
+    <exec seq="showint"       type="verbatim" ostype="show">show interfaces</exec>
+    <exec seq="file"          type="file"     ostype="set">comandos/commands-file</exec>
+    
+    <!-- Make a copy of on_shutdown.txt before file vm shutdown. -->
+    <exec seq="on_shutdown" type="verbatim" ostype="system">cp /root/on_shutdown.txt /root/on_shutdown2.txt</exec>
+    
   </vm>
 
   <host>
