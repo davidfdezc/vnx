@@ -46,19 +46,21 @@ SPAIN
     <extension plugin="ospf" conf="simple_ubuntu-ospf_conf.xml" />
   </global>
     
-  <net name="Net0" mode="virtual_bridge" />
-  <net name="Net1" mode="virtual_bridge" />
-  <net name="Net2" mode="virtual_bridge" />
+  <net name="Lan1" mode="virtual_bridge" />
+  <net name="Lan2" mode="virtual_bridge" />
+  <net name="Ptp12" mode="virtual_bridge" />
   
   <!-- NODES -->
   <vm name="r1" type="libvirt" subtype="kvm" os="linux" exec_mode="cdrom">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>256M</mem>
-    <if id="1" net="Net0">
-      <ipv4>10.0.0.4/24</ipv4>
+    <if id="1" net="Lan1">
+      <ipv4>10.0.1.1/24</ipv4>
+      <ipv6>2001:db8:1::1/64</ipv6>
     </if>
-    <if id="2" net="Net1">
-      <ipv4>10.0.1.1/30</ipv4>
+    <if id="2" net="Ptp12">
+      <ipv4>10.0.0.1/30</ipv4>
+      <ipv6>2001:db8:12::1/64</ipv6>
     </if>
     <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
     <filetree seq="start-www" root="/var/www/" user="www-data" group="www-data" perms="644">conf/txtfile</filetree>
@@ -75,12 +77,13 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_uml</filesystem>
     <mem>64M</mem>
     <kernel>/usr/share/vnx/kernels/linux</kernel>
-    <console id="0" display="yes">xterm</console>
-    <if id="1" net="Net0">
-      <ipv4>10.0.0.2/24</ipv4>
+    <if id="1" net="Lan2" name="fxp0">
+      <ipv4>10.0.2.1/24</ipv4>
+      <ipv6>2001:db8:2::1/64</ipv6>
     </if>
-    <if id="2" net="Net1">
-      <ipv4>10.0.1.1/30</ipv4>
+    <if id="2" net="Ptp12" name="fxp1">
+      <ipv4>10.0.0.2/30</ipv4>
+      <ipv6>2001:db8:12::2/64</ipv6>
     </if>
     <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
     <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
@@ -93,10 +96,37 @@ SPAIN
     <exec seq="on_shutdown" type="verbatim">touch /root/on_shutdown.txt</exec>
   </vm>
 
+  <vm name="h1" type="libvirt" subtype="kvm" os="linux" exec_mode="cdrom">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Lan1">
+      <ipv4>10.0.1.2/24</ipv4>
+      <ipv6>2001:db8:1::2/64</ipv6>
+    </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>    
+    <route type="ipv6" gw="2001:db8:1::1">default</route>       
+  </vm>
+
+  <vm name="h2" type="uml" exec_mode="mconsole">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_uml</filesystem>
+    <mem>64M</mem>
+    <kernel>/usr/share/vnx/kernels/linux</kernel>
+    <if id="1" net="Lan2">
+      <ipv4>10.0.2.2/24</ipv4>
+      <ipv6>2001:db8:2::2/64</ipv6>
+    </if>
+    <route type="ipv4" gw="10.0.2.1">default</route>    
+    <route type="ipv6" gw="2001:db8:2::1">default</route>       
+  </vm>
+  
+
   <host>
-    <hostif net="Net0">
-       <ipv4>10.0.0.1/24</ipv4>
+    <hostif net="Lan1">
+       <ipv4>10.0.1.3/24</ipv4>
+       <ipv6>2001:db8:1::3/64</ipv6>
     </hostif>
+    <route type="ipv4" gw="10.0.1.1">10.0.0.0/16</route>    
+    <route type="ipv6" gw="2001:db8:1::1">2001:db8::/32</route>    
   </host>
   
 </vnx>

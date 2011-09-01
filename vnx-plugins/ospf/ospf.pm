@@ -104,12 +104,12 @@ sub getBootFiles{
 	print "ospf-plugin> getBootFiles (vm=$vm_name, files_dir=$files_dir)\n";
 	my %files;
 	
-	my $virtualmList=$globalNode->getElementsByTagName("vm");
-	my $longitud = $virtualmList->getLength;
+	my $vm_list=$globalNode->getElementsByTagName("vm");
+	my $longitud = $vm_list->getLength;
 	
 	for (my $m=0; $m<$longitud; $m++){
 		
-		my $virtualm = $virtualmList->item($m);
+		my $virtualm = $vm_list->item($m);
 		my $virtualm_name = $virtualm->getAttribute("name");
 		
 		if ($virtualm_name eq $vm_name){
@@ -201,12 +201,67 @@ sub getBootCommands{
 
 	print "ospf-plugin> getBootCommands (vm=$vm_name)\n";
 
+
 	# Return code (OK)
-	unshift (@commands, "");
+#	unshift (@commands, "");
 
-	push (@commands, "touch /root/file-created-by-getBootCommands");
+#	push (@commands, "touch /root/file-created-by-getBootCommands");
 
-	return @commands;
+#	return @commands;
+
+    my $type;
+    my $subtype;
+    
+    my $zebra_bin = "";
+    my $ospfd_bin = "";
+
+    my $vm_list=$globalNode->getElementsByTagName("vm");
+    for (my $m=0; $m<$vm_list->getLength; $m++){
+        
+        my $vm = $vm_list->item($m);
+        my $name = $vm->getAttribute("name");
+        
+        if ( $vm_name eq $name){
+            $type = $vm->getAttribute("type");
+            $subtype = $vm->getAttribute("subtype");
+            my $zebra_bin_list = $vm->getElementsByTagName("zebra_bin");
+            if ($zebra_bin_list->getLength == 1){
+                $zebra_bin =  $zebra_bin_list->item($0)->getFirstChild->getData;
+            }
+            my $ospf_bin_list = $vm->getElementsByTagName("ospfd_bin");
+            if ($ospf_bin_list->getLength == 1){
+                $ospfd_bin =  $ospf_bin_list->item($0)->getFirstChild->getData;
+            }
+            
+            # Get the binaries pathnames 
+            switch ($type) {
+                case "quagga"{ 
+                    switch ($subtype){
+                        case "lib-install"{ # quagga binaries installed in /usr/lib
+                            if ($zebra_bin eq ""){ $zebra_bin = "/usr/lib/quagga/zebra"; }
+                            if ($ospfd_bin eq ""){ $ospfd_bin = "/usr/lib/quagga/ospfd"; }
+                            unshift (@commands, "");
+                        }
+                        case "sbin-install"{ # quagga binaries installed in /usr/sbin
+                            if ($zebra_bin eq ""){ $zebra_bin = "/usr/sbin/zebra"; }
+                            if ($ospfd_bin eq ""){ $ospfd_bin = "/usr/sbin/ospfd"; }
+                            unshift (@commands, "");
+                        } else {
+                            unshift (@commands, "Unknown subtype value $subtype\n");
+                        }
+                    }
+                } else {
+                    unshift (@commands, "Unknown type value $type\n");
+                }
+            }
+       
+            # Define the command to execute depending on the $seq value
+            push (@commands, "$zebra_bin -d");
+            push (@commands, "$ospfd_bin -d");
+         }
+    }
+    
+    return @commands;   
 }
 
 
@@ -233,12 +288,12 @@ sub execVmsToUse {
 	# Return the list of virtual machines included in plugin extended config file
 	my @vm_list = ();
     
-	my $virtualmList=$globalNode->getElementsByTagName("vm");
-	my $longitud = $virtualmList->getLength;
+	my $vm_list=$globalNode->getElementsByTagName("vm");
+	my $longitud = $vm_list->getLength;
 	
 	for (my $m=0; $m<$longitud; $m++){
 		
-		my $virtualm = $virtualmList->item($m);
+		my $virtualm = $vm_list->item($m);
 		push (@vm_list,$virtualm->getAttribute("name"));
 	}
 	
@@ -279,12 +334,12 @@ sub getExecFiles{
 	if (($seq eq "redoconf") || ($seq eq "ospf-redoconf")){	
 	
 
-		my $virtualmList=$globalNode->getElementsByTagName("vm");
-		my $longitud = $virtualmList->getLength;
+		my $vm_list=$globalNode->getElementsByTagName("vm");
+		my $longitud = $vm_list->getLength;
 		
 		for (my $m=0; $m<$longitud; $m++){
 			
-			my $virtualm = $virtualmList->item($m);
+			my $virtualm = $vm_list->item($m);
 			my $virtualm_name = $virtualm->getAttribute("name");
 			
 			if ($virtualm_name eq $vm_name){
@@ -382,81 +437,60 @@ sub getExecCommands{
 	
 	my $zebra_bin = "";
 	my $ospfd_bin = "";
-	
-	
-	my $virtualmList=$globalNode->getElementsByTagName("vm");
-	my $longitud = $virtualmList->getLength;
-	
-	for (my $m=0; $m<$longitud; $m++){
+
+	my $vm_list=$globalNode->getElementsByTagName("vm");
+	for (my $m=0; $m<$vm_list->getLength; $m++){
 		
-		my $virtualm = $virtualmList->item($m);
-		my $virtualm_name = $virtualm->getAttribute("name");
+		my $vm = $vm_list->item($m);
+		my $name = $vm->getAttribute("name");
 		
-		if ( $vm_name eq $virtualm_name){
-			$type = $virtualm->getAttribute("type");
-			$subtype = $virtualm->getAttribute("subtype");
-			my $zebraBinTagList = $virtualm->getElementsByTagName("zebra_bin");
-			my $longitudZebra = $zebraBinTagList->getLength;
-			if ($longitudZebra == 1){
-				$zebra_bin =  $zebraBinTagList->item($0)->getFirstChild->getData;
+		if ( $vm_name eq $name){
+			$type = $vm->getAttribute("type");
+			$subtype = $vm->getAttribute("subtype");
+			my $zebra_bin_list = $vm->getElementsByTagName("zebra_bin");
+			if ($zebra_bin_list->getLength == 1){
+				$zebra_bin =  $zebra_bin_list->item($0)->getFirstChild->getData;
 			}
-			my $ospfdBinTagList = $virtualm->getElementsByTagName("ospfd_bin");
-			my $longitudOspfd = $ospfdBinTagList->getLength;
-			if ($longitudOspfd == 1){
-				$ospfd_bin =  $ospfdBinTagList->item($0)->getFirstChild->getData;
+			my $ospf_bin_list = $vm->getElementsByTagName("ospfd_bin");
+			if ($ospf_bin_list->getLength == 1){
+				$ospfd_bin =  $ospf_bin_list->item($0)->getFirstChild->getData;
 			}
 			
+			# Get the binaries pathnames 
 			switch ($type) {
 				case "quagga"{ 
 					switch ($subtype){
-						case "lib-install"{
-					
-							if ($zebra_bin eq ""){
-								$zebra_bin = "/usr/lib/quagga/zebra";
-							}
-							if ($ospfd_bin eq ""){
-								$ospfd_bin = "/usr/lib/quagga/ospfd";
-							}
+						case "lib-install"{ # quagga binaries installed in /usr/lib
+							if ($zebra_bin eq ""){ $zebra_bin = "/usr/lib/quagga/zebra"; }
+							if ($ospfd_bin eq ""){ $ospfd_bin = "/usr/lib/quagga/ospfd"; }
 							unshift (@commands, "");
 						}
-						case "sbin-install"{
-					
-							if ($zebra_bin eq ""){
-								$zebra_bin = "/usr/sbin/zebra";
-							}
-							if ($ospfd_bin eq ""){
-								$ospfd_bin = "/usr/sbin/ospfd";
-							}
+						case "sbin-install"{ # quagga binaries installed in /usr/sbin
+							if ($zebra_bin eq ""){ $zebra_bin = "/usr/sbin/zebra"; }
+							if ($ospfd_bin eq ""){ $ospfd_bin = "/usr/sbin/ospfd"; }
 							unshift (@commands, "");
-					
 						} else {
-							unshift (@commands, "Your choice $subtype is not a recognized subtype (yet)\n");
+							unshift (@commands, "Unknown subtype value $subtype\n");
 						}
 					}
 				} else {
-					unshift (@commands, "Your choice $type is not a recognized type (yet)\n");
+                    unshift (@commands, "Unknown type value $type\n");
 				}
 			}
-	
-			if (($seq eq "start") || ($seq eq "ospf-start")){
-		
-				push (@commands, "$zebra_bin -d");
-				push (@commands, "$ospfd_bin -d");
-						
-		
-			}elsif(($seq eq "restart") || ($seq eq "ospf-restart")){
-				
-				push (@commands, "killall zebra");
-				push (@commands, "killall ospfd");
-		
-				push (@commands, "$zebra_bin -d");
-				push (@commands, "$ospfd_bin -d");
-		
-			}elsif(($seq eq "stop") || ($seq eq "ospf-stop")){
-		
-				push (@commands, "killall zebra");
-				push (@commands, "killall ospfd");
-		
+	   
+            # Define the command to execute depending on the $seq value
+            if (($seq eq "start") || ($seq eq "ospf-start")){
+                push (@commands, "$zebra_bin -d");
+                push (@commands, "$ospfd_bin -d");
+            }elsif(($seq eq "restart") || ($seq eq "ospf-restart")){
+                push (@commands, "killall zebra");
+                push (@commands, "killall ospfd");
+                push (@commands, "$zebra_bin -d");
+                push (@commands, "$ospfd_bin -d");
+            }elsif(($seq eq "stop") || ($seq eq "ospf-stop")){
+                push (@commands, "killall zebra");
+                push (@commands, "killall ospfd");
+
 			}
 		}
 	}
