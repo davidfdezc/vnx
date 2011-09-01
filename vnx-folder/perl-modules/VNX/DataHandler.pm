@@ -36,6 +36,8 @@ use warnings;
 use VNX::TextManipulation;
 use VNX::DocumentChecks;
 use VNX::FileChecks;
+use VNX::Execution;
+use VNX::Globals;
 
 ###########################################################################
 # CLASS CONSTRUCTOR
@@ -44,7 +46,7 @@ use VNX::FileChecks;
 #
 # - The Execution object reference
 # - the XML DOM object reference
-# - mode (t|x|d|P)
+# - mode (create|x|d|P)
 # - list of comma separated machine targets of the actions (usually, the opt_M in the main 
 #   program). It may be an empty string (when no opt_M is used), meaning all the machines
 # - command secuence used in mode -x. Other modes, it does not used (empty string)
@@ -66,7 +68,7 @@ sub new {
    # Build static data array
    my %global_data;
    
-   # 1. Fields that lives under <vm_defaults>
+   # 1. Fields that live under <vm_defaults>
    my $vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
    my $no_filesystem = 1;
    my $no_mem = 1;
@@ -132,14 +134,25 @@ sub new {
          $no_forwarding = 0;
       }
       
-      if ($vm_defaults_list->item(0)->getAttribute("exec_mode") ne "") {
-         $global_data{'default_exec_mode'} = $vm_defaults_list->item(0)->getAttribute("exec_mode");
+
+#      if ($vm_defaults_list->item(0)->getAttribute("exec_mode") ne "") {
+#         $global_data{'default_exec_mode'} = $vm_defaults_list->item(0)->getAttribute("exec_mode");
+#      }
+#      else {
+#          #$global_data{'default_exec_mode'} = "net";
+#         $global_data{'default_exec_mode'} = "cdrom";
+#      }
+
+      my $execmode_list = $vm_defaults_list->item(0)->getElementsByTagName("exec_mode");
+      my $countcommand = 0;
+      for ( my $j = 0 ; $j < $execmode_list->getLength ; $j++ ) {
+            
+          my $command = $execmode_list->item($j);
+          my $merged_type = $self->get_vm_merged_type($command);
+          my $execmode_value = &text_tag($command);
+          $global_data{"default_exec_mode-$merged_type"} =$execmode_value;
+          wlog (VVV, "default exec_mode for vm type $merged_type set to $execmode_value");
       }
-      else {
-          #$global_data{'default_exec_mode'} = "net";
-         $global_data{'default_exec_mode'} = "cdrom";
-      }
-      
    }
    
    if ($no_filesystem) {
@@ -266,7 +279,7 @@ sub new {
    }
 
    # SSH version, if present
-   $global_data{'ssh_version'} = "1";	        # default SSH protocol version is 1}
+   $global_data{'ssh_version'} = "2";	        # default SSH protocol version is 1}
    my $ssh_version_list = $self->{'doc'}->getElementsByTagName("ssh_version");
    if ($ssh_version_list->getLength == 1) {
       $global_data{'ssh_version'} = &text_tag($ssh_version_list->item(0));
@@ -610,13 +623,91 @@ sub get_default_forwarding_type {
    return $self->{'global_data'}->{'default_forwarding_type'};
 }
 
+###################################################################
+# get_vm_exec_mode
+#
+# Arguments:
+# - a virtual machine node
+#
+# Returns the corresponding mode for the command executions in the virtual
+# machine issued as argument. If no exec_mode is found (note that exec_mode attribute in
+# <vm> is optional), the default is retrieved from the DataHandler object
+#
+sub get_vm_exec_mode {
+
+    my $self    = shift;
+    my $vm = shift;
+
+    if ( $vm->getAttribute("exec_mode") ne "" ) {
+        return $vm->getAttribute("exec_mode");
+    }
+    else {
+        return $dh->get_default_exec_mode ($vm->getAttribute('type'), $vm->getAttribute('subtype'), $vm->getAttribute('os'));
+    }
+
+}
+
 # get_default_exec_mode
 #
-# Returns the default exec mode
+# Returns the default exec mode for a vm of type/subtype/os
+# type parameter is mandatory; subtype and os parameters could be empty.
+# If subtype is empty, os must also be empty
+#
+# Examples:
+#     $dh->get_default_exec_mode ($type)
+#     $dh->get_default_exec_mode ($type, $subtype)
+#     $dh->get_default_exec_mode ($type, $subtype, $os)
 #
 sub get_default_exec_mode {
-   my $self = shift;
-   return $self->{'global_data'}->{'default_exec_mode'};
+
+    my $self    = shift;    
+    my $type    = shift;
+    my $subtype = shift;
+    my $os      = shift;
+   
+    my $merged_type;
+    my $def_execmode;
+   
+    if (!$type) { return "ERROR\n"; }
+    if ( ($os) && (!$subtype) ) { return "ERROR\n"; }
+
+    if ( (!$os) && (!$subtype) ) { # subtype and os empty
+        $merged_type = "$type";
+        my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type"};
+    } elsif ( (!$os) && ($subtype) ) { # os empty
+        $merged_type = "$type-$subtype";
+        my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type-$subtype"};
+        if (!$def_execmode) { # Look for a default mode for the whole type
+            my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type"};
+        }
+    } else { # none empty
+        $merged_type = "$type-$subtype-$os";
+        my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type-$subtype-$os"};
+        if (!$def_execmode) { # Look for a default mode for the whole subtype
+            my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type-$subtype"};
+            if (!$def_execmode) { # Look for a default mode for the whole subtype
+                my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type"};
+            }
+        } 
+    }
+
+    # If no default found in <exec_mode> tags under <vm_defaults>...   
+    if (!$def_execmode) {  # ...set the defaults defined in Globals.pm
+        if ($merged_type eq 'uml') {
+            $def_execmode = $EXEC_MODES_UML[0];
+        } elsif ($merged_type eq 'libvirt-kvm-linux') {
+            $def_execmode = $EXEC_MODES_LIBVIRT_KVM_LINUX[0];
+        } elsif ($merged_type eq 'libvirt-kvm-windows') {
+            $def_execmode = $EXEC_MODES_LIBVIRT_KVM_WINDOWS[0];
+        } elsif ($merged_type eq 'libvirt-kvm-olive') {
+            $def_execmode = $EXEC_MODES_LIBVIRT_KVM_OLIVE[0];
+        } elsif ( ($merged_type eq 'dynamips-c3600') or ($merged_type eq 'dynamips-c7200') )  {
+            $def_execmode = $EXEC_MODES_DYNAMIPS[0];
+        } else {
+        	$def_execmode = "ERROR";
+        }
+    }
+    return $def_execmode;
 }
 
 # get_default_trace
@@ -698,61 +789,92 @@ sub get_vm_ordered {
 
 # get_vm_to_use
 #
-# Returns a hash with the vm names of the scenario to use with -x mode. By
-# default are vms defined in the VNX source file are include, execpt when the -M switch. 
+# Returns a hash with the vm names of the scenario to be used for each mode. 
+# For all modes except "execution", it returns all the vms defined in the VNX source file, except when the -M switch. 
 # is in use.
 #
+#  my @vm_ordered = $dh->get_vm_ordered;
+#  my %vm_hash = $dh->get_vm_to_use;
+#  for ( my $i = 0; $i < @vm_ordered; $i++) {
+#      my $vm = $vm_ordered[$i];
+#      my $vm_name = $vm->getAttribute("name");
+#      unless ($vm_hash{$vm_name}){
+#         next;       
+#      }
+#      ...
+#  }
 # Arguments:
 #
 # - plugins array (in order to invoke the execVmsToUse method that provide the vms for which the
 #   plugin has to execute actions)
 #
 sub get_vm_to_use {
-   my $self = shift;
-   my @plugins = @_;
+    
+    my $self = shift;
+    #my @plugins = @_;
    
-   # The hash to be returned at the end
-   my %vm_hash;
-   
-   # Build a hash with the vms that the plugins need
-   my %plugins_vms;
-   foreach my $plugin (@plugins) {
-      my @vms = $plugin->execVmsToUse($self->{'cmd_seq'});
-      foreach (@vms) {
-         $plugins_vms{$_} = 1;
-      }
-   }
+    # The hash to be returned at the end
+    my %vm_hash;
 
-   my @vms = $self->get_vm_ordered;
-   for ( my $i = 0; $i < @vms; $i++) {
-      my $vm = $vms[$i];
+#    # Build a hash with the vms that the plugins need
+#    my %plugins_vms;
+#    foreach my $plugin (@plugins) {
+#        my @vms = $plugin->execVmsToUse($self->{'cmd_seq'});
+#        foreach (@vms) {
+#            $plugins_vms{$_} = 1;
+#        }
+#    }
 
-      # To get name attribute
-      my $name = $vm->getAttribute("name");
+    my @vms = $self->get_vm_ordered;
+    for ( my $i = 0; $i < @vms; $i++) {
+        my $vm = $vms[$i];
 
-      # Include only if have commands to execute or filetree to install (in -x modes); other modes (-t and -d) always
-      if (
-          ($self->{'mode'} eq "t") ||
-	      ($self->{'mode'} eq "d") ||
-	      ($self->{'mode'} eq "P") ||
-	      ($self->{'mode'} eq "define") ||
-	      ($self->{'mode'} eq "start") ||
-	      ($self->{'mode'} eq "reset") ||
-	      ($self->{'mode'} eq "reboot") ||
-	      ($self->{'mode'} eq "save") ||
-	      ($self->{'mode'} eq "restore") ||
-	      ($self->{'mode'} eq "suspend") ||
-	      ($self->{'mode'} eq "resume") ||
-	      ($self->{'mode'} eq "undefine") ||
-	      ($self->{'mode'} eq "console") ||
-	      ($self->{'mode'} eq "console-info") ||
-          (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || (exists $plugins_vms{$name} && $plugins_vms{$name} eq "1") ) && ($self->{'mode'} eq "x") || (exists $plugins_vms{$name} && $plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") )  
+        # To get name attribute
+        my $name = $vm->getAttribute("name");
+
+=BEGIN
+        # Include only if have commands to execute or filetree to install (in -x modes); other modes (-t and -d) always
+        if ( ($self->{'mode'} eq "create") ||
+	         ($self->{'mode'} eq "shutdown") ||
+	         ($self->{'mode'} eq "destroy") ||
+	         ($self->{'mode'} eq "define") ||
+	         ($self->{'mode'} eq "start") ||
+	         ($self->{'mode'} eq "reset") ||
+	         ($self->{'mode'} eq "reboot") ||
+	         ($self->{'mode'} eq "save") ||
+	         ($self->{'mode'} eq "restore") ||
+	         ($self->{'mode'} eq "suspend") ||
+	         ($self->{'mode'} eq "resume") ||
+	         ($self->{'mode'} eq "undefine") ||
+	         ($self->{'mode'} eq "console") ||
+	         ($self->{'mode'} eq "console-info") ||
+             (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || 
+             (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || 
+             (exists $plugins_vms{$name} && $plugins_vms{$name} eq "1") ) && ($self->{'mode'} eq "execute") || 
+             (exists $plugins_vms{$name} && $plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") )  
 	  ) {
-	  	# En proceso de construccion, hay que quitar los plugins en caso de que %plugins_vms no tenga nada.
+=END
+=cut
+         if ($self->{'vm_to_use'}) { # VNX has been invoked with option -M
+                                     # Only select the vm if its name is on 
+                                     # the comma separated list after "-M" 
+            my $vm_list = $self->{'vm_to_use'};
+            if ($vm_list =~ /^$name,|,$name,|,$name$|^$name$/) {
+               $vm_hash{$name} = 1;
+            }
+         } else { # No -M option, always select the vm
+            $vm_hash{$name} = "1";
+         }
+      }
+#   }
+   return %vm_hash;
+
+
+# En proceso de construccion, hay que quitar los plugins en caso de que %plugins_vms no tenga nada.
 #	     if (
-#          ($self->{'mode'} eq "t") ||
-#	      ($self->{'mode'} eq "d") ||
-#	      ($self->{'mode'} eq "P") ||
+#          ($self->{'mode'} eq "create") ||
+#	      ($self->{'mode'} eq "shutdown") ||
+#	      ($self->{'mode'} eq "destroy") ||
 #	      ($self->{'mode'} eq "define") ||
 #	      ($self->{'mode'} eq "start") ||
 #	      ($self->{'mode'} eq "reset") ||
@@ -763,22 +885,8 @@ sub get_vm_to_use {
 #	      ($self->{'mode'} eq "resume") ||
 #	      ($self->{'mode'} eq "undefine") ||
 #          (((&vm_has_tag($vm,"exec",$self->{'cmd_seq'})) || (&vm_has_tag($vm,"filetree",$self->{'cmd_seq'})) || 
-#          			((scalar(%plugins_vms) ge 0) && (($plugins_vms{$name} eq "1") && ($self->{'mode'} eq "x") || ($plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") ))  
+#          			((scalar(%plugins_vms) ge 0) && (($plugins_vms{$name} eq "1") && ($self->{'mode'} eq "execute") || ($plugins_vms{$name} eq "1")  && ($self->{'mode'} eq "execute") ))  
 #	  ) {
-
-         # Only if list is not empty
-         if ($self->{'vm_to_use'}) {
-            my $vm_list = $self->{'vm_to_use'};
-	        if ($vm_list =~ /^$name,|,$name,|,$name$|^$name$/) {
-	           $vm_hash{$name} = 1;
-	        }
-	     }
-	     else {
-	        $vm_hash{$name} = "1";
-         }
-      }
-   }
-   return %vm_hash;
 
 }
 
@@ -857,7 +965,7 @@ sub get_vm_dir {
    }
 }
 
-# get_fs_dir
+# get_vm_fs_dir
 #
 # Arguments:
 #
@@ -865,13 +973,13 @@ sub get_vm_dir {
 #
 # Returns the directory containing the filesystems for a particular vm
 #
-sub get_fs_dir {
+sub get_vm_fs_dir {
    my $self = shift;
    my $name = shift;
    return $self->get_vm_dir($name) . "/fs";
 }
 
-# get_hostfs_dir
+# get_vm_hostfs_dir
 #
 # Arguments:
 #
@@ -879,13 +987,13 @@ sub get_fs_dir {
 #
 # Returns the hostfs mounting point (in the host) for a particular vm
 #
-sub get_hostfs_dir {
+sub get_vm_hostfs_dir {
    my $self = shift;
    my $name = shift;
    return $self->get_vm_dir($name) . "/hostfs";
 }
 
-# get_run_dir
+# get_vm_run_dir
 #
 # Arguments:
 #
@@ -893,13 +1001,13 @@ sub get_hostfs_dir {
 #
 # Returns the directory containing the pid and mconsole socket for a particular vm
 #
-sub get_run_dir {
+sub get_vm_run_dir {
    my $self = shift;
    my $name = shift;
    return $self->get_vm_dir($name) . "/run";
 }
 
-# get_mnt_dir
+# get_vm_mnt_dir
 #
 # Arguments:
 #
@@ -907,7 +1015,7 @@ sub get_run_dir {
 #
 # Returns the directory used to mount shared disks for a particular vm
 #
-sub get_mnt_dir {
+sub get_vm_mnt_dir {
    my $self = shift;
    my $name = shift;
    return $self->get_vm_dir($name) . "/mnt";
@@ -919,13 +1027,32 @@ sub get_mnt_dir {
 #
 # - the name of the vm
 #
-# Returns the temporary directory a particular vm
+# Returns the temporary directory of a particular vm
 #
 sub get_vm_tmp_dir {
    my $self = shift;
    my $name = shift;
    return $self->get_vm_dir($name) . "/tmp";
 }
+
+# get_vm_doctxt
+#
+# Arguments:
+#
+# - the name of the vm
+#
+# Returns the content of the XML file with the <create_conf> tag created by make_vm_API_doc for a particular vm
+#
+sub get_vm_doctxt {
+   	my $self = shift;
+   	my $name = shift;
+   	my $file = $self->get_vm_dir($name) . "/${name}_cconf.xml";
+   	#print "*** file=$file\n";
+   	open FILE, "< $file";
+	my $vm_doc = do { local $/; <FILE> };
+	return $vm_doc;
+}
+
 
 ###########################################################################
 # OTHERS
@@ -1370,5 +1497,28 @@ sub get_vms_in_a_net {
 	return (\@vms, \@ifs)
 }
 
+#
+# get_vm_merged_type
+#
+#
+sub get_vm_merged_type {
+
+   	my $self = shift;
+	my $vm = shift;
+
+	my $type = $vm->getAttribute("type");
+	my $subtype = $vm->getAttribute("subtype");
+	my $os = $vm->getAttribute("os");
+	
+	my $merged_type = $type;
+	
+	if (!($subtype eq "")){
+		$merged_type = $merged_type . "-" . $subtype;
+		if (!($os eq "")){
+			$merged_type = $merged_type . "-" . $os;
+		}
+	}
+	return $merged_type;
+}
 
 1;

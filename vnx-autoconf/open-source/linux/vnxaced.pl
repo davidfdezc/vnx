@@ -49,9 +49,10 @@ use constant FREEBSD_TTY => '/dev/cuau1';
 
 use constant VNXACED_PID => '/var/run/vnxaced.pid';
 use constant VNXACED_LOG => '/var/log/vnxaced.log';
+use constant VNXACED_CID => '/root/.vnx/vnxaced.cid';
 
-use constant FREEBSD_CDDIR => '/cdrom';
-use constant LINUX_CDDIR   => '/media/cdrom';
+use constant FREEBSD_CD_DIR => '/cdrom';
+use constant LINUX_CD_DIR   => '/media/cdrom';
 
 use constant INIT_DELAY   => '10';
 
@@ -122,7 +123,7 @@ for (my $i=0; $i <= $#ARGV; $i++) {
 if ($DEBUG) { print "DEBUG mode\n"; }
 if ($VERBOSE) { print "VERBOSE mode\n"; }
 
-@platform = split(/,/, &getOSDistro);
+@platform = split(/,/, &get_os_distro);
 	
 if ($platform[0] eq 'Linux'){
 	if ($platform[1] eq 'Ubuntu')    { 
@@ -141,7 +142,7 @@ if ($platform[0] eq 'Linux'){
 	$mountCmd = 'mount /cdrom';
 	$umountCmd = 'umount -f /cdrom';
 } else {
-	writeLOG ("ERROR: unknown platform ($platform[0]). Only Linux and FreeBSD supported.");
+	write_log ("ERROR: unknown platform ($platform[0]). Only Linux and FreeBSD supported.");
 	exit (1);
 }
 
@@ -151,15 +152,15 @@ if ($platform[0] eq 'Linux'){
 # 	close LOG;
 #}
 chomp (my $now = `date`);
-writeLOG ("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-writeLOG ("~~ vnxaced version $VNXACED_VER (built on $VNXACED_BUILT)");
-writeLOG ("~~   started at $now");
-writeLOG ("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+write_log ("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+write_log ("~~ vnxaced version $VNXACED_VER (built on $VNXACED_BUILT)");
+write_log ("~~   started at $now");
+write_log ("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
 #if (-f VNXACED_PID){
 #	my $cmd="cat " . VNXACED_PID;
 #	my $pid=`$cmd`; chomp ($pid);
-#	writeLOG ("Another instance of vnxaced (PID $pid) seems to be running, killing it... ");
+#	write_log ("Another instance of vnxaced (PID $pid) seems to be running, killing it... ");
 #	system "kill -9 $pid"; 
 #	system "rm -f " . VNXACED_PID; 
 #}
@@ -167,7 +168,7 @@ open my $pids, "ps uax | grep 'perl /usr/local/bin/vnxaced' | grep -v grep | gre
 while (<$pids>) {
         my $pid=$_; chomp($pid);
 	if ($pid ne $$) {
-		writeLOG ("Another instance of vnxaced (PID $pid) seems to be running, killing it... ");
+		write_log ("Another instance of vnxaced (PID $pid) seems to be running, killing it... ");
         	system "kill $pid";
         }
 }
@@ -175,7 +176,7 @@ while (<$pids>) {
 # store process pid
 system "echo $$ > " . VNXACED_PID;
 
-writeLOG ("~~ Waiting initial delay of " . INIT_DELAY . " seconds...");
+write_log ("~~ Waiting initial delay of " . INIT_DELAY . " seconds...");
 sleep INIT_DELAY;
 
 if (! $DEBUG) { 
@@ -194,13 +195,13 @@ sub IntHandler {
 	if ($pid eq $$) { 
 		system "rm -f " . VNXACED_PID; 
 	}
-	writeLOG ("INT signal received. Exiting.");
+	write_log ("INT signal received. Exiting.");
 	exit (0);
 }
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-sub writeLOG {
+sub write_log {
 
     my $msg = shift;
 
@@ -218,18 +219,18 @@ sub writeLOG {
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #
-# exeMountCmd
+# exe_mount_cmd
 #
 # Executes the mount/umount cdrom commands in a silent or verbose way
 # Used to debug mount/umount problems
 #
-sub exeMountCmd {
+sub exe_mount_cmd {
 
 	my $cmd = shift;
 
 	if ($VERBOSE) {
 		my $res=`$cmd`;
-		writeLOG ("exeMountCmd: $cmd (res=$res)") if ($VERBOSE);
+		write_log ("exe_mount_cmd: $cmd (res=$res)") if ($VERBOSE);
 	} else {
 		$cmd="$cmd >/dev/null 2>&1";
 		system "$cmd";
@@ -240,7 +241,7 @@ sub exeMountCmd {
 
 sub daemonize {
 		
-	writeLOG ("~~ Daemonizing process... ");
+	write_log ("~~ Daemonizing process... ");
 
 	# Fork
 #	my $pid = fork;
@@ -267,13 +268,16 @@ sub daemonize {
 
 sub listen {
 
-	writeLOG ("~~ Waiting for commands...");
+	write_log ("~~ Waiting for commands...");
 	system "mkdir -p /root/.vnx";
 	my @files;
+	my $cd_dir;
 	if ($platform[0] eq 'Linux'){
-		@files = </media/*>;
+		#@files = </media/*>;
+		$cd_dir = LINUX_CD_DIR;
 	} elsif ($platform[0] eq 'FreeBSD'){
-		@files = </*>;
+		#@files = </*>;
+		$cd_dir = FREEBSD_CD_DIR;
 	}
 	my $commands_file;
 	
@@ -281,67 +285,78 @@ sub listen {
 	# no esta montado el CD-ROM. Si no da errores de otro tipo se podra quitar del todo.
 	#system "umount -f /cdrom";
 	sleep 5;
-	exeMountCmd ($mountCmd);
-        if ($VERBOSE) {
+	exe_mount_cmd ($mountCmd);
+    if ($VERBOSE) {
 		my $lscmd;
-		if    ($platform[0] eq 'Linux')   { $lscmd = 'ls -l /cdrom' }
-		elsif ($platform[0] eq 'FreeBSD') { $lscmd = 'ls -l /media/cdrom' }
-		my $res=`$lscmd`; writeLOG ("cdrom content: $res")
+		if    ($platform[0] eq 'Linux')   { $lscmd = 'ls -l ' . LINUX_CD_DIR }
+		elsif ($platform[0] eq 'FreeBSD') { $lscmd = 'ls -l ' . FREEBSD_CD_DIR }
+		my $res=`$lscmd`; write_log ("\n~~ cdrom content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
 	}
 	while (1){
 
+		my @files = <$cd_dir/*>;
+
 		foreach my $file (@files){
-			my @files2 = <$file/*>;
-
-			foreach my $file2 (@files2){
-				
-				my $fname = basename ($file2);
-				if ($fname eq "command.xml"){
-					unless (&check_if_new_file($file2,"command")){
-						next;				
-					}
-					if ($VERBOSE) { my $f=`cat $file2`; writeLOG "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
-					my $path = $file;
-					chomp (my $now = `date`);						
-					writeLOG ("~~ $now:");
-					writeLOG ("     command received in $file2");
-					&filetree($path);
-					&execute_commands($file2);
-					writeLOG ("     sending 'done' signal to host...\n");
-					if ($platform[0] eq 'Linux'){
-						system "echo finished! > " . LINUX_TTY;
-					} elsif ($platform[0] eq 'FreeBSD'){
-						system "echo finished! > " . FREEBSD_TTY;
-					}
-				
-				}elsif ($fname eq "vnxboot"){
-					unless (&check_if_new_file($file2,"create_conf")){
-						next;				
-					}
-					if ($VERBOSE) { my $f=`cat $file2`; writeLOG "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
-					chomp (my $now = `date`);						
-					writeLOG ("~~ $now:");
-					writeLOG ("     configuration file received in $file2");
-					&autoconfigure($file2);
-
-				}elsif ($fname eq "vnx_update.xml"){
-					unless (&check_if_new_file($file2,"vnx_update") eq '1'){
-						next;				
-					}
-					if ($VERBOSE) { my $f=`cat $file2`; writeLOG "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
-					chomp (my $now = `date`);						
-					writeLOG ("~~ $now:");
-					writeLOG ("     update files received in $file2");
-					&autoupdate;
-
-				}else {
-					# unknown file, do nothing
+			
+			my $fname = basename ($file);
+			if ($fname eq "command.xml"){
+				unless (&is_new_file($file)){
+					next;				
 				}
+				if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+				chomp (my $now = `date`);						
+				write_log ("~~ $now:");
+				write_log ("     command received in $file");
+				&execute_filetree($file);
+				&execute_commands($file);
+				write_log ("     sending 'done' signal to host...\n");
+				if ($platform[0] eq 'Linux'){
+					system "echo finished! > " . LINUX_TTY;
+				} elsif ($platform[0] eq 'FreeBSD'){
+					system "echo finished! > " . FREEBSD_TTY;
+				}
+			
+			}elsif ( ($fname eq "vnxboot") || ($fname eq "vnxboot.xml") ) {
+				unless (&is_new_file($file)){
+					
+					# Autoconfiguration is done and the system has restarted 
+					# Check whether the <exec> commands with seq="on_boot" have been executed
+					my $on_boot_cmd_exec = get_conf_value (VNXACED_CID, 'on_boot_cmds_executed');
+					unless ($on_boot_cmd_exec eq 'yes') {
+						write_log ("executing <filetree> and <exec> commands after restart");
+						# Execute all <filetree> and <exec> commands in vnxboot file			
+						# Execute <filetree> commands
+						&execute_filetree($file);
+						# Execute <exec> commands 
+						&execute_commands($file);
+						# Commands executed, change config
+						set_conf_value (VNXACED_CID, 'on_boot_cmds_executed', 'yes')
+					}
+					next;				
+				}
+				if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+				chomp (my $now = `date`);						
+				write_log ("~~ $now:");
+				write_log ("     configuration file received in $file");
+				&autoconfigure($file);
+
+			}elsif ($fname eq "vnx_update.xml"){
+				unless (&is_new_file($file) eq '1'){
+					next;				
+				}
+				if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+				chomp (my $now = `date`);						
+				write_log ("~~ $now:");
+				write_log ("     update files received in $file");
+				&autoupdate;
+
+			}else {
+				# unknown file, do nothing
 			}
 		}
-		exeMountCmd ($umountCmd);
+		exe_mount_cmd ($umountCmd);
 		sleep 5;
-		exeMountCmd ($mountCmd);
+		exe_mount_cmd ($mountCmd);
 	}
 }
 
@@ -353,7 +368,7 @@ sub autoupdate {
 	# update for Linux          #
 	#############################
 	if ($platform[0] eq 'Linux'){
-		writeLOG ("   updating vnxaced for Linux");
+		write_log ("   updating vnxaced for Linux");
 		system "perl /media/cdrom/uninstall_vnxaced -n";
 		system "perl /media/cdrom/install_vnxaced";
 		#if ( ($platform[1] eq 'Ubuntu') or   
@@ -371,7 +386,7 @@ sub autoupdate {
 	# update for FreeBSD        #
 	#############################
 	elsif ($platform[0] eq 'FreeBSD'){
-		writeLOG ("   updating vnxdaemon for FreeBSD");
+		write_log ("   updating vnxdaemon for FreeBSD");
 		system "/cdrom/uninstall_vnxaced -n";
 		system "/cdrom/install_vnxaced";
 		#system "cp /cdrom/vnxaced.pl /usr/local/bin/vnxaced";
@@ -384,32 +399,39 @@ sub autoupdate {
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-sub check_if_new_file {
+sub is_new_file {
+
 	my $file = shift;
-	my $type = shift;	
+
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($file);
-	my $globalNode   = $dom->getElementsByTagName($type)->item(0);
-
-	my $idTagList = $globalNode->getElementsByTagName("id");
+	my $idTagList = $dom->getElementsByTagName("id");
 	my $idTag     = $idTagList->item(0);
-	my $newid    = $idTag->getFirstChild->getData;
-	chomp($newid);
-#	writeLOG ("sleep 60");
+	my $new_cid    = $idTag->getFirstChild->getData;
+	chomp($new_cid);
+#	write_log ("sleep 60");
 #	sleep 60;
 	
-	my $command = "cat /root/.vnx/command_id";
-	chomp (my $oldid = `$command`);
+	#my $command = "cat /root/.vnx/command_id";
+	#chomp (my $old_cid = `$command`);
 	
-#	writeLOG ("comparando -$oldid- y -$newid-");
+	my $old_cid = get_conf_value (VNXACED_CID, 'cmd_id');
 	
-	if ($oldid eq $newid){
+	#write_log ("comparing -$old_cid- and -$new_cid-");
+	
+	if ( ($old_cid ne '') && ($old_cid eq $new_cid)) {
 		# file is not new
+		#write_log ("file is not new");
 		return "0";
 	}
 
 	#file is new
-	system "echo '$newid' > /root/.vnx/command_id";
+	#write_log ("file is new");
+	#system "echo '$new_cid' > /root/.vnx/command_id";
+	my $res = set_conf_value (VNXACED_CID, 'cmd_id', $new_cid);
+	write_log ("Error writing the new comand id value to " . VNXACED_CID . " file") 
+	    if ($res eq 'ERROR'); 
+	
 	return "1";
 }
 
@@ -417,7 +439,7 @@ sub check_if_new_file {
 #~~~~~~~~~~~~~~ command execution ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #
-# exeCmd
+# exe_cmd
 #
 # Executes the commands received in the commands.xml file according 
 # to the value of the ostype parameter of <exec> tag:
@@ -428,12 +450,12 @@ sub check_if_new_file {
 #   - xexec:    commands with gui; script does not wait 
 #   - xsystem:  commands with gui; script waits
 #
-sub exeCmd {
+sub exe_cmd {
 
     my $cmd = shift;
     my $ostype = shift;
 
-    writeLOG ("~~ Command output:");
+    write_log ("~~ Command output:");
 	if ($ostype eq 'system') {
 		# Execution mode for commands with no graphical user interface
 		if ($DEBUG) {
@@ -441,7 +463,7 @@ sub exeCmd {
       		# No problems with input/ouptut redirection. We execute it using 
 			# backticks to capture output
 			my $res=`$cmd`;
-            writeLOG ($res);
+            write_log ($res);
 		} else {
 			# vnxace has been started as a deamon with input/output closed
 			# We have to use this way to execute the command to avoid 
@@ -449,7 +471,7 @@ sub exeCmd {
 			# input/output redirections made some commands fail (for example, when 
 			# starting apache: the server starts but does not answer requests and 
 			# shows and error in logs related to sockets). 
-        	exeCmdAux ("$cmd");
+        	exe_cmd_aux ("$cmd");
 		} 
 	} elsif ($ostype eq 'exec') {
 		# Execution mode for commands with no graphical user interface using fork and exec
@@ -461,9 +483,9 @@ sub exeCmd {
 	       	# child executes command and dies
 			if ($DEBUG) {
 				my $res=`$cmd`;
-            	writeLOG ($res);
+            	write_log ($res);
 			} else {
-                exeCmdAux ("$cmd");
+                exe_cmd_aux ("$cmd");
 				exit (0);
 			} 
 		}
@@ -479,9 +501,9 @@ sub exeCmd {
 		my $w=`w | grep ' :0 '`;
 		my @userOnDisplay0 = split (/ /, $w);
  		if (! $userOnDisplay0[0]) {
-			writeLOG ("     ERROR: no user logged on display :0.0. Command $cmd not executed.");
+			write_log ("     ERROR: no user logged on display :0.0. Command $cmd not executed.");
 		} else {
-			writeLOG "User on display :0.0 -->$userOnDisplay0[0]\n";
+			write_log "User on display :0.0 -->$userOnDisplay0[0]\n";
 
 			if($ostype eq "xexec"){
 				my $pid2 = fork;
@@ -491,10 +513,10 @@ sub exeCmd {
 				}else{
 		        	# child executes command and dies
 		        	if ($platform[0] eq 'Linux'){
-		        		writeLOG ("exec \"setsid sh -c \\\"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] \'$cmd\'\\\"\" < /dev/null > /dev/null 2>&1");
+		        		write_log ("exec \"setsid sh -c \\\"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] \'$cmd\'\\\"\" < /dev/null > /dev/null 2>&1");
                     	exec "setsid sh -c \"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] '$cmd'\" > /dev/null 2>&1 < /dev/null";
 		        	} elsif ($platform[0] eq 'FreeBSD'){
-		        		writeLOG ("system \"detach sh -c \\\"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] \'$cmd\'\\\"\" < /dev/null > /dev/null 2>&1");
+		        		write_log ("system \"detach sh -c \\\"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] \'$cmd\'\\\"\" < /dev/null > /dev/null 2>&1");
                     	system "detach sh -c \"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] '$cmd'\" > /dev/null 2>&1 < /dev/null";
                     	exit (0);
 		        	}
@@ -502,19 +524,19 @@ sub exeCmd {
 				}
 
 			} elsif($ostype eq "xsystem"){
-       			writeLOG ("DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] '$cmd' ");
+       			write_log ("DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] '$cmd' ");
        			my $res= `DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] '$cmd' < /dev/null 2>&1`;
-                writeLOG ($res);
+                write_log ($res);
    			}
 		}
 
 	} else {
-		writeLOG ("   ERROR: command ostype mode '$ostype' unknown, use 'exec', 'system', 'xexec' or 'xsystem'. ");
+		write_log ("   ERROR: command ostype mode '$ostype' unknown, use 'exec', 'system', 'xexec' or 'xsystem'. ");
 	}
-    writeLOG ("~~~~~~~~~~~~~~~~~~");
+    write_log ("~~~~~~~~~~~~~~~~~~");
 }
 
-sub exeCmdAux {
+sub exe_cmd_aux {
 	my $cmd = shift;
 	open my $command, "$cmd < /dev/null 2>&1 |";
 	open my $output, ">> " . VNXACED_LOG;
@@ -536,18 +558,16 @@ sub execute_commands {
 	my $commands_file = shift;
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($commands_file);
-	my $globalNode   = $dom->getElementsByTagName("command")->item(0);
-	my $execTagList = $globalNode->getElementsByTagName("exec");
-	my $numexec        = $execTagList->getLength;
-	for (my $j = 0 ; $j < $numexec ; $j++){
+	my $execTagList = $dom->getElementsByTagName("exec");
+	for (my $j = 0 ; $j < $execTagList->getLength; $j++){
 		my $execTag    = $execTagList->item($j);
 		my $seq        = $execTag->getAttribute("seq");
 		my $type       = $execTag->getAttribute("type");
 		my $ostype     = $execTag->getAttribute("ostype");
 		my $command2   = $execTag->getFirstChild->getData;
 			
-		writeLOG ("     executing: '$command2' in ostype mode: '$ostype'");
-		exeCmd ($command2, $ostype);
+		write_log ("     executing: '$command2' in ostype mode: '$ostype'");
+		exe_cmd ($command2, $ostype);
 	}
 }
 
@@ -562,20 +582,21 @@ sub autoconfigure {
 		# Send a message to consoles
 		#system "shutdown -k now 'VNX system autoconfiguration in progress...wait until the system reboots...'";
 		
-		if ($platform[1] eq 'Ubuntu')    { &autoconfigureUbuntu ($vnxboot_file)}			
-		elsif ( ($platform[1] eq 'Fedora') or ($platform[1] eq 'CentOS') ) { &autoconfigureFedora ($vnxboot_file)}
+		if ($platform[1] eq 'Ubuntu')    { &autoconfigure_ubuntu ($vnxboot_file)}			
+		elsif ( ($platform[1] eq 'Fedora') or ($platform[1] eq 'CentOS') ) { &autoconfigure_fedora ($vnxboot_file)}
 	}
 	# autoconfigure for FreeBSD           #
 	elsif ($platform[0] eq 'FreeBSD'){
-		writeLOG ("calling autoconfigureFreeBSD");
-		&autoconfigureFreeBSD ($vnxboot_file)
+		write_log ("calling autoconfigure_freebsd");
+		&autoconfigure_freebsd ($vnxboot_file)
 	}
+	
 	# Change the message of the day (/etc/motd) to eliminate the
 	# message asking to wait for reboot
 	#system "sed -i -e '/~~~~~/d' /etc/motd";
 	
 	# Reboot system
-	writeLOG ("   rebooting...\n");
+	write_log ("   rebooting...\n");
 	sleep 5;
 	system "shutdown -r now '  VNX:  autoconfiguration finished...rebooting'";
 	sleep 100; # wait for system to reboot
@@ -585,24 +606,24 @@ sub autoconfigure {
 #
 # autoconfigure for Ubuntu             
 #
-sub autoconfigureUbuntu {
+sub autoconfigure_ubuntu {
 	
 	my $vnxboot_file = shift;
 
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($vnxboot_file);
-	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-	my $virtualmTagList = $globalNode->getElementsByTagName("vm");
+	my $global_node   = $dom->getElementsByTagName("create_conf")->item(0);
+	my $virtualmTagList = $global_node->getElementsByTagName("vm");
 	my $virtualmTag     = $virtualmTagList->item(0);
-	my $vmName       = $virtualmTag->getAttribute("name");
+	my $vm_name       = $virtualmTag->getAttribute("name");
 
 	my $hostname_vm = `hostname`;
 	$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
-	$vmName =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
+	$vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 	# If the vm doesn't have the correct name,
 	# start autoconfiguration process
-	if (!($hostname_vm eq $vmName)){
-		writeLOG ("   host name ($hostname_vm) and name in vnxboot file ($vmName) are different. starting autoconfiguration...");
+	if (!($hostname_vm eq $vm_name)){
+		write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
 
 		my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
@@ -612,7 +633,7 @@ sub autoconfigureUbuntu {
 		# before the loop, backup /etc/udev/...70
 		# and /etc/network/interfaces
 		# and erase their contents
-		writeLOG ("   configuring /etc/udev/rules.d/70-persistent-net.rules and /etc/network/interfaces...");
+		write_log ("   configuring /etc/udev/rules.d/70-persistent-net.rules and /etc/network/interfaces...");
 		my $rules_file = "/etc/udev/rules.d/70-persistent-net.rules";
 		system "cp $rules_file $rules_file.backup";
 		system "echo \"\" > $rules_file";
@@ -734,20 +755,20 @@ sub autoconfigureUbuntu {
 				$ipv6Forwarding = 1;
 			}
 		}
-		writeLOG ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in /etc/sysctl.conf...");
+		write_log ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in /etc/sysctl.conf...");
 		system "echo >> /etc/sysctl.conf ";
 		system "echo '#### vnxdaemon ####' >> /etc/sysctl.conf ";
 		system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> /etc/sysctl.conf ";
 		system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> /etc/sysctl.conf ";
 
 		# Configuring /etc/hosts and /etc/hostname
-		writeLOG ("   configuring /etc/hosts and /etc/hostname...");
+		write_log ("   configuring /etc/hosts and /etc/hostname...");
 		my $hosts_file = "/etc/hosts";
 		my $hostname_file = "/etc/hostname";
 		system "cp $hosts_file $hosts_file.backup";
 
 		#/etc/hosts: insert the new first line
-		system "sed '1i\ 127.0.0.1	$vmName	localhost.localdomain	localhost' $hosts_file > /tmp/hosts.tmp";
+		system "sed '1i\ 127.0.0.1	$vm_name	localhost.localdomain	localhost' $hosts_file > /tmp/hosts.tmp";
 		system "mv /tmp/hosts.tmp $hosts_file";
 
 		#/etc/hosts: and delete the second line (former first line)
@@ -755,7 +776,7 @@ sub autoconfigureUbuntu {
 		system "mv /tmp/hosts.tmp $hosts_file";
 
 		#/etc/hosts: insert the new second line
-		system "sed '2i\ 127.0.1.1	$vmName' $hosts_file > /tmp/hosts.tmp";
+		system "sed '2i\ 127.0.1.1	$vm_name' $hosts_file > /tmp/hosts.tmp";
 		system "mv /tmp/hosts.tmp $hosts_file";
 
 		#/etc/hosts: and delete the third line (former second line)
@@ -763,14 +784,14 @@ sub autoconfigureUbuntu {
 		system "mv /tmp/hosts.tmp $hosts_file";
 
 		#/etc/hostname: insert the new first line
-		system "sed '1i\ $vmName' $hostname_file > /tmp/hostname.tpm";
+		system "sed '1i\ $vm_name' $hostname_file > /tmp/hostname.tpm";
 		system "mv /tmp/hostname.tpm $hostname_file";
 
 		#/etc/hostname: and delete the second line (former first line)
 		system "sed '2 d' $hostname_file > /tmp/hostname.tpm";
 		system "mv /tmp/hostname.tpm $hostname_file";
 
-		system "hostname $vmName";
+		system "hostname $vm_name";
 	}
 	
 }
@@ -778,24 +799,24 @@ sub autoconfigureUbuntu {
 #
 # autoconfigure for Fedora             
 #
-sub autoconfigureFedora {
+sub autoconfigure_fedora {
 
 	my $vnxboot_file = shift;
 	
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($vnxboot_file);
-	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-	my $virtualmTagList = $globalNode->getElementsByTagName("vm");
+	my $global_node   = $dom->getElementsByTagName("create_conf")->item(0);
+	my $virtualmTagList = $global_node->getElementsByTagName("vm");
 	my $virtualmTag     = $virtualmTagList->item(0);
-	my $vmName       = $virtualmTag->getAttribute("name");
+	my $vm_name       = $virtualmTag->getAttribute("name");
 
 	my $hostname_vm = `hostname`;
 	$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
-	$vmName =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
+	$vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 	# If the vm doesn't have the correct name,
 	# start autoconfiguration process
-	if (!($hostname_vm eq $vmName)){
-		writeLOG ("   host name ($hostname_vm) and name in vnxboot file ($vmName) are different. starting autoconfiguration...");
+	if (!($hostname_vm eq $vm_name)){
+		write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
 
 		my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
@@ -813,7 +834,7 @@ sub autoconfigureFedora {
 			system "cp $rules_file $rules_file.backup";
 			system "echo \"\" > $rules_file";
 
-		writeLOG ("   configuring $rules_file...");
+		write_log ("   configuring $rules_file...");
 		open RULES, ">" . $rules_file or print "error opening $rules_file";
 #		} elsif ($platform[1] eq 'CentOS') { 
 #			$rules_file = "/etc/udev/rules.d/60-net.rules";
@@ -943,7 +964,7 @@ sub autoconfigureFedora {
 				} else {
               		my $mask = $route;
                 	$mask =~ s/.*\///;
-                	$mask = cidr2Mask ($mask);
+                	$mask = cidr_to_mask ($mask);
                 	$route =~ s/\/.*//;
 					print ROUTE_FILE "ADDRESS$j=$route\n";
 					print ROUTE_FILE "NETMASK$j=$mask\n";
@@ -977,20 +998,20 @@ sub autoconfigureFedora {
 				$ipv6Forwarding = 1;
 			}
 		}
-		writeLOG ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in /etc/sysctl.conf...");
+		write_log ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in /etc/sysctl.conf...");
 		system "echo >> /etc/sysctl.conf ";
 		system "echo '#### vnxdaemon ####' >> /etc/sysctl.conf ";
 		system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> /etc/sysctl.conf ";
 		system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> /etc/sysctl.conf ";
 
 		# Configuring /etc/hosts and /etc/hostname
-		writeLOG ("   configuring /etc/hosts and /etc/hostname...");
+		write_log ("   configuring /etc/hosts and /etc/hostname...");
 		my $hosts_file = "/etc/hosts";
 		my $hostname_file = "/etc/hostname";
 		system "cp $hosts_file $hosts_file.backup";
 
 		#/etc/hosts: insert the new first line
-		system "sed '1i\ 127.0.0.1	$vmName	localhost.localdomain	localhost' $hosts_file > /tmp/hosts.tmp";
+		system "sed '1i\ 127.0.0.1	$vm_name	localhost.localdomain	localhost' $hosts_file > /tmp/hosts.tmp";
 		system "mv /tmp/hosts.tmp $hosts_file";
 
 		#/etc/hosts: and delete the second line (former first line)
@@ -998,7 +1019,7 @@ sub autoconfigureFedora {
 		system "mv /tmp/hosts.tmp $hosts_file";
 
 		#/etc/hosts: insert the new second line
-		system "sed '2i\ 127.0.1.1	$vmName' $hosts_file > /tmp/hosts.tmp";
+		system "sed '2i\ 127.0.1.1	$vm_name' $hosts_file > /tmp/hosts.tmp";
 		system "mv /tmp/hosts.tmp $hosts_file";
 
 		#/etc/hosts: and delete the third line (former second line)
@@ -1006,17 +1027,17 @@ sub autoconfigureFedora {
 		system "mv /tmp/hosts.tmp $hosts_file";
 
 		#/etc/hostname: insert the new first line
-		system "sed '1i\ $vmName' $hostname_file > /tmp/hostname.tpm";
+		system "sed '1i\ $vm_name' $hostname_file > /tmp/hostname.tpm";
 		system "mv /tmp/hostname.tpm $hostname_file";
 
 		#/etc/hostname: and delete the second line (former first line)
 		system "sed '2 d' $hostname_file > /tmp/hostname.tpm";
 		system "mv /tmp/hostname.tpm $hostname_file";
 
-		system "hostname $vmName";
+		system "hostname $vm_name";
 		system "mv /etc/sysconfig/network /etc/sysconfig/network.bak";
 		system "cat /etc/sysconfig/network.bak | grep -v HOSTNAME > /etc/sysconfig/network";
-		system "echo HOSTNAME=$vmName >> /etc/sysconfig/network";
+		system "echo HOSTNAME=$vm_name >> /etc/sysconfig/network";
 	}
 	
 }
@@ -1024,36 +1045,36 @@ sub autoconfigureFedora {
 #
 # autoconfigure for FreeBSD             
 #
-sub autoconfigureFreeBSD {
+sub autoconfigure_freebsd {
 	
 	my $vnxboot_file = shift;
 
-	writeLOG ("~~ autoconfigureFreeBSD");
+	write_log ("~~ autoconfigure_freebsd");
 	
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($vnxboot_file);
-	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-	my $virtualmTagList = $globalNode->getElementsByTagName("vm");
+	my $global_node   = $dom->getElementsByTagName("create_conf")->item(0);
+	my $virtualmTagList = $global_node->getElementsByTagName("vm");
 	my $virtualmTag     = $virtualmTagList->item(0);
-	my $vmName       = $virtualmTag->getAttribute("name");
+	my $vm_name       = $virtualmTag->getAttribute("name");
 
 	my $hostname_vm = `hostname -s`;
 	$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
-	$vmName =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
+	$vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 	# If the vm doesn't have the correct name,
 	# start autoconfiguration process
-	if (!($hostname_vm eq $vmName)){
-		writeLOG ("   host name ($hostname_vm) and name in vnxboot file ($vmName) are different. starting autoconfiguration...");
+	if (!($hostname_vm eq $vm_name)){
+		write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
 		my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
 		# before the loop, backup /etc/rc.conf
 		my $command;
-		writeLOG ("   configuring /etc/rc.conf...");
+		write_log ("   configuring /etc/rc.conf...");
 		my $rc_file = "/etc/rc.conf";
 		$command = "cp $rc_file $rc_file.backup";
 		system $command;
 
-		open RC, ">>" . $rc_file or writeLOG ("error opening $rc_file");
+		open RC, ">>" . $rc_file or write_log ("error opening $rc_file");
 
 		chomp (my $now = `date`);
 
@@ -1063,7 +1084,7 @@ sub autoconfigureFreeBSD {
 		print RC "##############################################################\n";
 		print RC "\n";
 
-		print RC "hostname=\"$vmName\"\n";
+		print RC "hostname=\"$vm_name\"\n";
 		print RC "sendmail_enable=\"NONE\"\n"; #avoids some startup errors
 
 		# Network interfaces configuration: <if> tags
@@ -1181,25 +1202,25 @@ sub autoconfigureFreeBSD {
 			}
 		}
 		if ($ipv4Forwarding == 1) {
-			writeLOG ("   configuring ipv4 forwarding...");
+			write_log ("   configuring ipv4 forwarding...");
 			print RC "gateway_enable=\"YES\"\n";
 		}
 		if ($ipv6Forwarding == 1) {
-			writeLOG ("   configuring ipv6 forwarding...");
+			write_log ("   configuring ipv6 forwarding...");
 			print RC "ipv6_gateway_enable=\"YES\"\n";
 		}
 		
 		# Configuring /etc/hosts and /etc/hostname
-		writeLOG ("   configuring /etc/hosts");
+		write_log ("   configuring /etc/hosts");
 		my $hosts_file = "/etc/hosts";
 		$command = "cp $hosts_file $hosts_file.backup";
 		system $command;
 
-		system "echo '127.0.0.1	$vmName	localhost.localdomain	localhost' > /etc/hosts";
-		system "echo '127.0.1.1	$vmName' >> /etc/hosts";
+		system "echo '127.0.0.1	$vm_name	localhost.localdomain	localhost' > /etc/hosts";
+		system "echo '127.0.1.1	$vm_name' >> /etc/hosts";
 
 		#/etc/hosts: insert the new first line
-#		system "sed '1i\ 127.0.0.1	$vmName	localhost.localdomain	localhost' $hosts_file > /tmp/hosts.tmp";
+#		system "sed '1i\ 127.0.0.1	$vm_name	localhost.localdomain	localhost' $hosts_file > /tmp/hosts.tmp";
 #		system "mv /tmp/hosts.tmp $hosts_file";
 #	
 #		#/etc/hosts: and delete the second line (former first line)
@@ -1207,7 +1228,7 @@ sub autoconfigureFreeBSD {
 #		system "mv /tmp/hosts.tmp $hosts_file";
 #	
 #		#/etc/hosts: insert the new second line
-#		system "sed '2i\ 127.0.1.1	$vmName' $hosts_file > /tmp/hosts.tmp";
+#		system "sed '2i\ 127.0.1.1	$vm_name' $hosts_file > /tmp/hosts.tmp";
 #		system "mv /tmp/hosts.tmp $hosts_file";
 #	
 #		#/etc/hosts: and delete the third line (former second line)
@@ -1220,40 +1241,83 @@ sub autoconfigureFreeBSD {
 
 #~~~~~~~~~~~~~~ filetree processing ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-sub filetree {
-	my $path = shift;
+sub execute_filetree {
 
-	my $filetree_file = $path . "/command.xml";
-	my @files_array = <$path/*>;
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($filetree_file);
-	my $globalNode   = $dom->getElementsByTagName("command")->item(0);
-	my $filetreeTagList = $globalNode->getElementsByTagName("filetree");
-	my $numfiletree        = $filetreeTagList->getLength;
-	for (my $j = 0 ; $j < $numfiletree ; $j++){
-		my $filetreeTag     = $filetreeTagList->item($j);
-		my $seq       = $filetreeTag->getAttribute("seq");
-		my $root       = $filetreeTag->getAttribute("root");
+	my $cmd_file = shift;
+
+	my $cmd_path = dirname($cmd_file);
+
+    write_log ("~~ processing <filetree> tags in file $cmd_file");
+
+	my $parser           = new XML::DOM::Parser;
+	my $dom              = $parser->parsefile($cmd_file);
+	my $filetree_taglist = $dom->getElementsByTagName("filetree");
+	for (my $j = 0 ; $j < $filetree_taglist->getLength ; $j++){
+		my $filetree_tag = $filetree_taglist->item($j);
+		my $seq          = $filetree_tag->getAttribute("seq");
+        my $root         = $filetree_tag->getAttribute("root");
+        my $user         = $filetree_tag->getAttribute("user");
+        my $group        = $filetree_tag->getAttribute("group");
+        my $perms        = $filetree_tag->getAttribute("perms");
 		my $folder = $j + 1;
-		my $source_path = $path . "/destination/" . $folder . "/*";
-		unless (-d $root){
-			writeLOG ("   creating unexisting dir '$root'...");
-			system "mkdir -p $root";
+		my $source_path = $cmd_path . "/filetree/" . $folder . "/";
+        write_log ("~~   processing <filetree> tag: seq=$seq, root=$root, " . 
+                         "user=$user, group=$group, perms=$perms, source_path=$source_path");
+
+		my $res=`ls -R $source_path`; write_log ("cdrom content: $res") if ($VERBOSE);
+		# Get the number of files in source dir
+		my $num_files=`ls -a1 $source_path | wc -l`;
+		if ($num_files < 3) { # count "." and ".."
+        	write_log ("~~   ERROR in filetree: no files to copy in $source_path (seq=$seq)\n");
+        	next;
 		}
-		writeLOG ("     executing 'cp -R $source_path $root'...");
-		my $res=`ls -R $source_path`; writeLOG ("cdrom content: $res") if ($VERBOSE);
-		my $cmd="cp -vR $source_path $root";
-                my $res=`$cmd`;
-		writeLOG ("Copying filetree files:") if ($VERBOSE);
-		writeLOG ("$res") if ($VERBOSE);
+		# Check if files destination (root attribute) is a directory or a file
+		my $cmd;
+		if ( $root =~ /\/$/ ) {
+			# Destination is a directory
+        	write_log ("~~   Destination is a directory");
+			unless (-d $root){
+				write_log ("~~   creating unexisting dir '$root'...");
+				system "mkdir -p $root";
+			}
+			# Change owner and permissions if specified in <filetree>
+			$cmd="cp -vR ${source_path}* $root";
+			if ( $user ne ''  ) { system "chown -R $user $root/*"}
+            if ( $group ne '' ) { system "chown -R .$group $root/*"}
+			if ( $perms ne '' ) { system "chmod -R $perms $root/*"}
+			
+		} else {
+			# Destination is a file
+			# Check that $source_path contains only one file
+        	write_log ("~~   Destination is a file");
+			if ($num_files > 3) { # count "." and ".."
+        		write_log ("~~   ERROR in filetree: destination ($root) is a file and there is more than one file in $source_path (seq=$seq)\n");
+        		next;
+			}
+			my $file_dir = dirname($root);
+			unless (-d $file_dir){
+				write_log ("~~   creating unexisting dir '$file_dir'...");
+				system "mkdir -p $file_dir";
+			}
+			$cmd="cp -v ${source_path}* $root";
+            # Change owner and permissions if specified in <filetree>
+            if ( $user ne ''  ) { system "chown -R $user $root"}
+            if ( $group ne '' ) { system "chown -R .$group $root"}
+            if ( $perms ne '' ) { system "chmod -R $perms $root"}
+		}
+		write_log ("~~   Executing '$cmd' ...");
+        $res=`$cmd`;
+		write_log ("Copying filetree files:") if ($VERBOSE);
+		write_log ("$res") if ($VERBOSE);
+		write_log ("~~~~~~~~~~~~~~~~~~~~");
 	}
 }
 
 #
-# getOSDistro
+# get_os_distro
 #
 # Detects which OS, release, distribution name, etc 
-# This is an improved adaptation to perl the script found here: 
+# This is an improved adaptation to perl of the following script: 
 #   http://www.unix.com/unix-advanced-expert-users/21468-machine.html?t=21468#post83185
 #
 # Output examples:
@@ -1261,7 +1325,7 @@ sub filetree {
 #	  Linux,Fedora,14,Laughlin,2.6.35.11-83.fc14.i386,i386
 #     FreeBSD,FreeBSD,8.1,,,i386
 #
-sub getOSDistro {
+sub get_os_distro {
 
 	my $OS=`uname -s`; chomp ($OS);
 	my $REV=`uname -r`; chomp ($REV);
@@ -1318,7 +1382,7 @@ return $OSSTR;
 #
 # Converts a CIDR prefix length to a dot notation mask
 #
-sub cidr2Mask {
+sub cidr_to_mask {
 
   my $len=shift;
   my $dec32=2 ** 32;
@@ -1327,6 +1391,63 @@ sub cidr2Mask {
   # netmask in dotted decimal
   my $mask= join '.', unpack 'C4', pack 'N', $dec;
   return $mask;
+}
+
+#
+# Reads a value from a configuration file made of "param=value" lines
+# 
+# Returns '' if the parameter is not found or when problems reading the file
+sub get_conf_value {
+
+    my $cfg_file = shift;
+    my $param = shift;
+
+    open FILE, "< $cfg_file" or return '';
+    my @lines = <FILE>;
+    foreach my $line (@lines){
+        if (($line =~ /$param/) && !($line =~ /^#/)){
+            my @config = split(/=/, $line);
+            my $result = $config[1];
+            chomp ($result);
+            $result =~ s/\s+//g;
+            close FILE;
+            return $result;
+        }
+    }
+}
+
+#
+# Changes a value from a configuration file made of "param=value" lines
+# 
+# Returns '' if OK, 'ERROR' if there are problems reading or writing the files
+sub set_conf_value {
+
+    my $cfg_file = shift;
+    my $param = shift;
+    my $new_value = shift;
+    my $param_found;
+
+    open IFILE, "< $cfg_file";
+    open OFILE, "> $cfg_file.new" or return 'ERROR';
+    print "going while...\n";
+    while (my $line = <IFILE>) {
+        print "while $line ...\n";
+        if ($line =~ /^$param/) {
+            $line =~ s/^$param=.*/$param=$new_value/g;
+            $param_found = 'true';
+        }
+        print OFILE $line; 
+    }
+    unless ($param_found) {
+	print "not found \n";
+        print "$param=$new_value\n";        
+	print OFILE "$param=$new_value\n";
+    }
+    close IFILE;
+    close OFILE;
+
+    system ("mv $cfg_file.new $cfg_file");
+    return $new_value;
 }
 
 

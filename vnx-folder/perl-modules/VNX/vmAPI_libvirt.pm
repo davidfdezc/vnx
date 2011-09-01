@@ -106,21 +106,22 @@ sub init {
 
 sub defineVM {
 
-	my $self   = shift;
-	my $vmName = shift;
-	my $type   = shift;
-	my $doc    = shift;
-	my $sock    = shift;
-	my $counter = shift;
+	my $self    = shift;
+	my $vm_name = shift;
+	my $type    = shift;
+	my $vm_doc  = shift;
+	
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 	
 	my $error = 0;
 	my $extConfFile;
 	
 
-	my $doc2       = $dh->get_doc;
+	my $global_doc = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
 
-	my $path;
+	my $sdisk_content;
+	my $sdisk_fname;  # For olive only
 	my $filesystem;
 	my $con;
 
@@ -131,43 +132,49 @@ sub defineVM {
 		# We get name attribute
 		my $name = $vm->getAttribute("name");
 
-		unless ( $name eq $vmName ) {
+		unless ( $name eq $vm_name ) {
 			next;
 		}
 
-		# To get filesystem and type
-		my $filesystem_type;
-		my $filesystem_list = $vm->getElementsByTagName("filesystem");
-		if ( $filesystem_list->getLength == 1 ) {
-			$filesystem =
-			  &do_path_expansion(
-				&text_tag( $vm->getElementsByTagName("filesystem")->item(0) ) );
-			$filesystem_type =
-			  $vm->getElementsByTagName("filesystem")->item(0)
-			  ->getAttribute("type");
-		}
-		else {
-			$filesystem      = $dh->get_default_filesystem;
-			$filesystem_type = $dh->get_default_filesystem_type;
-		}
+        if ($type ne "libvirt-kvm-olive") {
+	        # Create a temporary directory to store vnxboot file and filetree files
+			if ( $execution->get_exe_mode() ne $EXE_DEBUG ) {
+				my $command =
+				    $bd->get_binaries_path_ref->{"mktemp"}
+				  . " -d -p "
+				  . $dh->get_vm_tmp_dir($vm_name)
+				  . " vnx_opt_fs.XXXXXX";
+				chomp( $sdisk_content = `$command` );
+	            $execution->execute("mkdir " . $sdisk_content . "/filetree");
+			}
+			else {
+				$sdisk_content = $dh->get_tmp_dir . "/vnx_opt_fs.XXXXXX";
+			}
+			$sdisk_content .= "/";
+        } else { # olive
+            # Create the shared filesystem 
+            $sdisk_fname = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
+            # qemu-img create jconfig.img 12M
+            # TODO: change the fixed 50M to something configurable
+            $execution->execute( $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
+            # mkfs.msdos jconfig.img
+            $execution->execute( $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
+            # Mount the shared disk to copy filetree files
+            $sdisk_content = $dh->get_vm_hostfs_dir($vm_name) . "/";
+            $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
+            # Create filetree and config dirs in the shared disk
+            $execution->execute( "mkdir -p $sdisk_content/filetree");
+            $execution->execute( "mkdir -p $sdisk_content/config");        	
+        }		
 
-		if ( $execution->get_exe_mode() ne $EXE_DEBUG ) {
-			my $command =
-			    $bd->get_binaries_path_ref->{"mktemp"}
-			  . " -d -p "
-			  . $dh->get_tmp_dir
-			  . " vnx_opt_fs.XXXXXX";
-			chomp( $path = `$command` );
-		}
-		else {
-			$path = $dh->get_tmp_dir . "/vnx_opt_fs.XXXXXX";
-		}
-		$path .= "/";
+#		$filesystem = $dh->get_vm_fs_dir($name) . "/opt_fs";
 
-		$filesystem = $dh->get_fs_dir($name) . "/opt_fs";
 
+
+
+=BEGIN Esto hay que adaptarlo para copiar las claves ssh con libvirt
 		# Install global public ssh keys in the UML
-		my $global_list = $doc2->getElementsByTagName("global");
+		my $global_list = $global_doc->getElementsByTagName("global");
 		my $key_list = $global_list->item(0)->getElementsByTagName("ssh_key");
 
 		# If tag present, add the key
@@ -175,7 +182,7 @@ sub defineVM {
 			my $keyfile =
 			  &do_path_expansion( &text_tag( $key_list->item($j) ) );
 			$execution->execute( $bd->get_binaries_path_ref->{"cat"}
-				  . " $keyfile >> $path"
+				  . " $keyfile >> $sdisk_content"
 				  . "keyring_root" );
 		}
 
@@ -185,7 +192,7 @@ sub defineVM {
 			my $username      = $user->getAttribute("username");
 			my $initial_group = $user->getAttribute("group");
 			$execution->execute( $bd->get_binaries_path_ref->{"touch"} 
-				  . " $path"
+				  . " $sdisk_content"
 				  . "group_$username" );
 			my $group_list = $user->getElementsByTagName("group");
 			for ( my $k = 0 ; $k < $group_list->getLength ; $k++ ) {
@@ -194,7 +201,7 @@ sub defineVM {
 					$group = "*$group";
 				}
 				$execution->execute( $bd->get_binaries_path_ref->{"echo"}
-					  . " $group >> $path"
+					  . " $group >> $sdisk_content"
 					  . "group_$username" );
 			}
 			my $key_list = $user->getElementsByTagName("ssh_key");
@@ -202,12 +209,15 @@ sub defineVM {
 				my $keyfile =
 				  &do_path_expansion( &text_tag( $key_list->item($k) ) );
 				$execution->execute( $bd->get_binaries_path_ref->{"cat"}
-					  . " $keyfile >> $path"
+					  . " $keyfile >> $sdisk_content"
 					  . "keyring_$username" );
 			}
 		}
-	}
+=END
+=cut
 
+	}
+	
 	#
 	# Read extended configuration files
 	#
@@ -227,20 +237,20 @@ sub defineVM {
 	if ( $type eq "libvirt-kvm-windows" ) {
 
 		#Save xml received in vnxboot, for the autoconfiguration
-		my $filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
-		open CONFILE, ">$path" . "vnxboot"
-		  or $execution->smartdie("can not open ${path}vnxboot: $!")
+		my $filesystem_small = $dh->get_vm_fs_dir($vm_name) . "/opt_fs.iso";
+		open CONFILE, ">$sdisk_content" . "vnxboot"
+		  or $execution->smartdie("can not open ${sdisk_content}vnxboot: $!")
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
-		#$execution->execute($doc ,*CONFILE);
-		print CONFILE "$doc\n";
+		#$execution->execute($vm_doc ,*CONFILE);
+		print CONFILE "$vm_doc\n";
 
 		close CONFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"} . " -l -R -quiet -o $filesystem_small $path" );
-		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
+		$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"} . " -l -R -quiet -o $filesystem_small $sdisk_content" );
+		$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $sdisk_content" );
 
 		my $parser       = new XML::DOM::Parser;
-		my $dom          = $parser->parse($doc);
+		my $dom          = $parser->parse($vm_doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
 		my $virtualm     = $virtualmList->item(0);
@@ -253,13 +263,13 @@ sub defineVM {
 		if ( $filesystem_type eq "cow" ) {
 
 			# If cow file does not exist, we create it
-			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
+			if ( !-f $dh->get_vm_fs_dir($vm_name) . "/root_cow_fs" ) {
 				$execution->execute( "qemu-img"
 					  . " create -b $filesystem -f qcow2 "
-					  . $dh->get_fs_dir($vmName)
+					  . $dh->get_vm_fs_dir($vm_name)
 					  . "/root_cow_fs" );
 			}
-			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
+			$filesystem = $dh->get_vm_fs_dir($vm_name) . "/root_cow_fs";
 		}
 
 		# memory
@@ -277,7 +287,7 @@ sub defineVM {
 		# <name> tag
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
-		$name_tag->addChild( $init_xml->createTextNode($vmName) );
+		$name_tag->addChild( $init_xml->createTextNode($vm_name) );
 
 		# <memory> tag
 		my $memory_tag = $init_xml->createElement('memory');
@@ -433,7 +443,7 @@ sub defineVM {
 		#                                port="port_num" (optional)  -> defines the host port where the console can
 		#                                                               be accessed. If not specified, VNX chooses a free port.
         # For windows vm's only the graphical console is defined (id=0). Other consoles defined with ids different from 0 are ignored 
-		my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
+		my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
 		open (CONS_FILE, "> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
 
 		# Go through <consoles> tag list to get attributes (display, port) and value  
@@ -447,12 +457,12 @@ sub defineVM {
 			my $display = $consTag->getAttribute("display");
        		#print "** console: id=$id, value=$value\n" if ($exemode == $EXE_VERBOSE);
 			if ( $id eq "0" ) {
-				print "WARNING (vm=$vmName): value $value ignored for <console id='0'> tag (only 'vnc' allowed).\n" 
+				print "WARNING (vm=$vm_name): value $value ignored for <console id='0'> tag (only 'vnc' allowed).\n" 
 				   if ( ($value ne "") && ($value ne "vnc") ); 
 				if ($display ne '') { $cons0Display = $display }
 			}
 			if ( $id > 0 ) {
-				print "WARNING (vm=$vmName): only consoles with id='0' allowed for Windows libvirt virtual machines. Tag ignored.\n"
+				print "WARNING (vm=$vm_name): only consoles with id='0' allowed for Windows libvirt virtual machines. Tag ignored.\n"
 			} 
 		}
 
@@ -466,7 +476,7 @@ sub defineVM {
 		my $ip_host = "";
 		$graphics_tag->addChild(
 			$init_xml->createAttribute( listen => $ip_host ) );
-		# Write the vnc console entry in "./vnx/.../vms/$vmName/run/console" file
+		# Write the vnc console entry in "./vnx/.../vms/$vm_name/run/console" file
 		# We do not know yet the vnc display (known when the machine is started in startVM)
 		# By now, we just write 'UNK_VNC_DISPLAY'
 		print CONS_FILE "con0=$cons0Display,vnc_display,UNK_VNC_DISPLAY\n";
@@ -481,7 +491,7 @@ sub defineVM {
 		my $source3_tag = $init_xml->createElement('source');
 		$serial_tag->addChild($source3_tag);
 		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
+		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_socket' ) );
 		my $target_tag = $init_xml->createElement('target');
 		$serial_tag->addChild($target_tag);
 		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
@@ -507,12 +517,11 @@ sub defineVM {
 				
 				my $qemuarg_tag4 = $init_xml->createElement('qemu:arg');
 				$qemucommandline_tag->addChild($qemuarg_tag4);
-				$qemuarg_tag4->addChild( $init_xml->createAttribute( value => "tap,vlan=0,ifname=$vmName-e0,script=no" ) );
+				$qemuarg_tag4->addChild( $init_xml->createAttribute( value => "tap,vlan=0,ifname=$vm_name-e0,script=no" ) );
 				
 		}
 
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		##my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -520,9 +529,9 @@ sub defineVM {
 		my $format    = 1;
 		my $xmlstring = $init_xml->toString($format);
 
-		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
+		open XML_FILE, ">" . $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_libvirt.xml'
 		  or $execution->smartdie(
-			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml')
+			"can not open " . $dh->get_vm_dir . '/' . $vm_name . '_libvirt.xml')
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 		print XML_FILE "$xmlstring\n";
 		close XML_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
@@ -531,23 +540,20 @@ sub defineVM {
         my @doms = $con->list_defined_domains();
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$error = "Domain $vmName already defined\n";
-				#undef ($con); print "*******  undef(con)\n";
+			if ( $dom_name eq $vm_name ) {
+				$error = "Domain $vm_name already defined\n";
 				return $error;
 			}
 		}
 		@doms = $con->list_domains();
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$error = "Domain $vmName already defined and started\n";
-				#undef ($con); print "*******  undef(con)\n";
+			if ( $dom_name eq $vm_name ) {
+				$error = "Domain $vm_name already defined and started\n";
 				return $error;
 			}
 		}
 		my $domain = $con->define_domain($xmlstring);
-		#undef ($con); print "*******  undef(con)\n";
 
 		return $error;
 
@@ -559,17 +565,17 @@ sub defineVM {
 	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")||
 	        ($type eq "libvirt-kvm-olive") ) {
 
-		#print "*** $path\n" if ($exemode == $EXE_VERBOSE); 
-		open CONFILE, ">$path" . "vnxboot"
-		  or $execution->smartdie("can not open ${path}vnxboot: $!")
+		#print "*** $sdisk_content\n" if ($exemode == $EXE_VERBOSE); 
+		open CONFILE, ">$sdisk_content" . "vnxboot.xml"
+		  or $execution->smartdie("can not open ${sdisk_content}vnxboot: $!")
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		#$execution->execute($doc ,*CONFILE);
-		print CONFILE "$doc\n";
+		#$execution->execute($vm_doc ,*CONFILE);
+		print CONFILE "$vm_doc\n";
 		close CONFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
 		# We create the XML libvirt file with virtual machine definition
 		my $parser       = new XML::DOM::Parser;
-		my $dom          = $parser->parse($doc);
+		my $dom          = $parser->parse($vm_doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
 		my $virtualm     = $virtualmList->item(0);
@@ -582,14 +588,14 @@ sub defineVM {
 		if ( $filesystem_type eq "cow" ) {
 
      		# Create the COW filesystem if it does not exist
-			if ( !-f $dh->get_fs_dir($vmName) . "/root_cow_fs" ) {
+			if ( !-f $dh->get_vm_fs_dir($vm_name) . "/root_cow_fs" ) {
 
 				$execution->execute( "qemu-img"
 					  . " create -b $filesystem -f qcow2 "
-					  . $dh->get_fs_dir($vmName)
+					  . $dh->get_vm_fs_dir($vm_name)
 					  . "/root_cow_fs" );
 			}
-			$filesystem = $dh->get_fs_dir($vmName) . "/root_cow_fs";
+			$filesystem = $dh->get_vm_fs_dir($vm_name) . "/root_cow_fs";
 		}
 
 		# memory
@@ -602,10 +608,10 @@ sub defineVM {
 		my $confTagList = $virtualm->getElementsByTagName("conf");
         if ($confTagList->getLength == 1) {
 			$confFile = $confTagList->item(0)->getFirstChild->getData;
-			print "****    confFile = $confFile\n";
+			wlog (VVV, "vm_name configuration file: $confFile");
         }
 
-		# create XML for libvirt
+		# create the vm description in XML for libvirt
 		my $init_xml;
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 		my $domain_tag = $init_xml->createElement('domain');
@@ -620,7 +626,7 @@ sub defineVM {
 		# <name> tag
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
-		$name_tag->addChild( $init_xml->createTextNode($vmName) );
+		$name_tag->addChild( $init_xml->createTextNode($vm_name) );
 
 		# <memory> tag
 		my $memory_tag = $init_xml->createElement('memory');
@@ -701,17 +707,33 @@ sub defineVM {
         $disk1_tag->addChild($driver1_tag);
         $driver1_tag->addChild( $init_xml->createAttribute( name => 'qemu' ) );
         $driver1_tag->addChild( $init_xml->createAttribute( type => 'qcow2' ) );
-        # End of DFC
 
         # secondary <disk> tag --> cdrom or disk for autoconfiguration or command execution
+
+        # Filetree files:
+        #   Each file created when calling plugin->getBootFiles or specified in <filetrees> 
+        #   with seq='on_boot' has been copied to $dh->get_vm_tmp_dir($vm_name) . "/on_boot" 
+        #   directory, organized in filetree/$num subdirectories, being $num the order of filetrees. 
+        #   We move all the files to the shared disk
+        
+        # Check if thereis any filetree in $vm_doc
+        my $filetree_tag_list = $dom->getElementsByTagName("filetree");
+        if ($filetree_tag_list->getLength > 0) { # At least one filetree defined
+            # Copy the files to the shared disk        
+	        my $onboot_files_dir = $dh->get_vm_tmp_dir($vm_name) . "/on_boot";
+	        $execution->execute( $bd->get_binaries_path_ref->{"mv"} . " -v $onboot_files_dir/filetree/* $sdisk_content/filetree/" );
+	        $execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $onboot_files_dir" );
+	        my $res=`tree $sdisk_content`; wlog (VVV, "vm $vm_name 'on_boot' shared disk content:\n $res");
+        }
+    
         if ($type ne "libvirt-kvm-olive") {
 
 			# Create the iso filesystem for the cdrom
-			my $filesystem_small = $dh->get_fs_dir($vmName) . "/opt_fs.iso";
+			my $filesystem_small = $dh->get_vm_fs_dir($vm_name) . "/opt_fs.iso";
 			$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"}
-				  . " -l -R -quiet -o $filesystem_small $path" );
+				  . " -l -R -quiet -o $filesystem_small $sdisk_content" );
 			$execution->execute(
-				$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
+				$bd->get_binaries_path_ref->{"rm"} . " -rf $sdisk_content" );
 
 			# Create the cdrom definition
        		my $disk2_tag = $init_xml->createElement('disk');
@@ -728,27 +750,18 @@ sub defineVM {
         
         } else {   # For olive VMs we use a shared disk 
 
-			# Create the shared filesystem 
-			my $sdisk_fname = $dh->get_fs_dir($vmName) . "/sdisk.img";
-			# qemu-img create jconfig.img 12M
-			# TODO: change the fixed 50M to something configurable
-			$execution->execute( $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
-			# mkfs.msdos jconfig.img
-			$execution->execute( $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
-			# Mount the shared disk to copy filetree files
-			my $vmmnt_dir = $dh->get_mnt_dir($vmName);
-			$execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $vmmnt_dir );
 			# Copy autoconfiguration (vnxboot.xml) file to shared disk
-			$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $path/vnxboot $vmmnt_dir/vnxboot.xml" );
-			# Copy initial router configuration if defined in extended config file
+			#$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $sdisk_content/vnxboot $sdisk_content/vnxboot.xml" );
+			# Copy initial router configuration if defined 
 			print "****    confFile = $confFile\n";
 			if ($confFile ne '') {
-				$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $confFile $vmmnt_dir/" );
+                #$execution->execute( "mkdir $sdisk_content/config" );
+                $execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $confFile $sdisk_content/config" );
 			}
-			$execution->execute(
-				$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
+
+			#$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $sdisk_content" );
 			# Dismount shared disk
-			$execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $vmmnt_dir );
+			$execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
 
 			# Create the shared <disk> definition
        		my $disk2_tag = $init_xml->createElement('disk');
@@ -775,7 +788,7 @@ sub defineVM {
 			my $ifTag = $ifTagList->item($j);
 			my $id    = $ifTag->getAttribute("id");
 			my $net   = $ifTag->getAttribute("net");
-			my $mac   = $ifTag->getAttribute("mac");
+            my $mac   = $ifTag->getAttribute("mac");
 
 			# Ignore loopback interfaces (they are configured by the ACED daemon, but
 			# should not be treated by libvirt)
@@ -821,11 +834,17 @@ sub defineVM {
 			# DFC: set interface model to 'i82559er' in olive router interfaces.
 			#      Using e1000 the interfaces are not created correctly (to further investigate) 
 			if ($type eq "libvirt-kvm-olive") {
-				# <model type='i82559er'/>
+                my $if_name = $ifTag->getAttribute("name");
 				my $model_tag = $init_xml->createElement('model');
 				$interface_tag->addChild($model_tag);
-				$model_tag->addChild( $init_xml->createAttribute( type => 'i82559er') );
-				#$model_tag->addChild( $init_xml->createAttribute( type => 'e1000') );
+				wlog (VVV, "olive: adding interface $if_name");
+				if ($if_name =~ /^fxp/ ) {
+                    # <model type='i82559er'/>
+			        $model_tag->addChild( $init_xml->createAttribute( type => 'i82559er') );
+				} elsif ($if_name =~ /^em/ ) {
+                    # <model type='e1000'/>
+				    $model_tag->addChild( $init_xml->createAttribute( type => 'e1000') );
+				}
 			}
 			
 		}
@@ -856,7 +875,7 @@ sub defineVM {
 		#                                port="port_num" (optional)  -> defines the host port where the console can
 		#                                                               be accessed. If not specified, VNX chooses a free port.
         # By now ther consoles defined with ids different from 0-1 are ignored 
-		my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
+		my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
 		open (CONS_FILE, "> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
 
 		# Go through <consoles> tag list to get attributes (display, port) and value  
@@ -881,7 +900,7 @@ sub defineVM {
 				if ($display ne '') { $cons1Display = $display }
 			}
 			if ( $id > 1 ) {
-				print "WARNING (vm=$vmName): only consoles with id='0' or id='1' allowed for libvirt virtual machines. Tag ignored.\n"
+				print "WARNING (vm=$vm_name): only consoles with id='0' or id='1' allowed for libvirt virtual machines. Tag ignored.\n"
 			} 
 		}
 
@@ -896,7 +915,7 @@ sub defineVM {
 			my $ip_host = "";
 			$graphics_tag->addChild(
 				$init_xml->createAttribute( listen => $ip_host ) );
-			# Write the vnc console entry in "./vnx/.../vms/$vmName/console" file
+			# Write the vnc console entry in "./vnx/.../vms/$vm_name/console" file
 			# We do not know yet the vnc display (known when the machine is started in startVM)
 			# By now, we just write 'UNK_VNC_DISPLAY'
 			print CONS_FILE "con0=$cons0Display,vnc_display,UNK_VNC_DISPLAY\n";
@@ -929,7 +948,7 @@ sub defineVM {
 			$console_tag->addChild($target3_tag);
 			$target3_tag->addChild( $init_xml->createAttribute( port => '0' ) );
 
-			# We write the pts console entry in "./vnx/.../vms/$vmName/console" file
+			# We write the pts console entry in "./vnx/.../vms/$vm_name/console" file
 			# We do not know yet the pts device assigned (known when the machine is started in startVM)
 			# By now, we just write 'UNK_PTS_DEV'
 			print CONS_FILE "con1=$cons1Display,libvirt_pts,UNK_PTS_DEV\n";
@@ -961,7 +980,7 @@ sub defineVM {
 	 				$consolePort++;
 				}
 			}
- 			print "WARNING (vm=$vmName): cannot use port $cons1Port for $vmName console #1; using $consolePort instead\n"
+ 			print "WARNING (vm=$vm_name): cannot use port $cons1Port for $vm_name console #1; using $consolePort instead\n"
 		    		if ( ($cons1Port ne "") && ($consolePort ne $cons1Port) );
 			$source4_tag->addChild(	$init_xml->createAttribute( service => "$consolePort" ) );
       		#	<protocol type="telnet"/>
@@ -973,9 +992,9 @@ sub defineVM {
 			$serial2_tag->addChild($target2_tag);
 			$target2_tag->addChild( $init_xml->createAttribute( port => '1' ) );
 
-			# Write the console entry in "./vnx/.../vms/$vmName/console" file
+			# Write the console entry to "./vnx/.../vms/$vm_name/console" file
 			print CONS_FILE "con1=$cons1Display,telnet,$consolePort\n";	
-			print "** $consFile: con1=$cons1Display,telnet,$consolePort\n" if ($exemode == $EXE_VERBOSE);	
+			#wlog (VVV, "** $consFile: con1=$cons1Display,telnet,$consolePort");	
         }
 		close (CONS_FILE); 
 
@@ -988,7 +1007,7 @@ sub defineVM {
 		my $source3_tag = $init_xml->createElement('source');
 		$serial_tag->addChild($source3_tag);
 		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vmName) . '/' . $vmName . '_socket' ) );
+		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_socket' ) );
 		my $target_tag = $init_xml->createElement('target');
 		$serial_tag->addChild($target_tag);
            if ($type eq "libvirt-kvm-olive") {
@@ -1009,7 +1028,11 @@ sub defineVM {
 			$qemuarg_tag->addChild( $init_xml->createAttribute( value => "-bios" ) );
 			my $qemuarg2_tag = $init_xml->createElement('qemu:arg');
 			$qemucmdline_tag->addChild($qemuarg2_tag);
-			$qemuarg2_tag->addChild( $init_xml->createAttribute( value => "bios-0.10.6.bin" ) );
+			$qemuarg2_tag->addChild( $init_xml->createAttribute( value => "bios-olive.bin" ) );
+            # Prueba para solucionar los problemas con los interfaces emX...no va :-(
+            #my $qemuarg3_tag = $init_xml->createElement('qemu:arg');
+            #$qemucmdline_tag->addChild($qemuarg3_tag);
+            #$qemuarg3_tag->addChild( $init_xml->createAttribute( value => "-no-acpi" ) );
         }
 		
 		
@@ -1033,7 +1056,7 @@ sub defineVM {
 				
 				my $qemuarg_tag4 = $init_xml->createElement('qemu:arg');
 				$qemucommandline_tag->addChild($qemuarg_tag4);
-				$qemuarg_tag4->addChild( $init_xml->createAttribute( value => "tap,vlan=0,ifname=$vmName-e0,script=no" ) );
+				$qemuarg_tag4->addChild( $init_xml->createAttribute( value => "tap,vlan=0,ifname=$vm_name-e0,script=no" ) );
 				
 		}
 		     
@@ -1056,10 +1079,10 @@ sub defineVM {
 		my $format    = 1;
 		my $xmlstring = $init_xml->toString($format);
 		
-		# Save the XML libvirt file to .vnx/scenarios/<vscenario_name>/vms/$vmName
-		open XML_FILE, ">" . $dh->get_vm_dir($vmName) . '/' . $vmName . '_libvirt.xml'
+		# Save the XML libvirt file to .vnx/scenarios/<vscenario_name>/vms/$vm_name
+		open XML_FILE, ">" . $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_libvirt.xml'
 		  or $execution->smartdie(
-			"can not open " . $dh->get_vm_dir . '/' . $vmName . '_libvirt.xml' )
+			"can not open " . $dh->get_vm_dir . '/' . $vm_name . '_libvirt.xml' )
 		    unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 		print XML_FILE "$xmlstring\n";
 		close XML_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
@@ -1068,8 +1091,8 @@ sub defineVM {
         my @doms = $con->list_defined_domains();
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$error = "Domain $vmName already defined\n";
+			if ( $dom_name eq $vm_name ) {
+				$error = "Domain $vm_name already defined\n";
 				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
@@ -1077,8 +1100,8 @@ sub defineVM {
 		@doms = $con->list_domains();
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$error = "Domain $vmName already defined and started\n";
+			if ( $dom_name eq $vm_name ) {
+				$error = "Domain $vm_name already defined and started\n";
 				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
@@ -1110,8 +1133,10 @@ sub defineVM {
 sub undefineVM {
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
 	my $error;
 	my $con;
@@ -1134,7 +1159,7 @@ sub undefineVM {
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
+			if ( $dom_name eq $vm_name ) {
 				$listDom->undefine();
 				print "Domain undefined.\n" if ($exemode == $EXE_VERBOSE);
 				$error = 0;
@@ -1142,7 +1167,7 @@ sub undefineVM {
 				return $error;
 			}
 		}
-		$error = "Domain $vmName does not exist.\n";
+		$error = "Domain $vm_name does not exist.\n";
 		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 	}
@@ -1166,11 +1191,10 @@ sub undefineVM {
 sub destroyVM {
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
 	my $error = 0;
 	my $con;
@@ -1194,7 +1218,7 @@ sub destroyVM {
 		$error = "Domain does not exist\n";
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
+			if ( $dom_name eq $vm_name ) {
 				$listDom->destroy();
 				print "Domain destroyed\n" if ($exemode == $EXE_VERBOSE);
 
@@ -1205,7 +1229,7 @@ sub destroyVM {
 		}
 
 		# Remove vm fs directory (cow and iso filesystems)
-		$execution->execute( "rm " . $dh->get_fs_dir($vmName) . "/*" );
+		$execution->execute( "rm " . $dh->get_vm_fs_dir($vm_name) . "/*" );
 		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
@@ -1229,84 +1253,14 @@ sub destroyVM {
 sub startVM {
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
-	my $doc    = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	my $dh     = shift;
-	my $sock   = shift;
-	my $counter = shift;
 	my $no_consoles = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
 	my $error;
 	my $con;
-	
-	#print "**********  STARTVM *****************\n";
-	
-=BEGIN	
-	###################################################################
-	#                  startVM for libvirt-kvm-windows                #
-	###################################################################
-	if ( $type eq "libvirt-kvm-windows" ) {
-
-		#my $hypervisor = "qemu:///system";
-
-		print "Connecting to $hypervisor...";
-		my $con = Sys::Virt->new( address => $hypervisor, readonly => 0 );
-		print "OK\n";
-
-		my @doms = $con->list_defined_domains();
-
-		foreach my $listDom (@doms) {
-			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
-				$listDom->create();
-				print "Domain started\n";
-
-				# save pid in run dir
-				my $uuid = $listDom->get_uuid_string();
-				$execution->execute( "ps aux | grep kvm | grep " 
-					  . $uuid
-					  . " | grep -v grep | awk '{print \$2}' > "
-					  . $dh->get_run_dir($vmName)
-					  . "/pid" );
-				
-				# display console if required
-				my $parser       = new XML::DOM::Parser;
-				my $dom          = $parser->parse($doc);
-				my $display_console   = $dom->getElementsByTagName("display_console")->item(0)->getFirstChild->getData;
-				unless ($display_console eq "no") {
-					$execution->execute("virt-viewer $vmName &");
-				}
-
-				my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type,$dh->get_vmmgmt_net,$dh->get_vmmgmt_mask,$dh->get_vmmgmt_offset,$dh->get_vmmgmt_hostip, 2 );
-
-				# If host_mapping is in use, append trailer to /etc/hosts config file
-
-				if ( $dh->get_host_mapping ) {
-
-					#@host_lines = ( @host_lines, $net->addr() . " $vm_name" );
-					#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
-					open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
-						or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
-						unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-					print HOSTLINES $net->addr() . " $vmName\n";
-					close HOSTLINES;
-				}
-
-				$error = 0;
-				return $error;
-			}
-		}
-		$error = "Domain does not exist\n";
-		return $error;
-
-	}
-	
-=END
-=cut
-
 	
 	###################################################################
 	# startVM for libvirt-kvm-windows/linux/freebsd/olive             #
@@ -1314,7 +1268,6 @@ sub startVM {
 	if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
 	        ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
@@ -1325,7 +1278,7 @@ sub startVM {
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
+			if ( $dom_name eq $vm_name ) {
 				$listDom->create();
 				print "Domain started\n" if ($exemode == $EXE_VERBOSE);
 
@@ -1334,7 +1287,7 @@ sub startVM {
 				$execution->execute( "ps aux | grep kvm | grep " 
 					  . $uuid
 					  . " | grep -v grep | awk '{print \$2}' > "
-					  . $dh->get_run_dir($vmName)
+					  . $dh->get_vm_run_dir($vm_name)
 					  . "/pid" );
 				
 				#		
@@ -1342,20 +1295,20 @@ sub startVM {
 			    # 
     			
    				# First, we have to change the 'UNK_VNC_DISPLAY' and 'UNK_PTS_DEV' tags 
-				# we temporarily wrote to console files (./vnx/.../vms/$vmName/console) 
+				# we temporarily wrote to console files (./vnx/.../vms/$vm_name/console) 
 				# by the correct values assigned by libvirt to the virtual machine
-				my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
+				my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
   	
 				# Graphical console (id=0)
 				if ($type ne "libvirt-kvm-olive" ) { # Olive routers do not have graphical consoles
 					# TODO: use $execution->execute
-					my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system vncdisplay $vmName";
+					my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system vncdisplay $vm_name";
 			       	my $vncDisplay=`$cmd`;
 			       	if ($vncDisplay eq '') { # wait and repeat command again
-			       		print "*** command $cmd failed. Retrying...\n";
+			       		wlog (V, "Command $cmd failed. Retrying...");
 			       		sleep 2;
 			       		$vncDisplay=`$cmd`;
-			       		if ($vncDisplay eq '') {execution->smartdie ("Cannot get display for $vmName. Error executing command: $cmd")}
+			       		if ($vncDisplay eq '') {execution->smartdie ("Cannot get display for $vm_name. Error executing command: $cmd")}
 			       	}
 			       	
 			       	$vncDisplay =~ s/\s+$//;    # Delete linefeed at the end		
@@ -1370,83 +1323,59 @@ sub startVM {
 					if ( defined $conData) {
 					    my @consField = split(/,/, $conData);
 					    if ($consField[1] eq 'libvirt_pts') {
-			        		my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system ttyconsole $vmName";
+			        		my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system ttyconsole $vm_name";
 			           		my $ptsDev=`$cmd`;
 					       	if ($ptsDev eq '') { # wait and repeat command again
-					       		print "*** command $cmd failed. Retrying...\n";
+					       		wlog (V, "Command $cmd failed. Retrying...");
 					       		sleep 2;
 					       		$ptsDev=`$cmd`;
-					       		if ($ptsDev eq '') {execution->smartdie ("Cannot get pts device for $vmName. Error executing command: $cmd")}
+					       		if ($ptsDev eq '') {execution->smartdie ("Cannot get pts device for $vm_name. Error executing command: $cmd")}
 					       	}
 			           		$ptsDev =~ s/\s+$//;    # Delete linefeed at the end		
 							$execution->execute ($bd->get_binaries_path_ref->{"sed"}." -i -e 's#UNK_PTS_DEV#$ptsDev#' $consFile");
 					    }
 					} else {
-						print "WARNING (vm=$vmName): no data for console #1 found in $consFile"
+						print "WARNING (vm=$vm_name): no data for console #1 found in $consFile"
 					}
 				}
 			   
 				# Then, we just read the console file and start the active consoles,
 				# unless options -n|--no_console were specified by the user
 				unless ($no_consoles eq 1){
-				   VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
+				   VNX::vmAPICommon->start_consoles_from_console_file ($vm_name);
 				}		    
-					    
-=BEGIN                        
-        		if ($type eq "libvirt-kvm-olive") {
-        			my $consport;
-					my $portfile = $dh->get_vm_dir($vmName) . "/console";
-					if (-e $portfile ){
-						open (CONPORT, "<$portfile") || die "ERROR: No puedo abrir el fichero $portfile";
-						$consport= <CONPORT>;
-						close (CONPORT);
-					} else {
-						printf "ERROR: file $portfile does not exist\n";
-					}
-					
-					
-					# display console if required
-					my $parser       = new XML::DOM::Parser;
-					my $dom          = $parser->parse($doc);
-					my $display_console   = $dom->getElementsByTagName("display_console")->item(0)->getFirstChild->getData;
-					unless ($display_console eq "no") {
-		    			$execution->execute("xterm -title '$vmName (Olive)' -e 'telnet localhost $consport' >/dev/null 2>&1 &");
-					}
-        		}
-        		else {
-        			# display console if required
-					my $parser       = new XML::DOM::Parser;
-					my $dom          = $parser->parse($doc);
-					my $display_console   = $dom->getElementsByTagName("display_console")->item(0)->getFirstChild->getData;
-					unless ($display_console eq "no") {
-						$execution->execute("virt-viewer $vmName &");
-					}
-				}
-=END
-=cut				
-				
-				#my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type,$dh->get_vmmgmt_net,$dh->get_vmmgmt_mask,$dh->get_vmmgmt_offset,$dh->get_vmmgmt_hostip, 2, $vmName);
-				my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type, 2, $vmName );
-				# If host_mapping is in use, append trailer to /etc/hosts config file
-
-				if ( $dh->get_host_mapping ) {
-
-					#@host_lines = ( @host_lines, $net->addr() . " $vm_name" );
-					#$execution->execute( $net->addr() . " $vm_name\n", *HOSTLINES );
-					open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
-						or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
-						unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-					print HOSTLINES $net->addr() . " $vmName\n";
-					close HOSTLINES;
-				}
+					    		
+                
+                # If host_mapping is in use and the vm has a management interface, 
+                # then we have to add an entry for this vm in /etc/hosts
+                if ( $dh->get_host_mapping ) {
+	                my @vm_ordered = $dh->get_vm_ordered;
+	                for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+	                    my $vm = $vm_ordered[$i];
+	                    my $name = $vm->getAttribute("name");
+	                    unless ( $name eq $vm_name ) { next; }
+						    		
+					    # Check whether the vm has a management interface enabled
+					    my $mng_if_value = &mng_if_value($vm);
+					    unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
+                            
+                            # Get the vm management ip address 
+                            my %net = &get_admin_address( 'file', $vm_name );
+                            # Add it to hostlines file
+                            open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
+                                or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
+                                unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+                            print HOSTLINES $net{'vm'}->addr() . " $vm_name\n";
+                            close HOSTLINES;
+                        }	    		
+                    }
+                }
 
 				$error = 0;
-				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist\n";
-		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1469,15 +1398,17 @@ sub startVM {
 sub shutdownVM {
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
 	my $F_flag = shift; # Not used here, only in vmAPI_uml
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
 	my $error = 0;
 	my $con;
 
 	# Sample code
-	print "Shutting down vm $vmName of type $type\n" if ($exemode == $EXE_VERBOSE);
+	print "Shutting down vm $vm_name of type $type\n" if ($exemode == $EXE_VERBOSE);
 
    	###################################################################
 	#                 shutdownVM for libvirt-kvm-windows/linux/freebsd#
@@ -1495,22 +1426,20 @@ sub shutdownVM {
 		my @doms = $con->list_domains();
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			print "**** dom_name=$dom_name\n";
-			if ( $dom_name eq $vmName ) {
+			#print "**** dom_name=$dom_name\n";
+			if ( $dom_name eq $vm_name ) {
 				$listDom->shutdown();
-				&change_vm_status( $vmName, "REMOVE" );
+				&change_vm_status( $vm_name, "REMOVE" );
 
 				# remove run directory (de momento no se puede porque necesitamos saber a que pid esperar)
 				# lo habilito para la demo
-				$execution->execute( "rm -rf " . $dh->get_run_dir($vmName) . "/*" );
+				$execution->execute( "rm -rf " . $dh->get_vm_run_dir($vm_name) . "/*" );
 
 				print "Domain shutdown\n" if ($exemode == $EXE_VERBOSE);
-				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist..\n";
-		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1533,15 +1462,17 @@ sub shutdownVM {
 sub saveVM {
 
 	my $self     = shift;
-	my $vmName   = shift;
+	my $vm_name   = shift;
 	my $type     = shift;
 	my $filename = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
 	my $error = 0;
 	my $con;
 
 	# Sample code
-	print "dummy plugin: saving vm $vmName of type $type\n" if ($exemode == $EXE_VERBOSE);
+	print "saveVM: saving vm $vm_name of type $type\n" if ($exemode == $EXE_VERBOSE);
 
 	if ( $type eq "libvirt-kvm" ) {
 
@@ -1556,12 +1487,10 @@ sub saveVM {
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
+			if ( $dom_name eq $vm_name ) {
 				$listDom->save($filename);
 				print "Domain saved to file $filename\n" if ($exemode == $EXE_VERBOSE);
-				#&change_vm_status( $dh, $vmName, "paused" );
-				&change_vm_status( $vmName, "paused" );
-				#undef ($con); print "*******  undef(con)\n";
+				&change_vm_status( $vm_name, "paused" );
 				return $error;
 			}
 		}
@@ -1578,7 +1507,6 @@ sub saveVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1587,17 +1515,14 @@ sub saveVM {
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
+			if ( $dom_name eq $vm_name ) {
 				$listDom->save($filename);
 				print "Domain saved to file $filename\n" if ($exemode == $EXE_VERBOSE);
-				#&change_vm_status( $dh, $vmName, "paused" );
-				&change_vm_status( $vmName, "paused" );
-				#undef ($con); print "*******  undef(con)\n";
+				&change_vm_status( $vm_name, "paused" );
 				return $error;
 			}
 		}
 		$error = "Domain does not exist...\n";
-		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1620,15 +1545,17 @@ sub saveVM {
 sub restoreVM {
 
 	my $self     = shift;
-	my $vmName   = shift;
+	my $vm_name   = shift;
 	my $type     = shift;
 	my $filename = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
 	my $error = 0;
 	my $con;
 
 	print
-	  "dummy plugin: restoring vm $vmName of type $type from file $filename\n";
+	  "restoreVM: restoring vm $vm_name of type $type from file $filename\n";
 
  	###################################################################
 	#                  restoreVM for libvirt-kvm-windows/linux/freebsd#
@@ -1639,16 +1566,13 @@ sub restoreVM {
 	    
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my $dom = $con->restore_domain($filename);
 		print("Domain restored from file $filename\n");
-		#&change_vm_status( $dh, $vmName, "running" );
-		&change_vm_status( $vmName, "running" );
-		#undef ($con); print "*******  undef(con)\n";
+		&change_vm_status( $vm_name, "running" );
 		return $error;
 
 	}
@@ -1671,8 +1595,10 @@ sub restoreVM {
 sub suspendVM {
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
 	my $error = 0;
 	my $con;
@@ -1685,7 +1611,6 @@ sub suspendVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1694,15 +1619,13 @@ sub suspendVM {
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
+			if ( $dom_name eq $vm_name ) {
 				$listDom->suspend();
 				print "Domain suspended\n" if ($exemode == $EXE_VERBOSE);
-				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist.\n";
-		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1725,14 +1648,16 @@ sub suspendVM {
 sub resumeVM {
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
 	my $error = 0;
 	my $con;
 
 	# Sample code
-	print "dummy plugin: resuming vm $vmName\n" if ($exemode == $EXE_VERBOSE);
+	print "resumeVM: resuming vm $vm_name\n" if ($exemode == $EXE_VERBOSE);
 
 	###################################################################
 	#                  resumeVM for libvirt-kvm-windows/linux/freebsd #
@@ -1742,7 +1667,6 @@ sub resumeVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1751,15 +1675,13 @@ sub resumeVM {
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
+			if ( $dom_name eq $vm_name ) {
 				$listDom->resume();
 				print "Domain resumed\n" if ($exemode == $EXE_VERBOSE);
-				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist.\n";
-		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1782,8 +1704,10 @@ sub resumeVM {
 sub rebootVM {
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
 	my $error = 0;
 	my $con;
@@ -1796,7 +1720,6 @@ sub rebootVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1805,15 +1728,13 @@ sub rebootVM {
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
+			if ( $dom_name eq $vm_name ) {
 				$listDom->reboot(&Sys::Virt::Domain::REBOOT_RESTART);
 				print "Domain rebooting\n" if ($exemode == $EXE_VERBOSE);
-				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist\n";
-		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1837,14 +1758,16 @@ sub rebootVM {
 sub resetVM {
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
 	my $error;
 	my $con;
 
 	# Sample code
-	print "dummy plugin: reseting vm $vmName\n" if ($exemode == $EXE_VERBOSE);
+	print "resetVM: reseting vm $vm_name\n" if ($exemode == $EXE_VERBOSE);
 
 	###################################################################
 	#                  resetVM for libvirt-kvm-windows/linux/freebsd  #
@@ -1854,7 +1777,6 @@ sub resetVM {
 
 		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1863,16 +1785,14 @@ sub resetVM {
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			if ( $dom_name eq $vmName ) {
+			if ( $dom_name eq $vm_name ) {
 				$listDom->reboot(&Sys::Virt::Domain::REBOOT_DESTROY);
 				print "Domain reset" if ($exemode == $EXE_VERBOSE);
 				$error = 0;
-				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain does not exist\n";
-		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}else {
@@ -1893,13 +1813,19 @@ sub resetVM {
 
 sub executeCMD {
 
-	my $self = shift;
+	my $self    = shift;
 	my $merged_type = shift;
-	my $seq  = shift;
-	my $vm    = shift;
-	my $name = shift;
+	my $seq     = shift;
+	my $vm      = shift;
+	my $vm_name = shift;
+	my $plugin_ftree_list_ref = shift;
+	my $plugin_exec_list_ref  = shift;
+    my $ftree_list_ref        = shift;
+    my $exec_list_ref         = shift;
 
-	#Commands sequence (start, stop or whatever).
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)");
+
+press_any_key ("press any key to continue");
 
 	# Previous checkings and warnings
 #	my @vm_ordered = $dh->get_vm_ordered;
@@ -1920,16 +1846,13 @@ sub executeCMD {
 		############ FILETREE ##############
 		my @filetree_list = $dh->merge_filetree($vm);
 		my $user   = &get_user_in_seq( $vm, $seq );
-		my $mode   = &get_vm_exec_mode($vm);
-		my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name)  . " filetree.XXXXXX";
+		my $mode   = $dh->get_vm_exec_mode($vm);
+		my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_vm_hostfs_dir($vm_name)  . " filetree.XXXXXX";
 # AHORA SE LLAMARA COMMAND.XML Y LO PONGO EN OTRO DIR
-#		open COMMAND_FILE, ">" . $dh->get_hostfs_dir($name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		open COMMAND_FILE, ">" . $dh->get_vm_tmp_dir($name) . "/command.xml" or $execution->smartdie("can not open " . $dh->get_hostfs_dir($name) . "/command.xml $!" ) unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+#		open COMMAND_FILE, ">" . $dh->get_vm_hostfs_dir($vm_name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+		open COMMAND_FILE, ">" . $dh->get_vm_tmp_dir($vm_name) . "/command.xml" or $execution->smartdie("can not open " . $dh->get_vm_hostfs_dir($vm_name) . "/command.xml $!" ) unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 		
-		my $verb_prompt_bk = $execution->get_verb_prompt();
-		# FIXME: consider to use a different new VNX::Execution object to perform this
-		# actions (avoiding this nasty verb_prompt backup)
-		$execution->set_verb_prompt("$name> ");
+		$execution->set_verb_prompt("$vm_name> ");
 		my $shell      = $dh->get_default_shell;
 		my $shell_list = $vm->getElementsByTagName("shell");
 		if ( $shell_list->getLength == 1 ) {
@@ -1943,12 +1866,12 @@ sub executeCMD {
 		$execution->execute( "<command>", *COMMAND_FILE );
 		
 		# Insert random id number for the command file
-		my $fileid = $name . "-" . &generate_random_string(6);
+		my $fileid = $vm_name . "-" . &generate_random_string(6);
 		$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
-		my $countfiletree = 0;
+		my $dst_num = 0;
 		chomp( my $filetree_host = `$command` );
 		$filetree_host =~ /filetree\.(\w+)$/;
-		$execution->execute("mkdir " . $filetree_host ."/destination");
+		$execution->execute("mkdir " . $filetree_host ."/filetree");
 		foreach my $filetree (@filetree_list) {
 			# To get momment
 			my $filetree_seq_string = $filetree->getAttribute("seq");
@@ -1960,44 +1883,16 @@ sub executeCMD {
 			my @filetree_seqs = split(' ',$filetree_seq_string);
 			foreach my $filetree_seq (@filetree_seqs) {
 				if ( $filetree_seq eq $seq ) {
-					$countfiletree++;
+					$dst_num++;
 					my $src;
 					my $filetree_value = &text_tag($filetree);
 
 					$src = &get_abs_path ($filetree_value);
-
-=BEGIN
-					if ( $filetree_value =~ /^\// ) {
-						# Absolute pathname
-						$src = &do_path_expansion($filetree_value);
-					}
-					else {
-						
-				      	# Calculate the efective basedir
-      					my $basedir = $dh->get_default_basedir;
-      					# Comentado por DFC: esta parte sobre, es el mismo código de get_default_basedir
-      					#my $basedir_list = $vm->getElementsByTagName("basedir");
-      					#if ($basedir_list->getLength == 1) {
-					    #     $basedir = &text_tag($basedir_list->item(0));
-				      	#}
-						# Relative pathname
-						if ( $basedir eq "" ) {
-							# Relative to xml_dir
-							$src = &do_path_expansion( &chompslash( $dh->get_xml_dir ) . "/$filetree_value" );
-						}
-						else {
-							# Relative to basedir
-							$src =  &do_path_expansion(	&chompslash($basedir) . "/$filetree_value" );
-						}
-					}
-=END
-=cut
-
 					$src = &chompslash($src);
-					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
+					#my $filetree_vm = "/mnt/hostfs/filetree.$random_id";
 					
-					$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
-					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
+					$execution->execute("mkdir " . $filetree_host ."/filetree/".  $dst_num);
+					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/filetree/" . $dst_num );
 					my %file_perms = &save_dir_permissions($filetree_host);
 					my $dest = $filetree->getAttribute("root");
 					my $filetreetxt = $filetree->toString(1); 
@@ -2015,12 +1910,12 @@ sub executeCMD {
 
 
 =BEGIN		
-		open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |") || die "Failed: $!\n";
+		open( DU, "du -hs0c " . $dh->get_vm_hostfs_dir($vm_name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |") || die "Failed: $!\n";
 		my $dimension = <DU>;
 		$dimension = $dimension + 20;
 		my $dimensiondisk = $dimension + 30;
 		close DU unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		open( DU, "du -hs0c " . $dh->get_hostfs_dir($name) . " | awk '{ var = \$1; var3 = substr(var,length(var),length(var)+1); print var3} ' |") || die "Failed: $!\n";
+		open( DU, "du -hs0c " . $dh->get_vm_hostfs_dir($vm_name) . " | awk '{ var = \$1; var3 = substr(var,length(var),length(var)+1); print var3} ' |") || die "Failed: $!\n";
 		my $unit = <DU>;
 		close DU unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 =END
@@ -2028,7 +1923,7 @@ sub executeCMD {
 
 # ESTO NO VEO QUE SE USE :-m
 		# Calculate dimension and units of hostfs_dir
-#		my $cmd = "du -hs0c " . $dh->get_hostfs_dir($name); 
+#		my $cmd = "du -hs0c " . $dh->get_vm_hostfs_dir($vm_name); 
 #		my $dures = `$cmd`;
 #		my @dures = split (/\t| /,$dures);
 #		my $dimension=$dures[0];	$dimension=~ s/[B|K|M|G]//;
@@ -2037,7 +1932,7 @@ sub executeCMD {
 #		$dimension = $dimension + 20;
 #		my $dimensiondisk = $dimension + 30;
 #
-#		if ($countfiletree > 0){
+#		if ($dst_num > 0){
 #			if (   ( $unit eq "K\n" || $unit eq "B\n" )|| ( ( $unit eq "M\n" ) && ( $dimension <= 32 ) ) ){
 #				$unit          = 'M';
 #				$dimension     = 32;
@@ -2045,9 +1940,9 @@ sub executeCMD {
 #			}
 # Y ESTO AHORA NO HACE FALTA AQUI
 #			$execution->execute("mkdir /tmp/disk.$random_id");
-#			$execution->execute("mkdir  /tmp/disk.$random_id/destination");
-#			$execution->execute( "cp " . $dh->get_hostfs_dir($name) . "/filetree.xml" . " " . "$filetree_host" );
-			#$execution->execute( "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/destination" );
+#			$execution->execute("mkdir  /tmp/disk.$random_id/filetree");
+#			$execution->execute( "cp " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree.xml" . " " . "$filetree_host" );
+			#$execution->execute( "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/filetree" );
 
 # TODAVIA NO HACEMOS EL ISO, PORQUE HABRA QUE METER LOS COMANDOS
 #			$execution->execute("mkisofs -R -nobak -follow-links -max-iso9660-filename -allow-leading-dots " . 
@@ -2081,38 +1976,38 @@ sub executeCMD {
 #			my $format_filetree_windows   = 1;
 #			my $xmlstring_filetree_windows = $disk_filetree_windows_xml->toString($format_filetree_windows );
 #			
-#			$execution->execute("rm -f ". $dh->get_hostfs_dir($name) . "/filetree_libvirt.xml"); 
-#			open XML_FILETREE_WINDOWS_FILE, ">" . $dh->get_hostfs_dir($name) . '/' . 'filetree_libvirt.xml'
-#	 			or $execution->smartdie("can not open " . $dh->get_hostfs_dir . '/' . 'filetree_libvirt.xml' )
+#			$execution->execute("rm -f ". $dh->get_vm_hostfs_dir($vm_name) . "/filetree_libvirt.xml"); 
+#			open XML_FILETREE_WINDOWS_FILE, ">" . $dh->get_vm_hostfs_dir($vm_name) . '/' . 'filetree_libvirt.xml'
+#	 			or $execution->smartdie("can not open " . $dh->get_vm_hostfs_dir . '/' . 'filetree_libvirt.xml' )
 #	  			unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 #			print XML_FILETREE_WINDOWS_FILE "$xmlstring_filetree_windows\n";
 #			close XML_FILETREE_WINDOWS_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 #			
-#			#$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
-#			$execution->execute("virsh -c qemu:///system 'attach-device \"$name\" ". $dh->get_hostfs_dir($name) . "/filetree_libvirt.xml'");
-#			print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket' if ($exemode == $EXE_VERBOSE);
-#			waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
+#			#$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
+#			$execution->execute("virsh -c qemu:///system 'attach-device \"$vm_name\" ". $dh->get_vm_hostfs_dir($vm_name) . "/filetree_libvirt.xml'");
+#			print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($vm_name). '/'.$vm_name.'_socket' if ($exemode == $EXE_VERBOSE);
+#			waitfiletree($dh->get_vm_dir($vm_name) .'/'.$vm_name.'_socket');
 #			sleep(4);
 #			# 3d. Cleaning
 #			$execution->execute("rm /tmp/disk.$random_id.iso");
 #			$execution->execute("rm -r /tmp/disk.$random_id");
-#			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" );
-#			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" );
+#			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$vm_name.$seq.$random_id" );
+#			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree.$random_id" );
 #			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf $filetree_host" );
-#			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id" );
-#			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree.xml" );
-#			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id.end" );
+#			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree_cp.$random_id" );
+#			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree.xml" );
+#			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree_cp.$random_id.end" );
 #		}
 		############ COMMAND_FILE ########################
 		# We open file
 
 # VAMOS A USAR EL COMMAND_FILE DEL FILETREE, YA ABIERTO, AL QUE AÑADIREMOS LOS COMANDOS
-#		open COMMAND_FILE,">" . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" or $execution->smartdie("can not open " . $dh->get_tmp_dir . "/vnx.$name.$seq: $!" )
+#		open COMMAND_FILE,">" . $dh->get_tmp_dir . "/vnx.$vm_name.$seq.$random_id" or $execution->smartdie("can not open " . $dh->get_tmp_dir . "/vnx.$vm_name.$seq: $!" )
 #		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
 		# FIXME: consider to use a different new VNX::Execution object to perform this
 		# actions (avoiding this nasty verb_prompt backup)
-#		$execution->set_verb_prompt("$name> ");
+#		$execution->set_verb_prompt("$vm_name> ");
 #		$cmd = $bd->get_binaries_path_ref->{"date"};
 #		chomp( $now = `$cmd` );
 
@@ -2124,7 +2019,7 @@ sub executeCMD {
 #		$execution->execute( "<command>", *COMMAND_FILE );
 		
 		# Insert random id number for the command file
-#		$fileid = $name . "-" . &generate_random_string(6);
+#		$fileid = $vm_name . "-" . &generate_random_string(6);
 #		$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
 
 		my $countcommand = 0;
@@ -2176,20 +2071,24 @@ sub executeCMD {
 		# We close file and mark it executable
 		close COMMAND_FILE
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		$execution->set_verb_prompt($verb_prompt_bk);
+        $execution->pop_verb_prompt();
 
 # AHORA EL FICHERO ES COMMAND.XML
-#		$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_tmp_dir  . "/vnx.$name.$seq.$random_id" );
-		$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_vm_tmp_dir($name) . "/command.xml");
+#		$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_tmp_dir  . "/vnx.$vm_name.$seq.$random_id" );
+		$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml");
 		############# INSTALL COMMAND FILES #############
 		# Nothing to do in libvirt mode
 		############# EXEC_COMMAND_FILE #################
-		
+				
 		if ( $countcommand != 0 ) {
+
+            # Save a copy of the last command.xml 
+            $execution->execute( "cp " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml " . $dh->get_vm_dir($vm_name) . "/${vm_name}_command.xml" );
+
 			$execution->execute("mkdir /tmp/diskc.$seq.$random_id");
 # REESCRIBIMOS ESTAS LINEAS CON LAS NUEVAS COSAS QUE USAMOS
-#			$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
-            $execution->execute( "cp " . $dh->get_vm_tmp_dir($name) . "/command.xml" . " " . "$filetree_host" );
+#			$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$vm_name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
+            $execution->execute( "cp " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml" . " " . "$filetree_host" );
 #			$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
 			$execution->execute("mkisofs -d -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
 			my $disk_command_windows_xml;
@@ -2220,22 +2119,21 @@ sub executeCMD {
 			my $format_command_windows   = 1;
 			my $xmlstring_command_windows = $disk_command_windows_xml->toString($format_command_windows );
 			
-			$execution->execute("rm ". $dh->get_hostfs_dir($name) . "/command_libvirt.xml"); 
+			$execution->execute("rm ". $dh->get_vm_hostfs_dir($vm_name) . "/command_libvirt.xml"); 
 			
-			open XML_COMMAND_WINDOWS_FILE, ">" . $dh->get_hostfs_dir($name) . '/' . 'command_libvirt.xml'
-	 			 or $execution->smartdie("can not open " . $dh->get_hostfs_dir . '/' . 'command_libvirt.xml' )
+			open XML_COMMAND_WINDOWS_FILE, ">" . $dh->get_vm_hostfs_dir($vm_name) . '/' . 'command_libvirt.xml'
+	 			 or $execution->smartdie("can not open " . $dh->get_vm_hostfs_dir . '/' . 'command_libvirt.xml' )
 	  		unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 			print XML_COMMAND_WINDOWS_FILE "$xmlstring_command_windows\n";
 			close XML_COMMAND_WINDOWS_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-			$execution->execute("virsh -c qemu:///system 'attach-device \"$name\" ". $dh->get_hostfs_dir($name) . "/command_libvirt.xml'");
-			#$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
+			$execution->execute("virsh -c qemu:///system 'attach-device \"$vm_name\" ". $dh->get_vm_hostfs_dir($vm_name) . "/command_libvirt.xml'");
+			#$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 			print "Sending command to client... \n" if ($exemode == $EXE_VERBOSE);
-			
-			
-			waitexecute($dh->get_vm_dir($name).'/'.$name.'_socket');
+						
+			waitexecute($dh->get_vm_dir($vm_name).'/'.$vm_name.'_socket');
 			$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
 			$execution->execute("rm -r /tmp/diskc.$seq.$random_id");
-			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" );
+			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$vm_name.$seq.$random_id" );
 		    sleep(2);
 		}
 
@@ -2243,177 +2141,225 @@ sub executeCMD {
 	###########################################
 	#   executeCMD for LINUX & FREEBSD        #
 	###########################################
-	### NEW VERSION WITH filetree + exec in the same CD
 
-	} elsif (($merged_type eq "libvirt-kvm-linux") || ($merged_type eq "libvirt-kvm-freebsd") ) {
+	} elsif ( ($merged_type eq "libvirt-kvm-linux")   || 
+	          ($merged_type eq "libvirt-kvm-freebsd") || 
+	          ($merged_type eq "libvirt-kvm-olive") )    {
 		
 		# Calculate the efective basedir
-      	my $basedir = $dh->get_default_basedir;
-      	my $basedir_list = $vm->getElementsByTagName("basedir");
-      	if ($basedir_list->getLength == 1) {
-		        $basedir = &text_tag($basedir_list->item(0));
-		}
+      	#my $basedir = $dh->get_default_basedir;
+      	#my $basedir_list = $vm->getElementsByTagName("basedir");
+      	#if ($basedir_list->getLength == 1) {
+		#        $basedir = &text_tag($basedir_list->item(0));
+		#}
+
+        my $sdisk_content;
+        my $sdisk_fname;
+        
+        if ($merged_type ne "libvirt-kvm-olive") {
+            # Create a temporary directory to store command.xml file and filetree files
+	        my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_vm_tmp_dir($vm_name)  . " filetree.XXXXXX";
+	        chomp( $sdisk_content = `$command` );
+	        $sdisk_content =~ /filetree\.(\w+)$/;
+	        # create filetree dir
+	        $execution->execute("mkdir " . $sdisk_content ."/filetree");
+        } else { # Olive
+	        # Mount the shared disk to copy command.xml and filetree files
+	        $sdisk_fname  = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
+	        $sdisk_content = $dh->get_vm_hostfs_dir($vm_name);
+            $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
+	        # Delete the previous content of the shared disk (although it is done at 
+	        # the end of this sub, we do it again here just in case...) 
+	        $execution->execute( "rm -rf $sdisk_content/filetree/*");
+	        $execution->execute( "rm -rf $sdisk_content/*.xml");
+            $execution->execute( "rm -rf $sdisk_content/config/*");
+            # Create filetree and config dirs in  the shared disk
+            $execution->execute( "mkdir -p $sdisk_content/filetree");
+            $execution->execute( "mkdir -p $sdisk_content/config");
+        }
+        
 
 		# We create the command.xml file to be passed to the vm				
 		my $user   = &get_user_in_seq( $vm, $seq );
-		my $mode   = &get_vm_exec_mode($vm);
-		open COMMAND_FILE, ">" . $dh->get_vm_tmp_dir($name) . "/command.xml" 
-		   or $execution->smartdie("can not open " . $dh->get_vm_tmp_dir($name) . "/command.xml $!" ) 
+		my $mode   = $dh->get_vm_exec_mode($vm);
+        #open COMMAND_FILE, ">" . $dh->get_vm_tmp_dir($vm_name) . "/command.xml" 
+        open COMMAND_FILE, "> $sdisk_content/command.xml" 
+		   or $execution->smartdie("cannot open " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml $!" ) 
 		   unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 		   
-		my $verb_prompt_bk = $execution->get_verb_prompt();
-		# FIXME: consider to use a different new VNX::Execution object to perform this
-		# actions (avoiding this nasty verb_prompt backup)
-		$execution->set_verb_prompt("$name> ");
-		my $shell      = $dh->get_default_shell;
-		my $shell_list = $vm->getElementsByTagName("shell");
-		if ( $shell_list->getLength == 1 ) {
-			$shell = &text_tag( $shell_list->item(0) );
-		}
+		$execution->set_verb_prompt("$vm_name> ");
+		
+		#my $shell      = $dh->get_default_shell;
+		#my $shell_list = $vm->getElementsByTagName("shell");
+		#if ( $shell_list->getLength == 1 ) {
+		#	$shell = &text_tag( $shell_list->item(0) );
+		#}
+		
 		$execution->execute( "<command>", *COMMAND_FILE );
 		# Insert random id number for the command file
-		my $fileid = $name . "-" . &generate_random_string(6);
+		my $fileid = $vm_name . "-" . &generate_random_string(6);
 		$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
-		my $countfiletree = 0;
-
-		# create temp dir
-		my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_hostfs_dir($name)  . " filetree.XXXXXX";
-		chomp( my $filetree_host = `$command` );
-		$filetree_host =~ /filetree\.(\w+)$/;
-
-		# create destination dir
-		$execution->execute("mkdir " . $filetree_host ."/destination");
+		my $dst_num = 1;
 		
-
-		my @filetree_list = $dh->merge_filetree($vm);
-		foreach my $filetree (@filetree_list) {
-			# To get momment
-			my $filetree_seq_string = $filetree->getAttribute("seq");
-			
-			# Accept several commands in the same seq tag, separated by spaces
-			my @filetree_seqs = split(' ',$filetree_seq_string);
-			foreach my $filetree_seq (@filetree_seqs) {
+pak "pak1";
 		
-				# To install subtree (only in the right momment)
-				# FIXME: think again the "always issue"; by the moment deactivated
-				if ( $filetree_seq eq $seq ) {
-					$countfiletree++;
-					my $src;
-					my $filetree_value = &text_tag($filetree);
-					$src = &get_abs_path ($filetree_value);
-					$src = &chompslash($src);
-					my $filetree_vm = "/mnt/hostfs/filetree.$random_id";					
-					$execution->execute("mkdir " . $filetree_host ."/destination/".  $countfiletree);
-					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $filetree_host" . "/destination/" . $countfiletree );
-					my %file_perms = &save_dir_permissions($filetree_host);
-					my $dest = $filetree->getAttribute("root");
-					my $filetreetxt = $filetree->toString(1);
-					$execution->execute( "$filetreetxt", *COMMAND_FILE );
-				}
-			}
+		#		
+		# Process of <filetree> tags
+		#
+		
+		# 1 - Plugins <filetree> tags
+		wlog (VVV, "executeCMD: number of plugin ftrees " . scalar(@{$plugin_ftree_list_ref}));
+		
+		foreach my $filetree (@{$plugin_ftree_list_ref}) {
+			# Add the <filetree> tag to the command.xml file
+			my $filetree_txt = $filetree->toString(1);
+			$execution->execute( "$filetree_txt", *COMMAND_FILE );
+	        # Each file created when calling plugin->getExecFiles has been copied to
+	        # $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num" directory. 
+	        # We move those files to the shared disk
+	        my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
+	        $execution->execute( $bd->get_binaries_path_ref->{"mv"} . " -v $files_dir/filetree/$dst_num $sdisk_content/filetree" );
+	        $execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
+			wlog (VVV, "executeCMD: adding plugin filetree \"$filetree_txt\" to command.xml");
+			$dst_num++;			 
 		}
+		
+		# 2 - User defined <filetree> tags
+        wlog (VVV, "executeCMD: number of user defined ftrees " . scalar(@{$ftree_list_ref}));
+        
+        foreach my $filetree (@{$ftree_list_ref}) {
+            # Add the <filetree> tag to the command.xml file
+            my $filetree_txt = $filetree->toString(1);
+            $execution->execute( "$filetree_txt", *COMMAND_FILE );
+            # Each file created when calling plugin->getExecFiles has been copied to
+            # $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num" directory. 
+            # We move those files to the shared disk
+            my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
+            $execution->execute( $bd->get_binaries_path_ref->{"mv"} . " -v $files_dir/filetree/$dst_num $sdisk_content/filetree" );
+            $execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
+            wlog (VVV, "executeCMD: adding user defined filetree \"$filetree_txt\" to command.xml");
+            $dst_num++;            
+        }
+        
+        my $res=`tree $sdisk_content`; 
+        wlog (VVV, "executeCMD: shared disk content:\n $res");
 
-		$execution->set_verb_prompt("$name> ");
-		$command = $bd->get_binaries_path_ref->{"date"};
+		$execution->set_verb_prompt("$vm_name> ");
+		my $command = $bd->get_binaries_path_ref->{"date"};
 		chomp( my $now = `$command` );
 
-		# We process exec tags matching the commands sequence string ($sec)
-		my $command_list = $vm->getElementsByTagName("exec");
-		my $countcommand = 0;
-		for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
-			
-
-			my $command = $command_list->item($j);
-
-			# To get attributes
-			my $cmd_seq_string = $command->getAttribute("seq");
-			my $type = $command->getAttribute("type");
-            my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
-
-			# Accept several commands in the same seq tag, separated by spaces
-			#print "cmd_seq_string=$cmd_seq_string\n";		
-			my @cmd_seqs = split(' ',$cmd_seq_string);
-			foreach my $cmd_seq (@cmd_seqs) {
-			#print "cmd_seq=$cmd_seq\n";
-			
-				if ( $cmd_seq eq $seq ) {
-
-					# Case 1. Verbatim type
-					if ( $type eq "verbatim" ) {
-						# Including command "as is"
-						my $comando = $command->toString(1);
-						$execution->execute( $comando, *COMMAND_FILE );
-						$countcommand = $countcommand + 1;
-							
-						
-					}
-
-					# Case 2. File type
-					elsif ( $type eq "file" ) {
-						# We open the file and write commands line by line
-						my $include_file = &do_path_expansion( &text_tag($command) );
-						open INCLUDE_FILE, "$include_file" or $execution->smartdie("can not open $include_file: $!");
-						while (<INCLUDE_FILE>) {
-							chomp;
-							$execution->execute(
-								#"<exec seq=\"file\" type=\"file\">" 
-								  #. $_
-								  #. "</exec>",
-								  $_,
-								*COMMAND_FILE
-							);
-							$countcommand = $countcommand + 1;
-						}
-						close INCLUDE_FILE;
-					}
-			 # Other case. Don't do anything (it would be and error in the XML!)
-				}
-			}
+		#		
+		# Process of <exec> tags
+		#
+		
+		# 1 - Plugins <exec> tags
+		wlog (VVV, "executeCMD: number of plugin <exec> = " . scalar(@{$plugin_ftree_list_ref}));
+		
+		foreach my $cmd (@{$plugin_exec_list_ref}) {
+			# Add the <exec> tag to the command.xml file
+			my $cmd_txt = $cmd->toString(1);
+			$execution->execute( "$cmd_txt", *COMMAND_FILE );
+			wlog (VVV, "executeCMD: adding plugin exec \"$cmd_txt\" to command.xml");
 		}
-		$execution->execute( "</command>", *COMMAND_FILE );
 
+		# 2 - User defined <exec> tags
+        wlog (VVV, "executeCMD: number of user-defined <exec> = " . scalar(@{$ftree_list_ref}));
+        
+        foreach my $cmd (@{$exec_list_ref}) {
+            # Add the <exec> tag to the command.xml file
+            my $cmd_txt = $cmd->toString(1);
+            $execution->execute( "$cmd_txt", *COMMAND_FILE );
+            wlog (VVV, "executeCMD: adding user defined exec \"$cmd_txt\" to command.xml");
+
+            # Process particular cases
+            # 1 - Olive load config command
+            if ($merged_type eq "libvirt-kvm-olive")  {
+                my $ostype = $cmd->getAttribute("ostype");
+                if ( $ostype eq "load" ) {
+                    # We have to copy the configuration file to the shared disk
+                    my @aux = split(' ', &text_tag($cmd));
+                    wlog (VVV, "config file = $aux[1]");
+                    # TODO: relative pathname
+                    my $src = &get_abs_path ($aux[1]);
+                    $src = &chompslash($src);
+                    $execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $src $sdisk_content/config");                                                  
+                 }              
+            }
+        }
 
 
 		# We close file and mark it executable
+        $execution->execute( "</command>", *COMMAND_FILE );
 		close COMMAND_FILE
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		$execution->set_verb_prompt($verb_prompt_bk);
-        	#$execution->execute( "cat " . $dh->get_vm_tmp_dir($name) . "/command.xml" ); 
-
-
-#		if ($countfiletree > 0){
-#---------------EJECUCION DEL CD DE FILETREE
-			$execution->execute("mkdir /tmp/disk.$random_id");
-			$execution->execute("mkdir  /tmp/disk.$random_id/destination");
-			$execution->execute( "cp " . $dh->get_vm_tmp_dir($name) . "/command.xml" . " " . "$filetree_host" );
-			#$execution->execute( "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/destination" );
-			$execution->execute("mkisofs -d -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
-			$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/disk.$random_id.iso hdb --mode readonly --type cdrom'");
-			print "Sending command to client, through socket: \n" . $dh->get_vm_dir($name). '/'.$name.'_socket'."... " if ($exemode == $EXE_VERBOSE);
-			waitfiletree($dh->get_vm_dir($name) .'/'.$name.'_socket');
-			# mount empty iso, while waiting for new command	
-			$execution->execute("touch /tmp/empty.iso");
-			$execution->execute("virsh -c qemu:///system 'attach-disk \"$name\" /tmp/empty.iso hdb --mode readonly --type cdrom'");
-			sleep 1;
-		   	# 3d. Cleaning
-			$execution->execute("rm /tmp/empty.iso");
-			$execution->execute("rm /tmp/disk.$random_id.iso");
-			$execution->execute("rm -r /tmp/disk.$random_id");
-			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$name.$seq.$random_id" );
-			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_hostfs_dir($name) . "/filetree.$random_id" );
-			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf $filetree_host" );
-			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id" );
-			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree.xml" );
-			$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_hostfs_dir($name) . "/filetree_cp.$random_id.end" );
-#---------------FIN EJECUCION DEL CD DE FILETREE
-#		}
+		$execution->pop_verb_prompt();
 		
+pak "pak2";
+
+		# Print command.xml file content to log if VVV
+		open FILE, "< $sdisk_content/command.xml";
+		my $cmd_file = do { local $/; <FILE> };
+		close FILE;
+		wlog (VVV, "command.xml file passed to vm $vm_name: \n$cmd_file");
+        # Save a copy of the last command.xml vm main dir 
+        $execution->execute( "cp " . "$sdisk_content/command.xml " . $dh->get_vm_dir($vm_name) . "/${vm_name}_command.xml" );
+
+pak "pak3";
+
+        if ($merged_type ne "libvirt-kvm-olive") {
+
+	        # Create the shared cdrom and offer it to the VM 
+	        my $iso_disk = $dh->get_vm_tmp_dir($vm_name) . "/disk.$random_id.iso";
+	        my $empty_iso_disk = $dh->get_vm_tmp_dir($vm_name) . "/empty.iso";
+			$execution->execute("mkisofs -d -nobak -follow-links -max-iso9660-filename -allow-leading-dots " . 
+			                    "-pad -quiet -allow-lowercase -allow-multidot " . 
+			                    "-o $iso_disk $sdisk_content");
+			$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" $iso_disk hdb --mode readonly --type cdrom'");
+			wlog (V,"Sending command to client, through socket: \n" . $dh->get_vm_dir($vm_name). '/'.$vm_name.'_socket'."... ");
+	
+	        # Wait for confirmation from the vm		
+			waitfiletree($dh->get_vm_dir($vm_name) .'/'.$vm_name.'_socket');
+			# mount empty iso, while waiting for new command	
+			$execution->execute("touch $empty_iso_disk");
+			$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" $empty_iso_disk hdb --mode readonly --type cdrom'");
+			sleep 1;
+pak "pak4";
+	
+		   	# Cleaning
+	        $execution->execute("rm $iso_disk $empty_iso_disk");
+	        $execution->execute("rm -rf $sdisk_content");
+	        $execution->execute("rm -rf " . $dh->get_vm_tmp_dir($vm_name) . "/$seq");
+
+	    } else { # Olive 
+            $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
+	        # Send the exeCommand order to the virtual machine using the socket
+	        my $socket_fh = $dh->get_vm_dir($vm_name). '/' . $vm_name . '_socket';
+	        my $vmsocket = IO::Socket::UNIX->new(
+	           Type => SOCK_STREAM,
+	           Peer => $socket_fh,
+	        ) or die("Can't connect to server: $!\n");
+	        print $vmsocket "exeCommand\n";     
+	        readSocketResponse ($vmsocket);
+pak "pak4";
+            # Cleaning
+            $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
+            $execution->execute( "rm -rf $sdisk_content/filetree/*");
+            $execution->execute( "rm -rf $sdisk_content/*.xml");
+            $execution->execute( "rm -rf $sdisk_content/config/*");
+            $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
+	    }
+
+pak "pak5";
+	
 		
 	###########################################
 	#   executeCMD for OLIVE                  #
 	###########################################
 
-	} elsif ( ($merged_type eq "libvirt-kvm-olive") ) {
+	} 
+=BEGIN Old code...delete	
+	
+	elsif ( ($merged_type eq "libvirt-kvm-oliveNO") ) {
 		          	          	
       	# Calculate the efective basedir
       	my $basedir = $dh->get_default_basedir;
@@ -2423,37 +2369,43 @@ sub executeCMD {
 		}
 
 		# We create the command.xml file to be passed to the vm		
-		my @filetree_list = $dh->merge_filetree($vm);
 		my $user   = &get_user_in_seq( $vm, $seq );
-		my $mode   = &get_vm_exec_mode($vm);
-		open COMMAND_FILE, ">" . $dh->get_vm_tmp_dir($name) . "/command.xml" 
-		   or $execution->smartdie("can not open " . $dh->get_vm_tmp_dir($name) . "/command.xml $!" ) 
+		my $mode   = $dh->get_vm_exec_mode($vm);
+		open COMMAND_FILE, ">" . $dh->get_vm_tmp_dir($vm_name) . "/command.xml" 
+		   or $execution->smartdie("can not open " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml $!" ) 
 		   unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		my $verb_prompt_bk = $execution->get_verb_prompt();
-		# FIXME: consider to use a different new VNX::Execution object to perform this
-		# actions (avoiding this nasty verb_prompt backup)
-		$execution->set_verb_prompt("$name> ");
-		my $shell      = $dh->get_default_shell;
-		my $shell_list = $vm->getElementsByTagName("shell");
-		if ( $shell_list->getLength == 1 ) {
-			$shell = &text_tag( $shell_list->item(0) );
-		}
+		   
+		$execution->set_verb_prompt("$vm_name> ");
+		
+		#my $shell      = $dh->get_default_shell;
+		#my $shell_list = $vm->getElementsByTagName("shell");
+		#if ( $shell_list->getLength == 1 ) {
+		#	$shell = &text_tag( $shell_list->item(0) );
+		#}
+		
 		$execution->execute( "<command>", *COMMAND_FILE );
 		# Insert random id number for the command file
-		my $fileid = $name . "-" . &generate_random_string(6);
+		my $fileid = $vm_name . "-" . &generate_random_string(6);
 		$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
-		my $countfiletree = 0;
+		my $dst_num = 0;
+		
+		#######################
+		
+		my @filetree_list = $dh->merge_filetree($vm);
+		
 
 		# Mount the shared disk to copy filetree files
-		my $sdisk_fname = $dh->get_fs_dir($name) . "/sdisk.img";
-		my $vmmnt_dir = $dh->get_mnt_dir($name);
+		my $sdisk_fname = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
+		my $vmmnt_dir = $dh->get_vm_mnt_dir($vm_name);
 		$execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $vmmnt_dir );
 		# Delete the previous content of the shared disk
-		$execution->execute( "rm -rf $vmmnt_dir/destination/*");
+		$execution->execute( "rm -rf $vmmnt_dir/filetree/*");
 		$execution->execute( "rm -rf $vmmnt_dir/command.xml");
 		$execution->execute( "rm -rf $vmmnt_dir/vnxboot.xml");
+		$execution->execute("mkdir -p $vmmnt_dir/filetree");
+		
 
-		$execution->execute("mkdir -p $vmmnt_dir/destination");
+
 		foreach my $filetree (@filetree_list) {
 			# To get momment
 			my $filetree_seq_string = $filetree->getAttribute("seq");
@@ -2466,13 +2418,13 @@ sub executeCMD {
 				# To install subtree (only in the right momment)
 				# FIXME: think again the "always issue"; by the moment deactivated
 				if ( $filetree_seq eq $seq ) {
-					$countfiletree++;
+					$dst_num++;
 					my $src;
 					my $filetree_value = &text_tag($filetree);
 					$src = &get_abs_path ($filetree_value);
 					$src = &chompslash($src);
-					$execution->execute("mkdir $vmmnt_dir/destination/".  $countfiletree);
-					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $vmmnt_dir/destination/" . $countfiletree );
+					$execution->execute("mkdir $vmmnt_dir/filetree/".  $dst_num);
+					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $vmmnt_dir/filetree/" . $dst_num );
 					my %file_perms = &save_dir_permissions($vmmnt_dir);
 					my $dest = $filetree->getAttribute("root");
 					my $filetreetxt = $filetree->toString(1);
@@ -2480,10 +2432,10 @@ sub executeCMD {
 				}
 			}
 		}
-		$execution->set_verb_prompt("$name> ");
+		$execution->set_verb_prompt("$vm_name> ");
 		my $command = $bd->get_binaries_path_ref->{"date"};
 		chomp( my $now = `$command` );
-
+ 
 		# We process exec tags matching the commands sequence string ($sec)
 		my $command_list = $vm->getElementsByTagName("exec");
 		my $countcommand = 0;
@@ -2493,7 +2445,6 @@ sub executeCMD {
 			# To get attributes
 			my $cmd_seq_string = $command->getAttribute("seq");
 			my $type    = $command->getAttribute("type");
-            my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
 
 			# JSF 01/12/10: we accept several commands in the same seq tag,
 			# separated by spaces
@@ -2513,7 +2464,7 @@ sub executeCMD {
 						if ( $ostype eq "load" ) {
 							# We have to copy the configuration file to the shared disk
 							my @aux = split(' ', &text_tag($command));
-							print "*** config file = $aux[1]\n" if ($exemode == $EXE_VERBOSE);
+							print "config file = $aux[1]\n" if ($exemode == $EXE_VERBOSE);
 							# TODO: relative pathname
 							my $src = &get_abs_path ($aux[1]);
 							$src = &chompslash($src);
@@ -2548,16 +2499,19 @@ sub executeCMD {
 		# We close file and mark it executable
 		close COMMAND_FILE
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		$execution->set_verb_prompt($verb_prompt_bk);
-        #$execution->execute( "cat " . $dh->get_vm_tmp_dir($name) . "/command.xml" ); 
+		$execution->pop_verb_prompt();
+
 
 		# Copy command.xml file to shared disk
-		$execution->execute( "cp " . $dh->get_vm_tmp_dir($name) . "/command.xml $vmmnt_dir" );
+		$execution->execute( "cp " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml $vmmnt_dir" );
 		# Dismount shared disk
-		$execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $dh->get_mnt_dir($name) );
+		$execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $dh->get_vm_mnt_dir($vm_name) );
+
+        # Save a copy of the last command.xml 
+        $execution->execute( "cp " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml " . $dh->get_vm_dir($vm_name) . "/${vm_name}_command.xml" );
 
  		# Send the exeCommand order to the virtual machine using the socket
-		my $socket_fh = $dh->get_vm_dir($name). '/' . $name . '_socket';
+		my $socket_fh = $dh->get_vm_dir($vm_name). '/' . $vm_name . '_socket';
 		my $vmsocket = IO::Socket::UNIX->new(
 		   Type => SOCK_STREAM,
 		   Peer => $socket_fh,
@@ -2565,56 +2519,57 @@ sub executeCMD {
 		print $vmsocket "exeCommand\n";		
 		readSocketResponse ($vmsocket);
 
-		################## EXEC_COMMAND_HOST ########################3
+    }
+=END
+=cut
+		
+    ################## EXEC_COMMAND_HOST ########################3
 
-		my $doc = $dh->get_doc;
-	
-		# If host <host> is not present, there is nothing to do
-		return if ( $doc->getElementsByTagName("host")->getLength eq 0 );
-	
-		# To get <host> tag
-		my $host = $doc->getElementsByTagName("host")->item(0);
-	
-		# To process exec tags of matching commands sequence
-		my $command_list_host = $host->getElementsByTagName("exec");
-	
-		# To process list, dumping commands to file
-		for ( my $j = 0 ; $j < $command_list_host->getLength ; $j++ ) {
-			my $command = $command_list_host->item($j);
-	
-			# To get attributes
-			my $cmd_seq = $command->getAttribute("seq");
-			my $type    = $command->getAttribute("type");
-	
-			if ( $cmd_seq eq $seq ) {
-	
-				# Case 1. Verbatim type
-				if ( $type eq "verbatim" ) {
-	
-					# To include the command "as is"
-					$execution->execute( &text_tag_multiline($command) );
-				}
-	
-				# Case 2. File type
-				elsif ( $type eq "file" ) {
-	
-					# We open file and write commands line by line
-					my $include_file = &do_path_expansion( &text_tag($command) );
-					open INCLUDE_FILE, "$include_file"
-					  or $execution->smartdie("can not open $include_file: $!");
-					while (<INCLUDE_FILE>) {
-						chomp;
-						$execution->execute($_);
-					}
-					close INCLUDE_FILE;
-				}
-	
-				# Other case. Don't do anything (it would be an error in the XML!)
-			}
-		}
-	}
-		
-		
+    my $doc = $dh->get_doc;
+    
+    # If host <host> is not present, there is nothing to do
+    return if ( $doc->getElementsByTagName("host")->getLength eq 0 );
+    
+    # To get <host> tag
+    my $host = $doc->getElementsByTagName("host")->item(0);
+    
+    # To process exec tags of matching commands sequence
+    my $command_list_host = $host->getElementsByTagName("exec");
+    
+    # To process list, dumping commands to file
+    for ( my $j = 0 ; $j < $command_list_host->getLength ; $j++ ) {
+        my $command = $command_list_host->item($j);
+    
+        # To get attributes
+        my $cmd_seq = $command->getAttribute("seq");
+        my $type    = $command->getAttribute("type");
+    
+        if ( $cmd_seq eq $seq ) {
+    
+            # Case 1. Verbatim type
+            if ( $type eq "verbatim" ) {
+    
+                # To include the command "as is"
+                $execution->execute( &text_tag_multiline($command) );
+            }
+    
+            # Case 2. File type
+            elsif ( $type eq "file" ) {
+    
+                # We open file and write commands line by line
+                my $include_file = &do_path_expansion( &text_tag($command) );
+                open INCLUDE_FILE, "$include_file"
+                    or $execution->smartdie("can not open $include_file: $!");
+                while (<INCLUDE_FILE>) {
+                    chomp;
+                    $execution->execute($_);
+                }
+                close INCLUDE_FILE;
+            }
+    
+            # Other case. Don't do anything (it would be an error in the XML!)
+        }
+    }
 }
 
 sub readSocketResponse 
@@ -2652,211 +2607,7 @@ sub change_vm_status {
 	}
 }
 
-
-
-
-=BEGIN DFC 5/5/2011 moved to vmAPICommon to have it accesible from vnx and all vmAPIs
-###################################################################
-# get_admin_address
-#
-# Returns a four elements list:
-#
-# - network address
-# - network mask
-# - IPv4 address of one peer
-# - IPv4 address of the other peer
-#
-# This functions takes a single argument, an integer which acts as counter
-# for UML'. It uses NetAddr::IP objects to calculate addresses for TWO hosts,
-# whose addresses and mask returns.
-#
-# Private addresses of 192.168. prefix are used. For now, this is
-# hardcoded in this function. It could, and should, i think, become
-# part of the VNUML dtd.
-#
-# In VIRTUAL SWITCH MODE (net_sw) this function ...
-# which returns UML ip undefined. Or, if one needs UML ip, function 
-# takes two arguments: $vm object and interface id. Interface id zero 
-# is reserved for management interface, and is default is none is supplied
-sub get_admin_address_OLD {
-
-   my $seed = shift;
-   my $vmmgmt_type = shift;
-   my $vmmgmt_net = shift;
-   my $vmmgmt_mask = shift;
-   my $vmmgmt_offset = shift;
-   my $vmmgmt_hostip = shift;
-   my $hostnum = shift;
-   my $ip;
-
-   my $net = NetAddr::IP->new($vmmgmt_net."/".$vmmgmt_mask);
-   if ($vmmgmt_type eq 'private') {
-	   # check to make sure that the address space won't wrap
-	   if ($vmmgmt_offset + ($seed << 2) > (1 << (32 - $vmmgmt_mask)) - 3) {
-		   $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-	   }
-
-	   # create a private subnet from the seed
-	   $net += $vmmgmt_offset + ($seed << 2);
-	   $ip = NetAddr::IP->new($net->addr()."/30") + $hostnum;
-   } else {
-	   # vmmgmt type is 'net'
-
-	   # don't assign the hostip
-	   my $hostip = NetAddr::IP->new($vmmgmt_hostip."/".$vmmgmt_mask);
-	   if ($hostip > $net + $vmmgmt_offset &&
-		   $hostip <= $net + $vmmgmt_offset + $seed + 1) {
-		   $seed++;
-	   }
-
-	   # check to make sure that the address space won't wrap
-	   if ($vmmgmt_offset + $seed > (1 << (32 - $vmmgmt_mask)) - 3) {
-		   $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-	   }
-
-	   # return an address in the vmmgmt subnet
-	   $ip = $net + $vmmgmt_offset + $seed + 1;
-   }
-   return $ip;
-}
-
-sub get_admin_address_OLD2 {
-
-   my $seed = shift;
-   my $vmmgmt_type = shift;
-   my $vmmgmt_net = shift;
-   my $vmmgmt_mask = shift;
-   my $vmmgmt_offset = shift;
-   my $vmmgmt_hostip = shift;
-   my $hostnum = shift;
-   my $ip;
-   my $vmName = shift;
-
-   my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
-   if ($vmmgmt_type eq 'private') {
-      if ($seed eq "file"){
-         #read management ip value from file
-         my $addr = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'addr');
-         my $mask = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'mask');
-         $ip = NetAddr::IP->new($addr.$mask);
-      }else{
-         # check to make sure that the address space won't wrap
-         if ($vmmgmt_offset + ($seed << 2) > (1 << (32 - $vmmgmt_mask)) - 3) {
-            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-         }
-         # create a private subnet from the seed
-         $net += $vmmgmt_offset + ($seed << 2);
-         $ip = NetAddr::IP->new($net->addr()."/30") + $hostnum;
-
-         # create mng_ip file in vm dir, unless processing the host
-         unless ($hostnum eq 1){
-         	my $addr_line = "addr=" . $ip->addr();
-            my $mask_line = "mask=" . $ip->mask();
-            my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
-         }
-      }     
-   } else {
-	  # vmmgmt type is 'net'
-      if ($seed eq "file"){
-         #read management ip value from file
-         $ip= &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'management_ip');
-      }else{
-         # don't assign the hostip
-         my $hostip = NetAddr::IP->new($vmmgmt_hostip."/".$vmmgmt_mask);
-         if ($hostip > $net + $vmmgmt_offset &&
-            $hostip <= $net + $vmmgmt_offset + $seed + 1) {
-         $seed++;
-         }
-
-         # check to make sure that the address space won't wrap
-         if ($vmmgmt_offset + $seed > (1 << (32 - $vmmgmt_mask)) - 3) {
-            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-         }
-
-         # return an address in the vmmgmt subnet
-         $ip = $net + $vmmgmt_offset + $seed + 1;
-         
-         # create mng_ip file in run dir
-         my $addr_line = "addr=" . $ip->addr();
-         my $mask_line = "addr=" . $ip->mask();
-         my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
-         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
-         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
-      }
-   }
-   return $ip;
-}
-
-sub get_admin_address {
-
-   my $seed = shift;
-   my $vmmgmt_type = shift;
-   my $hostnum = shift;
-   my $vmName = shift;
-   my $ip;
-   
-   my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
-   if ($vmmgmt_type eq 'private') {
-      if ($seed eq "file"){
-         #read management ip value from file
-         my $addr = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'addr');
-         my $mask = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'mask');
-         $ip = NetAddr::IP->new($addr.$mask);
-      }else{
-         # check to make sure that the address space won't wrap
-         if ($dh->get_vmmgmt_offset + ($seed << 2) > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
-            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-         }
-         # create a private subnet from the seed
-         $net += $dh->get_vmmgmt_offset + ($seed << 2);
-         $ip = NetAddr::IP->new($net->addr()."/30") + $hostnum;
-
-         # create mng_ip file in vm dir, unless processing the host
-         unless ($hostnum eq 1){
-         	my $addr_line = "addr=" . $ip->addr();
-            my $mask_line = "mask=" . $ip->mask();
-            my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
-         }
-      }     
-   } else {
-	  # vmmgmt type is 'net'
-      if ($seed eq "file"){
-         #read management ip value from file
-         $ip= &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'management_ip');
-      }else{
-         # don't assign the hostip
-         my $hostip = NetAddr::IP->new($dh->get_vmmgmt_hostip."/".$dh->get_vmmgmt_mask);
-         if ($hostip > $net + $dh->get_vmmgmt_offset &&
-            $hostip <= $net + $dh->get_vmmgmt_offset + $seed + 1) {
-         $seed++;
-         }
-
-         # check to make sure that the address space won't wrap
-         if ($dh->get_vmmgmt_offset + $seed > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
-            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-         }
-
-         # return an address in the vmmgmt subnet
-         $ip = $net + $dh->get_vmmgmt_offset + $seed + 1;
-         
-         # create mng_ip file in run dir
-         my $addr_line = "addr=" . $ip->addr();
-         my $mask_line = "addr=" . $ip->mask();
-         my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
-         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
-         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
-      }
-   }
-
-   return $ip;
-}
-=END
-=cut
-
+=BEGIN
 ###################################################################
 #
 sub UML_plugins_conf {
@@ -2894,11 +2645,11 @@ sub UML_plugins_conf {
 
 	my $at_least_one_file = "0";
 	foreach my $plugin (@plugins) {
-		my %files = $plugin->bootingCreateFiles($name);
+		my %files = $plugin->getBootFiles($name);
 
 		if ( defined( $files{"ERROR"} ) && $files{"ERROR"} ne "" ) {
 			$execution->smartdie(
-				"plugin $plugin bootingCreateFiles($name) error: "
+				"plugin $plugin getBootFiles($name) error: "
 				  . $files{"ERROR"} );
 		}
 
@@ -2920,12 +2671,12 @@ sub UML_plugins_conf {
 
 		}
 
-		my @commands = $plugin->bootingCommands($name);
+		my @commands = $plugin->getBootCommands($name);
 
 		my $error = shift(@commands);
 		if ( $error ne "" ) {
 			$execution->smartdie(
-				"plugin $plugin bootingCommands($name) error: $error");
+				"plugin $plugin getBootCommands($name) error: $error");
 		}
 
 		foreach my $cmd (@commands) {
@@ -2952,7 +2703,8 @@ sub UML_plugins_conf {
 		  . "plugins_conf.sh" );
 
 }
-
+=END
+=cut
 
 
 ###################################################################
@@ -3138,32 +2890,6 @@ sub get_user_in_seq {
 
 
 ###################################################################
-# get_vm_exec_mode
-#
-# Arguments:
-# - a virtual machine node
-#
-# Returns the corresponding mode for the command executions in the virtual
-# machine issued as argument. If no exec_mode is found (note that exec_mode attribute in
-# <vm> is optional), the default is retrieved from the DataHandler object
-#
-sub get_vm_exec_mode {
-
-	my $vm = shift;
-
-	if ( $vm->getAttribute("mode") ne "" ) {
-		return $vm->getAttribute("mode");
-	}
-	else {
-		return $dh->get_default_exec_mode;
-	}
-
-}
-
-
-
-
-###################################################################
 # save_dir_permissions
 #
 # Argument:
@@ -3249,7 +2975,7 @@ sub filetree_wait {
 sub get_simple_conf {
 
 	my $extConfFile = shift;
-	my $vmName      = shift;
+	my $vm_name      = shift;
 	my $tagName     = shift;
 	
 	my $global_tag = 1;
@@ -3271,12 +2997,12 @@ sub get_simple_conf {
 	my $globalNode   = $dom->getElementsByTagName("vnx_olive")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 			
-	# First, we look for a definition in the $vmName <vm> section 
+	# First, we look for a definition in the $vm_name <vm> section 
 	for ( my $j = 0 ; $j < $virtualmList->getLength ; $j++ ) {
 	 	# We get name attribute
 	 	my $virtualm = $virtualmList->item($j);
 		my $name = $virtualm->getAttribute("name");
-		if ( $name eq $vmName ) {
+		if ( $name eq $vm_name ) {
 			my $tag_list = $virtualm->getElementsByTagName("$tagName");
 			if ($tag_list->getLength gt 0){
 				my $tag = $tag_list->item(0);
@@ -3297,7 +3023,7 @@ sub get_simple_conf {
 			if ($tag_gl_list->getLength gt 0){
 				my $tag_gl = $tag_gl_list->item(0);
 				$result = &text_tag($tag_gl);
-                print "*** vmName = $vmName, global entry found ($result)\n";
+                print "*** vmName = $vm_name, global entry found ($result)\n";
 			}
 		}	
 	}

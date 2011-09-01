@@ -105,11 +105,12 @@ sub init {
 sub defineVM {
 	
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
-	my $doc    = shift;
-	my $sock    = shift;
-	my $counter = shift;
+	my $vm_doc    = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+	
     my $extConfFile;
 	my $newRouterConfFile;
 	my $ifTagList;
@@ -122,11 +123,10 @@ sub defineVM {
 		#$extConfFile = &validate_xml ($extConfFile); # Moved to vnx.pl	
 	}
 	
-	my $doc2       = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
 
 	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parse($doc);
+	my $dom          = $parser->parse($vm_doc);
 	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 	my $virtualm     = $virtualmList->item(0);
@@ -138,11 +138,11 @@ sub defineVM {
 	
 	# Get the configuration file name of the router (if defined) 
 	# form the extended config file
-	my $routerConfFile = get_router_conf_file($extConfFile, $vmName);
+	my $routerConfFile = get_router_conf_file($extConfFile, $vm_name);
 	#print "**** conf_dynamips=$routerConfFile\n";
 
 	# $newRouterConfFile is the file where we will store the configuration of the new router	
-	$newRouterConfFile = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
+	$newRouterConfFile = $dh->get_vm_dir($vm_name) . "/" . $vm_name . ".conf";
 	
 	if ($routerConfFile ne 0) {
 		# A router config file has been defined, we check if exists 
@@ -159,7 +159,7 @@ sub defineVM {
 		# No configuration file defined for the router 
 	}
 	
-	my @routerConf = &create_router_conf ($vmName, $extConfFile);
+	my @routerConf = &create_router_conf ($vm_name, $extConfFile);
 	open (CONF, ">> $newRouterConfFile") or $execution->smartdie("ERROR: Cannot open $newRouterConfFile");
 	print CONF @routerConf;
 	close (CONF);
@@ -196,15 +196,15 @@ sub defineVM {
     print("hypervisor version\n") if ($exemode == $EXE_VERBOSE);
     $t->print("hypervisor version");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    print("hypervisor working_dir \"". $dh->get_fs_dir($vmName)."\" \n") if ($exemode == $EXE_VERBOSE);
-    $t->print("hypervisor working_dir \"". $dh->get_fs_dir($vmName). "\" ");
+    print("hypervisor working_dir \"". $dh->get_vm_fs_dir($vm_name)."\" \n") if ($exemode == $EXE_VERBOSE);
+    $t->print("hypervisor working_dir \"". $dh->get_vm_fs_dir($vm_name). "\" ");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 	
 	
 	# Set type
 	my($trash,$model)=split(/-/,$type,2);
-    print("vm create $vmName 0 c$model\n");
-	$t->print("vm create $vmName 0 c$model");
+    print("vm create $vm_name 0 c$model\n");
+	$t->print("vm create $vm_name 0 c$model");
 	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 	
   	#
@@ -220,7 +220,7 @@ sub defineVM {
     my $consType;
     my %consPortDefInXML = (1,'',2,'');     # % means that consPortDefInXML is a perl associative array 
     my %consDisplayDefInXML = (1,$CONS_DISPLAY_DEFAULT,2,$CONS_DISPLAY_DEFAULT); 
-    #print "** $vmName: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
+    #print "** $vm_name: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
 	for ( my $j = 0 ; $j < $numcons ; $j++ ) {
 		my $consTag = $consTagList->item($j);
    		my $value = &text_tag($consTag);
@@ -230,16 +230,16 @@ sub defineVM {
    		#print "** console: id=$id, display=$display port=$port value=$value\n" if ($exemode == $EXE_VERBOSE);
 		if ( ($id eq "1") || ($id eq "2") ) {
 			if ( $value ne "" && $value ne "telnet" ) { 
-				print "WARNING (vm=$vmName): only 'telnet' value is allowed for Dynamips consoles. Value ignored.\n"
+				print "WARNING (vm=$vm_name): only 'telnet' value is allowed for Dynamips consoles. Value ignored.\n"
 			}
 			$consPortDefInXML{$id} = $port;
 			if ($display ne '') { $consDisplayDefInXML{$id} = $display }
 		}
 		if ( ( $id eq "0" ) || ($id > 1) ) {
-			print "WARNING (vm=$vmName): only consoles with id='1' or '2' allowed for Dynamips virtual machines. Tag with id=$id ignored.\n"
+			print "WARNING (vm=$vm_name): only consoles with id='1' or '2' allowed for Dynamips virtual machines. Tag with id=$id ignored.\n"
 		} 
 	}
-	#print "** $vmName: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
+	#print "** $vm_name: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
 
     # Define ports for main console (all) and aux console (only for 7200)
 	my @consolePort = qw();
@@ -257,59 +257,59 @@ sub defineVM {
 				$consolePort[$j]++;
 			}
 		}
-		print "WARNING (vm=$vmName): cannot use port $consPortDefInXML{1} for console #1; using $consolePort[$j] instead\n"
+		print "WARNING (vm=$vm_name): cannot use port $consPortDefInXML{1} for console #1; using $consolePort[$j] instead\n"
 	   		if ( ($consPortDefInXML{$j} ne "") && ($consolePort[$j] ne $consPortDefInXML{$j}) );
     }
 	
-	#my $consoleport = &get_port_conf($vmName,$counter);
-	my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
+	#my $consoleport = &get_port_conf($vm_name,$counter);
+	my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
 	
-	open (PORT_CISCO, ">$consFile") || $execution->smartdie("ERROR (vm=$vmName): cannot open $consFile");
+	open (PORT_CISCO, ">$consFile") || $execution->smartdie("ERROR (vm=$vm_name): cannot open $consFile");
 	print PORT_CISCO "con1=$consDisplayDefInXML{1},telnet,$consolePort[1]\n";
-	print("vm set_con_tcp_port $vmName $consolePort[1]\n");
-	$t->print("vm set_con_tcp_port $vmName $consolePort[1]");
+	print("vm set_con_tcp_port $vm_name $consolePort[1]\n");
+	$t->print("vm set_con_tcp_port $vm_name $consolePort[1]");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     if ($type eq 'dynamips-7200') {
     	# Configure aux port
 		print PORT_CISCO "con2=$consDisplayDefInXML{2},telnet,$consolePort[2]\n";
-		print("vm set_con_tcp_port $vmName $consolePort[2]\n");
-		$t->print("vm set_con_tcp_port $vmName $consolePort[2]");
+		print("vm set_con_tcp_port $vm_name $consolePort[2]\n");
+		$t->print("vm set_con_tcp_port $vm_name $consolePort[2]");
 	    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     }
 	close (PORT_CISCO);
     
     # Set Chassis
-    my $chassis = &get_simple_conf($extConfFile, $vmName, 'chassis');
+    my $chassis = &get_simple_conf($extConfFile, $vm_name, 'chassis');
     $chassis =~ s/c//;
-    print("c$model set_chassis $vmName $chassis\n");
-    $t->print("c$model set_chassis $vmName $chassis");
+    print("c$model set_chassis $vm_name $chassis\n");
+    $t->print("c$model set_chassis $vm_name $chassis");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 
     # Set NPE if 7200
     if ($model eq '7200') {
-	    my $npe = &get_simple_conf($extConfFile, $vmName, 'npe');
-	    print("c$model set_npe $vmName npe-$npe\n");
-	    $t->print("c$model set_npe $vmName npe-$npe");
+	    my $npe = &get_simple_conf($extConfFile, $vm_name, 'npe');
+	    print("c$model set_npe $vm_name npe-$npe\n");
+	    $t->print("c$model set_npe $vm_name npe-$npe");
 	    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);   	
     } 
     
 	# Set Filesystem
-    print("vm set_ios $vmName $filesystem\n");
-    $t->print("vm set_ios $vmName $filesystem");
+    print("vm set_ios $vm_name $filesystem\n");
+    $t->print("vm set_ios $vm_name $filesystem");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     
     # Set Mem
-    print("vm set_ram $vmName $mem\n");
-    $t->print("vm set_ram $vmName $mem");
+    print("vm set_ram $vm_name $mem\n");
+    $t->print("vm set_ram $vm_name $mem");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    if (&get_simple_conf($extConfFile, $vmName, 'sparsemem') eq "true"){
-		print("vm set_sparse_mem $vmName 1\n");
-		$t->print("vm set_sparse_mem $vmName 1");
+    if (&get_simple_conf($extConfFile, $vm_name, 'sparsemem') eq "true"){
+		print("vm set_sparse_mem $vm_name 1\n");
+		$t->print("vm set_sparse_mem $vm_name 1");
    		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     }
     
     # Set IDLEPC
-    #my $idlepc = get_idle_pc_conf($vmName);
+    #my $idlepc = get_idle_pc_conf($vm_name);
     my $imgName = basename ($filesystem);
     # Look for a specific idle_pc value for this image
     my $idlepc = &get_conf_value ($vnxConfigFile, 'dynamips', "idle_pc-$imgName");
@@ -323,32 +323,32 @@ sub defineVM {
     }
     #print "*** idlepc = $idlepc \n";
     
-	print("vm set_idle_pc $vmName $idlepc\n");
-	$t->print("vm set_idle_pc $vmName $idlepc");
+	print("vm set_idle_pc $vm_name $idlepc\n");
+	$t->print("vm set_idle_pc $vm_name $idlepc");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     
     #Set ios ghost
-    if (&get_simple_conf($extConfFile, $vmName, 'ghostios') eq "true"){
-    	print("vm set_ghost_status $vmName 2\n");
-		$t->print("vm set_ghost_status $vmName 2");
+    if (&get_simple_conf($extConfFile, $vm_name, 'ghostios') eq "true"){
+    	print("vm set_ghost_status $vm_name 2\n");
+		$t->print("vm set_ghost_status $vm_name 2");
     	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     	my $temp = basename($filesystem);
-    	print("vm set_ghost_file $vmName \"$temp.image-localhost.ghost\" \n");
-		$t->print("vm set_ghost_file $vmName \"$temp.image-localhost.ghost\" ");
+    	print("vm set_ghost_file $vm_name \"$temp.image-localhost.ghost\" \n");
+		$t->print("vm set_ghost_file $vm_name \"$temp.image-localhost.ghost\" ");
     	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     }
     
     #Set Blk_direct_jump
-	print("vm set_blk_direct_jump $vmName 0\n");
-	$t->print("vm set_blk_direct_jump $vmName 0");
+	print("vm set_blk_direct_jump $vm_name 0\n");
+	$t->print("vm set_blk_direct_jump $vm_name 0");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     
     # Add slot cards
-    my @cards=&get_cards_conf($extConfFile, $vmName);
+    my @cards=&get_cards_conf($extConfFile, $vm_name);
     my $index = 0;
     foreach my $slot (@cards){
-    	print("vm slot_add_binding $vmName $index 0 $slot \n");
-		$t->print("vm slot_add_binding $vmName $index 0 $slot");
+    	print("vm slot_add_binding $vm_name $index 0 $slot \n");
+		$t->print("vm slot_add_binding $vm_name $index 0 $slot");
     	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     	$index++;
     }
@@ -364,11 +364,11 @@ sub defineVM {
 		$slot = substr $slot,-1,1;
 		if ( $name =~ /^[gfeGFE]/ ) {
 			#print "**** Ethernet interface: $name, slot=$slot, dev=$dev\n";
-			print("nio create_tap nio_tap_$vmName$slot$dev $vmName-e$id\n");
-			$t->print("nio create_tap nio_tap_$vmName$slot$dev $vmName-e$id");
+			print("nio create_tap nio_tap_$vm_name$slot$dev $vm_name-e$id\n");
+			$t->print("nio create_tap nio_tap_$vm_name$slot$dev $vm_name-e$id");
 	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-	   		print("vm slot_add_nio_binding $vmName $slot $dev nio_tap_$vmName$slot$dev\n");
-	   		$t->print("vm slot_add_nio_binding $vmName $slot $dev nio_tap_$vmName$slot$dev");
+	   		print("vm slot_add_nio_binding $vm_name $slot $dev nio_tap_$vm_name$slot$dev\n");
+	   		$t->print("vm slot_add_nio_binding $vm_name $slot $dev nio_tap_$vm_name$slot$dev");
 	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 		}
 		elsif ( $name =~ /^[sS]/ ) {
@@ -432,24 +432,24 @@ sub defineVM {
 				close (PORTS_FILE); 							
 			}
 			#print "**** Serial interface: ports[0]=$ports[0], ports[1]=$ports[1]\n";
-			if ($vms[0] eq $vmName) {
-				print("nio create_udp nio_udp_$vmName$slot$dev $ports[0] 127.0.0.1 $ports[1]\n");
-				$t->print("nio create_udp nio_udp_$vmName$slot$dev $ports[0] 127.0.0.1 $ports[1]");
+			if ($vms[0] eq $vm_name) {
+				print("nio create_udp nio_udp_$vm_name$slot$dev $ports[0] 127.0.0.1 $ports[1]\n");
+				$t->print("nio create_udp nio_udp_$vm_name$slot$dev $ports[0] 127.0.0.1 $ports[1]");
 			} else {
-				print("nio create_udp nio_udp_$vmName$slot$dev $ports[1] 127.0.0.1 $ports[0]\n");
-				$t->print("nio create_udp nio_udp_$vmName$slot$dev $ports[1] 127.0.0.1 $ports[0]");
+				print("nio create_udp nio_udp_$vm_name$slot$dev $ports[1] 127.0.0.1 $ports[0]\n");
+				$t->print("nio create_udp nio_udp_$vm_name$slot$dev $ports[1] 127.0.0.1 $ports[0]");
 			}
 	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-	   		print("vm slot_add_nio_binding $vmName $slot $dev nio_udp_$vmName$slot$dev\n");
-	   		$t->print("vm slot_add_nio_binding $vmName $slot $dev nio_udp_$vmName$slot$dev");
+	   		print("vm slot_add_nio_binding $vm_name $slot $dev nio_udp_$vm_name$slot$dev\n");
+	   		$t->print("vm slot_add_nio_binding $vm_name $slot $dev nio_udp_$vm_name$slot$dev");
 	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 		}
-   		$execution->execute("ifconfig $vmName-e$id 0.0.0.0");
+   		$execution->execute("ifconfig $vm_name-e$id 0.0.0.0");
 	}
 	
 	# Set config file to router
-	print("vm set_config $vmName \"$newRouterConfFile\" \n");
-   	$t->print("vm set_config $vmName \"$newRouterConfFile\" ");
+	print("vm set_config $vm_name \"$newRouterConfFile\" \n");
+   	$t->print("vm set_config $vm_name \"$newRouterConfFile\" ");
    	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
    	$t->close;
 
@@ -460,13 +460,13 @@ sub defineVM {
 
 sub create_router_conf {
 
-	my $vmName      = shift;
+	my $vm_name      = shift;
 	my $extConfFile = shift;
 
 	my @routerConf;
 
 	# Load and parse libvirt XML definition of virtual machine
-	my $vmXMLFile = $dh->get_vm_dir($vmName) . '/' . $vmName . '_cconf.xml';
+	my $vmXMLFile = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml';
 	open XMLFILE, "$vmXMLFile" or $execution->smartdie("can not open $vmXMLFile file");
 	my $doc = do { local $/; <XMLFILE> };
 	close XMLFILE;
@@ -476,7 +476,7 @@ sub create_router_conf {
 	my $vm = $dom->getElementsByTagName("vm")->item(0);
 
     	# Hostname
-	push (@routerConf,  "hostname " . $vmName ."\n");
+	push (@routerConf,  "hostname " . $vm_name ."\n");
 
 	# Enable IPv4 and IPv6 routing
 	push (@routerConf,  "ip routing\n");	
@@ -553,7 +553,7 @@ sub create_router_conf {
  		
  	}
  	# Si en el fichero de configuracion extendida se define un usuario y password.
- 	my @login_users = &get_login_user($extConfFile, $vmName);
+ 	my @login_users = &get_login_user($extConfFile, $vm_name);
  	my $login_user;
  	my $check_login_user = 0;
  	foreach $login_user(@login_users){
@@ -574,7 +574,7 @@ sub create_router_conf {
     }
     	
  	# Si el fichero de configuacion extendida se define una password de enable, se pone.
- 	my $enablepass = get_enable_pass($extConfFile, $vmName);
+ 	my $enablepass = get_enable_pass($extConfFile, $vm_name);
  	if (!($enablepass eq "")){
 		push (@routerConf,  " enable password " . $enablepass . "\n");
     }
@@ -599,15 +599,17 @@ sub create_router_conf {
 sub undefineVM{
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
 
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
+    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
     
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm destroy $vmName");
+    $t->print("vm destroy $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     #$t->print("hypervisor reset");
    	#$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
@@ -626,26 +628,29 @@ sub undefineVM{
 sub destroyVM{
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+
 	my $line;
 
     print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Destroying: $vmName\n" if ($exemode == $EXE_VERBOSE);
+    print "Destroying: $vm_name\n" if ($exemode == $EXE_VERBOSE);
 
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
 
-   	$t->print("vm stop $vmName");
+   	$t->print("vm stop $vm_name");
    	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-   	$t->print("vm delete $vmName");
+   	$t->print("vm delete $vm_name");
    	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 
 	# We have to destroy the tap or udp devices created for the router
 	# using the "nio create_tap" or "nio create_udp" commands 
 
 	# Load and parse libvirt XML definition of virtual machine
-	my $vmXMLFile = $dh->get_vm_dir($vmName) . '/' . $vmName . '_cconf.xml';
+	my $vmXMLFile = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml';
 	if (-e $vmXMLFile) {
 		open XMLFILE, "$vmXMLFile" or $execution->smartdie("can not open $vmXMLFile file");
 		my $doc = do { local $/; <XMLFILE> };
@@ -662,13 +667,13 @@ sub destroyVM{
 			$slot = substr $slot,-1,1;
 			print "**** Ethernet interface: $ifName, slot=$slot, dev=$dev\n";
 			if ( $ifName =~ /^[gfeGFE]/ ) {
-				print("nio delete nio_tap_$vmName$slot$dev\n");
-				$t->print("nio delete nio_tap_$vmName$slot$dev");
+				print("nio delete nio_tap_$vm_name$slot$dev\n");
+				$t->print("nio delete nio_tap_$vm_name$slot$dev");
 		   		my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 			}
 			elsif ( $ifName =~ /^[sS]/ ) {
-				print("nio delete nio_udp_$vmName$slot$dev\n");
-				$t->print("nio delete nio_udp_$vmName$slot$dev");
+				print("nio delete nio_udp_$vm_name$slot$dev\n");
+				$t->print("nio delete nio_udp_$vm_name$slot$dev");
 		   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 			}
 		}
@@ -693,36 +698,50 @@ sub destroyVM{
 sub startVM {
 
 	my $self    = shift;
-	my $vmName  = shift;
+	my $vm_name  = shift;
 	my $type    = shift;
-	my $doc     = shift;
-	my $sock    = shift;
-	my $counter = shift;
 	my $no_consoles = shift;
+	
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
     print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Starting router: $vmName\n" if ($exemode == $EXE_VERBOSE);
+    print "Starting router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm start $vmName");
+    $t->print("vm start $vm_name");
     my $line = $t->getline; 
     print $line if ($exemode == $EXE_VERBOSE);
 
     # Read the console file and start the active consoles,
 	# unless options -n|--no_console were specified by the user
 	unless ($no_consoles eq 1){
-	   VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
+	   VNX::vmAPICommon->start_consoles_from_console_file ($vm_name);
 	}	
 	
-	my $net = &get_admin_address( $counter, $dh->get_vmmgmt_type, 2, $vmName );
-	# If host_mapping is in use, append trailer to /etc/hosts config file
-	if ( $dh->get_host_mapping ) {
-		open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
-			or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
-			unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		print HOSTLINES $net->addr() . " $vmName\n";
-		close HOSTLINES;
-	}
+    # If host_mapping is in use and the vm has a management interface, 
+    # then we have to add an entry for this vm in /etc/hosts
+    if ( $dh->get_host_mapping ) {
+        my @vm_ordered = $dh->get_vm_ordered;
+        for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+            my $vm = $vm_ordered[$i];
+            my $name = $vm->getAttribute("name");
+            unless ( $name eq $vm_name ) { next; }
+                                    
+                # Check whether the vm has a management interface enabled
+                my $mng_if_value = &mng_if_value($vm);
+                unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
+                            
+                # Get the vm management ip address 
+                my %net = &get_admin_address( 'file', $vm_name );
+                # Add it to hostlines file
+                open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
+                    or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
+                    unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+                    print HOSTLINES $net{'vm'}->addr() . " $vm_name\n";
+                    close HOSTLINES;           
+            }                             
+        }
+    }
 
 }
 
@@ -739,32 +758,34 @@ sub startVM {
 #
 sub shutdownVM{
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
 	my $F_flag    = shift;
+	
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 	
 	# This is an ordered shutdown. We first save the configuration:
 
 	# To be implemented
 
     # Then we shutdown and destroy the virtual router:
-    &destroyVM ($self, $vmName, $type);
+    &destroyVM ($self, $vm_name, $type);
     		
 =BEGIN    		
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
+    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
 	    
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm stop $vmName");
+    $t->print("vm stop $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
 	sleep(2);	
 =END
 =cut
 	
-	#&change_vm_status( $dh, $vmName, "REMOVE" );
-	&change_vm_status( $vmName, "REMOVE" );
+	#&change_vm_status( $dh, $vm_name, "REMOVE" );
+	&change_vm_status( $vm_name, "REMOVE" );
 
 }
 
@@ -781,16 +802,18 @@ sub shutdownVM{
 sub saveVM{
 	
 	my $self     = shift;
-	my $vmName   = shift;
+	my $vm_name   = shift;
 	my $type     = shift;
 	my $filename = shift;
+	
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 		
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
+    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
     
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm extract_config $vmName");
+    $t->print("vm extract_config $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
 	
@@ -808,20 +831,22 @@ sub saveVM{
 sub restoreVM{
 	
 	my $self     = shift;
-	my $vmName   = shift;
+	my $vm_name   = shift;
 	my $type     = shift;
 	my $filename = shift;
+	
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Rebooting router: $vmName\n" if ($exemode == $EXE_VERBOSE);
+    print "Rebooting router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
 
     sleep(2);
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm stop $vmName");
+    $t->print("vm stop $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     sleep(2);
-    $t->print("vm start $vmName");
+    $t->print("vm start $vm_name");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
 	
@@ -840,15 +865,17 @@ sub restoreVM{
 sub suspendVM{
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
 
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
+    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
 	
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm suspend $vmName");
+    $t->print("vm suspend $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
 	
@@ -866,15 +893,17 @@ sub suspendVM{
 sub resumeVM{
 
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
 
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
+    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
     
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm resume $vmName");
+    $t->print("vm resume $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
 	
@@ -890,19 +919,21 @@ sub resumeVM{
 #
 sub rebootVM{
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
 
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
+    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
 	
     sleep(2);
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm stop $vmName");
+    $t->print("vm stop $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     sleep(2);
-    $t->print("vm start $vmName");
+    $t->print("vm start $vm_name");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
 }
@@ -917,19 +948,21 @@ sub rebootVM{
 #
 sub resetVM{
 	my $self   = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $type   = shift;
 
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vmName\n" if ($exemode == $EXE_VERBOSE);
+    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
 	
     sleep(2);
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm stop $vmName");
+    $t->print("vm stop $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     sleep(2);
-    $t->print("vm start $vmName");
+    $t->print("vm start $vm_name");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
 	
@@ -949,15 +982,17 @@ sub executeCMD{
 	my $merged_type = shift;
 	my $seq         = shift;
 	my $vm          = shift;
-	my $vmName      = shift;
-	
+	my $vm_name      = shift;
+
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type ...)");
+
 	my @output = "Nothing to show";
 	my $temp;
 	my $port;
 	my $extConfFile; 
 	
 	# Recupero el puerto telnet de acceso al router
-	my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
+	my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
 	# Configuro el fichero de configuracion extendida
 	$extConfFile = $dh->get_default_dynamips();
 	if ($extConfFile ne "0"){
@@ -965,7 +1000,7 @@ sub executeCMD{
 		#$extConfFile = &validate_xml ($extConfFile);	# Moved to vnx.pl
 	}
 	# Get the console port from vm's console file
-	open (PORT_CISCO, "< $consFile") || $execution->smartdie ("ERROR: cannot open $vmName console file ($consFile)");
+	open (PORT_CISCO, "< $consFile") || $execution->smartdie ("ERROR: cannot open $vm_name console file ($consFile)");
 	my $conData;
 	if ($merged_type eq 'dynamips-7200') { # we use con2 (aux port)
 		$conData = &get_conf_value ($consFile, '', 'con2');
@@ -976,7 +1011,7 @@ sub executeCMD{
 	my @consField = split(/,/, $conData);
 	$port=$consField[2];
 	close (PORT_CISCO);	
-	#print "** $vmName: console port = $port\n";
+	#print "** $vm_name: console port = $port\n";
 
     # Exec tag examples:
     #   <exec seq="brief" type="verbatim" mode="telnet" ostype="show">show ip interface brief</exec>
@@ -1007,25 +1042,25 @@ sub executeCMD{
 
 						# Get the user name and password. If several users are defined, 
 						# we just take the first one.
-						my @login_users = &get_login_user($extConfFile, $vmName);
+						my @login_users = &get_login_user($extConfFile, $vm_name);
 		     			my $login_user = $login_users[0];
 		 				my $user=$login_user->[0];
 						my $pass=$login_user->[1];
 						# Get enable password
- 						my $enablepass = get_enable_pass($extConfFile, $vmName);
+ 						my $enablepass = get_enable_pass($extConfFile, $vm_name);
 						# create CiscoExeCmd object to connect to router console
 						my $sess = new VNX::CiscoExeCmd ('localhost', $port, $user, $pass, $enablepass);
 						# Connect to console
 						my $res = $sess->open;
-						if (!$res) { $execution->smartdie("ERROR: cannot connect to ${vmName}'s console at port $port.\n" .
+						if (!$res) { $execution->smartdie("ERROR: cannot connect to ${vm_name}'s console at port $port.\n" .
 							                              "       Please, release the router console and try again.\n"); }
 						# Put router in priviledged mode
 						$res = $sess->goToEnableMode;
 						if ($res eq 'timeout') {
-							$execution->smartdie("ERROR: timeout connecting to ${vmName}'s console at port $port.\n" .
+							$execution->smartdie("ERROR: timeout connecting to ${vm_name}'s console at port $port.\n" .
 							                     "       Please, release the router console and try again.\n"); 
 						} elsif ($res eq 'invalidlogin') { 
-							$execution->smartdie("ERROR: invalid login connecting to ${vmName}'s console at port $port\n") 
+							$execution->smartdie("ERROR: invalid login connecting to ${vm_name}'s console at port $port\n") 
 						}
 					    if ($ostype eq 'set') {	my @output = $sess->exeCmd ('configure terminal'); }
 						# execute the command
@@ -1038,7 +1073,7 @@ sub executeCMD{
 
 					} if ($ostype eq 'load') {
 						
-						my $newRouterConfFile = $dh->get_vm_dir($vmName) . "/" . $vmName . ".conf";
+						my $newRouterConfFile = $dh->get_vm_dir($vm_name) . "/" . $vm_name . ".conf";
 						
 						# Parse command
 						if ( $command_tag =~ /merge / ) {
@@ -1051,11 +1086,11 @@ sub executeCMD{
 								# Eliminate end command if it exists
 	   	 						$execution->execute("sed '/^end/d' " . $confFile . ">" . $newRouterConfFile);
 								# Add configuration in VNX spec file to the router config file
-								my @routerConf = &create_router_conf ($vmName, $extConfFile);
+								my @routerConf = &create_router_conf ($vm_name, $extConfFile);
 								open (CONF, ">> $newRouterConfFile") or $execution->smartdie("ERROR: Cannot open $newRouterConfFile");
 								print CONF @routerConf;
 								close (CONF);
-								&reload_conf ($vmName, $newRouterConfFile, $dynamipsHost, $dynamipsPort, $consFile);
+								&reload_conf ($vm_name, $newRouterConfFile, $dynamipsHost, $dynamipsPort, $consFile);
 							} else {
 								$execution->smartdie("ERROR: configuration file $confFile not found\n") 
 							}
@@ -1063,7 +1098,7 @@ sub executeCMD{
 							# Normal mode: just load the configuration file as it is
 							my $confFile = &get_abs_path($command_tag);
 							if (-e $confFile) {
-								&reload_conf ($vmName, $confFile, $dynamipsHost, $dynamipsPort, $consFile);
+								&reload_conf ($vm_name, $confFile, $dynamipsHost, $dynamipsPort, $consFile);
 	   	 						# Copy the file loaded config to vm directory
 	   	 						$execution->execute("cat " . $confFile . ">" . $newRouterConfFile);
 							} else {
@@ -1077,7 +1112,7 @@ sub executeCMD{
 # DFC 5/5/2011: command reload deprecated. ostype='load' command type defined to load configurations					
 #					if ($command_tag =~ m/^reload/){
 #						my @file_conf = split('reload ',$command_tag);
-#						&reload_conf ($vmName, $file_conf[1], $dynamipsHost, $dynamipsPort, $consFile);
+#						&reload_conf ($vm_name, $file_conf[1], $dynamipsHost, $dynamipsPort, $consFile);
 #						print "WARNING: reload command deprecated; use ostype='load' instead\n"
 #					}else{
 #					}
@@ -1092,25 +1127,25 @@ sub executeCMD{
 								
 						# Get the user name and password. If several users are define, 
 						# we just take the first one.
-						my @login_users = &get_login_user($extConfFile, $vmName);
+						my @login_users = &get_login_user($extConfFile, $vm_name);
 		     			my $login_user = $login_users[0];
 		 				my $user=$login_user->[0];
 						my $pass=$login_user->[1];
 						# Get enable password
-						my $enablepass = get_enable_pass($extConfFile, $vmName);
+						my $enablepass = get_enable_pass($extConfFile, $vm_name);
 						# create CiscoExeCmd object to connect to router console
 						my $sess = new VNX::CiscoExeCmd ('localhost', $port, $user, $pass, $enablepass);
 						# Connect to console
 						my $res = $sess->open;
-						if (!$res) { $execution->smartdie("ERROR: cannot connect to ${vmName}'s console at port $port.\n" .
+						if (!$res) { $execution->smartdie("ERROR: cannot connect to ${vm_name}'s console at port $port.\n" .
 							                              "       Please, release the router console and try again.\n"); }
 						# Put router in priviledged mode
 						$res = $sess->goToEnableMode;
 						if ($res eq 'timeout') {
-							$execution->smartdie("ERROR: timeout connecting to ${vmName}'s console at port $port.\n" .
+							$execution->smartdie("ERROR: timeout connecting to ${vm_name}'s console at port $port.\n" .
 							                     "       Please, release the router console and try again.\n"); 
 						} elsif ($res eq 'invalidlogin') { 
-							$execution->smartdie("ERROR: invalid login connecting to ${vmName}'s console at port $port\n") 
+							$execution->smartdie("ERROR: invalid login connecting to ${vm_name}'s console at port $port\n") 
 						}
 						if ($ostype eq 'set') {	my @output = $sess->exeCmd ('configure terminal'); }
 						# execute the file with commands 
@@ -1136,26 +1171,26 @@ sub executeCMD{
 #
 sub reload_conf {
 
-	my $vmName    = shift;
+	my $vm_name    = shift;
 	my $confFile = shift;
 	my $dynamipsHost = shift;
 	my $dynamipsPort = shift;
 	my $consFile = shift;
 	
 	$confFile = &get_abs_path ($confFile);
-	unless (-e $confFile) {	$execution->smartdie ("router $vmName configuration file not found ($confFile)") } 
+	unless (-e $confFile) {	$execution->smartdie ("router $vm_name configuration file not found ($confFile)") } 
 	my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    print("vm stop $vmName \n");
-	$t->print("vm stop $vmName");
+    print("vm stop $vm_name \n");
+	$t->print("vm stop $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-   	print("vm set_config $vmName \"$confFile\" \n");
-   	$t->print("vm set_config $vmName \"$confFile\" ");
+   	print("vm set_config $vm_name \"$confFile\" \n");
+   	$t->print("vm set_config $vm_name \"$confFile\" ");
    	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-   	$t->print("vm start $vmName");
+   	$t->print("vm start $vm_name");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     sleep (3);    
-	VNX::vmAPICommon->start_consoles_from_console_file ($vmName);
+	VNX::vmAPICommon->start_consoles_from_console_file ($vm_name);
 }
 
 
@@ -1165,7 +1200,7 @@ sub reload_conf {
 sub get_login_user {
 
 	my $extConfFile = shift;
-	my $vmName    = shift;
+	my $vm_name    = shift;
 
 	my @users;
 	
@@ -1191,12 +1226,12 @@ sub get_login_user {
  		$virtualm = $virtualmList->item($j);
 		$name = $virtualm->getAttribute("name");
 
-		if ( $name eq $vmName ) {
+		if ( $name eq $vm_name ) {
 			last;
 		}
  	}
  	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
+	if($name eq $vm_name){
 		my $login_user_list = $virtualm->getElementsByTagName("login");
 		if ((my $length_user = $login_user_list->getLength) gt 0){
 			for ( my $j = 0 ; $j < $length_user ; $j++ ) {
@@ -1238,7 +1273,7 @@ sub get_login_user {
 sub get_enable_pass {
 
 	my $extConfFile = shift;
-	my $vmName = shift;
+	my $vm_name = shift;
 
 	my $result = "";
 
@@ -1263,12 +1298,12 @@ sub get_enable_pass {
  		$virtualm = $virtualmList->item($j);
 		$name = $virtualm->getAttribute("name");
 
-		if ( $name eq $vmName ) {
+		if ( $name eq $vm_name ) {
 			last;
 		}
  	}
  	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
+	if($name eq $vm_name){
 		my $enable_pass_list = $virtualm->getElementsByTagName("enable");
 		if ($enable_pass_list->getLength gt 0){
 			my $enable_pass = $enable_pass_list->item(0);
@@ -1299,7 +1334,7 @@ sub get_enable_pass {
 sub get_simple_conf {
 
 	my $extConfFile = shift;
-	my $vmName      = shift;
+	my $vm_name      = shift;
 	my $tagName     = shift;
 	
 	my $global_tag = 1;
@@ -1332,12 +1367,12 @@ sub get_simple_conf {
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 			
-	# First, we look for a definition in the $vmName <vm> section 
+	# First, we look for a definition in the $vm_name <vm> section 
 	for ( my $j = 0 ; $j < $virtualmList->getLength ; $j++ ) {
 	 	# We get name attribute
 	 	my $virtualm = $virtualmList->item($j);
 		my $name = $virtualm->getAttribute("name");
-		if ( $name eq $vmName ) {
+		if ( $name eq $vm_name ) {
 			my $tag_list = $virtualm->getElementsByTagName("$tagName");
 			if ($tag_list->getLength gt 0){
 				my $tag = $tag_list->item(0);
@@ -1358,7 +1393,7 @@ sub get_simple_conf {
 			if ($tag_gl_list->getLength gt 0){
 				my $tag_gl = $tag_gl_list->item(0);
 				$result = &text_tag($tag_gl);
-                print "*** vmName = $vmName, global entry found ($result)\n";
+                print "*** vmName = $vm_name, global entry found ($result)\n";
 			}
 		}	
 	}
@@ -1381,7 +1416,7 @@ sub get_simple_conf {
 sub get_router_conf_file {
 
 	my $extConfFile = shift;
-	my $vmName    = shift;
+	my $vm_name    = shift;
 
 	my $result = "0";
 	
@@ -1406,12 +1441,12 @@ sub get_router_conf_file {
  		$virtualm = $virtualmList->item($j);
 		$name = $virtualm->getAttribute("name");
 
-		if ( $name eq $vmName ) {
+		if ( $name eq $vm_name ) {
 			last;
 		}
  	}
  	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
+	if($name eq $vm_name){
 		my $conf_list = $virtualm->getElementsByTagName("conf");
 		if ($conf_list->getLength gt 0){
 			my $conftag = $conf_list->item(0);
@@ -1442,7 +1477,7 @@ sub get_router_conf_file {
 sub get_cards_conf {
 	
 	my $extConfFile = shift;
-	my $vmName      = shift;
+	my $vm_name      = shift;
 
 	my @slotarray;
 	
@@ -1468,7 +1503,7 @@ sub get_cards_conf {
  		$virtualm = $virtualmList->item($j);
 		$name = $virtualm->getAttribute("name");
 
-		if ( $name eq $vmName ) {
+		if ( $name eq $vm_name ) {
 			my $hw_list = $virtualm->getElementsByTagName("hw");
 			if ($hw_list->getLength gt 0){
 				my $hw = $hw_list->item(0);
@@ -1572,7 +1607,7 @@ sub get_dynamips_port_conf {
 #   If not defined, returns 0x604f8104
 #
 sub get_idle_pc_conf {
-	my $vmName = shift;
+	my $vm_name = shift;
 	my $result = "0x604f8104";
 	
 	unless(-e $VNX::Globals::MAIN_CONF_FILE){
@@ -1603,7 +1638,7 @@ sub get_idle_pc_conf {
 sub get_port_conf {
 
 	my $extConfFile = shift;
-	my $vmName    = shift;
+	my $vm_name    = shift;
 	my $counter   = shift;
 
 	my $result =  900 + $counter;
@@ -1628,12 +1663,12 @@ sub get_port_conf {
  		$virtualm = $virtualmList->item($j);
 		$name = $virtualm->getAttribute("name");
 
-		if ( $name eq $vmName ) {
+		if ( $name eq $vm_name ) {
 			last;
 		}
  	}
  	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
+	if($name eq $vm_name){
 		my $hw_list = $virtualm->getElementsByTagName("hw");
 		if ($hw_list->getLength gt 0){
 			my $hw = $hw_list->item(0);
@@ -1676,7 +1711,7 @@ sub get_port_conf {
 sub get_sparsemem {
 
 	my $extConfFile = shift;
-	my $vmName    = shift;
+	my $vm_name    = shift;
 
 	my $result = "true";
 	
@@ -1701,12 +1736,12 @@ sub get_sparsemem {
  		$virtualm = $virtualmList->item($j);
 		$name = $virtualm->getAttribute("name");
 
-		if ( $name eq $vmName ) {
+		if ( $name eq $vm_name ) {
 			last;
 		}
  	}
  	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
+	if($name eq $vm_name){
 		my $sparsemem_list = $virtualm->getElementsByTagName("sparsemem");
 		if ($sparsemem_list->getLength gt 0){
 			my $sparsemem = $sparsemem_list->item(0);
@@ -1733,7 +1768,7 @@ sub get_sparsemem {
 sub get_ghost_ios {
 	
 	my $extConfFile = shift;
-	my $vmName    = shift;
+	my $vm_name    = shift;
 
 	my $result = "false";
 	
@@ -1758,12 +1793,12 @@ sub get_ghost_ios {
  		$virtualm = $virtualmList->item($j);
 		$name = $virtualm->getAttribute("name");
 
-		if ( $name eq $vmName ) {
+		if ( $name eq $vm_name ) {
 			last;
 		}
  	}
  	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
+	if($name eq $vm_name){
 		my $ghostios_list = $virtualm->getElementsByTagName("ghostios");
 		if ($ghostios_list->getLength gt 0){
 			my $ghostios = $ghostios_list->item(0);
@@ -1800,7 +1835,7 @@ sub get_ghost_ios {
 sub get_chassis {
 
 	my $extConfFile = shift;
-	my $vmName    = shift;
+	my $vm_name    = shift;
 
 	# Default chasis if not defined in extended config file
 	my $result = "c3640";
@@ -1825,12 +1860,12 @@ sub get_chassis {
  		$virtualm = $virtualmList->item($j);
 		$name = $virtualm->getAttribute("name");
 
-		if ( $name eq $vmName ) {
+		if ( $name eq $vm_name ) {
 			last;
 		}
  	}
  	# Comprobamos que la maquina es la correcta
-	if($name eq $vmName){
+	if($name eq $vm_name){
 		my $hw_list = $virtualm->getElementsByTagName("hw");
 		if ($hw_list->getLength gt 0){
 			my $hw = $hw_list->item(0);

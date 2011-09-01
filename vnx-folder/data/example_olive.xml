@@ -9,9 +9,9 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
 -->
 
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.97.xsd">
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
-    <version>1.92</version>
+    <version>2.0</version>
     <scenario_name>example_olive</scenario_name>
     <automac offset="0"/>
     <vm_mgmt type="none" />
@@ -31,7 +31,7 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
       
   <!-- NODES -->
   <vm name="r1" type="libvirt" subtype="kvm" os="olive">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_olive</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_olive</filesystem>
     <mem>256M</mem>
     <conf>conf/example_olive/r1.conf</conf>
     <if id="1" net="Lan1" name="fxp0">
@@ -58,7 +58,7 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
   </vm>
 
   <vm name="r2" type="libvirt" subtype="kvm" os="olive">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_olive</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_olive</filesystem>
     <mem>256M</mem>
     <conf>conf/example_olive/r2.conf</conf>
     <if id="1" net="Lan2" name="fxp0">
@@ -80,7 +80,7 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
   </vm>
 
   <vm name="r3" type="libvirt" subtype="kvm" os="olive">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_olive</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_olive</filesystem>
     <mem>256M</mem>
     <conf>conf/example_olive/r3.conf</conf>
     <if id="1" net="Lan3" name="fxp0">
@@ -102,7 +102,7 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
   </vm>
 
   <vm name="h1" type="libvirt" subtype="kvm" os="linux">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>256M</mem>
     <if id="1" net="Lan1">
       <ipv4>10.0.1.2/24</ipv4>
@@ -113,7 +113,7 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
   </vm>
 
   <vm name="h2" type="libvirt" subtype="kvm" os="linux">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>256M</mem>
     <if id="1" net="Lan2">
       <ipv4>10.0.2.2/24</ipv4>
@@ -124,7 +124,7 @@ Three Juniper olive virtual routers in a triangle topology with three Ubuntu hos
   </vm>
 
   <vm name="h3" type="libvirt" subtype="kvm" os="linux">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>256M</mem>
     <if id="1" net="Lan3">
       <ipv4>10.0.3.2/24</ipv4>

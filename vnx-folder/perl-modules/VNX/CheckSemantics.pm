@@ -48,6 +48,7 @@ use VNX::NetChecks;
 use VNX::TextManipulation;
 use XML::LibXML;
 use VNX::vmAPICommon;
+use VNX::Execution;
 
 
 # 
@@ -618,11 +619,17 @@ sub check_doc {
          # Checkings
          return "$filetree (filetree) is not a valid absolute directory name" 
             unless &valid_absolute_directoryname($filetree_effective);
-         return "$filetree_effective (filetree) is not readable/executable (user $uid_name)"
+        # Changed to allow individual files in filetrees
+		if (-d $filetree_effective) { # It is a directory
+         	return "$filetree_effective (filetree) directory is not readable/executable (user $uid_name)"
             unless (-r $filetree_effective && -x _);
-            #unless (-r $filetree_effective );
-         return "$filetree (filetree) is not a valid directory"
-            unless (-d _);
+		} elsif (-f $filetree_effective) { # It is a file
+         	return "$filetree_effective (filetree) file is not readable (user $uid_name)"
+            unless (-r $filetree_effective);
+		} else {
+			return "$filetree (filetree) is not a valid file or directory"
+		}
+
          return "$root (root) is not a valid absolute directory name" unless &valid_absolute_directoryname($root);
       }
       # vm type attribute is requiered; subtype and os are optional or not depending on the type value
@@ -937,10 +944,18 @@ sub check_doc {
 
    # 21. To check all the <exec> and <filetree> with the same seq attribute 
    # has also the same user attribute
-   $vm_list = $doc->getElementsByTagName("vm");
-   for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
-   	   my $name = $vm_list->item($i)->getAttribute("name");
-   	   my %seq_users;
+   # ELIMINATED
+       
+    $vm_list = $doc->getElementsByTagName("vm");
+    for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
+   	    my $name = $vm_list->item($i)->getAttribute("name");
+   	    my %seq_users;
+
+        my $type = $vm_list->item($i)->getAttribute("type");
+   	    unless ($type eq 'uml') {
+   	    	next;
+   	    } 
+        my $merged_type = $dh->get_vm_merged_type ($vm_list->item($i));
    	   
    	   # Checks for <exec>
    	   my $exec_list = $vm_list->item($i)->getElementsByTagName("exec");
@@ -950,7 +965,7 @@ sub check_doc {
 
    	   	   if (defined($seq_users{$seq})) {
    	   	      if ($seq_users{$seq} ne $user) {
-   	   	         return "all tags (<exec> and <filetree>) in the command sequence '$seq' must has the same user in virtual machine $name";
+   	   	         #return "all tags (<exec> and <filetree>) in the command sequence '$seq' must have the same user in virtual machine $name";
    	   	      }
    	   	   }
    	   	   else {
@@ -958,24 +973,32 @@ sub check_doc {
    	   	   }
    	   }
 
-   	   # Checks for <filetree>  	   
-   	   my $filetree_list = $vm_list->item($i)->getElementsByTagName("filetree");
-   	   for (my $j = 0; $j < $filetree_list->getLength; $j++) {
-   	   	   my $seq = $filetree_list->item($j)->getAttribute("seq");
-   	   	   my $user = $filetree_list->item($j)->getAttribute("user");
+        # Checks for <filetree>  	   
+        my $filetree_list = $vm_list->item($i)->getElementsByTagName("filetree");
+        for (my $j = 0; $j < $filetree_list->getLength; $j++) {
+            my $seq = $filetree_list->item($j)->getAttribute("seq");
+            my $user = $filetree_list->item($j)->getAttribute("user");
 
-   	   	   if (defined($seq_users{$seq})) {
-   	   	      if ($seq_users{$seq} ne $user) {
-   	   	         return "all tags (<exec> and <filetree>) using command sequence '$seq' must has the same user in virtual machine $name";
-   	   	      }
-   	   	   }
-   	   	   else {
-   	   	      $seq_users{$seq} = $user;
-   	   	   }
+            if (defined($seq_users{$seq})) {
+                if ($seq_users{$seq} ne $user) {
+                    #return "all tags (<exec> and <filetree>) using command sequence '$seq' must have the same user in virtual machine $name";
+                }
+            }
+            else {
+                $seq_users{$seq} = $user;
+            }
+            # 21a. To check that attributes "group" and "perms" of <filetree>'s are only used in linux and Freebsd VMs
+            my $group = $filetree_list->item($j)->getAttribute("group");
+            my $perms = $filetree_list->item($j)->getAttribute("perms");
+            #wlog (VVV, "**** group=$group, perms=$perms\n");
+            return "group and perms attribute of <filetree> tag can only be used in Linux or FreeBSD virtual machines"
+                if ( ( $group ne '' || $perms ne '' ) && ( ( $merged_type ne 'libvirt-kvm-linux') 
+                    && ( $merged_type ne 'libvirt-kvm-freebsd') && ( $merged_type ne 'uml')) ); 
+        
    	   }   	   
    }
    
-   # 22. To check user attribute is not used in <ecex> within <host>
+   # 22. To check user attribute is not used in <exec> within <host>
    my $host_list = $doc->getElementsByTagName("host");
    if ($host_list->getLength > 0) {
       my $exec_list = $host_list->item(0)->getElementsByTagName("exec");
@@ -1105,7 +1128,7 @@ sub check_doc {
     for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
         my $vm = $vm_list->item($i);
         my $vmName = $vm->getAttribute("name");
-        my $typeos = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
+        my $merged_type = $dh->get_vm_merged_type($vm);
         
         my $exec_list = $vm->getElementsByTagName("exec");
         # For each <exec> in the vm
@@ -1113,9 +1136,9 @@ sub check_doc {
         	my $cmd = $exec_list->item($j);
             my $cmdMode = $cmd->getAttribute("mode");
             my $cmdOSType = $cmd->getAttribute("ostype");
-            #print ("****** vm=$vmName,type=$typeos, exec_mode=$cmdMode, exec_ostype=$cmdOSType\n");
+            #print ("****** vm=$vmName,type=$merged_type, exec_mode=$cmdMode, exec_ostype=$cmdOSType\n");
 
-            if ($typeos eq 'uml') {
+            if ($merged_type eq 'uml') {
             	if ($cmdMode eq '') { # Set default value 
             		$cmd->setAttribute( 'mode', "$EXEC_MODES_UML[0]" );
             	} elsif ( "@EXEC_MODES_UML" !~ $cmdMode )  {
@@ -1125,7 +1148,7 @@ sub check_doc {
             	} elsif ( "@EXEC_OSTYPE_UML" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
 
-            } elsif ($typeos eq 'libvirt-kvm-linux') {
+            } elsif ($merged_type eq 'libvirt-kvm-linux') {
             	if ($cmdMode eq '') { # Set default value 
             		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_LINUX[0]" );
             	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $cmdMode )  {
@@ -1135,7 +1158,7 @@ sub check_doc {
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_LINUX" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
 
-            } elsif ($typeos eq 'libvirt-kvm-windows') {
+            } elsif ($merged_type eq 'libvirt-kvm-windows') {
             	if ($cmdMode eq '') { # Set default value 
             		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_WINDOWS[0]" );
             	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_WINDOWS" !~ $cmdMode )  {
@@ -1145,7 +1168,7 @@ sub check_doc {
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
 
-            } elsif ($typeos eq 'libvirt-kvm-olive') {
+            } elsif ($merged_type eq 'libvirt-kvm-olive') {
             	if ($cmdMode eq '') { # Set default value 
             		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_OLIVE[0]" );
             	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_OLIVE" !~ $cmdMode )  {
@@ -1155,7 +1178,7 @@ sub check_doc {
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_OLIVE" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
 
-            } elsif ( ($typeos eq 'dynamips-c3600') or ($typeos eq 'dynamips-c7200') )  {
+            } elsif ( ($merged_type eq 'dynamips-c3600') or ($merged_type eq 'dynamips-c7200') )  {
             	if ($cmdMode eq '') { # Set default value 
             		$cmd->setAttribute( 'mode', "$EXEC_MODES_DYNAMIPS[0]" );
             	} elsif ( "@EXEC_MODES_DYNAMIPS" !~ $cmdMode )  {

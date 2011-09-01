@@ -68,6 +68,12 @@ our @EXPORT = qw(
 	$EXE_DEBUG
 	$EXE_VERBOSE
 	$EXE_NORMAL
+
+    $EXE_VERBOSITY_LEVEL	
+	N
+	V
+	VV
+	VVV
 	
 	@EXEC_MODES_UML
 	@EXEC_MODES_LIBVIRT_KVM_LINUX
@@ -126,15 +132,22 @@ Readonly::Scalar our $SERLINE_BASE_PORT        => '12000';  # DFC: initial port 
 our $SERLINE_PORT = $SERLINE_BASE_PORT; # Points to the next UDP port to be used for serial line emulation
 
 
-
 # Execution modes
-Readonly::Scalar our $EXE_DEBUG => 0;	#	- does not execute, only shows
-Readonly::Scalar our $EXE_VERBOSE => 1;	#	- executes and shows
-Readonly::Scalar our $EXE_NORMAL => 2;	#	- executes
+Readonly::Scalar our $EXE_DEBUG => 0;	    #	- does not execute, only shows
+Readonly::Scalar our $EXE_VERBOSE => 1;	    #	- executes and shows
+Readonly::Scalar our $EXE_NORMAL => 2;	    #	- executes
 
-# Allowed and default modes in <exec> tags for each virtual machine type
+# Log verbosity levels (short format)
+our $EXE_VERBOSITY_LEVEL;
+use constant N   => 0;
+use constant V   => 1;
+use constant VV  => 2;
+use constant VVV => 3;
+
+
+# Allowed and default modes in <exec> and <filetree> tags for each virtual machine type
 # Default mode is always the first value in array
-our @EXEC_MODES_UML                 = qw( net mconsole );
+our @EXEC_MODES_UML                 = qw( mconsole net);
 our @EXEC_MODES_LIBVIRT_KVM_LINUX   = qw( cdrom net sdisk );
 our @EXEC_MODES_LIBVIRT_KVM_WINDOWS = qw( cdrom sdisk );
 our @EXEC_MODES_LIBVIRT_KVM_OLIVE   = qw( sdisk net );
@@ -142,10 +155,10 @@ our @EXEC_MODES_DYNAMIPS            = qw( telnet );
 
 # Allowed and default ostypes in <exec> tags for each virtual machine type
 # Default mode is always the first value in array
-our @EXEC_OSTYPE_UML                 = qw( );
+our @EXEC_OSTYPE_UML                 = qw( system );
 our @EXEC_OSTYPE_LIBVIRT_KVM_LINUX   = qw( system exec xsystem xexec );
 our @EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS = qw( cmd system exec );
-our @EXEC_OSTYPE_LIBVIRT_KVM_OLIVE   = qw( show set load );
+our @EXEC_OSTYPE_LIBVIRT_KVM_OLIVE   = qw( show set load system );
 our @EXEC_OSTYPE_DYNAMIPS            = qw( show set load );
 
 1;

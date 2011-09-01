@@ -39,7 +39,6 @@ our @EXPORT = qw(
 	start_console
 	start_consoles_from_console_file
 	get_admin_address
-	merge_vm_type	
 	);
 
 use VNX::Execution;
@@ -118,7 +117,7 @@ sub exec_command_host {
 sub open_console {
 	
 	my $self        = shift;
-	my $vmName      = shift;
+	my $vm_name      = shift;
 	my $con_id      = shift;
 	my $consType    = shift;
 	my $consPar     = shift;
@@ -126,29 +125,29 @@ sub open_console {
 
 	my $command;
 	if ($consType eq 'vnc_display') {
-		$execution->execute("virt-viewer -c $hypervisor $vmName &");
+		$execution->execute("virt-viewer -c $hypervisor $vm_name &");
 		return;  			
    	} elsif ($consType eq 'libvirt_pts') {
-		$command = "virsh -c $hypervisor console $vmName";
+		$command = "virsh -c $hypervisor console $vm_name";
    	} elsif ($consType eq 'uml_pts') {
-		$command = "screen -t $vmName $consPar";
+		$command = "screen -t $vm_name $consPar";
    	} elsif ($consType eq 'telnet') {
 		$command = "telnet localhost $consPar";						
 	} else {
-		print "WARNING (vm=$vmName): unknown console type ($consType)\n"
+		wlog (N, "WARNING (vm=$vm_name): unknown console type ($consType)");
 	}
 	
 	my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term');
 	my $exeLine;
-	#print "*** start_console: $vmName $command console_term = $console_term\n";
+	wlog (VVV, "start_console: $vm_name $command console_term = $console_term");
 	if ($console_term eq 'gnome-terminal') {
-		$exeLine = "gnome-terminal --title '$vmName - console #$con_id' -e '$command'";
+		$exeLine = "gnome-terminal --title '$vm_name - console #$con_id' -e '$command'";
 	} elsif ($console_term eq 'konsole') {
-		$exeLine = "konsole --title '$vmName - console #$con_id' -e $command";
+		$exeLine = "konsole --title '$vm_name - console #$con_id' -e $command";
 	} elsif ($console_term eq 'xterm') {
-		$exeLine = "xterm -rv -sb -rightbar -fa monospace -fs 10 -title '$vmName - console #$con_id' -e '$command'";
+		$exeLine = "xterm -rv -sb -rightbar -fa monospace -fs 10 -title '$vm_name - console #$con_id' -e '$command'";
 	} elsif ($console_term eq 'roxterm') {
-		$exeLine = "roxterm --title '$vmName - console #$con_id' -e $command";
+		$exeLine = "roxterm --title '$vm_name - console #$con_id' -e $command";
 	} else {
 		$execution->smartdie ("unknown value ($console_term) of console_term parameter in $vnxConfigFile");
 	}
@@ -168,11 +167,11 @@ sub open_console {
 sub start_console {
 	
 	my $self      = shift;
-	my $vmName    = shift;
+	my $vm_name    = shift;
 	my $consId    = shift;
 
 	# Read the console file and start the console with id $consId 
-	my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
+	my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
 	open (CONS_FILE, "< $consFile") || $execution->smartdie("Could not open $consFile file.");
 	foreach my $line (<CONS_FILE>) {
 	    chomp($line);               # remove the newline from $line.
@@ -181,17 +180,17 @@ sub start_console {
 		$con_id =~ s/=.*//;             # get the console name
 	    $line =~ s/con.=//;  		    # eliminate the "conX=" part of the line
 		if ($con_id eq $consId) {	
-		    #print "** CONS_FILE: $line\n";
+		    #wlog (VVV, "CONS_FILE: $line");
 		    my @consField = split(/,/, $line);
-		    #print "** CONS_FILE: $consField[0] $consField[1] $consField[2]\n";
+		    wlog (VVV, "console $con_id of $vm_name: $consField[0] $consField[1] $consField[2]");
 		    #if ($consField[0] eq 'yes') {  # console with display='yes'
 		    # We open the console independently of display value
-		    open_console ($self, $vmName, $con_id, $consField[1], $consField[2]);
+		    open_console ($self, $vm_name, $con_id, $consField[1], $consField[2]);
 		    return;
 			#}
 		} 
 	}
-	print "ERROR: console $consId of virtual machine $vmName does not exist\n";	
+	wlog (N, "ERROR: console $consId of virtual machine $vm_name does not exist");	
 
 }
 
@@ -202,21 +201,21 @@ sub start_console {
 sub start_consoles_from_console_file {
 	
 	my $self      = shift;
-	my $vmName    = shift;
+	my $vm_name    = shift;
 
 	# Then, we just read the console file and start the active consoles
-	my $consFile = $dh->get_vm_dir($vmName) . "/run/console";
+	my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
 	open (CONS_FILE, "< $consFile") || $execution->smartdie("Could not open $consFile file.");
 	foreach my $line (<CONS_FILE>) {
 	    chomp($line);               # remove the newline from $line.
 	    my $con_id = $line;
 		$con_id =~ s/con(\d)=.*/$1/;    # get the console id
 	    $line =~ s/con.=//;  		# eliminate the "conX=" part of the line
-	    #print "** CONS_FILE: $line\n";
+	    #wlog (VVV, "** CONS_FILE: $line");
 	    my @consField = split(/,/, $line);
-	    #print "** CONS_FILE: $consField[0] $consField[1] $consField[2]\n";
+        wlog (VVV, "console $con_id of $vm_name: $consField[0] $consField[1] $consField[2]");
 	    if ($consField[0] eq 'yes') {  # console with display='yes'
-	        open_console ($self, $vmName, $con_id, $consField[1], $consField[2]);
+	        open_console ($self, $vm_name, $con_id, $consField[1], $consField[2]);
 		} 
 	}
 
@@ -224,7 +223,16 @@ sub start_consoles_from_console_file {
 
 ###################################################################
 # get_admin_address
+# 
+# 
+# TODO: OBSOLETED...change this description!  
 #
+# Examples: 
+#   my $net = &get_admin_address( 'file', $vm_name );
+#   my $mng_addr = &get_admin_address( $manipcounter, $vm_name, $dh->get_vmmgmt_type );
+#
+# If $hostnum=1 
+
 # Returns a four elements list:
 #
 # - network address
@@ -247,87 +255,84 @@ sub start_consoles_from_console_file {
 #
 sub get_admin_address {
 
-   my $seed = shift;
-   my $vmmgmt_type = shift;
-   my $hostnum = shift;
-   my $vmName = shift;
-   my $ip;
+    my $seed = shift;
+    my $vm_name = shift;
+#    my $hostnum = shift;
+    my $vmmgmt_type = shift;
 
-   my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
-   if ($vmmgmt_type eq 'private') {
-      if ($seed eq "file"){
-         #read management ip value from file
-         my $addr = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'addr');
-         my $mask = &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'mask');
-         $ip = NetAddr::IP->new($addr.$mask);
-      }else{
-         # check to make sure that the address space won't wrap
-         if ($dh->get_vmmgmt_offset + ($seed << 2) > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
-            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-         }
-         # create a private subnet from the seed
-         $net += $dh->get_vmmgmt_offset + ($seed << 2);
-         $ip = NetAddr::IP->new($net->addr()."/30") + $hostnum;
+    my %ip;
 
-         # create mng_ip file in vm dir, unless processing the host
-         unless ($hostnum eq 1){
-         	my $addr_line = "addr=" . $ip->addr();
-            my $mask_line = "mask=" . $ip->mask();
-            my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
-         }
-      }     
-   } else {
-	  # vmmgmt type is 'net'
-      if ($seed eq "file"){
-         #read management ip value from file
-         $ip= &get_conf_value ($dh->get_vm_dir($vmName) . '/mng_ip', '', 'management_ip');
-      }else{
-         # don't assign the hostip
-         my $hostip = NetAddr::IP->new($dh->get_vmmgmt_hostip."/".$dh->get_vmmgmt_mask);
-         if ($hostip > $net + $dh->get_vmmgmt_offset &&
-            $hostip <= $net + $dh->get_vmmgmt_offset + $seed + 1) {
-         $seed++;
-         }
-
-         # check to make sure that the address space won't wrap
-         if ($dh->get_vmmgmt_offset + $seed > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
-            $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
-         }
-
-         # return an address in the vmmgmt subnet
-         $ip = $net + $dh->get_vmmgmt_offset + $seed + 1;
-         
-         # create mng_ip file in run dir
-         my $addr_line = "addr=" . $ip->addr();
-         my $mask_line = "addr=" . $ip->mask();
-         my $mngip_file = $dh->get_vm_dir($vmName) . '/mng_ip';
-         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
-         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
-      }
-   }
-
-   return $ip;
-}
-
-###################################################################
-#
-sub merge_vm_type {
-	my $type = shift;
-	my $subtype = shift;
-	my $os = shift;
-	my $merged_type = $type;
+    if ($seed eq "file"){
+        wlog (VVV, "get_admin_addr called: seed=$seed, vm_name=$vm_name");
+        # read management ip value from file
+        my $addr_vm   = &get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'addr_vm');
+        my $mask      = &get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'mask');
+        my $addr_host = &get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'addr_host');
+        if ( $addr_vm && $mask && $addr_host ) {
+	        $ip{'vm'} = NetAddr::IP->new($addr_vm,$mask);
+	        $ip{'host'} = NetAddr::IP->new($addr_host,$mask);
+	        wlog (VVV, "get_admin_addr returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr);
+        }
+    } else {
+    	wlog (VVV, "get_admin_addr called: seed=$seed, vm_name=$vm_name, vmmgmt_type=$vmmgmt_type");
+        my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
+        if ($vmmgmt_type eq 'private') {
+            # check to make sure that the address space won't wrap
+            if ($dh->get_vmmgmt_offset + ($seed << 2) > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
+                $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
+            }
+            # create a private subnet from the seed
+            $net += $dh->get_vmmgmt_offset + ($seed << 2);
+            $ip{'host'} = NetAddr::IP->new($net->addr()."/30") + 1;
+            $ip{'vm'}   = NetAddr::IP->new($net->addr()."/30") + 2;
 	
-	if (!($subtype eq "")){
-		$merged_type = $merged_type . "-" . $subtype;
-		if (!($os eq "")){
-			$merged_type = $merged_type . "-" . $os;
-		}
-	}
-	return $merged_type;
+            # create mng_ip file in vm dir, unless processing the host
+#            unless ($hostnum eq 1){
+#            my $addr_vm_line = "addr_vm=" . $ip{'vm'}->addr();
+#            my $mask_line = "mask=" . $ip{'host'}->mask();
+#            my $addr_host_line = "addr_host=" . $ip{'host'}->addr();
+#            my $mngip_file = $dh->get_vm_dir($vm_name) . '/mng_ip';
+#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_vm_line > $mngip_file");
+#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
+#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_vm_host > $mngip_file");
+ #           }
+        } else {
+            # vmmgmt type is 'net'
+            # don't assign the hostip
+            my $hostip = NetAddr::IP->new($dh->get_vmmgmt_hostip."/".$dh->get_vmmgmt_mask);
+            if ($hostip > $net + $dh->get_vmmgmt_offset &&
+                $hostip <= $net + $dh->get_vmmgmt_offset + $seed + 1) {
+                $seed++;
+            }
 	
-}
+            # check to make sure that the address space won't wrap
+            if ($dh->get_vmmgmt_offset + $seed > (1 << (32 - $dh->get_vmmgmt_mask)) - 3) {
+                $execution->smartdie ("IPv4 address exceeded range of available admin addresses. \n");
+            }
+	
+            # return an address in the vmmgmt subnet
+            $ip{'vm'}   = NetAddr::IP->new($net + $dh->get_vmmgmt_offset + $seed + 1 ."/" . $dh->get_vmmgmt_mask) + 1;
+            $ip{'host'} = $hostip;
+            #$ip = $net + $dh->get_vmmgmt_offset + $seed + 1;
+	         
+#            my $addr_line = "addr=" . $ip->addr();
+#            my $mask_line = "mask=" . $ip->mask();
+#            my $mngip_file = $dh->get_vm_dir($vm_name) . '/mng_ip';
+#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
+#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
+        }
+        # create mng_ip file in run dir
+        my $addr_vm_line = "addr_vm=" . $ip{'vm'}->addr();
+        my $mask_line = "mask=" . $ip{'host'}->mask();
+        my $addr_host_line = "addr_host=" . $ip{'host'}->addr();
+        my $mngip_file = $dh->get_vm_dir($vm_name) . '/mng_ip';
+        $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_vm_line   > $mngip_file");
+        $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line      >> $mngip_file");
+        $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_host_line >> $mngip_file");
+        wlog (VVV, "get_admin_addr returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr);
+    }
 
+    return %ip;
+}
 
 1;

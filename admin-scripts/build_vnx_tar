@@ -116,6 +116,7 @@ cp -r vnx-folder/doc  \
       vnx-folder/bin  \
       vnx-folder/perl-modules \
       vnx-folder/data \
+      vnx-folder/lib \
       tmp/aced        \
       vnx-ediv/bin    \
       vnx-ediv/etc    \

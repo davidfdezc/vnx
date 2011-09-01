@@ -71,7 +71,9 @@ e-mail: vnx@dit.upm.es
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
-      <xs:attribute name="mode" use="optional">
+      <!-- DFC 26/8/2011: mode eliminated. The execution mode is controlled for
+           the whole vm with the exec_mode attribute of vm -->
+      <!--xs:attribute name="mode" use="optional">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
             <xs:enumeration value="mconsole" />
@@ -81,7 +83,7 @@ e-mail: vnx@dit.upm.es
             <xs:enumeration value="telnet" />
           </xs:restriction>
         </xs:simpleType>
-      </xs:attribute>
+      </xs:attribute-->
       <xs:attribute name="ostype" use="optional">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
@@ -96,6 +98,14 @@ e-mail: vnx@dit.upm.es
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="exec_mode">
+    <xs:complexType mixed="true">
+      <xs:attribute name="type" type="xs:string" use="required" />
+      <xs:attribute name="subtype" type="xs:string" use="optional" />
+      <xs:attribute name="os" type="xs:string" use="optional" />
     </xs:complexType>
   </xs:element>
 
@@ -122,9 +132,11 @@ e-mail: vnx@dit.upm.es
 
   <xs:element name="filetree">
     <xs:complexType mixed="true">
+      <xs:attribute name="seq" type="xs:string" use="required" />
       <xs:attribute name="root" type="xs:string" use="required" />
       <xs:attribute name="user" type="xs:string" use="optional" />
-      <xs:attribute name="seq" type="xs:string" use="required" />
+      <xs:attribute name="group" type="xs:string" use="optional" />
+      <xs:attribute name="perms" type="xs:string" use="optional" />
     </xs:complexType>
   </xs:element>
 
@@ -420,15 +432,7 @@ e-mail: vnx@dit.upm.es
       <xs:attribute name="subtype" type="xs:string" use="optional" />
       <xs:attribute name="os" type="xs:string" use="optional" />
       <xs:attribute name="order" type="xs:string" use="optional" />
-      <xs:attribute name="exec_mode" use="optional" default="net">
-        <xs:simpleType>
-          <xs:restriction base="xs:NMTOKEN">
-            <xs:enumeration value="net" />
-            <xs:enumeration value="mconsole" />
-            <xs:enumeration value="pst" />
-          </xs:restriction>
-        </xs:simpleType>
-      </xs:attribute>
+      <xs:attribute name="exec_mode" type="xs:string" use="optional"/>
      </xs:complexType>
   </xs:element>
 
@@ -448,8 +452,11 @@ e-mail: vnx@dit.upm.es
         <xs:element ref="forwarding" minOccurs="0" />
         <xs:element ref="user" minOccurs="0" maxOccurs="unbounded" />
         <!-- DFC xs:element ref="filetree" minOccurs="0" maxOccurs="unbounded" /-->
+        <xs:element ref="exec_mode" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
-      <xs:attribute name="exec_mode" use="optional" default="net">
+      
+      <!-- DFC 26/8/2011: exec_mode attribute substituted by <exec_mode> tag -->
+      <!--xs:attribute name="exec_mode" use="optional" default="net">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
             <xs:enumeration value="net" />
@@ -457,7 +464,7 @@ e-mail: vnx@dit.upm.es
             <xs:enumeration value="pst" />
           </xs:restriction>
         </xs:simpleType>
-      </xs:attribute>
+      </xs:attribute-->
     </xs:complexType>
   </xs:element>
 

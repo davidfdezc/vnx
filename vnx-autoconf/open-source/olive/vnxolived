@@ -168,6 +168,11 @@ do
               echo "      cmd=$CMD"
               # we execute the command
               case $OSTYPE in
+                  "system")
+                      echo "    Executing "system" command"
+                      sh -c "$CMD"  > /var/tmp/cmdoutput.tmp
+                      cat /var/tmp/cmdoutput.tmp >&3
+                      ;;
                   "show")
                       echo "    Executing "show" command"
                       echo "$CMD" | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
@@ -190,9 +195,9 @@ do
                       LOADOPT=`echo $CMD | awk '{print $1}'`
                       CONFFILE=`echo $CMD | awk '{print $2}'`
                       CONFFILE=`basename $CONFFILE`
-                      CMD="load $LOADOPT $MNTDIR/$CONFFILE"
+                      CMD="load $LOADOPT $MNTDIR/config/$CONFFILE"
                       {   echo "configure"
-                          echo "load $LOADOPT $MNTDIR/$CONFFILE"
+                          echo "$CMD"
                           echo "commit check"
                           echo "commit"
                           echo "exit"

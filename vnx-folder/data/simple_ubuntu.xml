@@ -42,7 +42,6 @@ SPAIN
     
   <net name="Net0" mode="virtual_bridge" />
   
-  <!-- NODES -->
   <vm name="ubuntu" type="libvirt" subtype="kvm" os="linux">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>256M</mem>
@@ -50,19 +49,39 @@ SPAIN
       <ipv4>10.0.0.4/24</ipv4>
     </if>
 
-    <!-- Copy the files under conf/txtfile to vm /tmp directory -->
-    <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
-    
-    <!-- Copy the files under conf/txtfile to vm /var/www directory -->
-    <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
+    <!-- Virtual machine command examples -->
 
+    <!-- filetree commands -->    
+    <!-- Copy file conf/on_boot.txt to /root directory during 
+         vm startup. All filetree and exec commands with seq='on_boot
+         are automatically executed during vm startup -->
+    <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
+
+    <!-- Copy the file conf/on_boot.txt changing its name to to copyfile.txt -->
+    <filetree seq="copyfile" root="/root/copyfile.txt" perms="644">conf/on_boot.txt</filetree>
+    
+    <!-- Copy the files under conf/txtfile to vm /var/www directory 
+         and change owner to www-data.www-data and permissions to 644 -->
+    <filetree seq="start-www" root="/var/www/" user="www-data" group="www-data" perms="644">conf/txtfile</filetree>
+
+    <!-- Copy file conf/on_shutdown.txt to /root directory just before 
+         vm shutdown. All filetree and exec commands with seq='on_shutdown
+         are automatically executed before sending the shutdown signam to the vm -->
+    <filetree seq="on_shutdown" root="/root/">conf/on_shutdown.txt</filetree>
+
+    <!-- exec commands -->    
+    <!-- Make a copy of on_boot.txt file during vm startup. -->
+    <exec seq="on_boot" type="verbatim">cp /root/on_boot.txt /root/on_boot2.txt</exec>
+    
     <!-- Start/stop apache www server -->
-    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
     <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
     <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>
     
     <!-- Simple command to move a file -->
     <exec seq="movefile" type="verbatim"  ostype="system">mv /tmp/vnx.txt /root/</exec>
+
+    <!-- Make a copy of on_shutdown.txt before file vm shutdown. -->
+    <exec seq="on_shutdown" type="verbatim">cp /root/on_shutdown.txt /root/on_shutdown2.txt</exec>
 
   </vm>
 

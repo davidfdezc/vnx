@@ -29,33 +29,68 @@ SPAIN
   <global>
     <version>2.0</version>
     <scenario_name>simple_ubuntu</scenario_name>
+    <ssh_key>~/.ssh/id_dsa.pub</ssh_key>
     <automac offset="4"/>
     <!--vm_mgmt type="none" /-->
     <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="16">
        <host_mapping />
     </vm_mgmt> 
     <vm_defaults>
-	    <console id="0" display="yes"/>
+	    <console id="0" display="no"/>
 	    <console id="1" display="yes"/>
+        <exec_mode type="uml">mconsole</exec_mode>
+        <exec_mode type="libvirt" subtype="kvm">cdrom</exec_mode>
+        <exec_mode type="libvirt" subtype="kvm" os="windows">cdrom</exec_mode>
+        <exec_mode type="libvirt" subtype="kvm" os="olive">sdisk</exec_mode>
     </vm_defaults>
     <extension plugin="ospf" conf="simple_ubuntu-ospf_conf.xml" />
   </global>
     
   <net name="Net0" mode="virtual_bridge" />
+  <net name="Net1" mode="virtual_bridge" />
+  <net name="Net2" mode="virtual_bridge" />
   
   <!-- NODES -->
-  <vm name="ubuntu" type="libvirt" subtype="kvm" os="linux">
-    <filesystem type="cow">/usr/share/vnx/filesystems/root_fs_ubuntu</filesystem>
+  <vm name="r1" type="libvirt" subtype="kvm" os="linux" exec_mode="cdrom">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.4/24</ipv4>
     </if>
-    <!--filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
-    <filetree seq="start-www" root="/var/www">conf/txtfile</filetree-->
-    <exec seq="movefile" type="verbatim"  mode="cdrom" ostype="system">mv /tmp/vnx.txt /root/</exec>
-    <exec seq="start-www" type="verbatim" mode="cdrom" ostype="system">chmod 644 /var/www/*</exec>
-    <exec seq="start-www" type="verbatim" mode="cdrom" ostype="system">service apache2 start</exec>
-    <exec seq="stop-www" type="verbatim"  mode="cdrom" ostype="system">service apache2 stop</exec>
+    <if id="2" net="Net1">
+      <ipv4>10.0.1.1/30</ipv4>
+    </if>
+    <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
+    <filetree seq="start-www" root="/var/www/" user="www-data" group="www-data" perms="644">conf/txtfile</filetree>
+    <exec seq="on_boot" type="verbatim"  ostype="system">cp /root/on_boot.txt /root/on_boot2.txt</exec>
+    <exec seq="movefile" type="verbatim"  ostype="system">mv /tmp/vnx.txt /root/</exec>
+    <!--exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec-->
+    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>
+    <exec seq="file" type="file"  ostype="system">conf/cmdfile</exec>
+    <exec seq="on_shutdown" type="verbatim"  ostype="system">touch /root/on_shutdown.txt</exec>
+  </vm>
+
+  <vm name="r2" type="uml" subtype="" os="" exec_mode="mconsole">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_uml</filesystem>
+    <mem>64M</mem>
+    <kernel>/usr/share/vnx/kernels/linux</kernel>
+    <console id="0" display="yes">xterm</console>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.2/24</ipv4>
+    </if>
+    <if id="2" net="Net1">
+      <ipv4>10.0.1.1/30</ipv4>
+    </if>
+    <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
+    <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
+    <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
+    <exec seq="on_boot" type="verbatim">cp /root/on_boot.txt /root/on_boot2.txt</exec>
+    <exec seq="movefile" type="verbatim">mv /tmp/vnx.txt /root/</exec>
+    <!--exec seq="start-www" type="verbatim">chmod 644 /var/www/*</exec-->
+    <exec seq="start-www" type="verbatim">/etc/init.d/apache2 start</exec>
+    <exec seq="stop-www" type="verbatim">/etc/init.d/apache2 stop</exec>
+    <exec seq="on_shutdown" type="verbatim">touch /root/on_shutdown.txt</exec>
   </vm>
 
   <host>

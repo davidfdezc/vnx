@@ -46,7 +46,7 @@ then
 	CONFFILE=`basename $CONFFILE`
     echo "** Processing <conf> tag"
     echo "**   Loading $CONFFILE configuration..."
-	CMD="load override $MNTDIR/$CONFFILE"
+	CMD="load override $MNTDIR/config/$CONFFILE"
 	ExeSetCmd
 else
     echo "** No <conf> tag found"
@@ -58,6 +58,7 @@ fi
 count=0
 ifcount=0
 routecount=0
+
 CMD=""
 while read LINE
 do
@@ -71,6 +72,7 @@ do
        NAME=`echo $LINE | sed -e 's/.* name\s*=\s*"\([^"]*\)".*/\1/'`
        CMD="set system host-name $NAME"
    fi
+
    IF=`echo $LINE | grep '<if '`
    if [ "$IF" != "" ]
    then
@@ -114,6 +116,7 @@ set interfaces $NAME unit 0 family inet6 address $IP"
            fi
        done
    fi
+
    ROUTE=`echo $LINE | grep '<route '`
    if [ "$ROUTE" != "" ]
    then
@@ -143,3 +146,92 @@ done < $VNXBOOT
 # Execute all commands stored in CMD variable
 #echo "$CMD"
 ExeSetCmd
+
+# Then we process on_boot filetree and exec commands
+
+ftreecount=0
+execcount=0
+
+CMD=""
+while read LINE
+do
+   count=`expr $count + 1`
+
+   FILETREE=`echo $LINE | grep '<filetree '`
+   if [ "$FILETREE" != "" ]
+   then
+       ftreecount=`expr $ftreecount + 1`
+       echo "** Processing <filetree> tag #$ftreecount"
+       echo "** $count: $LINE"
+       SEQ=`echo $LINE | sed -e 's/.* seq\s*=\s*"\([^"]*\)".*/\1/'`
+       ROOT=`echo $LINE | sed -e 's/.* root\s*=\s*"\([^"]*\)".*/\1/'`
+       DIRS=`echo $LINE | sed -e 's/.*<filetree[^>]*>//' -e 's/<\/filetree>//'`
+       echo "    ** seq=$SEQ type=$ROOT"
+       echo "    ** dirs=$DIRS"
+       # Copy the files indicated in filetree command
+       echo "    ** Executing: cp -vr $MNTDIR/filetree/$ftreecount/* $ROOT"
+       cp -vr $MNTDIR/filetree/$ftreecount/* $ROOT
+       echo "    ** shared disk content:"
+       ls -R $MNTDIR       
+       echo "    ** Destination dir content:" 
+       ls -R $ROOT
+   fi
+   EXEC=`echo $LINE | grep '<exec '`
+   if [ "$EXEC" != "" ]
+   then
+       execcount=`expr $execcount + 1`
+       echo "** Processing <exec> tag #$execcount"
+       echo "** $count: $LINE"
+       SEQ=`echo $LINE | sed -e 's/.* seq\s*=\s*"\([^"]*\)".*/\1/'`
+       TYPE=`echo $LINE | sed -e 's/.* type\s*=\s*"\([^"]*\)".*/\1/'`
+       OSTYPE=`echo $LINE | sed -e 's/.* ostype\s*=\s*"\([^"]*\)".*/\1/'`
+       CMD=`echo $LINE | sed -e 's/.*<exec[^>]*>//' -e 's/<\/exec>//'`
+       echo "     ** seq=$SEQ type=$TYPE ostype=$OSTYPE"
+       echo "     ** cmd=$CMD"
+       # we execute the command
+       case $OSTYPE in
+           "system")
+               echo "    Executing "system" command"
+               sh -c "$CMD"  > /var/tmp/cmdoutput.tmp
+               cat /var/tmp/cmdoutput.tmp >&3
+               ;;
+           "show")
+               echo "    Executing "show" command"
+               echo "$CMD" | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
+               cat /var/tmp/cmdoutput.tmp >&3
+               #ExeShowCmd
+               ;;
+           "set")
+               echo "    Executing "set" command"
+               {   echo "configure"
+                   echo "$CMD"
+                   echo "commit check"
+                   echo "commit"
+                   echo "exit"
+               } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
+               cat /var/tmp/cmdoutput.tmp >&3
+               #ExeSetCmd
+               ;;
+           "load")
+               echo "    Executing "load" command"
+               LOADOPT=`echo $CMD | awk '{print $1}'`
+               CONFFILE=`echo $CMD | awk '{print $2}'`
+               CONFFILE=`basename $CONFFILE`
+               CMD="load $LOADOPT $MNTDIR/config/$CONFFILE"
+               {   echo "configure"
+                   echo "$CMD"
+                   echo "commit check"
+                   echo "commit"
+                   echo "exit"
+               } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
+               cat /var/tmp/cmdoutput.tmp >&3
+               #ExeSetCmd
+               ;;
+           *)
+               echo "      Unknown OSTYPE ($OSTYPE)"
+               ;;
+       esac
+   fi
+
+done < $VNXBOOT  
+   

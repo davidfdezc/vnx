@@ -35,6 +35,7 @@ use Exporter;
 
 our @ISA = qw(Exporter);
 our @EXPORT = qw( vm_has_tag 
+              num_tags_in_vm
               at_least_one_vm_without_mng_if 
               at_least_one_vm_with_mng_if 
               mng_if_value);
@@ -106,10 +107,63 @@ sub vm_has_tag {
 
 }
 
+# num_tags_in_vm
+#
+# Returs the number of tags of the type specified in the second argument that the 
+# vm node passed as first argument has. In addition:
+#
+# - If the second attribute is "filetree", the third attribute is used  to check the 'seq' attribute
+# - If the second attribute is "exec", the third third attribute is used to check the 'seq' attribute
+#
+sub num_tags_in_vm {
+
+    my $vm = shift;
+    my $tag = shift;
+
+    my $num_tags = 0;
+
+    # Search for tag
+    my $tag_list = $vm->getElementsByTagName($tag);
+   
+    if ($tag_list->getLength != 0) {
+
+        # Special case: filetree
+        if ($tag eq "filetree") {
+            my $seq = shift;
+            for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
+                my $seq_at_string = $tag_list->item($i)->getAttribute("seq");
+                # JSF 02/12/10: we accept several commands in the same seq tag,
+                # separated by spaces
+                my @seqs = split(' ',$seq_at_string);
+                foreach my $seq_at (@seqs) {
+                    $num_tags++ if ($seq_at eq $seq);
+                }
+            }
+        }
+        # Special case: exec
+        elsif ($tag eq "exec") {
+            my $seq = shift;
+            for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
+                my $seq_at_string = $tag_list->item($i)->getAttribute("seq");
+            
+                # JSF 02/12/10: we accept several commands in the same seq tag,
+                # separated by spaces
+                my @seqs = split(' ',$seq_at_string);
+                foreach my $seq_at (@seqs) {
+                    $num_tags++ if ($seq_at eq $seq);
+                }
+            }
+        }
+    }
+
+    return $num_tags;
+    
+}
+
+
 # at_least_one_vm_without_mng_if
 #
 # Arguments:
-# - the DataHandler object describin the VNUML XML specification
 # - the list of node machines
 #
 # Return:
@@ -121,7 +175,6 @@ sub vm_has_tag {
 #    
 sub at_least_one_vm_without_mng_if {
    
-#   my $dh = shift;
    my @vm_ordered = @_;   
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -136,7 +189,6 @@ sub at_least_one_vm_without_mng_if {
 # at_least_one_vm_with_mng_if
 #
 # Arguments:
-# - The DataHandler object describin the VNUML XML specification
 # - the list of node machines
 #
 # Return:
@@ -148,7 +200,6 @@ sub at_least_one_vm_without_mng_if {
 #
 sub at_least_one_vm_with_mng_if {
  
-#   my $dh = shift;  
    my @vm_ordered = @_;   
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -165,12 +216,10 @@ sub at_least_one_vm_with_mng_if {
 # Return the mng_if_value of the vm node passed as argument
 #
 # Arguments:
-#	- The DataHandler object describin the VNUML XML specification
 #   - the virtual machine
 #    
 sub mng_if_value {
 
-#   my $dh = shift;
    my $vm = shift;
 
    my $mng_if_value = $dh->get_default_mng_if;
