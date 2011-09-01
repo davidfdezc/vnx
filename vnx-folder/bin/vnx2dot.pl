@@ -90,6 +90,7 @@ for (my $i = 0; $i < $n; $i++)
           "colorscheme=\"$colorscheme\", color=\"$netcolor\", style=\"filled\" ] ;\n" ;
 }
 
+my %legend;
 
 # Virtual machines
 print "\n\n// Virtual machines \n" ;
@@ -106,11 +107,37 @@ for (my $i = 0; $i < $n; $i++) {
     my $os = $vm->getAttribute ("os");
     #print "vm: $vmname $type-$subtype-$os \n";
     my $ctype;
-    if ( ($type eq "uml") || ($type eq "dynamips") ) {
-        $ctype=$type;
-    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") ) {
-        if ($os eq "windows" ) { $os="win" }
-        $ctype="$type-$os";
+
+#    if ( ($type eq "uml") || ($type eq "dynamips") ) {
+#        $ctype=$type;
+#    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") ) {
+#        if ($os eq "windows" ) { $os="win" }
+#        $ctype="$type-$os";
+#    } 
+
+    if ($type eq "uml") { 
+    	$ctype=$type;
+        $legend{"uml"} = "User mode linux"    	 
+    } elsif ($type eq "dynamips") { 
+        if ($subtype eq "3600") {
+            $ctype="dyna1"; 
+            $legend{"dyna1"} = "Dynamips C3600 router"       
+        } elsif ($subtype eq "7200") {
+            $ctype="dyna2"; 
+            $legend{"dyna2"} = "Dynamips C7200 router"       
+        }
+    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "linux")) { 
+    	$ctype="linux";
+        $legend{"linux"} = "libvirt kvm Linux"       
+    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "freebsd")) { 
+        $ctype="freebsd";
+        $legend{"freebsd"} = "libvirt kvm FreeBSD"       
+    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "win")) { 
+        $ctype="windows";
+        $legend{"windows"} = "libvirt kvm Windows"       
+    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "olive")) { 
+        $ctype="olive";
+        $legend{"olive"} = "libvirt kvm Olive router"       
     } 
     print "\n// Virtual machine $vmname\n" ;
     print "$vmname2 [label=\"$vmname \\n($ctype)\", shape=\"circle\", fontcolor=\"$fontcolor\", " . 
@@ -192,6 +219,20 @@ for (my $j = 0; $j < $n; $j++) {
     print "host -- $net2  [ label = \"$ipaddrs\", fontsize=\"9\", style=\"bold\" ];\n" ;
 
 }
+
+# print Legend
+
+print<<END;
+bigger [
+fontsize=8
+shape=record
+label="{Virtual machines types |\\l\\
+END
+foreach my $key (keys %legend) {
+    print "$key = $legend{$key} \\l\\\n";
+}
+print "}\"];\n";
+
 
 print "\n}\n" ;
 

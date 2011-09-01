@@ -544,7 +544,7 @@ sub check_doc {
          }
 
          # 9d. To check that there is a net with this name or "lo"
-         unless (($net eq "lo") || ($net eq "vm_mgmt") || ($net_names{$net} == 1)) {
+         unless (($net eq "lo") || ($net eq "vm_mgmt") || (defined($net_names{$net}))) {
             return "net $net defined for interface $id of virtual machine $name is not valid: it must be defined in a <net> tag (or use \"lo\")";
          }
          
@@ -720,7 +720,7 @@ sub check_doc {
       my $net = $hostif->getAttribute("net");
 
       # To check that there is a net with this name
-      unless ($net_names{$net} == 1) {
+      unless (defined($net_names{$net})) {
 	    return "hostif net $net is not valid: it must be defined in a <net> tag";
       }
 
