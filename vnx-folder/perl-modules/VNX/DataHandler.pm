@@ -1050,6 +1050,7 @@ sub get_vm_doctxt {
    	#print "*** file=$file\n";
    	open FILE, "< $file";
 	my $vm_doc = do { local $/; <FILE> };
+	close FILE;
 	return $vm_doc;
 }
 
