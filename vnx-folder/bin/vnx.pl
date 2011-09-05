@@ -2017,14 +2017,15 @@ sub mode_execute {
 
 # mode_shutdown
 #
-# Destroy current scenario mode 
-sub mode_shutdown {
-
+# Destroy current scenario mode
+ 
    # Since version 1.4.0, UML must be halted before the routes to the UMLs disapear with the unconfiguration,
    # to allow SSH halt when <mng_if>no</mng_if> is used. Anyway, problems still, if one VM that is routing
    # traffic to other is halted first, for example.
    
 ###############################################################
+sub mode_shutdown {
+
 
     my $seq = 'on_shutdown';
 
@@ -2040,14 +2041,14 @@ sub mode_shutdown {
     for ( my $i = 0; $i < @vm_ordered; $i++) {
 
         my $vm = $vm_ordered[$i];
-        # To get name attribute
         my $vm_name = $vm->getAttribute("name");
 
-        my $merged_type = $dh->get_vm_merged_type($vm);
       
         unless ($vm_hash{$vm_name}){
           	next;
       	}
+
+        my $merged_type = $dh->get_vm_merged_type($vm);
 
         unless ($args->get('F')){
 
@@ -2069,7 +2070,6 @@ sub mode_shutdown {
 	        if ($vm_plugin_ftrees + $vm_plugin_execs + $vm_ftrees + $vm_execs > 0) { 
 	            wlog (VVV, "Calling executeCMD for vm $vm_name with seq $seq to execute:"); 
 	            wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs");
-	            my $merged_type = $dh->get_vm_merged_type($vm);
 	            # call the corresponding vmAPI
 	            my $vm_type = $vm->getAttribute("type");
 	            my $error = "VNX::vmAPI_$vm_type"->executeCMD(
@@ -2260,14 +2260,17 @@ sub get_vm_ftrees_and_execs {
         $execution->execute("rm -rf $files_dir/*");
 
         my %files;            
-        # Call the get*Files plugin function
-        if ($mode eq 'define') {
-            %files = $plugin->getBootFiles($vm_name, $files_dir);
-        } elsif ($mode eq 'execute') {
-            %files = $plugin->getExecFiles($vm_name, $files_dir, $seq);
-        } elsif ($mode eq 'shutdown') {
-        	%files = $plugin->getShutdownFiles($vm_name, $files_dir);
-        }
+
+
+        # Call the getFiles plugin function
+        %files = $plugin->getFiles($vm_name, $files_dir, $seq);
+#        if ($mode eq 'define') {
+#            %files = $plugin->getBootFiles($vm_name, $files_dir);
+#        } elsif ($mode eq 'execute') {
+#            %files = $plugin->getExecFiles($vm_name, $files_dir, $seq);
+#        } elsif ($mode eq 'shutdown') {
+#        	%files = $plugin->getShutdownFiles($vm_name, $files_dir);
+#        }
 
         if (defined($files{"ERROR"}) && $files{"ERROR"} ne "") {
             $execution->smartdie("plugin $plugin get${mode_tag}Files($vm_name) error: ".$files{"ERROR"});
@@ -2347,14 +2350,15 @@ sub get_vm_ftrees_and_execs {
 
         #  3 - for each active plugin, call $plugin->get*Commands 
         my @commands;            
-        # Call the get*Files plugin function
-        if ($mode eq 'define') {
-            @commands = $plugin->getBootCommands($vm_name,$seq);
-        } elsif ($mode eq 'execute') {
-            @commands = $plugin->getExecCommands($vm_name,$seq);
-        } elsif ($mode eq 'shutdown') {
-            @commands = $plugin->getShutdownCommands($vm_name);
-        }
+        # Call the getCommands plugin function
+        @commands = $plugin->getCommands($vm_name,$seq);
+#        if ($mode eq 'define') {
+#            @commands = $plugin->getBootCommands($vm_name);
+#        } elsif ($mode eq 'execute') {
+#            @commands = $plugin->getExecCommands($vm_name,$seq);
+#        } elsif ($mode eq 'shutdown') {
+#            @commands = $plugin->getShutdownCommands($vm_name);
+#        }
         my $error = shift(@commands);
         if ($error ne "") {
             $execution->smartdie("plugin $plugin get${mode_tag}Commands($vm_name,$seq) error: $error");
@@ -2370,7 +2374,7 @@ sub get_vm_ftrees_and_execs {
             wlog (VVV, "Creating <exec> tag for plugin command '$cmd'");
     
             # Create the <exec> tag
-            #   Format: <exec seq="$seq" type="verbatim" mode="??" ostype="??">$cmd</exec>
+            #   Format: <exec seq="$seq" type="verbatim" ostype="??">$cmd</exec>
             my $exec_tag = $xdoc->createElement('exec');
             $plugin_cmds->appendChild($exec_tag);
             $exec_tag->setAttribute( seq => "$seq");

@@ -368,7 +368,7 @@ sub autoupdate {
 	# update for Linux          #
 	#############################
 	if ($platform[0] eq 'Linux'){
-		write_log ("   updating vnxaced for Linux");
+		write_log ("     updating vnxaced for Linux...");
 		system "perl /media/cdrom/uninstall_vnxaced -n";
 		system "perl /media/cdrom/install_vnxaced";
 		#if ( ($platform[1] eq 'Ubuntu') or   
@@ -386,14 +386,35 @@ sub autoupdate {
 	# update for FreeBSD        #
 	#############################
 	elsif ($platform[0] eq 'FreeBSD'){
-		write_log ("   updating vnxdaemon for FreeBSD");
+		write_log ("     updating vnxdaemon for FreeBSD...");
 		system "/cdrom/uninstall_vnxaced -n";
 		system "/cdrom/install_vnxaced";
 		#system "cp /cdrom/vnxaced.pl /usr/local/bin/vnxaced";
 		#system "cp /cdrom/freebsd/vnxace /etc/rc.d/vnxace";
 	}
-	sleep 1;
-	system "shutdown -r now '  VNX:  autoconfiguration daemon updated...rebooting'";
+    # Write trace messages to /etc/vnx_rootfs_version, log file and console
+    my $vnxaced_vers = `/usr/local/bin/vnxaced -V | grep Version | awk '{printf "%s %s",\$2,\$3}'`;
+    chomp (my $date = `date`);
+    # vnx_rootfs_version file
+    system "printf \"MODDATE=$date\n\" >> /etc/vnx_rootfs_version";
+    system "printf \"MODDESC=vnxaced updated to vers $vnxaced_vers\n\" >> /etc/vnx_rootfs_version";
+    # vnxaced log file
+    write_log ("     vnxaced updated to vers $vnxaced_vers");
+    # Console
+	system "printf \"\r\n\" >> /dev/console";
+	system "printf \"   ------------------------------------------------------------------------\r\n\" >> /dev/console";
+	system "printf \"         vnxaced updated to vers $vnxaced_vers \r\n\" >> /dev/console";
+	system "printf \"   ------------------------------------------------------------------------\r\n\" >> /dev/console";
+	my $delay=5;
+	system "printf \"\n         halting system in $delay seconds\" >> /dev/console";
+		for (my $count = $delay-1; $count >= 0; $count--) {
+		sleep 1;
+		system "printf \"\b\b\b\b\b\b\b\b\b$count seconds\" >> /dev/console";
+    }
+    system "printf \"\r\n\r\n\r\n\" >> /dev/console";
+
+    # Shutdown system
+	system "halt -p";
 	return;
 }
 
@@ -1282,6 +1303,10 @@ sub execute_filetree {
 			}
 			# Change owner and permissions if specified in <filetree>
 			$cmd="cp -vR ${source_path}* $root";
+	        write_log ("~~   Executing '$cmd' ...");
+	        $res=`$cmd`;
+	        write_log ("Copying filetree files:") if ($VERBOSE);
+	        write_log ("$res") if ($VERBOSE);
 			if ( $user ne ''  ) { system "chown -R $user $root/*"}
             if ( $group ne '' ) { system "chown -R .$group $root/*"}
 			if ( $perms ne '' ) { system "chmod -R $perms $root/*"}
@@ -1300,15 +1325,15 @@ sub execute_filetree {
 				system "mkdir -p $file_dir";
 			}
 			$cmd="cp -v ${source_path}* $root";
+            write_log ("~~   Executing '$cmd' ...");
+            $res=`$cmd`;
+            write_log ("Copying filetree files:") if ($VERBOSE);
+            write_log ("$res") if ($VERBOSE);
             # Change owner and permissions if specified in <filetree>
             if ( $user ne ''  ) { system "chown -R $user $root"}
             if ( $group ne '' ) { system "chown -R .$group $root"}
             if ( $perms ne '' ) { system "chmod -R $perms $root"}
 		}
-		write_log ("~~   Executing '$cmd' ...");
-        $res=`$cmd`;
-		write_log ("Copying filetree files:") if ($VERBOSE);
-		write_log ("$res") if ($VERBOSE);
 		write_log ("~~~~~~~~~~~~~~~~~~~~");
 	}
 }

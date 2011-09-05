@@ -79,6 +79,7 @@ use XML::DOM;
 
 #use IO::Socket::UNIX qw( SOCK_STREAM );
 use IO::Socket;
+use Data::Dumper;
 
 
 # Name of UML whose boot process has started but not reached the init program
@@ -876,8 +877,9 @@ sub destroyVM {
 
 	# 1. Kill all Linux processes, gracefully
 	@pids = &get_kernel_pids($vm_name);
+	wlog (VVV, "pids=" . Dumper(@pids));
 	if ( @pids != 0 ) {
-
+#pak "1";
 		my $pids_string = join( " ", @pids );
 		$execution->execute( $bd->get_binaries_path_ref->{"kill"}
 			  . " -SIGTERM $pids_string" );
@@ -889,7 +891,9 @@ sub destroyVM {
 
 	# 2. Kill all remaining Linux processes, by brute force
 	@pids = &get_kernel_pids($vm_name);
-	if ( @pids != 0 ) {
+    wlog (VVV, "pids=" . Dumper(@pids));
+#pak "2";    
+    	if ( @pids != 0 ) {
 		my $pids_string = join( " ", @pids );
 		$execution->execute( $bd->get_binaries_path_ref->{"kill"}
 			  . " -SIGKILL $pids_string" );
@@ -1709,21 +1713,20 @@ sub halt_uml {
 
 	my $vm_name     = shift;
 	my $F_flag     = shift;                 # DFC
+	
 	my @vm_ordered = $dh->get_vm_ordered;
 	my %vm_hash    = $dh->get_vm_to_use;
+
 	&kill_curr_uml;
 
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+
 		my $vm = $vm_ordered[$i];
-
-		# To get name attribute
 		my $name = $vm->getAttribute("name");
-
 		unless ( ( $vm_name eq "" ) or ( $name eq $vm_name ) ) {
 			next;
 		}
 
-		#&change_vm_status( $dh, $name, "REMOVE" );
 		&change_vm_status( $name, "REMOVE" );
 
 		# Currently booting uml has already been killed
@@ -1790,6 +1793,10 @@ sub kill_curr_uml {
 				  . " $mconsole halt 2>/dev/null" );
 		}
 		elsif ( -f $dh->get_vm_run_dir($curr_uml) . "/pid" ) {
+			
+			my $cmd = $bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_vm_run_dir($curr_uml) . "/pid";
+			my $pid = `cmd`;
+			wlog (VVV, "kill_curr_uml: pid=$pid");
 			$execution->execute( $bd->get_binaries_path_ref->{"kill"}
 				  . " -SIGTERM `"
 				  . $bd->get_binaries_path_ref->{"cat"} . " "
@@ -2212,9 +2219,11 @@ sub get_kernel_pids {
 			next;
 		}
 		my $pid_file = $dh->get_vm_run_dir($name) . "/pid";
+		wlog (VVV, "vm $vm_name pid_file=$pid_file");
 		next if ( !-f $pid_file );
 		my $command = $bd->get_binaries_path_ref->{"cat"} . " $pid_file";
 		chomp( my $pid = `$command` );
+		wlog (VVV, "vm $vm_name pid$pid");
 		push( @pid_list, $pid );
 	}
 	return @pid_list;
