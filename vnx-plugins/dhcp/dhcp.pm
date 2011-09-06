@@ -140,7 +140,7 @@ sub getFiles{
 	
 	            switch ($type) {
 	
-	                case "dhcp3" {
+	                case ["dhcp3","dhcp3-isc"] {
 	
 	                    my $server_tag_list = $vm->getElementsByTagName("server");
 	                    my $numservers = $server_tag_list->getLength;
@@ -259,7 +259,7 @@ sub getFiles{
 	                        }
 	                        close(SERVER);
 	                        $server_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative 
-	                        $files{"/etc/dhcp3/dhcpd.conf"} = $server_file;
+	                        $files{"/etc/dhcp3/dhcpd.conf,,,644"} = $server_file;
 	                    }
 	
 	                    my $relay_tag_list = $vm->getElementsByTagName("relay");
@@ -285,7 +285,7 @@ sub getFiles{
 	                        print RELAY "\"\n";
 	                        close(RELAY);
                             $relay_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative 
-	                        $files{"/etc/default/dhcp3-relay"} = $relay_file;
+	                        $files{"/etc/default/dhcp3-relay,,,644"} = $relay_file;
 	                    }
 	
 	                    my $client_tag_list = $vm->getElementsByTagName("client");
@@ -302,7 +302,7 @@ sub getFiles{
 	                        print CLIENT "retry 10;\n";
 	                        close(CLIENT);
                             $client_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative 
-	                        $files{"/etc/dhcp3/dhclient.conf"} = $client_file;
+	                        $files{"/etc/dhcp3/dhclient.conf,,,644"} = $client_file;
 	                        
 	                    }
 	                } else {
@@ -337,8 +337,8 @@ sub getCommands{
     my $seq = shift;
     
     print "dhcp-plugin> getCommands (vm=$vm_name, seq=$seq)\n";
+    
     my @commands;
-
     my $type;
 
     my $vm_tag_list = $globalNode->getElementsByTagName("vm");
@@ -354,8 +354,15 @@ sub getCommands{
             
             switch ($type) {
 
-                case "dhcp3" {
-                    # recognized type
+                case ["dhcp3","dhcp3-isc"] {
+                	
+                	my $dhcp_server_cmd ="/etc/init.d/dhcp3-server";
+                	my $dhcp_relay_cmd  ="/etc/init.d/dhcp3-relay";
+					if ($type eq "dhcp3-isc") {
+						$dhcp_server_cmd = "/etc/init.d/isc-dhcp-server";
+						$dhcp_relay_cmd  = "/etc/init.d/isc-dhcp-relay";						
+					}
+					
 		            my $server_tag_list = $vm->getElementsByTagName("server");
 		            my $numservers      = $server_tag_list->getLength;
 		            my $relay_tag_list  = $vm->getElementsByTagName("relay");
@@ -365,28 +372,24 @@ sub getCommands{
 		
 		            switch ($seq){
 
-                        case ("on_boot"){
-                            unshift( @commands, "" );
-                        }
-		                case ["start","dhcp-start"]{    
+		                case ["on_boot", "start", "dhcp-start"]{    
 		                    # Start server, relay and clients in the virtual machine, if any
 		                    unshift( @commands, "" );
 		                    if ( $numservers == 1 ) {
-		                        push( @commands, "/etc/init.d/dhcp3-server start" );
+		                        push( @commands, "$dhcp_server_cmd start" );
 		                    }
 		                    if ( $numrelays == 1 ) {
-		                        push( @commands, "/etc/init.d/dhcp3-relay start" );
+		                        push( @commands, "$dhcp_relay_cmd start" );
 		                    }
 		                    if (!($numclients == 0)) {
-		                        unshift(@commands, "" );
 		                        my $client = $client_tag_list->item(0);
 		                        my $if_tag_list = $client->getElementsByTagName("if");
 		                        my $numif = $if_tag_list->getLength;
 		                        for (my $ni=0; $ni<$numif ; $ni++) {
 		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $ifData = $if_tag->getFirstChild->getData;
-		                            if (!($ifData == 0)) {
-		                                push(@commands,"dhclient eth"."$ifData");
+		                            my $if_data = $if_tag->getFirstChild->getData;
+		                            if (!($if_data == 0)) {
+		                                push(@commands,"dhclient eth"."$if_data");
 		                            }
 		                        }
 		                    }
@@ -396,23 +399,22 @@ sub getCommands{
 		                    # Restart server, relay and clients in the virtual machine, if any  
 		                    unshift( @commands, "" );
 		                    if ( $numservers == 1 ) {
-		                        push( @commands, "/etc/init.d/dhcp3-server restart" );
+		                        push( @commands, "$dhcp_server_cmd restart" );
 		                    }
 		                    if ( $numrelays == 1 ) {
-		                        push( @commands, "/etc/init.d/dhcp3-relay restart" );
+		                        push( @commands, "$dhcp_relay_cmd restart" );
 		                    }
 		                    if (!($numclients == 0)) {
-		                        unshift(@commands, "" );
 		                        my $client = $client_tag_list->item(0);
 		                        my $if_tag_list = $client->getElementsByTagName("if");
 		                        my $numif = $if_tag_list->getLength;
 		                        for (my $ni=0; $ni<$numif ; $ni++) {
 		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $ifData = $if_tag->getFirstChild->getData;
-		                            if (!($ifData == 0)) {
+		                            my $if_data = $if_tag->getFirstChild->getData;
+		                            if (!($if_data == 0)) {
 		                                push(@commands,"dhclient -r");
 		                                push(@commands,"killall dhclient");
-		                                push(@commands,"dhclient eth"."$ifData");
+		                                push(@commands,"dhclient eth"."$if_data");
 		                            }
 		                        }
 		                    }
@@ -422,20 +424,19 @@ sub getCommands{
 		                    # Stop server and relay in the virtual machine, if any
 		                    unshift( @commands, "" );
 		                    if ( $numservers == 1 ) {
-		                        push( @commands, "/etc/init.d/dhcp3-server stop" );
+		                        push( @commands, "$dhcp_server_cmd stop" );
 		                    }
 		                    if ( $numrelays == 1 ) {
-		                        push( @commands, "/etc/init.d/dhcp3-relay stop" );
+		                        push( @commands, "$dhcp_relay_cmd stop" );
 		                    }
 		                    if (!($numclients == 0)) {
-		                        unshift(@commands, "" );
 		                        my $client = $client_tag_list->item(0);
 		                        my $if_tag_list = $client->getElementsByTagName("if");
 		                        my $numif = $if_tag_list->getLength;
 		                        for (my $ni=0; $ni<$numif ; $ni++) {
 		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $ifData = $if_tag->getFirstChild->getData;
-		                            if (!($ifData == 0)) {
+		                            my $if_data = $if_tag->getFirstChild->getData;
+		                            if (!($if_data == 0)) {
 		                                push(@commands,"dhclient -r");
 		                                push(@commands,"killall dhclient");
 		                            }
@@ -450,7 +451,7 @@ sub getCommands{
 		                    }
 		                    else {
 		                        unshift( @commands, "" );
-		                        push( @commands, "/etc/init.d/dhcp3-server start" );
+		                        push( @commands, "$dhcp_server_cmd start" );
 		                    }
 		                }
 		                case ("dhcp-relay-start"){
@@ -460,7 +461,7 @@ sub getCommands{
 		                    }
 		                    else {
 		                        unshift( @commands, "" );
-		                        push( @commands, "/etc/init.d/dhcp3-relay start" );
+		                        push( @commands, "$dhcp_relay_cmd start" );
 		                    }                                       
 		                }
 		                case ("dhcp-client-start"){
@@ -475,9 +476,9 @@ sub getCommands{
 		                        my $numif = $if_tag_list->getLength;
 		                        for (my $ni=0; $ni<$numif ; $ni++) {
 		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $ifData = $if_tag->getFirstChild->getData;
-		                            if (!($ifData == 0)) {
-		                                push(@commands,"dhclient eth"."$ifData");
+		                            my $if_data = $if_tag->getFirstChild->getData;
+		                            if (!($if_data == 0)) {
+		                                push(@commands,"dhclient eth"."$if_data");
 		                            }
 		                        }
 		    
@@ -490,7 +491,7 @@ sub getCommands{
 		                    }
 		                    else {
 		                        unshift( @commands, "" );
-		                        push( @commands, "/etc/init.d/dhcp3-server restart" );
+		                        push( @commands, "$dhcp_server_cmd restart" );
 		                    }
 		                }
 		                case ("dhcp-relay-restart"){
@@ -500,7 +501,7 @@ sub getCommands{
 		                    }
 		                    else {
 		                        unshift( @commands, "" );
-		                        push( @commands, "/etc/init.d/dhcp3-relay restart" );
+		                        push( @commands, "$dhcp_relay_cmd restart" );
 		                    }                                       
 		                }
 		                
@@ -516,11 +517,11 @@ sub getCommands{
 		                        my $numif = $if_tag_list->getLength;
 		                        for (my $ni=0; $ni<$numif ; $ni++) {
 		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $ifData = $if_tag->getFirstChild->getData;
-		                            if (!($ifData == 0)) {
+		                            my $if_data = $if_tag->getFirstChild->getData;
+		                            if (!($if_data == 0)) {
 		                                push(@commands,"dhclient -r");
 		                                push(@commands,"killall dhclient");
-		                                push(@commands,"dhclient eth"."$ifData");
+		                                push(@commands,"dhclient eth"."$if_data");
 		                            }
 		                        }
 		    
@@ -534,7 +535,7 @@ sub getCommands{
 		                    }
 		                    else {
 		                        unshift( @commands, "" );
-		                        push( @commands, "/etc/init.d/dhcp3-server stop" );
+		                        push( @commands, "$dhcp_server_cmd stop" );
 		                    }
 		                
 		                }
@@ -545,7 +546,7 @@ sub getCommands{
 		                    }
 		                    else {
 		                        unshift( @commands, "" );
-		                        push( @commands, "/etc/init.d/dhcp3-relay stop" );
+		                        push( @commands, "$dhcp_relay_cmd stop" );
 		                    }
 		                
 		                }
@@ -562,8 +563,8 @@ sub getCommands{
 		                        my $numif = $if_tag_list->getLength;
 		                        for (my $ni=0; $ni<$numif ; $ni++) {
 		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $ifData = $if_tag->getFirstChild->getData;
-		                            if (!($ifData == 0)) {
+		                            my $if_data = $if_tag->getFirstChild->getData;
+		                            if (!($if_data == 0)) {
 		                                push(@commands,"dhclient -r");
 		                                push(@commands,"killall dhclient");
 		                            }
@@ -579,7 +580,7 @@ sub getCommands{
 		                    }
 		                    else {
 		                        unshift( @commands, "" );
-		                        push( @commands, "/etc/init.d/dhcp3-server force-reload" );
+		                        push( @commands, "$dhcp_server_cmd force-reload" );
 		                    }
 		                
 		                }
@@ -590,7 +591,7 @@ sub getCommands{
 		                    }
 		                    else {
 		                        unshift( @commands, "" );
-		                        push( @commands, "/etc/init.d/dhcp3-relay force-reload" );
+		                        push( @commands, "$dhcp_relay_cmd force-reload" );
 		                    }
 		                
 		                }
@@ -599,11 +600,11 @@ sub getCommands{
 		                    unshift( @commands, "" );
 		
 		                    if ( $numservers == 1 ) {
-		                        push( @commands, "/etc/init.d/dhcp3-server stop" );
+		                        push( @commands, "$dhcp_server_cmd stop" );
 		                    }
 		
 		                    if ( $numrelays == 1 ) {
-		                        push( @commands, "/etc/init.d/dhcp3-relay stop" );
+		                        push( @commands, "$dhcp_relay_cmd stop" );
 		                    }
                         
                         } else {

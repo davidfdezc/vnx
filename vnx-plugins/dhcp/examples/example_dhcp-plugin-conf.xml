@@ -3,7 +3,7 @@
 
 <dhcp_conf>
 
-  <vm name="r1" type="dhcp3">
+  <vm name="r1" type="dhcp3-isc">
     <server>
       <subnet>
         <ip mask="24">10.0.1.0</ip>
