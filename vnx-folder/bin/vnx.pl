@@ -2220,14 +2220,14 @@ sub get_vm_ftrees_and_execs {
     my $vm_ftrees = 0; 
     my $vm_execs  = 0; 
     
-    my $mode_tag;            
-    if ($mode eq 'define') {
-        $mode_tag = 'Boot';
-    } elsif ($mode eq 'execute') {
-        $mode_tag = 'Exec';
-    } elsif ($mode eq 'shutdown') {
-        $mode_tag = 'Shutdown';
-    }
+#    my $mode_tag;            
+#    if ($mode eq 'define') {
+#        $mode_tag = 'Boot';
+#    } elsif ($mode eq 'execute') {
+#        $mode_tag = 'Exec';
+#    } elsif ($mode eq 'shutdown') {
+#        $mode_tag = 'Shutdown';
+#    }
     
         
     # Plugin operations:
@@ -2273,14 +2273,14 @@ sub get_vm_ftrees_and_execs {
 #        }
 
         if (defined($files{"ERROR"}) && $files{"ERROR"} ne "") {
-            $execution->smartdie("plugin $plugin get${mode_tag}Files($vm_name) error: ".$files{"ERROR"});
+            $execution->smartdie("plugin $plugin getFiles($vm_name) in mode=$mode and sequence=$seq error: ".$files{"ERROR"});
         }
 
         if (keys(%files) > 0 ) {
             my $res=`tree $files_dir`; 
-            wlog (VVV, "get${mode_tag}Files returns " . keys(%files) . " files/dirs for vm $vm_name:\n $res");
+            wlog (VVV, "getFiles returns " . keys(%files) . " files/dirs for vm $vm_name:\n $res");
         } else {
-            wlog (VVV, "get${mode_tag}Files returns no files/dirs for vm $vm_name");
+            wlog (VVV, "getFiles returns no files/dirs for vm $vm_name");
         }
                 
         if (keys(%files) > 0 ) { 
@@ -2298,12 +2298,12 @@ sub get_vm_ftrees_and_execs {
                                             # $files[1] -> user
                                             # $files[2] -> group
                                             # $files[3] -> perms
-            #wlog (VVV, "**** dst=$file[0], user=$file[1], group=$file[2], perms=$file[3], ");                                                           
+            wlog (VVV, "**** dst=$file[0], user=$file[1], group=$file[2], perms=$file[3], ");                                                           
             # Check whether file/dir uses a relative path
-            $execution->smartdie ("file/dir $files{$key} returned by $plugin->get${mode_tag}Files uses an absolut path (should be relative to files_dir directory)")       
+            $execution->smartdie ("file/dir $files{$key} returned by $plugin->getFiles (vm=$vm_name, seq=$seq) uses an absolut path (should be relative to files_dir directory)")       
                 if ( $files{$key} =~ /^\// );
             # Check whether file/dir exists
-            $execution->smartdie ("file/dir $files_dir$files{$key} returned by plugin $plugin->get${mode_tag}Files does not exist")        
+            $execution->smartdie ("file/dir $files_dir$files{$key} returned by plugin $plugin->getFiles does not exist")        
                 unless ( -e "$files_dir$files{$key}" );
             
             wlog (VVV, "Creating <filetree> tag for plugin file/dir $key");
@@ -2361,10 +2361,10 @@ sub get_vm_ftrees_and_execs {
 #        }
         my $error = shift(@commands);
         if ($error ne "") {
-            $execution->smartdie("plugin $plugin get${mode_tag}Commands($vm_name,$seq) error: $error");
+            $execution->smartdie("plugin $plugin getCommands($vm_name,$seq) error: $error");
         }
 
-        wlog (VVV, "get${mode_tag}Commands returns " . scalar(@commands) . " commands");
+        wlog (VVV, "getCommands returns " . scalar(@commands) . " commands");
         if (scalar(@commands) > 0) { 
             $vm_plugin_execs  += scalar(@commands);
         } 

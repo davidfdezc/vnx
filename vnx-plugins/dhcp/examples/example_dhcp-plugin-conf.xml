@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dhcp_conf SYSTEM "/usr/share/xml/vnx/dhcp.dtd">
+
+<dhcp_conf>
+
+  <vm name="r1" type="dhcp3">
+    <server>
+      <subnet>
+        <ip mask="24">10.0.1.0</ip>
+        <range>
+          <first>10.0.1.10</first>
+          <last>10.0.1.20</last>
+        </range>
+        <router>10.0.1.1</router>
+        <dns>10.0.1.2</dns>
+        <domain>dominio1.org</domain>
+      </subnet>
+      <subnet>
+        <ip mask="24">10.0.2.0</ip>
+        <range>
+          <first>10.0.2.10</first>
+          <last>10.0.2.20</last>
+        </range>
+        <router>10.0.2.1</router>
+        <host name="Unicum" mac="AA:BB:CC:DD:EE:FF" ip="10.0.2.28"/>
+      </subnet>
+    </server>
+  </vm>
+
+  <vm name="h1" type="dhcp3">
+    <client>
+      <if>1</if>
+    </client>
+  </vm>
+
+  <vm name="r2" type="dhcp3">
+    <relay>
+      <toserver>10.0.0.1</toserver>
+    </relay>
+  </vm>
+
+  <vm name="h2" type="dhcp3">
+    <client>
+      <if>1</if>
+    </client>
+  </vm>
+
+</dhcp_conf>
