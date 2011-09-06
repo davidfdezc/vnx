@@ -6,9 +6,8 @@
 VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
-Name:        example_ospf-plugin
-Description: Example scenario to show the use of ospf plugin. It is made of two 
-             routers: r1 (ubuntu) and r2(uml) and two hosts: h1 (ubuntu) and h2 (uml).   
+Name:        example_dhcp-plugin
+Description: Simple example that shows dhcp plugin capabilities.  
 
 This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
 (www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
@@ -24,7 +23,7 @@ SPAIN
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
     <version>2.0</version>
-    <scenario_name>example_ospf-plugin</scenario_name>
+    <scenario_name>example_dhcp_plugin</scenario_name>
     <ssh_key>~/.ssh/id_dsa.pub</ssh_key>
     <automac offset="4"/>
     <!--vm_mgmt type="none" /-->
@@ -32,14 +31,14 @@ SPAIN
        <host_mapping />
     </vm_mgmt> 
     <vm_defaults>
-	    <console id="0" display="no"/>
-	    <console id="1" display="yes"/>
+        <console id="0" display="no"/>
+        <console id="1" display="yes"/>
         <exec_mode type="uml">mconsole</exec_mode>
         <exec_mode type="libvirt" subtype="kvm">cdrom</exec_mode>
         <exec_mode type="libvirt" subtype="kvm" os="windows">cdrom</exec_mode>
         <exec_mode type="libvirt" subtype="kvm" os="olive">sdisk</exec_mode>
     </vm_defaults>
-    <extension plugin="ospf" conf="example_ospf-plugin-conf.xml" />
+    <extension plugin="dhcp" conf="example_dhcp-plugin-conf.xml" />
   </global>
     
   <net name="lan1" mode="virtual_bridge" />
@@ -58,16 +57,8 @@ SPAIN
       <ipv4>10.0.0.1/30</ipv4>
       <ipv6>2001:db8:12::1/64</ipv6>
     </if>
+    <route type="ipv4" gw="10.0.0.2">10.0.2.0/24</route>    
     <forwarding type="ip" />
-    <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
-    <filetree seq="start-www" root="/var/www/" user="www-data" group="www-data" perms="644">conf/txtfile</filetree>
-    <exec seq="on_boot" type="verbatim"  ostype="system">cp /root/on_boot.txt /root/on_boot2.txt</exec>
-    <exec seq="movefile" type="verbatim"  ostype="system">mv /tmp/vnx.txt /root/</exec>
-    <!--exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec-->
-    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
-    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>
-    <exec seq="file" type="file"  ostype="system">conf/cmdfile</exec>
-    <exec seq="on_shutdown" type="verbatim"  ostype="system">touch /root/on_shutdown.txt</exec>
   </vm>
 
   <vm name="r2" type="uml" subtype="" os="" exec_mode="mconsole">
@@ -82,27 +73,19 @@ SPAIN
       <ipv4>10.0.0.2/30</ipv4>
       <ipv6>2001:db8:12::2/64</ipv6>
     </if>
+    <route type="ipv4" gw="10.0.0.1">10.0.1.0/24</route>    
     <forwarding type="ip" />
-    <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
-    <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
-    <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
-    <exec seq="on_boot" type="verbatim">cp /root/on_boot.txt /root/on_boot2.txt</exec>
-    <exec seq="movefile" type="verbatim">mv /tmp/vnx.txt /root/</exec>
-    <!--exec seq="start-www" type="verbatim">chmod 644 /var/www/*</exec-->
-    <exec seq="start-www" type="verbatim">/etc/init.d/apache2 start</exec>
-    <exec seq="stop-www" type="verbatim">/etc/init.d/apache2 stop</exec>
-    <exec seq="on_shutdown" type="verbatim">touch /root/on_shutdown.txt</exec>
   </vm>
 
   <vm name="h1" type="libvirt" subtype="kvm" os="linux" exec_mode="cdrom">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>256M</mem>
     <if id="1" net="lan1">
-      <ipv4>10.0.1.2/24</ipv4>
-      <ipv6>2001:db8:1::2/64</ipv6>
+      <!--ipv4>10.0.1.2/24</ipv4>
+      <ipv6>2001:db8:1::2/64</ipv6-->
     </if>
-    <route type="ipv4" gw="10.0.1.1">default</route>    
-    <route type="ipv6" gw="2001:db8:1::1">default</route>       
+    <!--route type="ipv4" gw="10.0.1.1">default</route>    
+    <route type="ipv6" gw="2001:db8:1::1">default</route-->       
   </vm>
 
   <vm name="h2" type="uml" exec_mode="mconsole">
@@ -110,11 +93,11 @@ SPAIN
     <mem>64M</mem>
     <kernel>/usr/share/vnx/kernels/linux</kernel>
     <if id="1" net="lan2">
-      <ipv4>10.0.2.2/24</ipv4>
-      <ipv6>2001:db8:2::2/64</ipv6>
+      <!--ipv4>10.0.2.2/24</ipv4>
+      <ipv6>2001:db8:2::2/64</ipv6-->
     </if>
-    <route type="ipv4" gw="10.0.2.1">default</route>    
-    <route type="ipv6" gw="2001:db8:2::1">default</route>       
+    <!--route type="ipv4" gw="10.0.2.1">default</route>    
+    <route type="ipv6" gw="2001:db8:2::1">default</route-->       
   </vm>
   
 
