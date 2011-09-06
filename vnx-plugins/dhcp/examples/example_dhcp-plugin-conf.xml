@@ -24,6 +24,9 @@
         <router>10.0.2.1</router>
         <host name="Unicum" mac="AA:BB:CC:DD:EE:FF" ip="10.0.2.28"/>
       </subnet>
+      <subnet>
+        <ip mask="30">10.0.0.0</ip>
+      </subnet>
     </server>
   </vm>
 

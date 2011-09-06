@@ -142,11 +142,16 @@ sub getFiles{
 	
 	                case ["dhcp3","dhcp3-isc"] {
 	
+	                    my $etc_dir ="/etc/dhcp3/";
+                        if ($type eq "dhcp3-isc") {
+                            $etc_dir = "/etc/dhcp/";
+                        }
+	
 	                    my $server_tag_list = $vm->getElementsByTagName("server");
 	                    my $numservers = $server_tag_list->getLength;
 	                    if ( $numservers == 1 ) {
 	
-	                        # open filehandle to create /etc/dhcp3/dhcpd.conf file
+	                        # open filehandle to create dhcpd.conf file
 	                        my $server_file = $files_dir . "/${vm_name}_server.conf";
 	                        chomp( my $date = `date` );
 	                        open( SERVER, ">$server_file" ) or $files{"ERROR"} = "Cannot open $server_file file";
@@ -259,7 +264,7 @@ sub getFiles{
 	                        }
 	                        close(SERVER);
 	                        $server_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative 
-	                        $files{"/etc/dhcp3/dhcpd.conf,,,644"} = $server_file;
+	                        $files{"${etc_dir}dhcpd.conf,,,644"} = $server_file;
 	                    }
 	
 	                    my $relay_tag_list = $vm->getElementsByTagName("relay");
@@ -291,7 +296,7 @@ sub getFiles{
 	                    my $client_tag_list = $vm->getElementsByTagName("client");
 	                    my $numclients = $client_tag_list->getLength;
 	                    if ( $numclients == 1 ) {
-	                        # Build file /etc/dhcp3/dhclient.conf
+	                        # Build file dhclient.conf
 	                        my $client_file = $files_dir . "/${vm_name}_client.conf";
 	                        chomp( my $date = `date` );
 	                        open( CLIENT, ">$client_file" ) or $files{"ERROR"} = "Cannot open $client_file file";
@@ -302,7 +307,7 @@ sub getFiles{
 	                        print CLIENT "retry 10;\n";
 	                        close(CLIENT);
                             $client_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative 
-	                        $files{"/etc/dhcp3/dhclient.conf,,,644"} = $client_file;
+	                        $files{"${etc_dir}dhclient.conf,,,644"} = $client_file;
 	                        
 	                    }
 	                } else {
