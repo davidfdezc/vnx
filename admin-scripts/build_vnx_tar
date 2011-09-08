@@ -128,11 +128,13 @@ cp -r vnx-folder/doc  \
 #
 mkdir -p tmp/${FNAME}/plugins
 rm -rf tmp/${FNAME}/plugins/*
+mkdir -p tmp/${FNAME}/plugins/examples
 # For each plugin
 for p in `ls vnx-plugins`
 do 
 	cp -v vnx-plugins/$p/$p.pm  tmp/${FNAME}/plugins 
-	cp -v vnx-plugins/$p/$p.dtd tmp/${FNAME}/plugins 
+    cp -v vnx-plugins/$p/$p.dtd tmp/${FNAME}/plugins 
+    cp -vr vnx-plugins/$p/examples/* tmp/${FNAME}/plugins/examples 
 done
 
 #

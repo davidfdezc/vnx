@@ -1238,7 +1238,6 @@ sub executeCMD {
     my $plugin_exec_list_ref  = shift;
     my $ftree_list_ref        = shift;
     my $exec_list_ref         = shift;	
-#	my %vm_ips    = @_;
 
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)");
 
@@ -1248,6 +1247,8 @@ sub executeCMD {
         $error = "$sub_name called with type $merged_type (should be uml)\n";
         return $error;
     }
+
+    my $uml_log_file = '/var/log/vnxaced.log';
 
 press_any_key;
 
@@ -1389,22 +1390,22 @@ press_any_key;
 		        if ( $root =~ /\/$/ ) {
 		            $execution->execute( "# Create the directory if it does not exist", *COMMAND_FILE );
 		            $execution->execute( "if [ -d $root ]; then", *COMMAND_FILE );
-		            $execution->execute( "    mkdir -vp $root >> /root/on_boot.log", *COMMAND_FILE );
+		            $execution->execute( "    mkdir -vp $root >> $uml_log_file", *COMMAND_FILE );
 		            $execution->execute( "fi", *COMMAND_FILE );
-		            $execution->execute( "cp -Rv $filetree_vm/* $root >> /root/on_boot.log", *COMMAND_FILE );
-		            if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root/*  >> /root/on_boot.log",  *COMMAND_FILE ); }
-		            if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root/* >> /root/on_boot.log", *COMMAND_FILE ); }
-		            if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root/*  >> /root/on_boot.log", *COMMAND_FILE ); }
+		            $execution->execute( "cp -Rv $filetree_vm/* $root >> $uml_log_file", *COMMAND_FILE );
+		            if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root/*  >> $uml_log_file",  *COMMAND_FILE ); }
+		            if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root/* >> $uml_log_file", *COMMAND_FILE ); }
+		            if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root/*  >> $uml_log_file", *COMMAND_FILE ); }
 		        } else {
 		            my $root_dir = dirname($root);
 		            $execution->execute( "# Create the directory if it does not exist", *COMMAND_FILE );
 		            $execution->execute( "if [ -d $root_dir ]; then", *COMMAND_FILE );
-		            $execution->execute( "    mkdir -vp $root_dir >> /root/on_boot.log", *COMMAND_FILE );
+		            $execution->execute( "    mkdir -vp $root_dir >> $uml_log_file", *COMMAND_FILE );
 		            $execution->execute( "fi", *COMMAND_FILE );
 		            $execution->execute( "cp -Rv $filetree_vm/* $root", *COMMAND_FILE );
-		            if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root >> /root/on_boot.log", *COMMAND_FILE );   }
-		            if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root >> /root/on_boot.log", *COMMAND_FILE ); }
-		            if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root >> /root/on_boot.log", *COMMAND_FILE );  }
+		            if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root >> $uml_log_file", *COMMAND_FILE );   }
+		            if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root >> $uml_log_file", *COMMAND_FILE ); }
+		            if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root >> $uml_log_file", *COMMAND_FILE );  }
 		        }
                 
                 $execution->execute("echo 1 > /mnt/hostfs/filetree_cp.$ftree_id.end",*COMMAND_FILE);
@@ -2621,6 +2622,8 @@ sub create_vm_onboot_commands_file {
     my $vm_doc = shift;   
 
 	my $basename = basename $0;
+	
+	my $uml_log_file = '/var/log/vnxaced.log';
 
 	my $vm_name = $vm->getAttribute("name");
 
@@ -2666,27 +2669,27 @@ sub create_vm_onboot_commands_file {
         
 	    # Create the commands in the script
         $execution->execute( "# <filetree> tag: seq=$seq,root=$root,user=$user,group=$group,perms=$perms", *CONFILE );
-        $execution->execute( "ls -R /mnt/hostfs >> /root/on_boot.log", *CONFILE );
+        $execution->execute( "ls -R /mnt/hostfs >> $uml_log_file", *CONFILE );
 
         if ( $root =~ /\/$/ ) {
 	        $execution->execute( "# Create the directory if it does not exist", *CONFILE );
 	        $execution->execute( "if [ -d $root ]; then", *CONFILE );
-	        $execution->execute( "    mkdir -vp $root >> /root/on_boot.log", *CONFILE );
+	        $execution->execute( "    mkdir -vp $root >> $uml_log_file", *CONFILE );
 	        $execution->execute( "fi", *CONFILE );
-	        $execution->execute( "cp -Rv $filetree_vm/* $root >> /root/on_boot.log", *CONFILE );
-	        if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root/*  >> /root/on_boot.log",  *CONFILE ); }
-	        if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root/* >> /root/on_boot.log", *CONFILE ); }
-	        if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root/*  >> /root/on_boot.log", *CONFILE ); }
+	        $execution->execute( "cp -Rv $filetree_vm/* $root >> $uml_log_file", *CONFILE );
+	        if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root/*  >> $uml_log_file",  *CONFILE ); }
+	        if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root/* >> $uml_log_file", *CONFILE ); }
+	        if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root/*  >> $uml_log_file", *CONFILE ); }
         } else {
             my $root_dir = dirname($root);
             $execution->execute( "# Create the directory if it does not exist", *CONFILE );
             $execution->execute( "if [ -d $root_dir ]; then", *CONFILE );
-            $execution->execute( "    mkdir -vp $root_dir >> /root/on_boot.log", *CONFILE );
+            $execution->execute( "    mkdir -vp $root_dir >> $uml_log_file", *CONFILE );
             $execution->execute( "fi", *CONFILE );
             $execution->execute( "cp -Rv $filetree_vm/* $root", *CONFILE );
-            if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root >> /root/on_boot.log", *CONFILE );   }
-            if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root >> /root/on_boot.log", *CONFILE ); }
-            if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root >> /root/on_boot.log", *CONFILE );  }
+            if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root >> $uml_log_file", *CONFILE );   }
+            if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root >> $uml_log_file", *CONFILE ); }
+            if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root >> $uml_log_file", *CONFILE );  }
         }
         
         $ftree_num++;
