@@ -119,6 +119,7 @@ cp -v aced/* /usr/share/vnx/aced
 #
 cp -v plugins/*.pm /usr/share/vnx/plugins/
 cp -v plugins/*.dtd /usr/share/xml/vnx/
+cp -v plugins/*.xsd /usr/share/xml/vnx/
 cp -vr plugins/examples /usr/share/vnx/plugins/ 
 
 #
