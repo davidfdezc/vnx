@@ -1,7 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE dhcp_conf SYSTEM "/usr/share/xml/vnx/dhcp.dtd">
-
-<dhcp_conf>
+<dhcp_conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/dhcp.xsd">
 
   <vm name="r1" type="dhcp3-isc">
     <server>

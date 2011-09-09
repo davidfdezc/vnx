@@ -57,7 +57,7 @@ use VNX::Execution;
 #   Checks the existence of an XML file and validates it against the XSD .
 #
 # Arguments:
-#   xmlFile: the XML file tio be validated
+#   xmlFile: the XML file to be validated
 #
 # Returns
 #   empty string if no errors found; error messages if the parser finds them
@@ -95,10 +95,11 @@ sub validate_xml {
 	my $doc = $parser->parse_file($xmlFile);
 	eval { $schema->validate( $doc ) };
 
-	if ( my $ex = $@ ) {
-		return $ex;
+	if ( $@ ) {
+		return $@;
+	} else {
+        return;
 	}
-	return;
 }
 
 # check_doc

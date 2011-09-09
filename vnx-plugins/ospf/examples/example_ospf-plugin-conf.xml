@@ -1,7 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE ospf_conf SYSTEM "/usr/share/xml/vnx/ospf.dtd">
-
-<ospf_conf>
+<ospf_conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/ospf.xsd">
 
    <vm name="r1" type="quagga" subtype="lib-install">
       <zebra hostname="r1" password="xxxx"/>

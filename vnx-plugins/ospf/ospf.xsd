@@ -1,0 +1,77 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<!--
+
+VNX OSPF Plugin Definition Language v1.0
+
+Virtual Networks over LinuX (VNX) Project 
+www:    http://www.dit.upm.es/vnx 
+e-mail: vnx@dit.upm.es 
+
+-->
+
+ <xs:element name='ospf_conf'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='vm' maxOccurs='unbounded'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='vm'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='zebra_bin' minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='ospfd_bin' minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='zebra'/>
+    <xs:element ref='passive_if'/>
+    <xs:element ref='network' maxOccurs='unbounded'/>
+   </xs:sequence>
+   <xs:attribute name='name' type='xs:string' use='required'/>
+   <xs:attribute name='type' type='xs:string' use='required'/>
+   <xs:attribute name='subtype' type='xs:string' use='required'/>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='zebra_bin'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='ospfd_bin'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='zebra'>
+  <xs:complexType>
+   <xs:attribute name='hostname' type='xs:string' use='required'/>
+   <xs:attribute name='password' type='xs:string' use='required'/>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='passive_if'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='network'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='ip'/>
+    <xs:element ref='area'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='ip'>
+  <xs:complexType mixed='true'>
+   <xs:attribute name='mask' type='xs:string' use='required'/>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='area'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+</xs:schema>

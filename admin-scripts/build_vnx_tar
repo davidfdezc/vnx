@@ -134,6 +134,7 @@ for p in `ls vnx-plugins`
 do 
 	cp -v vnx-plugins/$p/$p.pm  tmp/${FNAME}/plugins 
     cp -v vnx-plugins/$p/$p.dtd tmp/${FNAME}/plugins 
+    cp -v vnx-plugins/$p/$p.xsd tmp/${FNAME}/plugins 
     cp -vr vnx-plugins/$p/examples/* tmp/${FNAME}/plugins/examples 
 done
 

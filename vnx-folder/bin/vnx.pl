@@ -739,24 +739,16 @@ sub main {
    	my $extension_list = $dh->get_doc->getElementsByTagName("extension");
    	for ( my $i = 0; $i < $extension_list->getLength; $i++ ) {
       	my $plugin = $extension_list->item($i)->getAttribute("plugin");
-      	my $conf = $extension_list->item($i)->getAttribute("conf");
+      	my $plugin_conf = $extension_list->item($i)->getAttribute("conf");
       
-      	# Check configuration file
-      	my $effective_conf;
-      	if ($conf =~ /^\//) {
-         	# Absolute pathname
-         	$effective_conf = $conf;
-      	}
-      	else {
-         	# Pathname relative to the place where the VNX spec is ($xml_dir)
-         	$effective_conf = "$xml_dir/$conf";
-      	}
-      
-      	# Check input file
-      	if (! -f $effective_conf) {
-         	&vnx_die ("plugin $plugin configuration file $effective_conf is not valid (perhaps does not exists)\n");
-      	}
-            
+        if (defined($plugin_conf)) {
+            # Check Plugin Configuration File (PCF) existance
+            $plugin_conf = &get_abs_path($plugin_conf);
+	        if (! -f $plugin_conf) {
+	            &vnx_die ("plugin $plugin configuration file $plugin_conf is not valid (perhaps does not exists)\n");
+	        }
+        }
+              
       	wlog (V, "Loading pluging: $plugin...");      
       	# Why we are not using 'use'? See the following thread: 
       	# http://www.mail-archive.com/beginners%40perl.org/msg87441.html)   
@@ -778,12 +770,12 @@ sub main {
 =cut	
       	
       	      
-      	if (my $err_msg = $plugin->initPlugin($mode,$effective_conf)) {
+      	if (my $err_msg = $plugin->initPlugin($mode,$plugin_conf)) {
          	&vnx_die ("plugin $plugin reports error: $err_msg\n");
       	}
       	push (@plugins,$plugin);
    	}
-   
+
    	###########################################################
    	# Command execution
 

@@ -2,7 +2,8 @@
 #
 # This file is a plugin of VNX package.
 #
-# Authors: Miguel Ferrer, Francisco José Martín, David Fernández
+# Authors: Miguel Ferrer, Francisco José Martín (VNUML version, 2009)
+#          David Fernández (VNX version, 2011)
 # Coordinated by: David Fernández (david@dit.upm.es)
 #
 # Copyright (C) 2011,   DIT-UPM
@@ -43,20 +44,18 @@ package ospf;
 use strict;
 use XML::DOM;          					# XML management library
 use File::Basename;    					# File management library
-
 use Switch;
-
 use Socket;								# To resolve hostnames to IPs
-
 use XML::DOM::ValParser;				# To check DTD
+use VNX::FileChecks;                    # To use get_abs_path
+use VNX::CheckSemantics;                # To use validate_xml
 
 
 ###########################################################
 # Global variables 
 ###########################################################
 
-my $globalNode;
-my $valid_fail;
+my $pcf_dom;
 
 ###########################################################
 # Plugin functions
@@ -80,19 +79,18 @@ sub initPlugin {
 	
 	my $self = shift;	
 	my $mode = shift;
-	my $conf = shift;
+	my $conf = shift;  # Absolute filename of PCF. Empty if PCF not defined 
 	
 	print "ospf-plugin> initPlugin (mode=$mode; conf=$conf)\n";
 
-	my $error;
-	
-	eval{
-		$error = &checkConfigFile($conf);
-	};
-	
-	if ($@){
-		$error = $@;
-	}
+	# Validate PCF with XSD language definition 
+    my $error = validate_xml ($conf);
+    if (! $error ) {
+    	my $parser = new XML::DOM::Parser;
+        my $dom_tree = $parser->parsefile($conf);
+        $pcf_dom = $dom_tree->getElementsByTagName("ospf_conf")->item(0);
+    } 
+
 	return $error;
 }
 
@@ -127,7 +125,7 @@ sub getFiles{
     if (($seq eq "on_boot") || ($seq eq "ospf-on_boot") || 
         ($seq eq "redoconf") || ($seq eq "ospf-redoconf")) { 
     
-        my $vm_list=$globalNode->getElementsByTagName("vm");
+        my $vm_list=$pcf_dom->getElementsByTagName("vm");
         
         for (my $m=0; $m<$vm_list->getLength; $m++){
             
@@ -168,7 +166,7 @@ sub getCommands{
     my $zebra_bin = "";
     my $ospfd_bin = "";
 
-    my $vm_list=$globalNode->getElementsByTagName("vm");
+    my $vm_list=$pcf_dom->getElementsByTagName("vm");
     for (my $m=0; $m<$vm_list->getLength; $m++){
         
         my $vm = $vm_list->item($m);
@@ -204,6 +202,7 @@ sub finalizePlugin{
 # Internal functions
 ###########################################################
 
+=BEGIN
 #
 # checkConfigFile
 #
@@ -235,11 +234,10 @@ sub checkConfigFile{
         return ("$config_file is not a well-formed OSPF plugin file\n");
     }
 
-    $globalNode = $dom_tree->getElementsByTagName("ospf_conf")->item(0);
+    $pcf_dom = $dom_tree->getElementsByTagName("ospf_conf")->item(0);
     
     return 0;   
 }
-
 sub validation_fail {
    my $code = shift;
    # To set flag
@@ -247,6 +245,8 @@ sub validation_fail {
    # To print error message
    XML::Checker::print_error ($code, @_);
 }
+=END
+=cut
 
 
 #
@@ -446,7 +446,7 @@ sub getBootFiles{
 	print "ospf-plugin> getBootFiles (vm=$vm_name, files_dir=$files_dir)\n";
 	my %files;
 	
-	my $vm_list=$globalNode->getElementsByTagName("vm");
+	my $vm_list=$pcf_dom->getElementsByTagName("vm");
 	
 	for (my $m=0; $m<$vm_list->getLength; $m++){
 		
@@ -495,7 +495,7 @@ sub getBootCommands{
     my $zebra_bin = "";
     my $ospfd_bin = "";
 
-    my $vm_list=$globalNode->getElementsByTagName("vm");
+    my $vm_list=$pcf_dom->getElementsByTagName("vm");
     for (my $m=0; $m<$vm_list->getLength; $m++){
         
         my $vm = $vm_list->item($m);
@@ -539,7 +539,7 @@ sub execVmsToUse {
 	# Return the list of virtual machines included in plugin extended config file
 	my @vm_list = ();
     
-	my $vm_list=$globalNode->getElementsByTagName("vm");
+	my $vm_list=$pcf_dom->getElementsByTagName("vm");
 	my $longitud = $vm_list->getLength;
 	
 	for (my $m=0; $m<$longitud; $m++){
@@ -583,7 +583,7 @@ sub getExecFiles{
 	if (($seq eq "redoconf") || ($seq eq "ospf-redoconf")){	
 	
 
-		my $vm_list=$globalNode->getElementsByTagName("vm");
+		my $vm_list=$pcf_dom->getElementsByTagName("vm");
 		
 		for (my $m=0; $m<$vm_list->getLength; $m++){
 			
@@ -626,7 +626,7 @@ sub getExecCommands{
 	my $zebra_bin = "";
 	my $ospfd_bin = "";
 
-	my $vm_list=$globalNode->getElementsByTagName("vm");
+	my $vm_list=$pcf_dom->getElementsByTagName("vm");
 	for (my $m=0; $m<$vm_list->getLength; $m++){
 		
 		my $vm = $vm_list->item($m);
