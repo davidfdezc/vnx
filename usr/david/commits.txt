@@ -78,5 +78,27 @@ IMPORTANT CHANGES MADE:
     </vm_defaults>
 
 
+12/9/2011:
+
+- Plugins: 
+    + changed OSPF and DHCP plugins to use XML::LibXML instead of XML::DOM
+    + added a new function to plugin API: getSeqDescriptions to get descriptions of commands offered by plugins
+    + changes to OSPF and DHCP configuration files languages. DTD's translated to XSD.
+    + plog function to write log messages in plugins 
+    
+- vnx:
+    + added a new option --exe-info to get a description of the commands available in a virtual scenario. 
+      For the plugin commands, the information is obtained by menas of the new function getSeqDescriptions.
+      For the user-defined commands, a new tag has been added <seq_help>:
+      
+        <help>
+             <seq_help seq='start-www'>Start apache2 web server</seq_help>
+             <seq_help seq='stop-www'>Stop apache2 web server</seq_help>     
+        </help>
+    + Cleaning of the arguments list
+
+- VNX::Execution: eliminated the redirection to /dev/null in 'execute' in $EXE_NORMAL mode. It provoked problems
+  when executing commands like "echo xxxx > file"      
+            
          
          

@@ -34,6 +34,7 @@ package ospf;
   initPlugin
   getFiles
   getCommands
+  getSeqDescriptions
   finalizePlugin 
 );
 
@@ -42,20 +43,52 @@ package ospf;
 ###########################################################
 
 use strict;
-use XML::DOM;          					# XML management library
-use File::Basename;    					# File management library
+use warnings;
+use XML::LibXML;           # XML management library
+use File::Basename;        # File management library
+use VNX::FileChecks;       # To use get_abs_path
+use VNX::CheckSemantics;   # To use validate_xml
+use VNX::Globals;          # To use wlog
+use VNX::Execution;        # To use wlog
+use Socket;                # To resolve hostnames to IPs
 use Switch;
-use Socket;								# To resolve hostnames to IPs
-use XML::DOM::ValParser;				# To check DTD
-use VNX::FileChecks;                    # To use get_abs_path
-use VNX::CheckSemantics;                # To use validate_xml
+use Data::Dumper;
 
 
 ###########################################################
 # Global variables 
 ###########################################################
 
+# DOM tree for Plugin Configuration File (PCF)
 my $pcf_dom;
+
+# Name of PCF main node tag (ex. ospf_conf, dhcp_conf, etc)
+my $pcf_main = 'ospf_conf';
+
+# plugin log prompt
+my $prompt='ospf-plugin:  ';
+
+#
+# Command sequences used by OSPF plugin
+#
+# Used by any vm defined in PCF
+my @all_seqs    = qw(on_boot start stop restart redoconf ospf-on_boot ospf-start ospf-stop ospf-restart ospf-redoconf on_shutdown);
+
+# Command sequences help description
+my %plugin_seq_help = (
+'on_boot',      'Creates OSPF config files and starts daemons (executed after startup)',
+'start',        'Starts OSPF daemons',
+'stop',         'Stops OSPF daemons',
+'restart',      'Restarts OSPF daemons',
+'redoconf',     'Recreate the OSPF config files',
+'ospf-on_boot', 'Plugin specific synonym of \'on_boot\'', 
+'ospf-start',   'Plugin specific synonym of \'start\'',
+'ospf-stop',    'Plugin specific synonym of \'stop\'',
+'ospf-restart', 'Plugin specific synonym of \'restart\'',
+'ospf-redoconf','Plugin specific synonym of \'redoconf\'',
+'on_shutdown',  'Stops OSPF daemons (executed before shutdown)'
+);
+
 
 ###########################################################
 # Plugin functions
@@ -64,16 +97,20 @@ my $pcf_dom;
 #
 # initPlugin
 #
-# To be called always, just before starting procesing the scenario specification
+# initPlugin function is called by VNX code for every plugin declared with an <extension> tag
+# in the scenario. It is aimed to do plugin specific initialization tasks, for example, 
+# the validation of the plugin configuration file (PCF) if it is used. If an error is returned, 
+# VNX dies showing the plugin error description returned by this function. 
 #
 # Arguments:
-# - the operation mode ("define", "create","execute","shutdown" or "destroy")
-# - the plugin configuration file
+# - mode, the mode in which VNX is executed. Possible values: "define", "create","execute",
+#         "shutdown" or "destroy"
+# - pcf, the plugin configuration file (PCF) absolut pathname (empty if configuration file 
+#        has not been defined in the scenario).
 #
 # Returns:
-# - an error message or 0 if all is ok
-#
-#
+# - error, an empty string if successful initialization, or a string describing the error 
+#          in other cases.
 #
 sub initPlugin {
 	
@@ -81,37 +118,49 @@ sub initPlugin {
 	my $mode = shift;
 	my $conf = shift;  # Absolute filename of PCF. Empty if PCF not defined 
 	
-	print "ospf-plugin> initPlugin (mode=$mode; conf=$conf)\n";
+    plog (VVV, "initPlugin (mode=$mode; conf=$conf)");
 
-	# Validate PCF with XSD language definition 
+    # Validate PCF with XSD language definition 
     my $error = validate_xml ($conf);
     if (! $error ) {
-    	my $parser = new XML::DOM::Parser;
-        my $dom_tree = $parser->parsefile($conf);
-        $pcf_dom = $dom_tree->getElementsByTagName("ospf_conf")->item(0);
+        
+        my $parser = XML::LibXML->new();
+        $pcf_dom = $parser->parse_file($conf);
     } 
-
-	return $error;
+    return $error;
 }
 
 
 #
 # getFiles
 #
-# To be called during "x" mode, for each vm in the scenario
+# getFiles function is called once for each virtual machine defined in a scenario 
+# when VNX is executed without using "-M" option, or for each virtual machine specified 
+# in "-M" parameter when VNX is invoked with this option. The plugin has to return to 
+# VNX the files that wants to be copied to that virtual machine for the command sequence 
+# identifier passed.
 #
 # Arguments:
-# - vm name
-# - seq command sequence
-# - files_dir
+# - vm_name, the name of the virtual machine for which getFiles is being called
+# - seq, the command sequence identifier. The value passed is: 'on_boot', when VNX invoked 
+#        in create mode; 'on_shutdown' when shutdown mode; and the value defined in "-x|execute" 
+#        option when invoked in execute mode
+# - files_dir, the directory where the files to be copied to the virtual machine have 
+#              to be passed to VNX
 #
 # Returns:
-# - a hashname which keys are absolute pathnames of files in vm filesystem and
-#   values of the pathname of the file in the host filesystem. The file in the
-#   host filesytesm is removed after VNUML processed it, so temporal files in 
-#   /tmp are preferable)
+# - files, an associative array (hash) containing the files to be copied to the virtual 
+#          machine, the location where they have to be copied in the vm and (only for 
+#          UNIX-like operating systems) the owner, group and permissions.
 #
-#
+#          Notes: 
+#             + the format of the 'keys' of the hash returned is:
+#                  /path/filename-in-vm,owner,group,permissions
+#               the owner, group and permissions are optional. The filename has to be
+#               an absolut filename.
+#             + the value of the 'keys' has to be a relative filename to $files_dir
+#               directory
+# 
 sub getFiles{
 
     my $self = shift;
@@ -119,17 +168,14 @@ sub getFiles{
     my $files_dir = shift;
     my $seq = shift;
     
-    print "ospf-plugin> getFiles (vm=$vm_name, seq=$seq)\n";
     my %files;
+
+    plog (VVV, "getFiles (vm=$vm_name, seq=$seq)");
     
     if (($seq eq "on_boot") || ($seq eq "ospf-on_boot") || 
         ($seq eq "redoconf") || ($seq eq "ospf-redoconf")) { 
     
-        my $vm_list=$pcf_dom->getElementsByTagName("vm");
-        
-        for (my $m=0; $m<$vm_list->getLength; $m++){
-            
-            my $vm = $vm_list->item($m);
+        foreach my $vm ($pcf_dom->findnodes("/$pcf_main/vm")) {    
             
             if ($vm->getAttribute("name") eq $vm_name){
                 create_config_files ($vm, $vm_name, $files_dir, \%files);
@@ -144,15 +190,22 @@ sub getFiles{
 #
 # getCommands
 #
-# To be called during "-x" mode, for each vm in the scenario
-#
+# getCommands function is called once for each virtual machine in the scenario 
+# when VNX is executed without using "-M" option, or for each virtual machine 
+# specified in "-M" parameter when VNX is invoked with this option. The plugin 
+# has to provide VNX the list of commands that have to be executed on that 
+# virtual machine for the command sequence identifier passed.
+# 
 # Arguments:
-# - vm name
-# - seq command sequence
+# - vm_name, the name of the virtual machine for which getCommands is being called
+# - seq, the command sequence identifier. The value passed is: 'on_boot', when 
+#        VNX is invoked in create mode; 'on_shutdown' when shutdown mode; and 
+#        the value defined in "-x" option when invoked in execute mode
 # 
 # Returns:
-# - list of commands to execute in the virtual machine after <exec> processing
-#
+# - commands, an array containing the commands to be executed on the virtual 
+#             machine. The first position of the array has to be empty if no error 
+#             occurs, or contain a string describing the error in other cases
 #    
 sub getCommands{
     
@@ -160,31 +213,95 @@ sub getCommands{
     my $vm_name = shift;
     my $seq = shift;
     
-    print "ospf-plugin> getCommands (vm=$vm_name, seq=$seq)\n";
-    my @commands;
-        
-    my $zebra_bin = "";
-    my $ospfd_bin = "";
+    plog (VVV, "getCommands (vm=$vm_name, seq=$seq)");
 
-    my $vm_list=$pcf_dom->getElementsByTagName("vm");
-    for (my $m=0; $m<$vm_list->getLength; $m++){
+    my @commands;
+    
+    unshift( @commands, "" );
         
-        my $vm = $vm_list->item($m);
-        
-        if ( $vm->getAttribute("name") eq $vm_name){
-            
-            get_commands ($vm, $vm_name, $seq, \@commands);
-        }
+    # Get the virtual machine node whose name is $vm_name
+    my $vm = $pcf_dom->findnodes("/$pcf_main/vm[\@name='$vm_name']")->[0];  
+    if ($vm) { 
+        get_commands ($vm, $seq, \@commands);
     }
     return @commands;   
-    
 }
 
 
 #
+# getSeqDescriptions
+#
+# Returns a description of the command sequences offered by the plugin
+# 
+# Parameters:
+#  - vm_name, the name of a virtual machine (optional)
+#  - seq, a sequence value (optional)
+#
+# Returns:
+#  - %seq_desc, an associative array (hash) whose keys are command sequences and the 
+#               associated values the description of the actions made for that sequence.
+#               The value for specia key '_VMLIST' is a comma separated list of the
+#               virtual machine names involved in a command sequence when 'seq' parameter
+#               is used.
+#
+sub getSeqDescriptions {
+    
+    my $self = shift;
+    my $vm_name = shift;
+    my $seq = shift;
+    
+    my %seq_desc;
+
+    if ( (! $vm_name) && (! $seq) ) {   # Case 1: return all plugin sequences help
+
+        foreach my $key ( keys %plugin_seq_help ) {
+           $seq_desc{$key} = $plugin_seq_help{$key};
+        }
+        my @vm_list;
+        foreach my $vm ($pcf_dom->findnodes('/ospf_conf/vm')) {    
+            push (@vm_list, $vm->getAttribute('name'));           
+        }
+        $seq_desc{'_VMLIST'} = join(',',@vm_list);  
+        
+    } elsif ( (! $vm_name) && ($seq) ) { # Case 2: return help for this $seq value and
+                                         #         the list of vms involved in that $seq 
+        # Help for this $seq
+        $seq_desc{$seq} = $plugin_seq_help{$seq};
+        
+        # List of vms involved
+        my @vm_list;
+        foreach my $vm ($pcf_dom->findnodes('/dhcp_conf/vm')) {    
+            push (@vm_list, $vm->getAttribute('name'));           
+        }
+        $seq_desc{'_VMLIST'} = join(',',@vm_list);
+        
+    
+    } elsif ( ($vm_name) && (!$seq) )  { # Case 3: return the list of commands available
+                                         #         for this vm
+        my %vm_seqs = get_vm_seqs($vm_name);
+        foreach my $key ( keys %vm_seqs ) {
+            $seq_desc{"$key"} = $plugin_seq_help{"$key"};
+            #wlog (VVV, "case 3: $key $plugin_seq_help{$key}")
+        }
+        $seq_desc{'_VMLIST'} = $vm_name;
+                                         
+    } elsif ( ($vm_name) && ($seq) )   { # Case 4: return help for this $seq value only if
+                                         #         vm $vm_name is affected for that $seq 
+        $seq_desc{$seq} = $plugin_seq_help{$seq};
+        $seq_desc{'_VMLIST'} = $vm_name;
+                                          
+    }
+    
+    return %seq_desc;   
+    
+}
+
+#
 # finalizePlugin
 #
-# To be called always, just before ending the procesing the scenario specification
+# finalizePlugin function is called before sending the shutdown signal to the virtual machines. 
+# Note: finalizePlugin is not called when "-P|destroy" option is used, as that mode deletes any 
+# changes made to the virtual machines.
 #
 # Arguments:
 # - none
@@ -194,7 +311,7 @@ sub getCommands{
 #
 sub finalizePlugin{
     
-    print "ospf-plugin> finalizePlugin ()\n";
+    plog (VVV, "finalizePlugin ()");
     
 }
 
@@ -202,51 +319,22 @@ sub finalizePlugin{
 # Internal functions
 ###########################################################
 
-=BEGIN
+# 
+# plog
+# 
+# Just calls VNX wlog function adding plugin prompt
 #
-# checkConfigFile
-#
-# Checks existence and semantics in ospf conf file. 
-# Currently this check consist in:
-#
-#   1. Configuration file exists.
-#   2. Check DTD.
-#
-sub checkConfigFile{
-    
-    # 1. Configuration file exists.
-    my $config_file = shift;
-    open(FILEHANDLE, $config_file) or {
-        return "cannot open config file $config_file\n",
-    };
-    close (FILEHANDLE);
-    
-    # 2. Check DTD
-    my $parser = new XML::DOM::ValParser;
-    my $dom_tree;
-    $valid_fail = 0;
-    eval {
-        local $XML::Checker::FAIL = \&validation_fail;
-        $dom_tree = $parser->parsefile($config_file);
-    };
+# Call with: 
+#    plog (N, "log message")    --> log msg written always  
+#    plog (V, "log message")    --> only if -v,-vv or -vvv option selected
+#    plog (VV, "log message")   --> only if -vv or -vvv option selected
+#    plog (VVV, "log message")  --> only if -vvv option selected
 
-    if ($valid_fail) {
-        return ("$config_file is not a well-formed OSPF plugin file\n");
-    }
-
-    $pcf_dom = $dom_tree->getElementsByTagName("ospf_conf")->item(0);
-    
-    return 0;   
+sub plog {
+    my $msg_level = shift;   # Posible values: V, VV, VVV
+    my $msg       = shift;
+    wlog ($msg_level, $prompt . $msg);
 }
-sub validation_fail {
-   my $code = shift;
-   # To set flag
-   $valid_fail = 1;
-   # To print error message
-   XML::Checker::print_error ($code, @_);
-}
-=END
-=cut
 
 
 #
@@ -255,6 +343,32 @@ sub validation_fail {
 # Creates zebra.conf and ospfd.conf files for $vm virtual machine by
 # processing the XML config file
 #
+# Example config files for quagga:
+# 
+# + zebra.conf:
+#   !
+#   ! zebra.conf file generated by ospfd.pm VNX plugin 
+#   !   sáb sep 10 19:42:57 CEST 2011
+#   !
+#   
+#   hostname r1
+#   password xxxx
+#   log file /var/log/zebra/zebra.log
+#   
+# + ospfd.conf:
+#   !
+#   ! ospfd.conf file generated by ospfd.pm VNX plugin 
+#   !   sáb sep 10 19:42:57 CEST 2011
+#   !
+#   
+#   hostname r1
+#   password xxxx
+#   log file /var/log/zebra/ospfd.log
+#   !
+#   router ospf
+#    network 10.0.0.0/16 area 0.0.0.0
+#   passive-interface eth1
+#   
 sub create_config_files {
     
     my $vm        = shift;
@@ -264,59 +378,58 @@ sub create_config_files {
     
     my $zebra_file = $files_dir . "/$vm_name"."_zebra.conf";
     my $ospfd_file = $files_dir . "/$vm_name"."_ospfd.conf";
-    #print "ospf-plugin> getBootFiles zebra_file=$zebra_file\n";
             
-    my $zebraTagList = $vm->getElementsByTagName("zebra");
-    my $zebraTag = $zebraTagList->item($0);
-    my $zebra_hostname = $zebraTag->getAttribute("hostname");
-    my $zebra_password = $zebraTag->getAttribute("password");
+    # Hostname and password
+    my $hostname = $vm_name; # Default hostname is vm_name
+    my $hostname_tag = $vm->findnodes('hostname')->[0];
+    if ($hostname_tag) {
+    	$hostname = $hostname_tag->textContent();
+    } 
+    my $password;
+    my $passwd_tag = $vm->findnodes('password')->[0];
+    if ($passwd_tag) {
+        $password = $passwd_tag->textContent();
+    } 
             
     chomp(my $date = `date`);
                         
-    # Write the content of zebra.conf file
+    # Write zebra.conf header
     open(ZEBRA, "> $zebra_file") or ${$files_ref}{"ERROR"} = "Cannot open $zebra_file file";
-    print ZEBRA "! zebra.conf file generated by ospfd.pm VNUML plugin at $date\n";
-    print ZEBRA "hostname $zebra_hostname\n";
-    print ZEBRA "password $zebra_password\n";
+    print ZEBRA "!\n! zebra.conf file generated by ospfd.pm VNX plugin \n!   $date\n!\n\n";
+    print ZEBRA "hostname $hostname\n";
+    if ($password) {
+        print ZEBRA "password $password\n";	
+    }
     print ZEBRA "log file /var/log/zebra/zebra.log\n";          
     close (ZEBRA);
                 
-    # Write the content of ospfd.conf file
+    # Write ospfd.conf header
     open(OSPFD, "> $ospfd_file") or ${$files_ref}{"ERROR"} = "Cannot open $ospfd_file file";
-    print OSPFD "! ospfd.conf file generated by ospfd.pm VNUML plugin at $date\n";
-    print OSPFD "hostname $zebra_hostname\n";
-    print OSPFD "password $zebra_password\n";
+    print OSPFD "!\n! ospfd.conf file generated by ospfd.pm VNX plugin \n!   $date\n!\n\n";
+    print OSPFD "hostname $hostname\n";
+    print OSPFD "password $password\n";
     print OSPFD "log file /var/log/zebra/ospfd.log\n!\n";
     print OSPFD "router ospf\n";
-            
+
     # Process <network> tags
-    my $networkTagList = $vm->getElementsByTagName("network");
-    for (my $n=0; $n<$networkTagList->getLength; $n++){
-        my $networkTag = $networkTagList->item($n);
-        my $ipTagList = $networkTag->getElementsByTagName("ip");
-                
-        my $ipTag = $ipTagList->item($0);
-        my $ipMask = $ipTag->getAttribute("mask");
-        my $ipData = $ipTag->getFirstChild->getData;
-                
-        my $areaTagList = $networkTag->getElementsByTagName("area");
-        my $areaTag = $areaTagList->item($0);
-        my $areaData = $areaTag->getFirstChild->getData;
-                
-        print OSPFD " network $ipData/$ipMask area $areaData\n";
+    foreach my $network ($vm->findnodes('network')) {
+        print OSPFD " network " . $network->textContent() . " area " . $network->getAttribute('area') . "\n";
     }
 
     # Process <passive_if> tags
-    my $passiveif_list = $vm->getElementsByTagName("passive_if");
-    for (my $n=0; $n<$passiveif_list->getLength; $n++){
-        my $passiveif = $passiveif_list->item($n);
-        my $if_name = $passiveif->getFirstChild->getData;
-
-        print OSPFD "passive-interface $if_name\n";        
+    foreach my $passive_if ($vm->findnodes('passive_if')) {
+        print OSPFD "passive-interface " . $passive_if->textContent() . "\n";        
     }
 
     print OSPFD "!\n";          
     close (OSPFD);  
+
+    # Print zebra.conf and ospfd.conf files to log if VVV
+    open FILE, "< $zebra_file"; my $cmd_file = do { local $/; <FILE> }; close FILE;
+    plog (VVV, "zebra.conf created for vm $vm_name: \n$cmd_file");
+    open FILE, "< $ospfd_file"; $cmd_file = do { local $/; <FILE> }; close FILE;
+    plog (VVV, "ospfd.conf created for vm $vm_name: \n$cmd_file");
+
             
     # Fill the hash with the files created
     $zebra_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative 
@@ -336,45 +449,46 @@ sub create_config_files {
 sub get_commands {
     
     my $vm           = shift;
-    my $vm_name      = shift;
-    my $seq = shift;
+    my $seq          = shift;
     my $commands_ref = shift;
 
-    my $zebra_bin = "";
-    my $ospfd_bin = "";
             
-    unshift (@{$commands_ref}, "");
-            
-    my $type = $vm->getAttribute("type");
-    my $subtype = $vm->getAttribute("subtype");
+    my $vm_name = $vm->getAttribute("name");
+    my $vm_type    = $vm->getAttribute("type");
+    my $vm_subtype = $vm->getAttribute("subtype");
 
-    my $zebra_bin_list = $vm->getElementsByTagName("zebra_bin");
-    if ($zebra_bin_list->getLength == 1){
-        $zebra_bin =  $zebra_bin_list->item($0)->getFirstChild->getData;
-    }
-    my $ospf_bin_list = $vm->getElementsByTagName("ospfd_bin");
-    if ($ospf_bin_list->getLength == 1){
-        $ospfd_bin =  $ospf_bin_list->item($0)->getFirstChild->getData;
-    }
-            
     # Get the binaries pathnames 
-    switch ($type) {
-        case "quagga"{ 
-            switch ($subtype){
-                case "lib-install"{ # quagga binaries installed in /usr/lib
-                    if ($zebra_bin eq ""){ $zebra_bin = "/usr/lib/quagga/zebra"; }
-                    if ($ospfd_bin eq ""){ $ospfd_bin = "/usr/lib/quagga/ospfd"; }
-                }
-                case "sbin-install"{ # quagga binaries installed in /usr/sbin
-                    if ($zebra_bin eq ""){ $zebra_bin = "/usr/sbin/zebra"; }
-                    if ($ospfd_bin eq ""){ $ospfd_bin = "/usr/sbin/ospfd"; }
-                } else {
-                    unshift (@{$commands_ref}, "Unknown subtype value $subtype\n");
-                }
-            }
-        } else {
-            unshift (@{$commands_ref}, "Unknown type value $type\n");
-        }
+    my $zebra_bin = "";
+    my $zebra_bin_tag  = $vm->findnodes('binaries/zebra')->[0];
+    if ($zebra_bin_tag) {
+    	$zebra_bin = $zebra_bin_tag->textContent();
+    }
+
+    my $ospfd_bin = "";
+    my $ospfd_bin_tag  = $vm->findnodes('binaries/ospfd')->[0];
+    if ($ospfd_bin_tag) {
+        $ospfd_bin = $ospfd_bin_tag->textContent();
+    }
+
+    if (($zebra_bin eq "") || ($ospfd_bin eq "")) {
+	    switch ($vm_type) {
+	        case "quagga"{ 
+	            switch ($vm_subtype){
+	                case "lib-install"{ # quagga binaries installed in /usr/lib
+	                    if ($zebra_bin eq ""){ $zebra_bin = "/usr/lib/quagga/zebra"; }
+	                    if ($ospfd_bin eq ""){ $ospfd_bin = "/usr/lib/quagga/ospfd"; }
+	                }
+	                case "sbin-install"{ # quagga binaries installed in /usr/sbin
+	                    if ($zebra_bin eq ""){ $zebra_bin = "/usr/sbin/zebra"; }
+	                    if ($ospfd_bin eq ""){ $ospfd_bin = "/usr/sbin/ospfd"; }
+	                } else {
+	                    unshift (@{$commands_ref}, "Unknown subtype value $vm_subtype\n");
+	                }
+	            }
+	        } else {
+	            unshift (@{$commands_ref}, "Unknown type value $vm_type\n");
+	        }
+	    }
     }
        
     # Define the command to execute depending on the $seq value
@@ -384,6 +498,11 @@ sub get_commands {
         push (@{$commands_ref}, "chown quagga.quagga /var/log/zebra");
         push (@{$commands_ref}, "mkdir /var/run/quagga");
         push (@{$commands_ref}, "chown quagga.quagga /var/run/quagga");
+        push (@{$commands_ref}, "$zebra_bin -d");
+        push (@{$commands_ref}, "$ospfd_bin -d");
+
+    } elsif(($seq eq "start") || ($seq eq "ospf-start")){
+
         push (@{$commands_ref}, "$zebra_bin -d");
         push (@{$commands_ref}, "$ospfd_bin -d");
 
@@ -399,291 +518,33 @@ sub get_commands {
         push (@{$commands_ref}, "$zebra_bin -d");
         push (@{$commands_ref}, "$ospfd_bin -d");
         
-    }elsif(($seq eq "stop") || ($seq eq "ospf-stop")){
+    }elsif(($seq eq "stop") || ($seq eq "ospf-stop") ||
+           ($seq eq "on_shutdown") ){
         
         push (@{$commands_ref}, "killall zebra");
         push (@{$commands_ref}, "killall ospfd");
         
     }
-
 }
+
+#
+# get_vm_seqs 
+#
+# Returns an associative array (hash) with the command sequences that involve a virtual machine
+#
+sub get_vm_seqs {
+    
+    my $vm_name = shift;
+    
+    my %vm_seqs;
+    
+    my $vm = $pcf_dom->findnodes("/$pcf_main/vm[\@name='$vm_name']")->[0]; 
+    if ($vm) {
+        foreach my $seq (@all_seqs) { $vm_seqs{$seq} = 'yes'} 
+    } 
+    return %vm_seqs;    
+}
+
 
 1;
-
-
-
-
-
-
-
-=BEGIN OLD OLD OLD
-
-
-
-###########################################################
-# getBootFiles
-#
-# To be called during "create" mode, for each vm in the scenario
-#
-# Arguments:
-# - vm_name, virtual machine name
-# - files_dir, directory where the files returned have to be copied
-#
-# Returns:
-# - a hashname whose:
-#      + keys are absolute pathnames of files in vm filesystem and
-#      + values are the relative pathname of the file in the host filesystem. The file in the
-#   host filesytesm is removed after VNUML processed it, so temporal files in 
-#   /tmp are preferable)
-###########################################################
-
-sub getBootFiles{
-	
-	my $self      = shift;
-	my $vm_name   = shift;
-	my $files_dir = shift;
-	
-	print "ospf-plugin> getBootFiles (vm=$vm_name, files_dir=$files_dir)\n";
-	my %files;
-	
-	my $vm_list=$pcf_dom->getElementsByTagName("vm");
-	
-	for (my $m=0; $m<$vm_list->getLength; $m++){
-		
-		my $vm = $vm_list->item($m);
-		my $node_name = $vm->getAttribute("name");
-		
-		if ($node_name eq $vm_name){
-            create_config_files ($vm, $vm_name, $files_dir, \%files);
-		}
-	}
-		
-	return %files;
-}
-
-
-# getBootCommands
-#
-# To be called during "-t" mode, for each vm in the scenario
-#
-# Arguments:
-# - vm name
-# 
-# Returns:
-# - list of commands to execute in the virtual machine at booting time
-#
-sub getBootCommands{
-
-    my $self      = shift;
-    my $vm_name   = shift;
-	
-	my @commands;
-
-	print "ospf-plugin> getBootCommands (vm=$vm_name)\n";
-
-
-	# Return code (OK)
-#	unshift (@commands, "");
-
-#	push (@commands, "touch /root/file-created-by-getBootCommands");
-
-#	return @commands;
-
-    my $type;
-    my $subtype;
-    
-    my $zebra_bin = "";
-    my $ospfd_bin = "";
-
-    my $vm_list=$pcf_dom->getElementsByTagName("vm");
-    for (my $m=0; $m<$vm_list->getLength; $m++){
-        
-        my $vm = $vm_list->item($m);
-        
-        if ( $vm->getAttribute("name") eq $vm_name){
-
-            get_commands ($vm, $vm_name, 'on_boot', \@commands);
-            
-        }
-         
-    }
-    return @commands;   
-}
-
-
-
-
-
-
-
-# deprecated
-=BEGIN
-sub execVmsToUse {
-
-	my $self = shift;
-	my $seq = shift;
-
-	print "ospf-plugin> execVmsToUse (seq=$seq)\n";
-
-    return;  # Delete. It is just to test the behavior when not implemented
-    
-
-	# The plugin has nothing to do for VMs with sequences other than
-	# start, restart or stop, so in that case it returns an empty list
-	unless ($seq eq "start" || $seq eq "ospf-start" || $seq eq "restart" || 
-	        $seq eq "ospf-restart" || $seq eq "stop" || $seq eq "ospf-stop" || 
-	        $seq eq "redoconf" || $seq eq "ospf-redoconf") {
-		return ();
-	}
-	
-	# Return the list of virtual machines included in plugin extended config file
-	my @vm_list = ();
-    
-	my $vm_list=$pcf_dom->getElementsByTagName("vm");
-	my $longitud = $vm_list->getLength;
-	
-	for (my $m=0; $m<$longitud; $m++){
-		
-		my $virtualm = $vm_list->item($m);
-		push (@vm_list,$virtualm->getAttribute("name"));
-	}
-	
-	return @vm_list;
-	
-}
-
-
-###########################################################
-# getExecFiles
-#
-# To be called during "x" mode, for each vm in the scenario
-#
-# Arguments:
-# - vm name
-# - seq command sequence
-# - files_dir
-#
-# Returns:
-# - a hashname which keys are absolute pathnames of files in vm filesystem and
-#   values of the pathname of the file in the host filesystem. The file in the
-#   host filesytesm is removed after VNUML processed it, so temporal files in 
-#   /tmp are preferable)
-#
-###########################################################
-sub getExecFiles{
-
-	my $self = shift;
-	my $vm_name = shift;
-    my $files_dir = shift;
-	my $seq = shift;
-	
-	print "ospf-plugin> getExecFiles (vm=$vm_name, seq=$seq)\n";
-	my %files;
-	
-	if (($seq eq "redoconf") || ($seq eq "ospf-redoconf")){	
-	
-
-		my $vm_list=$pcf_dom->getElementsByTagName("vm");
-		
-		for (my $m=0; $m<$vm_list->getLength; $m++){
-			
-			my $vm = $vm_list->item($m);
-			
-			if ($vm->getAttribute("name") eq $vm_name){
-                create_config_files ($vm, $vm_name, $files_dir, \%files);
-			}
-		}
-	
-	}
-	return %files;		
-}
-
-###########################################################
-# getExecCommands
-#
-# To be called during "-x" mode, for each vm in the scenario
-#
-# Arguments:
-# - vm name
-# - seq command sequence
-# 
-# Returns:
-# - list of commands to execute in the virtual machine after <exec> processing
-###########################################################
-	
-sub getExecCommands{
-	
-	my $self = shift;
-	my $vm_name = shift;
-	my $seq = shift;
-	
-	print "ospf-plugin> getExecCommands (vm=$vm_name, seq=$seq)\n";
-	my @commands;
-	
-	my $type;
-	my $subtype;
-	
-	my $zebra_bin = "";
-	my $ospfd_bin = "";
-
-	my $vm_list=$pcf_dom->getElementsByTagName("vm");
-	for (my $m=0; $m<$vm_list->getLength; $m++){
-		
-		my $vm = $vm_list->item($m);
-		
-		if ( $vm->getAttribute("name") eq $vm_name){
-			
-            get_commands ($vm, $vm_name, $seq, \@commands);
-		}
-	}
-	
-	return @commands;	
-	
-}
-
-sub getShutdownFiles{
-	
-    my $self      = shift;
-    my $vm_name   = shift;
-    my $files_dir = shift;
-    
-    print "ospf-plugin> getShutdownFiles (vm=$vm_name, files_dir=$files_dir)\n";
-    my %files;
-    
-    # Directory test: DELETE
-    system "touch $files_dir/f1";
-    system "touch $files_dir/f2";
-    system "mkdir $files_dir/kk";
-    system "mkdir $files_dir/kk/d1";
-    system "touch $files_dir/kk/f1";
-    system "touch $files_dir/kk/f2";
-    system "touch $files_dir/kk/d1/f1";
-
-    $files{"/root/shutdown/f1"} = "f1";
-    $files{"/root/shutdown/f2"} = "f2";
-    $files{"/root/tmp"} = "kk";
-    return %files;  
-
-}
-
-sub getShutdownCommands{
-
-	my $self = shift;
-	my $vm   = shift;
-
-	my @commands;
-	print "ospf-plugin> getShutdownCommands ()\n";
-
-	# Return code (OK)
-	unshift (@commands, "");
-
-	push (@commands, "touch /root/file-created-by-getShutdownCommands");
-
-	return @commands;
-
-}
-
-=END
-=cut
-
 	

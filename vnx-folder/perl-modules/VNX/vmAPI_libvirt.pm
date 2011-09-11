@@ -1093,7 +1093,6 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vm_name ) {
 				$error = "Domain $vm_name already defined\n";
-				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
@@ -1102,12 +1101,10 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vm_name ) {
 				$error = "Domain $vm_name already defined and started\n";
-				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		my $domain = $con->define_domain($xmlstring);
-		#undef ($con); print "*******  undef(con)\n";
 		
 		return $error;
 
@@ -1163,12 +1160,10 @@ sub undefineVM {
 				$listDom->undefine();
 				print "Domain undefined.\n" if ($exemode == $EXE_VERBOSE);
 				$error = 0;
-				#undef ($con); print "*******  undef(con)\n";
 				return $error;
 			}
 		}
 		$error = "Domain $vm_name does not exist.\n";
-		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 	}
 
@@ -1230,7 +1225,6 @@ sub destroyVM {
 
 		# Remove vm fs directory (cow and iso filesystems)
 		$execution->execute( "rm " . $dh->get_vm_fs_dir($vm_name) . "/*" );
-		#undef ($con); print "*******  undef(con)\n";
 		return $error;
 
 	}
@@ -1825,7 +1819,7 @@ sub executeCMD {
 
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)");
 
-press_any_key ("press any key to continue");
+#pak ("press any key to continue");
 
 	# Previous checkings and warnings
 #	my @vm_ordered = $dh->get_vm_ordered;
@@ -2201,7 +2195,7 @@ press_any_key ("press any key to continue");
 		$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
 		my $dst_num = 1;
 		
-pak "pak1";
+#pak "pak1";
 		
 		#		
 		# Process of <filetree> tags
@@ -2294,7 +2288,7 @@ pak "pak1";
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 		$execution->pop_verb_prompt();
 		
-pak "pak2";
+#pak "pak2";
 
 		# Print command.xml file content to log if VVV
 		open FILE, "< $sdisk_content/command.xml";
@@ -2304,7 +2298,7 @@ pak "pak2";
         # Save a copy of the last command.xml vm main dir 
         $execution->execute( "cp " . "$sdisk_content/command.xml " . $dh->get_vm_dir($vm_name) . "/${vm_name}_command.xml" );
 
-pak "pak3";
+#pak "pak3";
 
         if ($merged_type ne "libvirt-kvm-olive") {
 
@@ -2323,7 +2317,7 @@ pak "pak3";
 			$execution->execute("touch $empty_iso_disk");
 			$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" $empty_iso_disk hdb --mode readonly --type cdrom'");
 			sleep 1;
-pak "pak4";
+#pak "pak4";
 	
 		   	# Cleaning
 	        $execution->execute("rm $iso_disk $empty_iso_disk");
@@ -2340,7 +2334,7 @@ pak "pak4";
 	        ) or die("Can't connect to server: $!\n");
 	        print $vmsocket "exeCommand\n";     
 	        readSocketResponse ($vmsocket);
-pak "pak4";
+#pak "pak4";
             # Cleaning
             $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
             $execution->execute( "rm -rf $sdisk_content/filetree/*");
@@ -2349,7 +2343,7 @@ pak "pak4";
             $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
 	    }
 
-pak "pak5";
+#pak "pak5";
 	
 		
 	###########################################

@@ -39,69 +39,56 @@ use warnings;
 # arguments of the main program.
 #
 sub new {
-   my $class = shift;
-   my $self = {};
-   bless $self;
-   
-   $self->{'t'} = shift;
-   $self->{'s'} = shift;
-   $self->{'p'} = shift;
-   $self->{'r'} = shift;
-   $self->{'d'} = shift;
-   
-   $self->{'m'} = shift;
-   $self->{'c'} = shift;
-   $self->{'g'} = shift;
-   $self->{'v'} = shift;   
-   $self->{'F'} = shift;
-      
-   $self->{'V'} = shift;
-   $self->{'T'} = shift;   
-   $self->{'o'} = shift;
-   $self->{'M'} = shift;
-   $self->{'k'} = shift;
-   
-   $self->{'i'} = shift;
-   $self->{'B'} = shift;
-   $self->{'S'} = shift;
-   $self->{'w'} = shift;
-   $self->{'e'} = shift;
-   
-   $self->{'P'} = shift;
-   $self->{'H'} = shift;
-   $self->{'x'} = shift;
-   $self->{'u'} = shift;
-   $self->{'4'} = shift;
-   
-   $self->{'6'} = shift;
-   $self->{'Z'} = shift;
+    my $class = shift;
+    my $self = {};
+    bless $self;
 
-   $self->{'create'} = shift;
-   $self->{'shutdown'} = shift;
-   $self->{'destroy'} = shift;
-   $self->{'define'} = shift;
-   $self->{'undefine'} = shift;
-   $self->{'start'} = shift;
-   $self->{'save'} = shift;
-   $self->{'restore'} = shift;
-   $self->{'suspend'} = shift;
-   $self->{'resume'} = shift;
-   $self->{'reboot'} = shift;
-   $self->{'reset'} = shift;
-   $self->{'execute'} = shift;
-   $self->{'f'} = shift;
-   $self->{'show-map'} = shift;
-   $self->{'console'} = shift;
-   $self->{'cid'} = shift;
-   $self->{'console-info'} = shift;
-   $self->{'config'} = shift;
-   $self->{'D'} = shift;
-   $self->{'b'} = shift;
-   $self->{'n'} = shift;
-   $self->{'no_console'} = shift;
-   $self->{'y'} = shift;
+    $self->{'define'}       = shift;
+    $self->{'undefine'}     = shift;
+    $self->{'start'}        = shift;
+    $self->{'create'}       = shift;
+    $self->{'shutdown'}     = shift;
+    $self->{'destroy'}      = shift;
+    $self->{'save'}         = shift;
+    $self->{'restore'}      = shift;
+    $self->{'suspend'}      = shift;
+    $self->{'resume'}       = shift;
+    $self->{'reboot'}       = shift;
+    $self->{'reset'}        = shift;
+    $self->{'execute'}      = shift;
+    $self->{'show-map'}     = shift;
+    $self->{'console'}      = shift;
+    $self->{'console-info'} = shift;
+    $self->{'exe-info'}     = shift;
+    $self->{'help'}         = shift;
+
+    $self->{'f'}      = shift;
+    $self->{'c'}      = shift;
+    $self->{'T'}      = shift;   
+    $self->{'config'} = shift;
+    $self->{'v'}      = shift;   
+    $self->{'vv'}     = shift;   
+    $self->{'vvv'}    = shift;   
+    $self->{'V'}      = shift;
+    $self->{'M'}      = shift;
+    $self->{'i'}      = shift;
+    $self->{'g'}      = shift;
+    $self->{'u'}      = shift;
+    $self->{'4'}      = shift;
+    $self->{'6'}      = shift;   
+    $self->{'cid'}    = shift;
+    $self->{'D'}      = shift;
+    $self->{'n'}      = shift;
+    $self->{'y'}      = shift;
    
-   return $self;
+    $self->{'e'} = shift;
+    $self->{'w'} = shift;
+    $self->{'F'} = shift;
+    $self->{'B'} = shift;
+    $self->{'o'} = shift;
+    $self->{'Z'} = shift;
+
+    return $self;
 }
 
 # get

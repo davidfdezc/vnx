@@ -263,7 +263,7 @@ sub get_admin_address {
     my %ip;
 
     if ($seed eq "file"){
-        wlog (VVV, "get_admin_addr called: seed=$seed, vm_name=$vm_name");
+        wlog (VV, "get_admin_addr called: seed=$seed, vm_name=$vm_name");
         # read management ip value from file
         my $addr_vm   = &get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'addr_vm');
         my $mask      = &get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'mask');
@@ -274,7 +274,7 @@ sub get_admin_address {
 	        wlog (VVV, "get_admin_addr returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr);
         }
     } else {
-    	wlog (VVV, "get_admin_addr called: seed=$seed, vm_name=$vm_name, vmmgmt_type=$vmmgmt_type");
+    	wlog (VV, "get_admin_addr called: seed=$seed, vm_name=$vm_name, vmmgmt_type=$vmmgmt_type");
         my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
         if ($vmmgmt_type eq 'private') {
             # check to make sure that the address space won't wrap
@@ -286,16 +286,6 @@ sub get_admin_address {
             $ip{'host'} = NetAddr::IP->new($net->addr()."/30") + 1;
             $ip{'vm'}   = NetAddr::IP->new($net->addr()."/30") + 2;
 	
-            # create mng_ip file in vm dir, unless processing the host
-#            unless ($hostnum eq 1){
-#            my $addr_vm_line = "addr_vm=" . $ip{'vm'}->addr();
-#            my $mask_line = "mask=" . $ip{'host'}->mask();
-#            my $addr_host_line = "addr_host=" . $ip{'host'}->addr();
-#            my $mngip_file = $dh->get_vm_dir($vm_name) . '/mng_ip';
-#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_vm_line > $mngip_file");
-#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
-#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_vm_host > $mngip_file");
- #           }
         } else {
             # vmmgmt type is 'net'
             # don't assign the hostip
@@ -313,23 +303,20 @@ sub get_admin_address {
             # return an address in the vmmgmt subnet
             $ip{'vm'}   = NetAddr::IP->new($net + $dh->get_vmmgmt_offset + $seed + 1 ."/" . $dh->get_vmmgmt_mask) + 1;
             $ip{'host'} = $hostip;
-            #$ip = $net + $dh->get_vmmgmt_offset + $seed + 1;
-	         
-#            my $addr_line = "addr=" . $ip->addr();
-#            my $mask_line = "mask=" . $ip->mask();
-#            my $mngip_file = $dh->get_vm_dir($vm_name) . '/mng_ip';
-#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_line > $mngip_file");
-#            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line >> $mngip_file");
         }
+
         # create mng_ip file in run dir
         my $addr_vm_line = "addr_vm=" . $ip{'vm'}->addr();
         my $mask_line = "mask=" . $ip{'host'}->mask();
         my $addr_host_line = "addr_host=" . $ip{'host'}->addr();
         my $mngip_file = $dh->get_vm_dir($vm_name) . '/mng_ip';
-        $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_vm_line   > $mngip_file");
-        $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $mask_line      >> $mngip_file");
-        $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $addr_host_line >> $mngip_file");
-        wlog (VVV, "get_admin_addr returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr);
+        wlog (VV, "get_admin_addr: mngip_file=$mngip_file");
+        open MNGIP, "> $mngip_file"
+            or $execution->smartdie("can not open $mngip_file")
+                unless ( $execution->get_exe_mode() eq $EXE_DEBUG );        
+        print MNGIP "$addr_vm_line\n$mask_line\n$addr_host_line\n";
+        close MNGIP; 
+        wlog (VV, "get_admin_addr returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr);
     }
 
     return %ip;

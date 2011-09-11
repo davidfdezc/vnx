@@ -19,7 +19,6 @@ SPAIN
 
 -->
 
-
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
@@ -40,6 +39,12 @@ SPAIN
         <exec_mode type="libvirt" subtype="kvm" os="olive">sdisk</exec_mode>
     </vm_defaults>
     <extension plugin="ospf" conf="example_ospf-plugin-conf.xml" />
+    
+    <help>
+         <seq_help seq='start-www'>Start apache2 web server</seq_help>
+         <seq_help seq='stop-www'>Stop apache2 web server</seq_help>     
+    </help>
+    
   </global>
     
   <net name="lan1" mode="virtual_bridge" />
@@ -59,15 +64,9 @@ SPAIN
       <ipv6>2001:db8:12::1/64</ipv6>
     </if>
     <forwarding type="ip" />
-    <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
     <filetree seq="start-www" root="/var/www/" user="www-data" group="www-data" perms="644">conf/txtfile</filetree>
-    <exec seq="on_boot" type="verbatim"  ostype="system">cp /root/on_boot.txt /root/on_boot2.txt</exec>
-    <exec seq="movefile" type="verbatim"  ostype="system">mv /tmp/vnx.txt /root/</exec>
-    <!--exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec-->
     <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
     <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>
-    <exec seq="file" type="file"  ostype="system">conf/cmdfile</exec>
-    <exec seq="on_shutdown" type="verbatim"  ostype="system">touch /root/on_shutdown.txt</exec>
   </vm>
 
   <vm name="r2" type="uml" subtype="" os="" exec_mode="mconsole">
@@ -83,15 +82,9 @@ SPAIN
       <ipv6>2001:db8:12::2/64</ipv6>
     </if>
     <forwarding type="ip" />
-    <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
-    <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
-    <exec seq="on_boot" type="verbatim">cp /root/on_boot.txt /root/on_boot2.txt</exec>
-    <exec seq="movefile" type="verbatim">mv /tmp/vnx.txt /root/</exec>
-    <!--exec seq="start-www" type="verbatim">chmod 644 /var/www/*</exec-->
     <exec seq="start-www" type="verbatim">/etc/init.d/apache2 start</exec>
     <exec seq="stop-www" type="verbatim">/etc/init.d/apache2 stop</exec>
-    <exec seq="on_shutdown" type="verbatim">touch /root/on_shutdown.txt</exec>
   </vm>
 
   <vm name="h1" type="libvirt" subtype="kvm" os="linux" exec_mode="cdrom">

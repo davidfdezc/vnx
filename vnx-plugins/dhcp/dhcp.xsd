@@ -41,7 +41,7 @@ e-mail: vnx@dit.upm.es
  <xs:element name='subnet'>
   <xs:complexType>
    <xs:sequence>
-    <xs:element ref='ip' />
+    <xs:element ref='network' />
     <xs:element ref='range' minOccurs='0' maxOccurs='unbounded'/>
     <xs:element ref='router' minOccurs='0' maxOccurs='unbounded'/>
     <xs:element ref='dns' minOccurs='0' maxOccurs='unbounded'/>
@@ -51,9 +51,8 @@ e-mail: vnx@dit.upm.es
   </xs:complexType>
  </xs:element>
 
- <xs:element name='ip'>
+ <xs:element name='network'>
   <xs:complexType mixed='true'>
-   <xs:attribute name='mask' type='xs:string' use='required'/>
   </xs:complexType>
  </xs:element>
 
