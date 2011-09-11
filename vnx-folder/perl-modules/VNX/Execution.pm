@@ -152,14 +152,14 @@ sub set_mconsole_binary {
 #   Perl function.
 # * Recording mode: command execution (first argument) printing it
 #   to the flow pointed by the second argument. This function is for
-#   dumping commands to a file, that will be executed in another momment (for
+#   dumping commands to a file, that will be executed in another moment (for
 #   example, UML boot script)
 #
 # Interactive mode can be used in addition to direct mode ($exe_interactive)
 #
 # Verbose output (when $exe_mode has EXE_DEBUG or EXE_VERBOSE)
 # goes to standard output. It is prefixed with $verb_prompt
-# and, in addition, whit D- in debug mode
+# and, in addition, with D- in debug mode
 
 sub execute {
     my $self = shift;
@@ -184,7 +184,9 @@ sub execute {
             }
         }
         elsif ($exe_mode == $EXE_NORMAL) {
-            system "$command > /dev/null";
+            #system "$command > /dev/null";
+            # redirection eliminated to avoid problems with commands of type "echo XXXX > file"
+            system "$command";
             $retval = $?;
             if ($exe_interactive) {
                 &press_any_key;
@@ -368,9 +370,9 @@ sub pak {
 # initialized before calling it.
 # 
 # Call with: 
-#    log (V, "log message")  
-#    log (VV, "log message")  
-#    log (VVV, "log message")
+#    wlog (V, "log message")  
+#    wlog (VV, "log message")  
+#    wlog (VVV, "log message")
 #  
 sub wlog {
 	
@@ -379,10 +381,10 @@ sub wlog {
 	
 	my $exe_mode = $execution->get_exe_mode();
 	#print "~~ wlog: msg_level=$msg_level, exe_mode=$exe_mode, EXE_VERBOSITY_LEVEL=$EXE_VERBOSITY_LEVEL\n";		
-	if (   ($msg_level == N) || 
-	       ($exe_mode == $EXE_DEBUG) || 
-	       ( ($exe_mode == $EXE_VERBOSE) && ( $msg_level <= $EXE_VERBOSITY_LEVEL ) )   ) { 
-		print "vnx-log-$EXE_VERBOSITY_LEVEL>  $msg\n";		
+    if ($msg_level == N) {
+        printf "$msg\n";      
+    } elsif ( ($exe_mode == $EXE_DEBUG) || ( ($exe_mode == $EXE_VERBOSE) && ( $msg_level <= $EXE_VERBOSITY_LEVEL ) ) ) { 
+		printf "vnx-log-$EXE_VERBOSITY_LEVEL>  $msg\n";		
 	}  
 }
 

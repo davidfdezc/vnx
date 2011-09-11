@@ -4,7 +4,7 @@
   <vm name="r1" type="dhcp3-isc">
     <server>
       <subnet>
-        <ip mask="24">10.0.1.0</ip>
+        <network>10.0.1.0/24</network>
         <range>
           <first>10.0.1.10</first>
           <last>10.0.1.20</last>
@@ -14,7 +14,7 @@
         <domain>dominio1.org</domain>
       </subnet>
       <subnet>
-        <ip mask="24">10.0.2.0</ip>
+        <network>10.0.2.0/24</network>
         <range>
           <first>10.0.2.10</first>
           <last>10.0.2.20</last>
@@ -23,14 +23,14 @@
         <host name="Unicum" mac="AA:BB:CC:DD:EE:FF" ip="10.0.2.28"/>
       </subnet>
       <subnet>
-        <ip mask="30">10.0.0.0</ip>
+        <network>10.0.0.0/30</network>
       </subnet>
     </server>
   </vm>
 
   <vm name="h1" type="dhcp3">
     <client>
-      <if>1</if>
+      <if>eth1</if>
     </client>
   </vm>
 
@@ -42,7 +42,7 @@
 
   <vm name="h2" type="dhcp3">
     <client>
-      <if>1</if>
+      <if>eth1</if>
     </client>
   </vm>
 

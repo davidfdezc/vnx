@@ -2,21 +2,21 @@
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/ospf.xsd">
 
    <vm name="r1" type="quagga" subtype="lib-install">
-      <zebra hostname="r1" password="xxxx"/>
+      <hostname>r1</hostname>
+      <password>xxxx</password>
+      <network area="0.0.0.0">10.0.0.0/16</network>
       <passive_if>eth1</passive_if> 
-      <network>
-         <ip mask="16">10.0.0.0</ip>
-         <area>0.0.0.0</area>
-      </network>	
+      <binaries>
+        <zebra>/usr/lib/quagga/zebra</zebra>
+        <ospfd>/usr/lib/quagga/ospfd</ospfd>
+      </binaries>
    </vm>
 
    <vm name="r2" type="quagga" subtype="lib-install">
-      <zebra hostname="r2" password="xxxx"/>
+      <hostname>r2</hostname>
+      <password>xxxx</password>
+      <network area="0.0.0.0">10.0.0.0/16</network>
       <passive_if>eth1</passive_if> 
-      <network>
-         <ip mask="16">10.0.0.0</ip>
-         <area>0.0.0.0</area>
-      </network>	
    </vm>
 
 </ospf_conf>

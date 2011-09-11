@@ -39,6 +39,12 @@ SPAIN
         <exec_mode type="libvirt" subtype="kvm" os="olive">sdisk</exec_mode>
     </vm_defaults>
     <extension plugin="dhcp" conf="example_dhcp-plugin-conf.xml" />
+    
+    <help>
+        <seq_help seq='start-www'>Start apache2 web server</seq_help>
+        <seq_help seq='stop-www'>Stop apache2 web server</seq_help>
+    </help>
+
   </global>
     
   <net name="lan1" mode="virtual_bridge" />
@@ -59,6 +65,9 @@ SPAIN
     </if>
     <route type="ipv4" gw="10.0.0.2">10.0.2.0/24</route>    
     <forwarding type="ip" />
+    <filetree seq="start-www" root="/var/www/" user="www-data" group="www-data" perms="644">conf/txtfile</filetree>
+    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>    
   </vm>
 
   <vm name="r2" type="uml" subtype="" os="" exec_mode="mconsole">

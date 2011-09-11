@@ -34,6 +34,7 @@ package dhcp;
   initPlugin
   getFiles
   getCommands
+  getSeqDescriptions
   finalizePlugin 
 );
 
@@ -42,21 +43,68 @@ package dhcp;
 # Modules to import
 ###########################################################
 use strict;
+use warnings;
+use XML::LibXML;           # XML management library
+use File::Basename;        # File management library
+use VNX::FileChecks;       # To use get_abs_path
+use VNX::CheckSemantics;   # To use validate_xml
+use VNX::Globals;          # To use wlog
+use VNX::Execution;        # To use wlog
+use Socket;                # To resolve hostnames to IPs
 use Net::Netmask;
-use XML::DOM;               # XML management library
-use File::Basename;         # File management library
 use Switch;
-use Socket;                 # To resolve hostnames to IPs
-use XML::DOM::ValParser;    # To check DTD
-use VNX::FileChecks;                    # To use get_abs_path
-use VNX::CheckSemantics;                # To use validate_xml
+use Data::Dumper;
 
 
 ###########################################################
 # Global variables 
 ###########################################################
 
+# DOM tree for Plugin Configuration File (PCF)
 my $pcf_dom;
+
+# Name of PCF main node tag (ex. ospf_conf, dhcp_conf, etc)
+my $pcf_main = 'dhcp_conf';
+
+# plugin log prompt
+my $prompt='dhcp-plugin:  ';
+
+#
+# Command sequences used by DHCP plugin
+#
+# Used by any vm defined in PCF
+my @all_seqs    = qw( on_boot start dhcp-start restart dhcp-restart stop dhcp-stop on_shutdown);
+# Used by DHCP servers
+my @server_seqs = qw( dhcp-server-start dhcp-server-restart dhcp-server-stop dhcp-server-force-reload);
+# Used by DHCP relays
+my @relay_seqs  = qw( dhcp-relay-start dhcp-relay-restart dhcp-relay-stop dhcp-relay-force-reload);
+# Used by DHCP clients
+my @client_seqs = qw( dhcp-client-start dhcp-client-restart dhcp-client-stop);
+
+# Command sequences help description
+my %plugin_seq_help = (
+'on_boot',                      'Creates DHCP config files and starts services',
+'redoconf',                     'Creates DHCP config files',
+'start',                        'Starts all DHCP daemons and clients',
+'restart',                      'Restarts all DHCP daemons and clients',
+'stop',                         'Stops all DHCP daemons and releases client configurations', 
+'dhcp-start',                   'Synonym of start',
+'dhcp-restart',                 'Synonym of restart',
+'dhcp-stop',                    'Synonym of stop',
+'on_shutdown',                  'Stops all DHCP daemons',
+'dhcp-server-start',            'Starts DHCP servers',
+'dhcp-server-restart',          'Restarts DHCP servers',
+'dhcp-server-stop',             'Stops DHCP servers',
+'dhcp-server-force-reload',     'Restarts DHCP servers using \'force-reload\'', 
+'dhcp-relay-start',             'Starts DHCP relays',
+'dhcp-relay-restart',           'Restarts DHCP relays',
+'dhcp-relay-stop',              'Stops DHCP relays',
+'dhcp-relay-force-reload',      'Restarts DHCP relays using \'force-reload\'',
+'dhcp-client-start',            'Executes DHCP clients',
+'dhcp-client-restart',          'Releases client IP configurations and rexecutes DHCP clients', 
+'dhcp-client-stop',             'Releases client IP configurations'
+);
+
 
 
 ###########################################################
@@ -66,15 +114,20 @@ my $pcf_dom;
 #
 # initPlugin
 #
-# To be called always, just before starting procesing the scenario specification
+# initPlugin function is called by VNX code for every plugin declared with an <extension> tag
+# in the scenario. It is aimed to do plugin specific initialization tasks, for example, 
+# the validation of the plugin configuration file (PCF) if it is used. If an error is returned, 
+# VNX dies showing the plugin error description returned by this function. 
 #
 # Arguments:
-# - the operation mode ("t","x","d" or "P")
-# - the plugin configuration file
+# - mode, the mode in which VNX is executed. Possible values: "define", "create","execute",
+#         "shutdown" or "destroy"
+# - pcf, the plugin configuration file (PCF) absolut pathname (empty if configuration file 
+#        has not been defined in the scenario).
 #
 # Returns:
-# - an error message or 0 if all is ok
-#
+# - error, an empty string if successful initialization, or a string describing the error 
+#          in other cases.
 #
 
 sub initPlugin {
@@ -83,37 +136,48 @@ sub initPlugin {
     my $mode = shift;
     my $conf = shift;  # Absolute filename of PCF. Empty if PCF not defined 
     
-    print "dhcp-plugin> initPlugin (mode=$mode; conf=$conf)\n";
+    plog (VVV, "initPlugin (mode=$mode; conf=$conf)");
 
     # Validate PCF with XSD language definition 
     my $error = validate_xml ($conf);
-    print "*************** error = $error \n";
     if (! $error ) {
-        my $parser = new XML::DOM::Parser;
-        my $dom_tree = $parser->parsefile($conf);
-        $pcf_dom = $dom_tree->getElementsByTagName("dhcp_conf")->item(0);
+    	
+    	my $parser = XML::LibXML->new();
+        $pcf_dom = $parser->parse_file($conf);
     } 
-
     return $error;
 }
 
 #
 # getFiles
 #
-# To be called during "x" mode, for each vm in the scenario
+# getFiles function is called once for each virtual machine defined in a scenario 
+# when VNX is executed without using "-M" option, or for each virtual machine specified 
+# in "-M" parameter when VNX is invoked with this option. The plugin has to return to 
+# VNX the files that wants to be copied to that virtual machine for the command sequence 
+# identifier passed.
 #
 # Arguments:
-# - vm name
-# - seq command sequence
-# - files_dir
+# - vm_name, the name of the virtual machine for which getFiles is being called
+# - seq, the command sequence identifier. The value passed is: 'on_boot', when VNX invoked 
+#        in create mode; 'on_shutdown' when shutdown mode; and the value defined in "-x|execute" 
+#        option when invoked in execute mode
+# - files_dir, the directory where the files to be copied to the virtual machine have 
+#              to be passed to VNX
 #
 # Returns:
-# - a hashname which keys are absolute pathnames of files in vm filesystem and
-#   values of the pathname of the file in the host filesystem. The file in the
-#   host filesytesm is removed after VNUML processed it, so temporal files in 
-#   /tmp are preferable)
+# - files, an associative array (hash) containing the files to be copied to the virtual 
+#          machine, the location where they have to be copied in the vm and (only for 
+#          UNIX-like operating systems) the owner, group and permissions.
 #
-#
+#          Notes: 
+#             + the format of the 'keys' of the hash returned is:
+#                  /path/filename-in-vm,owner,group,permissions
+#               the owner, group and permissions are optional. The filename has to be
+#               an absolut filename.
+#             + the value of the 'keys' has to be a relative filename to $files_dir
+#               directory
+# 
 sub getFiles{
 
     my $self      = shift;
@@ -121,16 +185,15 @@ sub getFiles{
     my $files_dir = shift;
     my $seq       = shift;
     
-    print "dhcp-plugin> getFiles (vm=$vm_name, seq=$seq)\n";
     my %files;
+
+    plog (VVV, "getFiles (vm=$vm_name, seq=$seq)");
     
-    if (($seq eq "on_boot") || ($seq eq "dhcp-on_boot") ) { 
+    chomp( my $date = `date` );
     
-        my $vm_tag_list=$pcf_dom->getElementsByTagName("vm");
-        
-        for (my $m=0; $m<$vm_tag_list->getLength; $m++){
-            
-            my $vm = $vm_tag_list->item($m);
+    if (($seq eq "on_boot") || ($seq eq "dhcp-on_boot") || ($seq eq "redoconf")) { 
+    
+        foreach my $vm ($pcf_dom->findnodes("/$pcf_main/vm")) {    
             
             if ($vm->getAttribute("name") eq $vm_name){
                 
@@ -145,161 +208,112 @@ sub getFiles{
                             $etc_dir = "/etc/dhcp/";
                         }
     
-                        my $server_tag_list = $vm->getElementsByTagName("server");
-                        my $numservers = $server_tag_list->getLength;
-                        if ( $numservers == 1 ) {
+                        # DHCP Server
+                        my $server = $vm->findnodes('server')->[0];
+                        if ($server) {
     
                             # open filehandle to create dhcpd.conf file
                             my $server_file = $files_dir . "/${vm_name}_server.conf";
-                            chomp( my $date = `date` );
                             open( SERVER, ">$server_file" ) or $files{"ERROR"} = "Cannot open $server_file file";
     
-                            # server.conf file defaults
-                            print SERVER "# server.conf file generated by dhcp.pm VNX plugin at $date\n\n";
+                            # server.conf header
+                            print SERVER "#\n# server.conf file generated by dhcp.pm VNX plugin \n#   $date\n#\n\n";
                             print SERVER "ddns-update-style none;\n";
                             print SERVER "default-lease-time 120;\n";
                             print SERVER "max-lease-time 120;\n";
                             #print SERVER "log-facility local7;\n\n";
     
-                            # extract configuration from subnet blocks in dhcp_conf.xml
-                            my $server = $server_tag_list->item(0);
-                            my $subnet_tag_list = $server->getElementsByTagName("subnet");
-                            my $numsubnets = $subnet_tag_list->getLength;
-    
-                            for ( my $ns=0; $ns < $numsubnets ; $ns++ ) {
-                                my $subnet = $subnet_tag_list->item($ns);
-                                my $ip_tag_list = $subnet->getElementsByTagName("ip");
-                                my $numip = $ip_tag_list->getLength;
-    
-                                # subnet declaration
-                                my $ip = $ip_tag_list->item($0);
-                                my $subnetmask = $ip->getAttribute("mask");
-                                my $subnetbaseip = $ip->getFirstChild->getData;
-                                my $block = new Net::Netmask("$subnetbaseip"."/"."$subnetmask");
-                                
-                                my $baseip = $block->base();
-                                my $mask = $block->mask();
-                                print SERVER "subnet $baseip netmask $mask {\n";
-    
-                                # extract ip ranges in subnet
-                                my $range_tag_list = $subnet->getElementsByTagName("range");
-                                my $numranges = $range_tag_list->getLength;
-                                
-                                for ( my $nr = 0; $nr < $numranges ; $nr++ ) {
-                                    my $range = $range_tag_list->item($nr);
-                                    
-                                    my $first_tag_list = $range->getElementsByTagName("first");
-                                    my $first = $first_tag_list->item(0);
-                                    my $first_ip = $first->getFirstChild->getData;
-                                    
-                                    my $last_tag_list = $range->getElementsByTagName("last");
-                                    my $last = $last_tag_list->item(0);
-                                    my $last_ip  = $last->getFirstChild->getData;
-                                    
+					        foreach my $subnet ($server->findnodes('subnet')) {
+					        
+                                # <network>
+					            my $network = $subnet->findnodes('network')->[0];
+                                my $net_block = new Net::Netmask($network->textContent());
+                                            
+                                my $base_ip = $net_block->base();
+                                my $mask = $net_block->mask();
+                                print SERVER "subnet $base_ip netmask $mask {\n";
+					
+                                # <range>
+                                foreach my $range ($subnet->findnodes('range')) {
+                                    my $first_ip = $range->findnodes('first')->[0]->textContent();
+                                    my $last_ip  = $range->findnodes('last')->[0]->textContent();
                                     print SERVER "  range $first_ip $last_ip;\n";
                                 }
-    
-                                # extract routers in subnet (if any)
-                                my $router_tag_list = $subnet->getElementsByTagName("router");
-                                my $numrouters = $router_tag_list->getLength;
-                                
-                                if ( $numrouters > 0 ) {
-                                    print SERVER "  option routers";
-                                    for ( my $nr = 0; $nr < $numrouters ; $nr++ ) {
-                                        if ( $nr > 0 ) {
-                                            print SERVER ",";
-                                        }
-                                        my $router_tag = $router_tag_list->item($nr);
-                                        my $router = $router_tag->getFirstChild->getData;
-                                        print SERVER " $router";
+					            
+                                # <router>
+                                my @routers = $subnet->findnodes('router');
+                                if (scalar @routers > 0) {
+                                    my $router_line = "  option routers ";
+                                    foreach my $router (@routers) {
+                                        $router_line .= $router->textContent() . ",";
                                     }
-                                    print SERVER ";\n";
+                                    $router_line =~ s/,$//;
+                                    print SERVER $router_line . ";\n";
                                 }
-    
-                                # extract dns in subnet (if any)
-                                my $dns_tag_list = $subnet->getElementsByTagName("dns");
-                                my $numdns = $dns_tag_list->getLength;
-                                if ( $numdns > 0 ) {
-                                    print SERVER "  option domain-name-servers";
-                                    for ( my $nd = 0; $nd < $numdns ; $nd++ ) {
-                                        if ( $nd > 0 ) {
-                                            print SERVER ",";
-                                        }
-                                        my $dns_tag = $dns_tag_list->item($nd);
-                                        my $dns = $dns_tag->getFirstChild->getData;
-                                        print SERVER " $dns";
+					
+                                # <dns>
+                                my @dnss = $subnet->findnodes('dns');
+                                if (scalar @dnss > 0) {
+                                    my $dns_line = "  option domain-name-servers ";
+                                    foreach my $dns (@dnss) {
+                                        $dns_line .= $dns->textContent() . ",";
                                     }
-                                    print SERVER ";\n";
+                                    $dns_line =~ s/,$//;
+                                    print SERVER $dns_line . ";\n";
                                 }
-    
-                                # extract domain in subnet (if specified)
-                                my $domain_tag_list = $subnet->getElementsByTagName("domain");
-                                my $numdomains = $domain_tag_list->getLength;
-                                if ( $numdomains == 1 ) {
-                                    my $domain_tag = $domain_tag_list->item(0);
-                                    my $domain = $domain_tag->getFirstChild->getData;
-                                    print SERVER "  option domain-name \"$domain\";\n";
+					
+                                # <domain>
+                                my $domain = $subnet->findnodes('domain')->[0];
+                                if ($domain) {
+                                    print SERVER "  option domain-name \"" . $domain->textContent() . "\";\n"
                                 }
-    
-                                # end subnet declaration in configuration file
+					
                                 print SERVER "}\n\n";
-    
-                                # extract hosts in subnet (if any)
-                                my $host_tag_list = $subnet->getElementsByTagName("host");
-                                my $numhosts = $host_tag_list->getLength;
-                                for ( my $nh = 0; $nh < $numhosts ; $nh++ ) {
-                                    my $host_tag  = $host_tag_list->item($nh);
-                                    my $hostname = $host_tag->getAttribute("name");
-                                    my $hostmac  = $host_tag->getAttribute("mac");
-                                    my $hostip   = $host_tag->getAttribute("ip");
-    
+					
+                                foreach my $host ($subnet->findnodes('host')) {
+                                    my $hostname = $host->getAttribute("name");
+                                    my $hostmac  = $host->getAttribute("mac");
+                                    my $hostip   = $host->getAttribute("ip");
                                     # ignore unmatching host declarations
-                                    if ( $block->match($hostip) ) {
-                                        print SERVER "host $hostname {\n  hardware ethernet $hostmac;\n  fixed-address $hostip;\n}\n\n";
+                                    if ( $net_block->match($hostip) ) {
+                                        print SERVER "host $hostname {\n  hardware ethernet $hostmac;\n  fixed-address $hostip;\n}\n\n"; 
                                     }
                                 }
-    
                             }
+                            
                             close(SERVER);
                             $server_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative 
                             $files{"${etc_dir}dhcpd.conf,,,644"} = $server_file;
                         }
     
-                        my $relay_tag_list = $vm->getElementsByTagName("relay");
-                        my $numrelays    = $relay_tag_list->getLength;
-                        if ( $numrelays == 1 ) {
+                        # DHCP Relay    
+                        my $relay = $vm->findnodes('relay')->[0];
+                        if ($relay) {
     
                             # Build file /etc/default/dhcp3-relay.conf
                             my $relay_file = $files_dir . "/${vm_name}_relay.conf";
-                            chomp( my $date = `date` );
                             open( RELAY, ">$relay_file" ) or $files{"ERROR"} = "Cannot open $relay_file file";
-                            print RELAY "# relay.conf file generated by dhcp.pm VNX plugin at $date\n";
-                            print RELAY "SERVERS=\"";
-                            my $relay = $relay_tag_list->item(0);
-                            my $toserver_tag_list = $relay->getElementsByTagName("toserver");
-                            my $numtoservers = $toserver_tag_list->getLength;
-    
-                            for ( my $nt = 0; $nt < $numtoservers ; $nt++ ) {
-                                my $toserver_tag  = $toserver_tag_list->item($nt);
-                                my $toserverData = $toserver_tag->getFirstChild->getData;
-                                print RELAY "$toserverData ";
+                            print RELAY "#\n# relay.conf file generated by dhcp.pm VNX plugin \n#   $date\n#\n\n";
+                            my $servers_line = "SERVERS=\"";
+
+                            foreach my $toserver ($relay->findnodes('toserver')) {
+                                $servers_line .= $toserver->textContent() . " ";
                             }
-    
-                            print RELAY "\"\n";
+                            $servers_line =~ s/ $//;
+                            print RELAY $servers_line . "\"\n";
                             close(RELAY);
                             $relay_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative 
                             $files{"/etc/default/dhcp3-relay,,,644"} = $relay_file;
                         }
     
-                        my $client_tag_list = $vm->getElementsByTagName("client");
-                        my $numclients = $client_tag_list->getLength;
-                        if ( $numclients == 1 ) {
+                        # DHCP Client    
+                        my $client = $vm->findnodes('client')->[0];
+                        if ($client) {
                             # Build file dhclient.conf
                             my $client_file = $files_dir . "/${vm_name}_client.conf";
-                            chomp( my $date = `date` );
                             open( CLIENT, ">$client_file" ) or $files{"ERROR"} = "Cannot open $client_file file";
                             print CLIENT "# Configuration file for /sbin/dhclient, which is included in Debian's dhcp3-client package.\n";
-                            print CLIENT "# client.conf file generated by dhcp.pm VNX plugin at $date\n\n";
+                            print CLIENT "#\n# client.conf file generated by dhcp.pm VNX plugin \n#   $date\n#\n\n";
                             print CLIENT "send host-name \"<hostname>\";\n";
                             print CLIENT "request subnet-mask, broadcast-address, time-offset, routers, domain-name, domain-name-servers, domain-search, host-name, netbios-name-servers, netbios-scope, interface-mtu;\n";
                             print CLIENT "retry 10;\n";
@@ -311,255 +325,54 @@ sub getFiles{
                     } else {
                        $files{"ERROR"} = "Unknown type value $type in vm $vm\n";
                     } 
-                } # switch
+                }
             
-            } # if
+            }
         }
     }
     return %files;
           
 }
 
-sub getFiles{
-
-    my $self      = shift;
-    my $vm_name   = shift;
-    my $files_dir = shift;
-    my $seq       = shift;
-    
-    print "dhcp-plugin> getFiles (vm=$vm_name, seq=$seq)\n";
-    my %files;
-    
-    if (($seq eq "on_boot") || ($seq eq "dhcp-on_boot") ) { 
-    
-        my $vm_tag_list=$pcf_dom->getElementsByTagName("vm");
-        
-        for (my $m=0; $m<$vm_tag_list->getLength; $m++){
-            
-            my $vm = $vm_tag_list->item($m);
-            
-            if ($vm->getAttribute("name") eq $vm_name){
-	            
-	            my $type = $vm->getAttribute("type");
-	
-	            switch ($type) {
-	
-	                case ["dhcp3","dhcp3-isc"] {
-	
-	                    my $etc_dir ="/etc/dhcp3/";
-                        if ($type eq "dhcp3-isc") {
-                            $etc_dir = "/etc/dhcp/";
-                        }
-	
-	                    my $server_tag_list = $vm->getElementsByTagName("server");
-	                    my $numservers = $server_tag_list->getLength;
-	                    if ( $numservers == 1 ) {
-	
-	                        # open filehandle to create dhcpd.conf file
-	                        my $server_file = $files_dir . "/${vm_name}_server.conf";
-	                        chomp( my $date = `date` );
-	                        open( SERVER, ">$server_file" ) or $files{"ERROR"} = "Cannot open $server_file file";
-	
-	                        # server.conf file defaults
-	                        print SERVER "# server.conf file generated by dhcp.pm VNX plugin at $date\n\n";
-	                        print SERVER "ddns-update-style none;\n";
-	                        print SERVER "default-lease-time 120;\n";
-	                        print SERVER "max-lease-time 120;\n";
-	                        #print SERVER "log-facility local7;\n\n";
-	
-	                        # extract configuration from subnet blocks in dhcp_conf.xml
-	                        my $server = $server_tag_list->item(0);
-	                        my $subnet_tag_list = $server->getElementsByTagName("subnet");
-	                        my $numsubnets = $subnet_tag_list->getLength;
-	
-	                        for ( my $ns=0; $ns < $numsubnets ; $ns++ ) {
-	                            my $subnet = $subnet_tag_list->item($ns);
-	                            my $ip_tag_list = $subnet->getElementsByTagName("ip");
-	                            my $numip = $ip_tag_list->getLength;
-	
-	                            # subnet declaration
-	                            my $ip = $ip_tag_list->item($0);
-	                            my $subnetmask = $ip->getAttribute("mask");
-	                            my $subnetbaseip = $ip->getFirstChild->getData;
-	                            my $block = new Net::Netmask("$subnetbaseip"."/"."$subnetmask");
-	                            
-	                            my $baseip = $block->base();
-	                            my $mask = $block->mask();
-	                            print SERVER "subnet $baseip netmask $mask {\n";
-	
-	                            # extract ip ranges in subnet
-	                            my $range_tag_list = $subnet->getElementsByTagName("range");
-	                            my $numranges = $range_tag_list->getLength;
-	                            
-	                            for ( my $nr = 0; $nr < $numranges ; $nr++ ) {
-	                                my $range = $range_tag_list->item($nr);
-	                                
-	                                my $first_tag_list = $range->getElementsByTagName("first");
-	                                my $first = $first_tag_list->item(0);
-	                                my $first_ip = $first->getFirstChild->getData;
-	                                
-	                                my $last_tag_list = $range->getElementsByTagName("last");
-	                                my $last = $last_tag_list->item(0);
-	                                my $last_ip  = $last->getFirstChild->getData;
-	                                
-	                                print SERVER "  range $first_ip $last_ip;\n";
-	                            }
-	
-	                            # extract routers in subnet (if any)
-	                            my $router_tag_list = $subnet->getElementsByTagName("router");
-	                            my $numrouters = $router_tag_list->getLength;
-	                            
-	                            if ( $numrouters > 0 ) {
-	                                print SERVER "  option routers";
-	                                for ( my $nr = 0; $nr < $numrouters ; $nr++ ) {
-	                                    if ( $nr > 0 ) {
-	                                        print SERVER ",";
-	                                    }
-	                                    my $router_tag = $router_tag_list->item($nr);
-	                                    my $router = $router_tag->getFirstChild->getData;
-	                                    print SERVER " $router";
-	                                }
-	                                print SERVER ";\n";
-	                            }
-	
-	                            # extract dns in subnet (if any)
-	                            my $dns_tag_list = $subnet->getElementsByTagName("dns");
-	                            my $numdns = $dns_tag_list->getLength;
-	                            if ( $numdns > 0 ) {
-	                                print SERVER "  option domain-name-servers";
-	                                for ( my $nd = 0; $nd < $numdns ; $nd++ ) {
-	                                    if ( $nd > 0 ) {
-	                                        print SERVER ",";
-	                                    }
-	                                    my $dns_tag = $dns_tag_list->item($nd);
-	                                    my $dns = $dns_tag->getFirstChild->getData;
-	                                    print SERVER " $dns";
-	                                }
-	                                print SERVER ";\n";
-	                            }
-	
-	                            # extract domain in subnet (if specified)
-	                            my $domain_tag_list = $subnet->getElementsByTagName("domain");
-	                            my $numdomains = $domain_tag_list->getLength;
-	                            if ( $numdomains == 1 ) {
-	                                my $domain_tag = $domain_tag_list->item(0);
-	                                my $domain = $domain_tag->getFirstChild->getData;
-	                                print SERVER "  option domain-name \"$domain\";\n";
-	                            }
-	
-	                            # end subnet declaration in configuration file
-	                            print SERVER "}\n\n";
-	
-	                            # extract hosts in subnet (if any)
-	                            my $host_tag_list = $subnet->getElementsByTagName("host");
-	                            my $numhosts = $host_tag_list->getLength;
-	                            for ( my $nh = 0; $nh < $numhosts ; $nh++ ) {
-	                                my $host_tag  = $host_tag_list->item($nh);
-	                                my $hostname = $host_tag->getAttribute("name");
-	                                my $hostmac  = $host_tag->getAttribute("mac");
-	                                my $hostip   = $host_tag->getAttribute("ip");
-	
-	                                # ignore unmatching host declarations
-	                                if ( $block->match($hostip) ) {
-	                                    print SERVER "host $hostname {\n  hardware ethernet $hostmac;\n  fixed-address $hostip;\n}\n\n";
-	                                }
-	                            }
-	
-	                        }
-	                        close(SERVER);
-	                        $server_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative 
-	                        $files{"${etc_dir}dhcpd.conf,,,644"} = $server_file;
-	                    }
-	
-	                    my $relay_tag_list = $vm->getElementsByTagName("relay");
-	                    my $numrelays    = $relay_tag_list->getLength;
-	                    if ( $numrelays == 1 ) {
-	
-	                        # Build file /etc/default/dhcp3-relay.conf
-	                        my $relay_file = $files_dir . "/${vm_name}_relay.conf";
-	                        chomp( my $date = `date` );
-	                        open( RELAY, ">$relay_file" ) or $files{"ERROR"} = "Cannot open $relay_file file";
-	                        print RELAY "# relay.conf file generated by dhcp.pm VNX plugin at $date\n";
-	                        print RELAY "SERVERS=\"";
-	                        my $relay = $relay_tag_list->item(0);
-	                        my $toserver_tag_list = $relay->getElementsByTagName("toserver");
-	                        my $numtoservers = $toserver_tag_list->getLength;
-	
-	                        for ( my $nt = 0; $nt < $numtoservers ; $nt++ ) {
-	                            my $toserver_tag  = $toserver_tag_list->item($nt);
-	                            my $toserverData = $toserver_tag->getFirstChild->getData;
-	                            print RELAY "$toserverData ";
-	                        }
-	
-	                        print RELAY "\"\n";
-	                        close(RELAY);
-                            $relay_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative 
-	                        $files{"/etc/default/dhcp3-relay,,,644"} = $relay_file;
-	                    }
-	
-	                    my $client_tag_list = $vm->getElementsByTagName("client");
-	                    my $numclients = $client_tag_list->getLength;
-	                    if ( $numclients == 1 ) {
-	                        # Build file dhclient.conf
-	                        my $client_file = $files_dir . "/${vm_name}_client.conf";
-	                        chomp( my $date = `date` );
-	                        open( CLIENT, ">$client_file" ) or $files{"ERROR"} = "Cannot open $client_file file";
-	                        print CLIENT "# Configuration file for /sbin/dhclient, which is included in Debian's dhcp3-client package.\n";
-	                        print CLIENT "# client.conf file generated by dhcp.pm VNX plugin at $date\n\n";
-	                        print CLIENT "send host-name \"<hostname>\";\n";
-	                        print CLIENT "request subnet-mask, broadcast-address, time-offset, routers, domain-name, domain-name-servers, domain-search, host-name, netbios-name-servers, netbios-scope, interface-mtu;\n";
-	                        print CLIENT "retry 10;\n";
-	                        close(CLIENT);
-                            $client_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative 
-	                        $files{"${etc_dir}dhclient.conf,,,644"} = $client_file;
-	                        
-	                    }
-	                } else {
-	                   $files{"ERROR"} = "Unknown type value $type in vm $vm\n";
-	                } 
-	            } # switch
-	        
-            } # if
-        }
-    }
-    return %files;
-          
-}
 
 #
 # getCommands
 #
-# To be called during "-x" mode, for each vm in the scenario
-#
+# getCommands function is called once for each virtual machine in the scenario 
+# when VNX is executed without using "-M" option, or for each virtual machine 
+# specified in "-M" parameter when VNX is invoked with this option. The plugin 
+# has to provide VNX the list of commands that have to be executed on that 
+# virtual machine for the command sequence identifier passed.
+# 
 # Arguments:
-# - vm name
-# - seq command sequence
+# - vm_name, the name of the virtual machine for which getCommands is being called
+# - seq, the command sequence identifier. The value passed is: 'on_boot', when 
+#        VNX is invoked in create mode; 'on_shutdown' when shutdown mode; and 
+#        the value defined in "-x" option when invoked in execute mode
 # 
 # Returns:
-# - list of commands to execute in the virtual machine after <exec> processing
+# - commands, an array containing the commands to be executed on the virtual 
+#             machine. The first position of the array has to be empty if no error 
+#             occurs, or contain a string describing the error in other cases
 #
-#    
 sub getCommands{
     
     my $self = shift;
     my $vm_name = shift;
     my $seq = shift;
     
-    print "dhcp-plugin> getCommands (vm=$vm_name, seq=$seq)\n";
+    plog (VVV, "getCommands (vm=$vm_name, seq=$seq)");
     
     my @commands;
-    my $type;
 
-    my $vm_tag_list = $pcf_dom->getElementsByTagName("vm");
-    
-    for (my $m=0 ; $m < $vm_tag_list->getLength ; $m++) {
+    unshift( @commands, "" );
 
-        my $vm = $vm_tag_list->item($m);
-        my $virtualm_name = $vm->getAttribute("name");
-        
-        if ( $vm->getAttribute("name") eq $vm_name ) {
+    foreach my $vm ($pcf_dom->findnodes("/$pcf_main/vm")) {    
             
-            $type = $vm->getAttribute("type");
+        if ($vm->getAttribute("name") eq $vm_name){
+            
+            plog (VVV, "getCommands: $vm_name found");
+            my $type = $vm->getAttribute("type");
             
             switch ($type) {
 
@@ -572,165 +385,121 @@ sub getCommands{
 						$dhcp_relay_cmd  = "/etc/init.d/isc-dhcp-relay";						
 					}
 					
-		            my $server_tag_list = $vm->getElementsByTagName("server");
-		            my $numservers      = $server_tag_list->getLength;
-		            my $relay_tag_list  = $vm->getElementsByTagName("relay");
-		            my $numrelays       = $relay_tag_list->getLength;
-		            my $client_tag_list = $vm->getElementsByTagName("client");
-		            my $numclients      = $client_tag_list->getLength;
-		
+                    my $server  = $vm->findnodes('server')->[0];
+                    my $relay   = $vm->findnodes('relay')->[0];
+                    my @clients = $vm->findnodes('client');
+                   		
 		            switch ($seq){
 
-		                case ["on_boot", "start", "dhcp-start"]{    
+		                case ["on_boot", "start", "dhcp-start"] {    
 		                    # Start server, relay and clients in the virtual machine, if any
-		                    unshift( @commands, "" );
-		                    if ( $numservers == 1 ) {
+		                    if ($server) {
 		                        push( @commands, "$dhcp_server_cmd start" );
 		                    }
-		                    if ( $numrelays == 1 ) {
+		                    if ($relay) {
 		                        push( @commands, "$dhcp_relay_cmd start" );
 		                    }
-		                    if (!($numclients == 0)) {
-		                        my $client = $client_tag_list->item(0);
-		                        my $if_tag_list = $client->getElementsByTagName("if");
-		                        my $numif = $if_tag_list->getLength;
-		                        for (my $ni=0; $ni<$numif ; $ni++) {
-		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $if_data = $if_tag->getFirstChild->getData;
-		                            if (!($if_data == 0)) {
-		                                push(@commands,"dhclient eth"."$if_data");
-		                            }
+		                    foreach my $client (@clients) {
+                                foreach my $if ($client->findnodes('if')) {
+                                    push(@commands,"dhclient ". $if->textContent());
 		                        }
 		                    }
-		                    
 		                }
-		                case ["restart","dhcp-restart"]{
+		                    
+		                case ["restart","dhcp-restart"] {
+		                	
 		                    # Restart server, relay and clients in the virtual machine, if any  
-		                    unshift( @commands, "" );
-		                    if ( $numservers == 1 ) {
+		                    if ($server) {
 		                        push( @commands, "$dhcp_server_cmd restart" );
 		                    }
-		                    if ( $numrelays == 1 ) {
+		                    if ($relay) {
 		                        push( @commands, "$dhcp_relay_cmd restart" );
 		                    }
-		                    if (!($numclients == 0)) {
-		                        my $client = $client_tag_list->item(0);
-		                        my $if_tag_list = $client->getElementsByTagName("if");
-		                        my $numif = $if_tag_list->getLength;
-		                        for (my $ni=0; $ni<$numif ; $ni++) {
-		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $if_data = $if_tag->getFirstChild->getData;
-		                            if (!($if_data == 0)) {
-		                                push(@commands,"dhclient -r");
-		                                push(@commands,"killall dhclient");
-		                                push(@commands,"dhclient eth"."$if_data");
-		                            }
+                            foreach my $client (@clients) {
+                                foreach my $if ($client->findnodes('if')) {
+                                    push(@commands,"dhclient -r");
+                                    push(@commands,"killall dhclient");
+                                    push(@commands,"dhclient " . $if->textContent());
 		                        }
 		                    }
 		                    
 		                }
+		                
 		                case ["stop","dhcp-stop"]{  
 		                    # Stop server and relay in the virtual machine, if any
-		                    unshift( @commands, "" );
-		                    if ( $numservers == 1 ) {
+		                    if ($server) {
 		                        push( @commands, "$dhcp_server_cmd stop" );
 		                    }
-		                    if ( $numrelays == 1 ) {
+		                    if ($relay) {
 		                        push( @commands, "$dhcp_relay_cmd stop" );
 		                    }
-		                    if (!($numclients == 0)) {
-		                        my $client = $client_tag_list->item(0);
-		                        my $if_tag_list = $client->getElementsByTagName("if");
-		                        my $numif = $if_tag_list->getLength;
-		                        for (my $ni=0; $ni<$numif ; $ni++) {
-		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $if_data = $if_tag->getFirstChild->getData;
-		                            if (!($if_data == 0)) {
-		                                push(@commands,"dhclient -r");
-		                                push(@commands,"killall dhclient");
-		                            }
+                            foreach my $client (@clients) {
+                                foreach my $if ($client->findnodes('if')) {
+                                    push(@commands,"dhclient -r");
+                                    push(@commands,"killall dhclient");
 		                        }
 		                    }
-		                    
 		                }
+		                
 		                case ("dhcp-server-start"){
 		                    # Start the server in the virtual machine. Return error if there isn't any. 
-		                    if ( $numservers == 0 ) {
+		                    if (! $server) {
 		                        unshift( @commands, "$vm is not configured as a dhcp server. Choose the appropriate virtual machine with flag -M name" );
-		                    }
-		                    else {
-		                        unshift( @commands, "" );
+		                    } else {
 		                        push( @commands, "$dhcp_server_cmd start" );
 		                    }
 		                }
+		                
 		                case ("dhcp-relay-start"){
 		                    # Start the relay in the virtual machine. Return error if there isn't any.
-		                    if ( $numrelays == 0 ) {
+		                    if (! $relay) {
 		                        unshift( @commands, "$vm is not configured as a dhcp relay. Choose the appropriate virtual machine with flag -M name" );
-		                    }
-		                    else {
-		                        unshift( @commands, "" );
+		                    } else {
 		                        push( @commands, "$dhcp_relay_cmd start" );
 		                    }                                       
 		                }
+		                
 		                case ("dhcp-client-start"){
 		                    # Start the clients in the virtual machine. Return error if there aren't any.
-		                    if ( $numclients == 0 ) {
+		                    if (scalar @clients == 0 ) {
 		                        unshift( @commands, "$vm is not configured as a dhcp client. Choose the appropriate virtual machine with flag -M name" );
-		                    }
-		                    else {
-		                        unshift(@commands, "" );
-		                        my $client = $client_tag_list->item(0);
-		                        my $if_tag_list = $client->getElementsByTagName("if");
-		                        my $numif = $if_tag_list->getLength;
-		                        for (my $ni=0; $ni<$numif ; $ni++) {
-		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $if_data = $if_tag->getFirstChild->getData;
-		                            if (!($if_data == 0)) {
-		                                push(@commands,"dhclient eth"."$if_data");
+		                    } else {
+                                foreach my $client (@clients) {
+                                    foreach my $if ($client->findnodes('if')) {
+                                        push(@commands,"dhclient " . $if->textContent());
 		                            }
 		                        }
-		    
 		                    }
 		                }
+		                
 		                case ("dhcp-server-restart"){
 		                    # Restart the server in the virtual machine. Return error if there isn't any. 
-		                    if ( $numservers == 0 ) {
+		                    if (! $server) {
 		                        unshift( @commands, "$vm is not configured as a dhcp server. Choose the appropriate virtual machine with flag -M name" );
-		                    }
-		                    else {
-		                        unshift( @commands, "" );
+		                    } else {
 		                        push( @commands, "$dhcp_server_cmd restart" );
 		                    }
 		                }
+		                
 		                case ("dhcp-relay-restart"){
 		                    # Restart the relay in the virtual machine. Return error if there isn't any.
-		                    if ( $numrelays == 0 ) {
+		                    if (! $relay == 0 ) {
 		                        unshift( @commands, "$vm is not configured as a dhcp relay. Choose the appropriate virtual machine with flag -M name" );
-		                    }
-		                    else {
-		                        unshift( @commands, "" );
+		                    } else {
 		                        push( @commands, "$dhcp_relay_cmd restart" );
 		                    }                                       
 		                }
 		                
 		                case ("dhcp-client-restart"){
 		                    # Start the clients in the virtual machine. Return error if there aren't any.
-		                    if ( $numclients == 0 ) {
+		                    if (scalar @clients == 0 ) {
 		                        unshift( @commands, "$vm is not configured as a dhcp client. Choose the appropriate virtual machine with flag -M name" );
-		                    }
-		                    else {
-		                        unshift(@commands, "" );
-		                        my $client = $client_tag_list->item(0);
-		                        my $if_tag_list = $client->getElementsByTagName("if");
-		                        my $numif = $if_tag_list->getLength;
-		                        for (my $ni=0; $ni<$numif ; $ni++) {
-		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $if_data = $if_tag->getFirstChild->getData;
-		                            if (!($if_data == 0)) {
+		                    } else {
+                                foreach my $client (@clients) {
+                                    foreach my $if ($client->findnodes('if')) {
 		                                push(@commands,"dhclient -r");
 		                                push(@commands,"killall dhclient");
-		                                push(@commands,"dhclient eth"."$if_data");
+		                                push(@commands,"dhclient " . $if->textContent());
 		                            }
 		                        }
 		    
@@ -739,22 +508,19 @@ sub getCommands{
 		                
 		                case ("dhcp-server-stop"){
 		                    # Stop the server in the virtual machine. Return error if there isn't any. 
-		                    if ( $numservers == 0 ) {
+		                    if (! $server) {
 		                        unshift( @commands, "$vm is not configured as a dhcp server. Choose the appropriate virtual machine with flag -M name" );
-		                    }
-		                    else {
-		                        unshift( @commands, "" );
+		                    } else {
 		                        push( @commands, "$dhcp_server_cmd stop" );
 		                    }
 		                
 		                }
+		                
 		                case ("dhcp-relay-stop"){
 		                    # Stop the relay in the virtual machine. Return error if there isn't any. 
-		                    if ( $numrelays == 0 ) {
+		                    if (! $relay) {
 		                        unshift( @commands, "$vm is not configured as a dhcp relay. Choose the appropriate virtual machine with flag -M name" );
-		                    }
-		                    else {
-		                        unshift( @commands, "" );
+		                    } else {
 		                        push( @commands, "$dhcp_relay_cmd stop" );
 		                    }
 		                
@@ -762,18 +528,11 @@ sub getCommands{
 		                
 		                case ("dhcp-client-stop"){
 		                    # Start the clients in the virtual machine. Return error if there aren't any.
-		                    if ( $numclients == 0 ) {
+                            if (scalar @clients == 0 ) {
 		                        unshift( @commands, "$vm is not configured as a dhcp client. Choose the appropriate virtual machine with flag -M name" );
-		                    }
-		                    else {
-		                        unshift(@commands, "" );
-		                        my $client = $client_tag_list->item(0);
-		                        my $if_tag_list = $client->getElementsByTagName("if");
-		                        my $numif = $if_tag_list->getLength;
-		                        for (my $ni=0; $ni<$numif ; $ni++) {
-		                            my $if_tag  = $if_tag_list->item($ni);
-		                            my $if_data = $if_tag->getFirstChild->getData;
-		                            if (!($if_data == 0)) {
+		                    } else {
+                                foreach my $client (@clients) {
+                                    foreach my $if ($client->findnodes('if')) {
 		                                push(@commands,"dhclient -r");
 		                                push(@commands,"killall dhclient");
 		                            }
@@ -784,58 +543,118 @@ sub getCommands{
 		                
 		                case ("dhcp-server-force-reload"){
 		                    # Force reload of the server in the virtual machine. Return error if there isn't any. 
-		                    if ( $numservers == 0 ) {
+		                    if (! $server) {
 		                        unshift( @commands, "$vm is not configured as a dhcp server. Choose the appropriate virtual machine with flag -M name" );
-		                    }
-		                    else {
-		                        unshift( @commands, "" );
+		                    } else {
 		                        push( @commands, "$dhcp_server_cmd force-reload" );
 		                    }
 		                
 		                }
+		                
 		                case ("dhcp-relay-force-reload"){
 		                    # Force reload of the relay in the virtual machine. Return error if there isn't any. 
-		                    if ( $numservers == 0 ) {
+		                    if (! $server) {
 		                        unshift( @commands, "$vm is not configured as a dhcp relay. Choose the appropriate virtual machine with flag -M name" );
-		                    }
-		                    else {
-		                        unshift( @commands, "" );
+		                    } else {
 		                        push( @commands, "$dhcp_relay_cmd force-reload" );
 		                    }
 		                
 		                }
-		                case ("on_shutdown"){
+		                
+                        case ("on_shutdown"){
                             # Force reload of the relay in the virtual machine. Return error if there isn't any. 
-		                    unshift( @commands, "" );
-		
-		                    if ( $numservers == 1 ) {
+		                    if ($server) {
 		                        push( @commands, "$dhcp_server_cmd stop" );
 		                    }
-		
-		                    if ( $numrelays == 1 ) {
+		                    if ($relay) {
 		                        push( @commands, "$dhcp_relay_cmd stop" );
 		                    }
-                        
-                        } else {
-		                    unshift( @commands, "\nYour choice \"$seq\" is not a recognized command (yet).\nAvailable commands: start, stop, restart, dhcp-start, dhcp-stop, dhcp-restart, dhcp-server-start, dhcp-server-stop, dhcp-server-restart, dhcp-server-force-reload, dhcp-relay-start, dhcp-relay-stop, dhcp-relay-restart, dhcp-relay-force-reload, dhcp-client-start.\n" );
-		                }
-		            }
-
-                }
-                else {
+                        }
+                    }
+                } else {
                     unshift( @commands, "Unknown type value $type in vm $vm\n");
                 }
             }
         }
     }        
     return @commands;
-    
 }
+
+
+#
+# getSeqDescriptions
+#
+# Returns a description of the command sequences offered by the plugin
+# 
+# Parameters:
+#  - vm_name, the name of a virtual machine (optional)
+#  - seq, a sequence value (optional)
+#
+# Returns:
+#  - %seq_desc, an associative array (hash) whose keys are command sequences and the 
+#               associated values the description of the actions made for that sequence
+#               The value for specia key '_VMLIST' is a comma separated list of the
+#               virtual machine names involved in a command sequence
+#
+sub getSeqDescriptions {
+	
+	my $self = shift;
+	my $vm_name = shift;
+	my $seq = shift;
+	
+	my %seq_desc;
+
+	if ( (! $vm_name) && (! $seq) ) {   # Case 1: return all plugin sequences help
+
+		foreach my $key ( keys %plugin_seq_help ) {
+		   $seq_desc{$key} = $plugin_seq_help{$key};
+		}
+        my @vm_list;
+        foreach my $vm ($pcf_dom->findnodes("/$pcf_main/vm")) {    
+            push (@vm_list, $vm->getAttribute('name'));           
+        }
+        $seq_desc{'_VMLIST'} = join(',',@vm_list);	
+		
+	} elsif ( (! $vm_name) && ($seq) ) { # Case 2: return help for this $seq value and
+	                                     #         the list of vms involved in that $seq 
+        # Help for this $seq
+        $seq_desc{$seq} = $plugin_seq_help{$seq};
+        
+        # List of vms involved
+        my @vm_list;
+        foreach my $vm ($pcf_dom->findnodes("/$pcf_main/vm")) {    
+            push (@vm_list, $vm->getAttribute('name'));           
+        }
+        $seq_desc{'_VMLIST'} = join(',',@vm_list);
+        
+	
+    } elsif ( ($vm_name) && (!$seq) )  { # Case 3: return the list of commands available
+                                         #         for this vm
+        my %vm_seqs = get_vm_seqs($vm_name);
+        foreach my $key ( keys %vm_seqs ) {
+            $seq_desc{"$key"} = $plugin_seq_help{"$key"};
+            #plog (VVV, "case 3: $key $plugin_seq_help{$key}")
+        }
+        $seq_desc{'_VMLIST'} = $vm_name;
+                                         
+    } elsif ( ($vm_name) && ($seq) )   { # Case 4: return help for this $seq value only if
+                                         #         vm $vm_name is affected for that $seq 
+        $seq_desc{$seq} = $plugin_seq_help{$seq};
+        $seq_desc{'_VMLIST'} = $vm_name;
+                                          
+    }
+	
+    return %seq_desc;	
+	
+}
+
 
 #
 # finalizePlugin
 #
-# To be called always, just before ending the procesing the scenario specification
+# finalizePlugin function is called before sending the shutdown signal to the virtual machines. 
+# Note: finalizePlugin is not called when "-P|destroy" option is used, as that mode deletes any 
+# changes made to the virtual machines.
 #
 # Arguments:
 # - none
@@ -845,13 +664,69 @@ sub getCommands{
 #
 sub finalizePlugin {
     
-    print "dhcp-plugin> finalizePlugin ()\n";
+    plog (VVV, "finalizePlugin ()");
 
 }
 
 ###########################################################
 # Internal functions
 ###########################################################
+
+# 
+# plog
+# 
+# Just calls VNX wlog function adding plugin prompt
+#
+# Call with: 
+#    plog (N, "log message")    --> log msg written always  
+#    plog (V, "log message")    --> only if -v,-vv or -vvv option selected
+#    plog (VV, "log message")   --> only if -vv or -vvv option selected
+#    plog (VVV, "log message")  --> only if -vvv option selected
+
+sub plog {
+	my $msg_level = shift;   # Posible values: V, VV, VVV
+    my $msg       = shift;
+    wlog ($msg_level, $prompt . $msg);
+}
+
+
+#
+# get_vm_seqs 
+#
+# Returns an associative array (hash) with the command sequences that involve a virtual machine
+#
+sub get_vm_seqs {
+    
+    my $vm_name = shift;
+    
+    my %vm_seqs;
+    
+    # Get the virtual machine node whose name is $vm_name  
+    my $vm = $pcf_dom->findnodes("/$pcf_main/vm[\@name='$vm_name']")->[0];  
+    if ($vm) { 
+    	# vm exists in PCF. Add sequence names
+    	# general sequences
+        foreach my $seq (@all_seqs) { $vm_seqs{$seq} = 'yes'} 
+
+	    # DHCP server sequences
+	    my $server  = $vm->findnodes('server')->[0];
+	    if ($server) {
+	        foreach my $seq (@server_seqs) { $vm_seqs{$seq} = 'yes'} 
+	    }
+        # DHCP relay sequences
+	    my $relay   = $vm->findnodes('relay')->[0];
+	    if ($relay) {
+	        foreach my $seq (@relay_seqs) { $vm_seqs{$seq} = 'yes'} 
+	    }
+        # DHCP client sequences
+	    my @clients = $vm->findnodes('client');
+	    if (scalar @clients > 0) {
+	        foreach my $seq (@client_seqs) { $vm_seqs{$seq} = 'yes'} 
+	    }
+	        
+    }
+    return %vm_seqs;    
+}
 
 
 1;

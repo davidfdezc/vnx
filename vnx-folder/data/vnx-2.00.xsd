@@ -12,15 +12,6 @@ e-mail: vnx@dit.upm.es
 
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
   
-  <!--xs:element name="dynamips_conf">
-    <xs:complexType mixed="true" />
-  </xs:element-->
-  <xs:element name="dynamips_ext">
-    <xs:complexType mixed="true" />
-  </xs:element>
-  <xs:element name="olive_ext">
-    <xs:complexType mixed="true" />
-  </xs:element>
   <xs:element name="automac">
     <xs:complexType>
       <xs:attribute name="offset" type="xs:string" use="optional" default="0" />
@@ -47,7 +38,7 @@ e-mail: vnx@dit.upm.es
     </xs:complexType>
   </xs:element>
   
-  <xs:element name="on_boot">
+  <xs:element name="dynamips_ext">
     <xs:complexType mixed="true" />
   </xs:element>
 
@@ -71,19 +62,6 @@ e-mail: vnx@dit.upm.es
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
-      <!-- DFC 26/8/2011: mode eliminated. The execution mode is controlled for
-           the whole vm with the exec_mode attribute of vm -->
-      <!--xs:attribute name="mode" use="optional">
-        <xs:simpleType>
-          <xs:restriction base="xs:NMTOKEN">
-            <xs:enumeration value="mconsole" />
-            <xs:enumeration value="net" />
-            <xs:enumeration value="cdrom" />
-            <xs:enumeration value="sdisk" />
-            <xs:enumeration value="telnet" />
-          </xs:restriction>
-        </xs:simpleType>
-      </xs:attribute-->
       <xs:attribute name="ostype" use="optional">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
@@ -98,6 +76,12 @@ e-mail: vnx@dit.upm.es
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="seq_help">
+    <xs:complexType mixed="true">
+      <xs:attribute name="seq" type="xs:string" use="required" />
     </xs:complexType>
   </xs:element>
 
@@ -169,12 +153,21 @@ e-mail: vnx@dit.upm.es
         <xs:element ref="extension" minOccurs="0" maxOccurs="unbounded" />
         <xs:element ref="dynamips_ext" minOccurs="0" maxOccurs="1"/>
         <xs:element ref="olive_ext" minOccurs="0" maxOccurs="1"/>
+        <xs:element ref="help" minOccurs="0" maxOccurs="unbounded" />        
       </xs:sequence>
     </xs:complexType>
   </xs:element>
 
   <xs:element name="group">
     <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="help">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="seq_help" minOccurs="0" maxOccurs="unbounded" />
+      </xs:sequence>
+    </xs:complexType>
   </xs:element>
 
   <xs:element name="host">
@@ -337,6 +330,14 @@ e-mail: vnx@dit.upm.es
         </xs:simpleType>
       </xs:attribute>
     </xs:complexType>
+  </xs:element>
+
+  <xs:element name="olive_ext">
+    <xs:complexType mixed="true" />
+  </xs:element>
+
+  <xs:element name="on_boot">
+    <xs:complexType mixed="true" />
   </xs:element>
 
   <xs:element name="physicalif">

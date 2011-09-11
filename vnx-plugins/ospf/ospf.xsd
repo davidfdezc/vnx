@@ -2,7 +2,7 @@
 
 <!--
 
-VNX OSPF Plugin Definition Language v1.0
+VNX OSPF Plugin Definition Language v2.0
 
 Virtual Networks over LinuX (VNX) Project 
 www:    http://www.dit.upm.es/vnx 
@@ -13,7 +13,7 @@ e-mail: vnx@dit.upm.es
  <xs:element name='ospf_conf'>
   <xs:complexType>
    <xs:sequence>
-    <xs:element ref='vm' maxOccurs='unbounded'/>
+    <xs:element ref='vm' minOccurs='0' maxOccurs='unbounded'/>
    </xs:sequence>
   </xs:complexType>
  </xs:element>
@@ -21,32 +21,31 @@ e-mail: vnx@dit.upm.es
  <xs:element name='vm'>
   <xs:complexType>
    <xs:sequence>
-    <xs:element ref='zebra_bin' minOccurs='0' maxOccurs='1'/>
-    <xs:element ref='ospfd_bin' minOccurs='0' maxOccurs='1'/>
-    <xs:element ref='zebra'/>
-    <xs:element ref='passive_if'/>
-    <xs:element ref='network' maxOccurs='unbounded'/>
+    <xs:element ref='hostname'   minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='password'   minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='network'    minOccurs='0' maxOccurs='unbounded'/>
+    <xs:element ref='passive_if' minOccurs='0' maxOccurs='unbounded'/>
+    <xs:element ref='binaries'   minOccurs='0' maxOccurs='1'/>
    </xs:sequence>
-   <xs:attribute name='name' type='xs:string' use='required'/>
-   <xs:attribute name='type' type='xs:string' use='required'/>
+   <xs:attribute name='name'    type='xs:string' use='required'/>
+   <xs:attribute name='type'    type='xs:string' use='required'/>
    <xs:attribute name='subtype' type='xs:string' use='required'/>
   </xs:complexType>
  </xs:element>
 
- <xs:element name='zebra_bin'>
+ <xs:element name='hostname'>
   <xs:complexType mixed='true'>
   </xs:complexType>
  </xs:element>
 
- <xs:element name='ospfd_bin'>
+ <xs:element name='password'>
   <xs:complexType mixed='true'>
   </xs:complexType>
  </xs:element>
 
- <xs:element name='zebra'>
-  <xs:complexType>
-   <xs:attribute name='hostname' type='xs:string' use='required'/>
-   <xs:attribute name='password' type='xs:string' use='required'/>
+ <xs:element name='network'>
+  <xs:complexType mixed='true'>
+   <xs:attribute name='area' type='xs:string' use='required'/>
   </xs:complexType>
  </xs:element>
 
@@ -55,23 +54,23 @@ e-mail: vnx@dit.upm.es
   </xs:complexType>
  </xs:element>
 
- <xs:element name='network'>
+ <xs:element name='binaries'>
   <xs:complexType>
    <xs:sequence>
-    <xs:element ref='ip'/>
-    <xs:element ref='area'/>
+    <xs:element ref='zebra'/>
+    <xs:element ref='ospfd'/>
    </xs:sequence>
   </xs:complexType>
  </xs:element>
 
- <xs:element name='ip'>
+ <xs:element name='zebra'>
   <xs:complexType mixed='true'>
-   <xs:attribute name='mask' type='xs:string' use='required'/>
   </xs:complexType>
  </xs:element>
 
- <xs:element name='area'>
+ <xs:element name='ospfd'>
   <xs:complexType mixed='true'>
   </xs:complexType>
  </xs:element>
+
 </xs:schema>
