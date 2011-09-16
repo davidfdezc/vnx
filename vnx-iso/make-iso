@@ -3,35 +3,51 @@
 
 #Download an official Desktop CD from http://releases.ubuntu.com/
 
+function pause {
+  echo "-- "
+  echo "-- press any key to continue"
+  echo "-- "
+  read b
+}
+
+
 function main {
 
 	# Process parameters
-        SOURCE_ISO_DIR="${1%/*}"
-        SOURCE_ISO_NAME="${1##*/}"
-	if [ "$SOURCE_ISO_DIR" = "$SOURCE_ISO_NAME" ]; then
-		SOURCE_ISO_DIR=${sdir}
-	fi
-	OUTPUT_TYPE=$2
-	INSTALL_TYPE=$3
+#        SOURCE_ISO_DIR="${1%/*}"
+#        SOURCE_ISO_NAME="${1##*/}"
+#	if [ "$SOURCE_ISO_DIR" = "$SOURCE_ISO_NAME" ]; then
+#		SOURCE_ISO_DIR=${sdir}
+#	fi
 
+    SOURCE_ISO=$1
+    SOURCE_ISO_DIR=$( dirname $1 )
+    SOURCE_ISO_NAME=$( basename $1 )
+    DST_ISO_NAME=${SOURCE_ISO_NAME%.iso}-vnx.iso
+	#OUTPUT_TYPE=$2
+    INSTALL_TYPE=$2
+    WORK_DIR=$3
 
-echo "SOURCE_ISO_DIR:$SOURCE_ISO_DIR  SOURCE_ISO_NAME:$SOURCE_ISO_NAME  OUTPUT_TYPE=$OUTPUT_TYPE  INSTALL_TYPE=$INSTALL_TYPE"
-
+#echo "SOURCE_ISO_DIR:$SOURCE_ISO_DIR  SOURCE_ISO_NAME:$SOURCE_ISO_NAME  OUTPUT_TYPE=$OUTPUT_TYPE  INSTALL_TYPE=$INSTALL_TYPE"
+echo "SOURCE_ISO_DIR:$SOURCE_ISO_DIR  SOURCE_ISO_NAME:$SOURCE_ISO_NAME  INSTALL_TYPE=$INSTALL_TYPE WORK_DIR=$WORK_DIR DST_ISO_NAME=$DST_ISO_NAME"
 
 	# Check for requirements and install
-#	apt-get install squashfs-tools genisoimage
+	apt-get -y install squashfs-tools genisoimage
 
 	# Work over a copy of source iso
-	cd $SOURCE_ISO_DIR
+#	cd $SOURCE_ISO_DIR
+    cd $WORK_DIR
 	mkdir livecdtmp
-	cp $SOURCE_ISO_NAME livecdtmp
+#   cp $SOURCE_ISO_NAME livecdtmp
+    echo "-- Copying source iso disk..." 
+    cp -v $SOURCE_ISO livecdtmp
 	cd livecdtmp
  
-	# Mount the Desktop .iso
+	# Mount the .iso
 	mkdir mnt
 	sudo mount -o loop $SOURCE_ISO_NAME mnt
 
-	# Extract .iso contents into dir 'extract-cd'
+    echo "-- Extracting .iso contents into dir 'extract-cd'" 
 	mkdir extract-cd
 	rsync --exclude=/casper/filesystem.squashfs -a mnt/ extract-cd
 
@@ -39,6 +55,7 @@ echo "SOURCE_ISO_DIR:$SOURCE_ISO_DIR  SOURCE_ISO_NAME:$SOURCE_ISO_NAME  OUTPUT_T
 	sudo unsquashfs mnt/casper/filesystem.squashfs
 	sudo mv squashfs-root edit
 
+pause
 
 	# For network connection within chroot
 	sudo cp /etc/resolv.conf edit/etc/
@@ -48,7 +65,6 @@ echo "SOURCE_ISO_DIR:$SOURCE_ISO_DIR  SOURCE_ISO_NAME:$SOURCE_ISO_NAME  OUTPUT_T
 
 	# these mount important directories of your host system - if you later decide to delete the edit/ directory, then make sure to unmount before doing so
 	sudo mount --bind /dev/ edit/dev	
-
 
 
 	#chroot edit
@@ -93,12 +109,13 @@ label hd
 	# Copy images
 	cp ${cdir}/images/access.pcx ${cdir}/images/splash.pcx extract-cd/isolinux/
 
+pause
 
 	# Install VNX
-#	install_basic
-#	if [[ $INSTALL_TYPE = "full" ]]; then
-#		install_rest
-#	fi
+	install_basic
+	if [[ $INSTALL_TYPE = "full" ]]; then
+		install_rest
+	fi
 
 	# Modificar el script que va a ir a chroot y copiarlo a chroot
 	cp $cdir/script_chroot.sh script_chroot
@@ -230,9 +247,9 @@ read b
 	find -type f -print0 | sudo xargs -0 md5sum | grep -v isolinux/boot.cat | sudo tee md5sum.txt
 
 	# Create the ISO image
-	sudo mkisofs -D -r -V "$IMAGE_NAME" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ../ubuntu-10.04.2-desktop-i386-custom.iso .
+	sudo mkisofs -D -r -V "$IMAGE_NAME" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ../$DST_ISO_NAME .
 
-	mv ../ubuntu-10.04.2-desktop-i386-custom.iso ../..
+	mv ../$DST_ISO_NAME ../..
 	cd ../..
 
 	# Remove temporary data
@@ -240,9 +257,10 @@ read b
 
 	# test
 	#cd ..
-	#qemu -cdrom ubuntu-10.04.2-desktop-i386-custom.iso -boot d -m 512
+	#qemu -cdrom $DST_ISO_NAME -boot d -m 512
 
 }
+
 
 
 
@@ -258,16 +276,25 @@ function install_basic {
 
 	# Update and install
 	apt-get update
-	apt-get install -y build-essential qemu-kvm libvirt-bin vlan xterm bridge-utils  screen virt-manager virt-viewer libxml-checker-perl libxml-parser-perl libnetaddr-ip-perl libnet-pcap-perl libnet-ipv6addr-perl liberror-perl libexception-class-perl uml-utilities libxml-libxml-perl libxml2-dev libgnutls-dev libdevmapper-dev libterm-readline-perl-perl libnet-telnet-perl libnet-ip-perl libreadonly-perl libmath-round-perl libappconfig-perl libdbi-perl graphviz libnl-dev genisoimage gnome-terminal libfile-homedir-perl
+	#apt-get install -y build-essential qemu-kvm libvirt-bin vlan xterm bridge-utils  screen virt-manager virt-viewer libxml-checker-perl libxml-parser-perl libnetaddr-ip-perl libnet-pcap-perl libnet-ipv6addr-perl liberror-perl libexception-class-perl uml-utilities libxml-libxml-perl libxml2-dev libgnutls-dev libdevmapper-dev libterm-readline-perl-perl libnet-telnet-perl libnet-ip-perl libreadonly-perl libmath-round-perl libappconfig-perl libdbi-perl graphviz libnl-dev genisoimage gnome-terminal libfile-homedir-perl
+    apt-get -y install build-essential qemu-kvm libvirt-bin vlan xterm \
+        bridge-utils  screen virt-manager virt-viewer libxml-checker-perl \
+        libxml-parser-perl libnetaddr-ip-perl libnet-pcap-perl \
+        libnet-ipv6addr-perl liberror-perl libexception-class-perl \
+        uml-utilities libxml-libxml-perl libxml2-dev libgnutls-dev \
+        libdevmapper-dev libterm-readline-perl-perl libnet-telnet-perl \
+        libnet-ip-perl libreadonly-perl libmath-round-perl libappconfig-perl \
+        libdbi-perl graphviz libnl-dev genisoimage gnome-terminal \
+        libfile-homedir-perl python-dev libsasl2-dev tree
 
 	# If you use 64 bits version of Ubuntu, install 32 bits compatibility libraries:
 	# apt-get install ia32-libs
 
-	#Install libvirt 0.8.5:
-	/etc/init.d/libvirt-bin stop
-	wget http://libvirt.org/sources/libvirt-0.8.5.tar.gz
-	tar xfvz libvirt-0.8.5.tar.gz
-	cd libvirt-0.8.5
+	#Install libvirt 0.9.3:
+	 stop libvirt-bin
+	wget http://libvirt.org/sources/libvirt-0.9.3.tar.gz
+	tar xfvz libvirt-0.9.3.tar.gz
+	cd libvirt-0.9.3
 	./configure --without-xen --prefix=/usr && make && make install
 	start libvirt-bin
 
@@ -293,9 +320,9 @@ function install_basic {
 
 	# VNUML root_fs_tutorial and kernel
 	cd /usr/share/vnx/filesystems
-	wget -N http://idefix.dit.upm.es/download/vnx/filesystems/root_fs_tutorial-0.6.0.bz2
-	bunzip2 root_fs_tutorial-0.6.0.bz2
-	ln -s root_fs_tutorial-0.6.0 root_fs_tutorial
+	wget -N http://idefix.dit.upm.es/download/vnx/filesystems/vnx_rootfs_uml-debian-6.0-v022.bz2
+	bunzip2 vnx_rootfs_uml-debian-6.0-v022.bz2
+	ln -s vnx_rootfs_uml-debian-6.0-v022.bz2 rootfs_uml
 	cd /usr/share/vnx/kernels
 	wget -N http://jungla.dit.upm.es/~vnx/download/kernels/linux-2.6.18.1-bb2-xt-4m
 	chmod +x linux-2.6.18.1-bb2-xt-4m
@@ -403,51 +430,61 @@ function usage {
 	echo "**  Usage: make_iso -s [source_iso_file] [Options]"
 	echo "**"
 	echo "**  Options:"
-	echo "**       -usbkey [path_to_usb_drive]   installs live cd in usb key"
-	echo "**       -i [basic|full]   basic installs only UML and Ubuntu-server filesystems, while full installs all of them. basic is recommended."
+	echo "**       -u [path_to_usb_drive] installs live cd in usb key"
+	echo "**       -i [basic|full]   basic installs only UML and Ubuntu-server filesystems"
+	echo "**                         full installs all of them. basic is recommended."
+	echo "**       -w [working_dir]  directory where the image and temporal files will be located"
+	echo "                           (defaults to current dir"
 	echo "**"
 }
 
 
-sdir=$( pwd )
+#sdir=$( pwd )
+#cdir=$( dirname $0 )
+#cd $cdir
+#echo "cdir:$cdir  sdir:$sdir"
 
-cdir=$( dirname $0 )
-cd $cdir
-
-echo "cdir:$cdir  sdir:$sdir"
-
-
+# default parameter values
 SOURCE_ISO=""
 USB_KEY=""
 INSTALL_TYPE="basic"
+WORK_DIR=$( pwd )
 
-while getopts ":s::usbkey::i:" opt; do
+while getopts ":s:u:i:w:" opt; do
+  echo "opt=$opt"
   case $opt in
     s)
       if [[ $OPTARG = -* ]]; then
-        echo "Format error."
+        echo "**"
+        echo "**  ERROR: incorrect format of -s option parameter"
         usage
         exit 1
       fi
+      SOURCE_ISO=$( readlink -m $OPTARG )
+      echo "SOURCE_ISO=%s\n" $SOURCE_ISO
       if [ ! -f $OPTARG ]; then
-        echo "File $OPTARG not found."
+        echo "**"
+        echo "*****  ERROR: file $OPTARG not found."
         usage
         exit 1
       fi
-      SOURCE_ISO=$OPTARG
+#      SOURCE_ISO=$OPTARG
       ;;
-    usbkey)
+    u)
       if [[ $OPTARG = -* ]]; then
-        echo "Format error."
+        echo "**"
+        echo "**  ERROR: incorrect format of -usbkey option parameter"
         usage
         exit 1
       fi
-      if [ ! -d $OPTARG ]; then
-        echo "Usb key $OPTARG not found."
+      USB_KEY=$( readlink -m $OPTARG )
+      if [ ! -d $USB_KEY ]; then
+        echo "**"
+        echo "**  ERROR: usb device $OPTARG not found"
         usage
         exit 1
       fi
-      USB_KEY=$OPTARG
+#      USB_KEY=$OPTARG
       ;;
     i)
       if [[ $OPTARG = -* ]]; then
@@ -455,12 +492,29 @@ while getopts ":s::usbkey::i:" opt; do
         usage
         exit 1
       fi
-      if [ ! [[ $OPTARG = basic ] || [ $OPTARG = full ]]]; then
-        echo "Invalid option $OPTARG."
+      if [[ ! $OPTARG = basic && ! $OPTARG = full ]]; then
+        echo "Invalid value $OPTARG for -i option "
         usage
         exit 1
       fi
       INSTALL_TYPE=$OPTARG
+      ;;
+    w)
+      if [[ $OPTARG = -* ]]; then
+        echo "**"
+        echo "**  ERROR: incorrect format of -w option parameter"
+        usage
+        exit 1
+      fi
+      WORK_DIR=$( readlink -m $OPTARG )
+      echo "WORK_DIR=%s\n" $WORK_DIR
+      if [ ! -d $WORK_DIR ]; then
+        echo "**"
+        echo "*****  ERROR: working directory $WORK_DIR not found."
+        usage
+        exit 1
+      fi
+#      SOURCE_ISO=$OPTARG
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -481,8 +535,5 @@ if [[ $SOURCE_ISO = "" ]]; then
         exit 1
 fi
 
-main $SOURCE_ISO $USB_KEY $INSTALL_TYPE
 
-
-
-
+main $SOURCE_ISO $USB_KEY $INSTALL_TYPE $WORK_DIR

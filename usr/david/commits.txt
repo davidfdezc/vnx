@@ -101,4 +101,10 @@ IMPORTANT CHANGES MADE:
   when executing commands like "echo xxxx > file"      
             
          
+16/9/2011
+
+- Changed the format of multiple sequences form space-separated to comma-separated list. Ej:
+        seq="on_boot, start"         
+        
+- Changes in make-iso script (not finished)        
          

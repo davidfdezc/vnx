@@ -1873,9 +1873,14 @@ sub executeCMD {
 			# FIXME: think again the "always issue"; by the moment deactivated
 
 			# JSF 01/12/10: we accept several commands in the same seq tag,
-			# separated by spaces
-			my @filetree_seqs = split(' ',$filetree_seq_string);
+			# separated by commas
+			my @filetree_seqs = split(',',$filetree_seq_string);
 			foreach my $filetree_seq (@filetree_seqs) {
+				
+				# Remove leading or trailing spaces
+                $filetree_seq =~ s/^\s+//;
+                $filetree_seq =~ s/\s+$//;
+				
 				if ( $filetree_seq eq $seq ) {
 					$dst_num++;
 					my $src;
@@ -2023,9 +2028,13 @@ sub executeCMD {
 			my $cmd_seq_string = $command->getAttribute("seq");
 			
 			# JSF 01/12/10: we accept several commands in the same seq tag,
-			# separated by spaces
-			my @cmd_seqs = split(' ',$cmd_seq_string);
+			# separated by commas
+			my @cmd_seqs = split(',',$cmd_seq_string);
 			foreach my $cmd_seq (@cmd_seqs) {
+			
+			    # Remove leading or trailing spaces
+                $cmd_seq =~ s/^\s+//;
+                $cmd_seq =~ s/\s+$//;
 			
 				if ( $cmd_seq eq $seq ) {
 					my $type = $command->getAttribute("type");
@@ -2195,7 +2204,7 @@ sub executeCMD {
 		$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
 		my $dst_num = 1;
 		
-#pak "pak1";
+pak "pak1";
 		
 		#		
 		# Process of <filetree> tags
