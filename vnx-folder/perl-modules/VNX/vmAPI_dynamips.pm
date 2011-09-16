@@ -1025,9 +1025,13 @@ sub executeCMD{
 		my $command = $command_list->item($j);	
 		my $cmd_seq_string = $command->getAttribute("seq");
 		# JSF 02/12/10: we accept several commands in the same seq tag,
-		# separated by spaces
-		my @cmd_seqs = split(' ',$cmd_seq_string);
+		# separated by commas
+		my @cmd_seqs = split(',',$cmd_seq_string);
 		foreach my $cmd_seq (@cmd_seqs) {
+		
+		    # Remove leading or trailing spaces
+            $cmd_seq =~ s/^\s+//;
+            $cmd_seq =~ s/\s+$//;
 		
 			# Check if the seq atribute value is the one we look ($seq)
 			if ( $cmd_seq eq $seq ) {

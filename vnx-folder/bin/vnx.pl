@@ -2628,9 +2628,13 @@ sub get_vm_ftrees_and_execs {
             
         my $filetree_seq_string = $filetree->getAttribute("seq");
                 
-        # We accept several commands in the same seq tag, separated by spaces
-        my @filetree_seqs = split(' ',$filetree_seq_string);
+        # We accept several commands in the same seq tag, separated by commas
+        my @filetree_seqs = split(',',$filetree_seq_string);
         foreach my $filetree_seq (@filetree_seqs) {
+
+            # Remove leading or trailing spaces
+            $filetree_seq =~ s/^\s+//;
+            $filetree_seq =~ s/\s+$//;
                 
             if ( $filetree_seq eq $seq ) {
                     
@@ -2643,7 +2647,8 @@ sub get_vm_ftrees_and_execs {
     
                 # We copy the node manually...boring
                 # Read values
-                my $seq = $filetree->getAttribute("seq");
+                # TODO seq value copied has to be the one in $seq; the value in XML could be a comma separeted list 
+                #my $seq = $filetree->getAttribute("seq");
                 my $root = $filetree->getAttribute("root");
                 my $user = $filetree->getAttribute("user");
                 my $group = $filetree->getAttribute("group");
@@ -2702,10 +2707,14 @@ sub get_vm_ftrees_and_execs {
         # To get attributes
         my $cmd_seq_string = $command->getAttribute("seq");
   
-        # We accept several commands in the same seq tag, separated by spaces
-        my @cmd_seqs = split(' ',$cmd_seq_string);
+        # We accept several commands in the same seq tag, separated by commas
+        my @cmd_seqs = split(',',$cmd_seq_string);
         foreach my $cmd_seq (@cmd_seqs) {
-                
+            
+            # Remove leading or trailing spaces
+            $cmd_seq =~ s/^\s+//;
+            $cmd_seq =~ s/\s+$//;
+    
             if ( $cmd_seq eq $seq ) {
 
                 # Read values of <exec> tag
