@@ -1,0 +1,424 @@
+#!/bin/bash
+#umount livecdtmp/edit/dev/
+
+#Download an official Desktop CD from http://releases.ubuntu.com/
+
+function pause {
+  echo "-- "
+  echo "-- press any key to continue"
+  echo "-- "
+  read b
+}
+
+function ctrl_c() {
+
+    echo "--"
+    echo "-- Trapped CTRL-C"
+    echo "--"
+#    MOUNTED=`mount | grep "livecdtmp/edit/dev"`
+#    if [[ $MOUNTED ]]
+#    then
+        echo "-- Dismounting livecdtmp/edit/dev..."
+        chroot $WORK_DIR/livecdtmp/edit umount /proc 
+        chroot $WORK_DIR/livecdtmp/edit umount -lf /proc 
+        chroot $WORK_DIR/livecdtmp/edit umount /sys 
+        chroot $WORK_DIR/livecdtmp/edit umount /dev/pts 
+        umount $WORK_DIR/livecdtmp/edit/dev
+#        umount $WORK_DIR/livecdtmp/edit/dev/shm
+#        umount $WORK_DIR/livecdtmp/edit/sys
+#        umount $WORK_DIR/livecdtmp/edit/proc
+#    fi
+#    MOUNTED=`mount | grep "livecdtmp/mnt"`
+#    if [[ $MOUNTED ]]
+#    then
+        echo "-- Dismounting livecdtmp/mnt..."
+        umount $WORK_DIR/livecdtmp/mnt
+#    fi
+    echo "-- Exiting..."
+    echo "--"
+    exit 1
+    
+}
+
+
+function main {
+
+	# Process parameters
+#        SOURCE_ISO_DIR="${1%/*}"
+#        SOURCE_ISO_NAME="${1##*/}"
+#	if [ "$SOURCE_ISO_DIR" = "$SOURCE_ISO_NAME" ]; then
+#		SOURCE_ISO_DIR=${sdir}
+#	fi
+
+    SOURCE_ISO=$1
+    SOURCE_ISO_DIR=$( dirname $1 )
+    SOURCE_ISO_NAME=$( basename $1 )
+    DST_ISO_NAME=${SOURCE_ISO_NAME%.iso}-vnx.iso
+	#OUTPUT_TYPE=$2
+    INSTALL_TYPE=$2
+    WORK_DIR=$3
+
+#echo "SOURCE_ISO_DIR:$SOURCE_ISO_DIR  SOURCE_ISO_NAME:$SOURCE_ISO_NAME  OUTPUT_TYPE=$OUTPUT_TYPE  INSTALL_TYPE=$INSTALL_TYPE"
+echo "SOURCE_ISO_DIR:$SOURCE_ISO_DIR  SOURCE_ISO_NAME:$SOURCE_ISO_NAME  INSTALL_TYPE=$INSTALL_TYPE WORK_DIR=$WORK_DIR DST_ISO_NAME=$DST_ISO_NAME"
+
+    # Set ctrl-c handler
+    trap ctrl_c INT
+
+	# Check for requirements and install
+	apt-get -y install squashfs-tools genisoimage
+
+	# Work over a copy of source iso
+#	cd $SOURCE_ISO_DIR
+    cd $WORK_DIR
+    
+	mkdir -p livecdtmp
+    rm -rf livecdtmp/*
+#   cp $SOURCE_ISO_NAME livecdtmp
+    echo "-- " 
+    echo "-- Copying source iso disk..." 
+    echo "-- " 
+    cp -v $SOURCE_ISO livecdtmp
+	cd livecdtmp
+ 
+	# Mount the .iso
+	mkdir -p mnt
+	sudo mount -o loop $SOURCE_ISO_NAME mnt
+
+    echo "-- " 
+    echo "-- Extracting .iso contents into dir 'extract-cd'" 
+    echo "-- " 
+    mkdir -p extract-cd
+    rsync --exclude=/casper/filesystem.squashfs -a mnt/ extract-cd
+
+    echo "-- " 
+    echo "-- Extracting the SquashFS filesystem... " 
+    echo "-- " 
+    sudo unsquashfs mnt/casper/filesystem.squashfs
+    sudo mv squashfs-root edit
+
+pause
+
+    echo "-- " 
+    echo "-- Preparing filesystem..." 
+    echo "-- " 
+
+    # For network connection within chroot
+    sudo cp /etc/resolv.conf edit/etc/
+
+    # Depending on your configuration, you may also need to copy the hosts file
+    # sudo cp /etc/hosts edit/etc/
+
+    # these mount important directories of your host system - if you later decide to delete the edit/ directory, then make sure to unmount before doing so
+    sudo mount --bind /dev/ edit/dev	
+
+
+    #chroot edit
+    chroot edit mount -t proc none /proc
+    chroot edit mount -t sysfs none /sys
+    chroot edit mount -t devpts none /dev/pts
+
+    # To avoid locale issues and in order to import GPG keys
+#	chroot edit export HOME=/root
+#	chroot edit export LC_ALL=C
+
+    # In 9.10, before installing or upgrading packages you need to run
+    chroot edit dbus-uuidgen > /var/lib/dbus/machine-id
+    chroot edit dpkg-divert --local --rename --add /sbin/initctl
+    chroot edit ln -s /bin/true /sbin/initctl
+    
+    # Remove install icon and examples folder that would otherwise be copied to the Desktop
+    rm -rf edit/usr/share/applications/ubiquity-gtkui.desktop
+    rm -rf edit/usr/share/example-content
+
+    # Increase timeout of main menu
+    sed --in-place -e 's/timeout 50/timeout 5000/g' extract-cd/isolinux/isolinux.cfg
+    # Remove install option from main menu
+    echo 'default live
+label live
+  menu label ^Try Ubuntu without installing
+  kernel /casper/vmlinuz
+  append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --
+label check
+  menu label ^Check disc for defects
+  kernel /casper/vmlinuz
+  append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --
+label memtest
+  menu label Test ^memory
+  kernel /install/mt86plus
+label hd
+  menu label ^Boot from first hard disk
+  localboot 0x80' > extract-cd/isolinux/text.cfg
+    
+    # Show logo during main menu
+    sed --in-place -e 's/hidden-timeout=2/hidden-timeout=1/g' extract-cd/isolinux/gfxboot.cfg
+
+    # Copy images
+    cp ${cdir}/images/access.pcx ${cdir}/images/splash.pcx extract-cd/isolinux/
+
+pause
+    #
+    # VNX installation script
+    #
+
+    # Modificar el script que va a ir a chroot y copiarlo a chroot
+    cp $cdir/vnx_install_chroot.sh vnx_install_chroot
+    sed --in-place -e 's/INSTALL_TYPE\=\(""\)/INSTALL_TYPE\=\"'$INSTALL_TYPE'"/g' vnx_install_chroot
+    mv vnx_install_chroot edit
+    chmod +x edit/vnx_install_chroot
+pause
+    echo "-- Executing vnx_install_chroot"
+    chroot edit ./vnx_install_chroot $INSTALL_TYPE
+
+
+
+
+    ############# Boot init
+    #you can change the hostname or the livecd user. NO LO HE HECHO aqui sino mas abajo
+    #sudo gedit edit/usr/share/initramfs-tools/scripts/casper
+    #and edit the username or hostname
+
+    #sudo gedit edit/usr/share/initramfs-tools/scripts/casper-bottom/10adduser
+    #to edit even the livecd user's password. 
+    # xxxxxxxx -> no me ha cogido la pass
+
+    # gedit edit/etc/casper.conf
+    # vnx-user
+    chroot edit sed -i -e "s/export USERNAME=\"ubuntu\"/export USERNAME=\"vnx-user\"/g" /etc/casper.conf
+    #############
+
+pause
+
+	# Remove the (Casper) Autologin
+#	exit
+	cd extract-cd/casper
+	mkdir lztempdir
+	cd lztempdir
+	lzma -dc -S .lz ../initrd.lz | cpio -imvd --no-absolute-filenames
+
+#	cp scripts/casper-bottom/25configure_init scripts/casper-bottom/25configure_init.orig
+
+
+
+#	gedit scripts/casper-bottom/25configure_init
+	# borrar $USERNAME de la linea 25
+
+	cp ../initrd.lz ../inird.lz.orig
+	find . | cpio --quiet --dereference -o -H newc | lzma -7 > ../initrd.lz
+	cd ../../..
+	##############
+
+
+
+	# Custom Background for GNOME
+	#Generally background files are located in /usr/share/backgrounds. Copy your png file there, adjust owner and file access, and edit the files:
+	#   1. /usr/share/gnome-background-properties/ubuntu-wallpapers.xml and
+	#   2. /usr/share/gconf/defaults/16_ubuntu-wallpapers or other files in the same directory. by changing the string /usr/share/backgrounds/warty-final-ubuntu.png to point to your file
+
+
+
+# MUY IMPORTANTE, si se dejan con UID > 1000 el LiveCD no pasa del menú principal
+
+	# After customization make sure that there are no users with a UID > 999. Otherwise your image won't boot because no initial user is available (see /usr/share/initramfs-tools/scripts/casper-bottom/10adduser). While in chroot:
+	#awk -F: '$3 > 999' /etc/passwd
+	#If you get any hits, try changing the uid:
+	#usermod -u 500 $hit
+	#chroot edit awk -F: '$3 > 999' /etc/passwd | awk -F: '{print "usermod -u 500" $1}' | bash
+echo "mirar que los users no tengan UID > 1000"
+read b
+	# sustituir 2.6.15-26-k7 por la versión del kernel que salga en /lib/modules
+	# hacer ls de /lib/modules, guardarlo en variable, y hacer mk... $variable
+	#mkinitramfs -o /initrd.gz 2.6.32-28-generic
+#	kvers=$(ls /lib/modules)
+#       mkinitramfs -o /initrd.lz $kvers
+	chroot edit mkinitramfs -o /initrd.lz $(ls /lib/modules)
+
+
+
+	# Exit from the chroot jail and move this file to extract-cd/casper:
+	#exit
+	#mv edit/initrd.gz extract-cd/casper/
+	mv edit/initrd.lz extract-cd/casper/
+
+	# Cleanup
+	#chroot edit
+
+	# dejar como estaba los repos
+	chroot edit mv /etc/apt/sources.list.backup /etc/apt/sources.list
+	chroot edit apt-get update
+
+	#downloaded package files
+	chroot edit aptitude clean
+	#delete temporary files
+	chroot edit rm -rf /tmp/* ~/.bash_history
+	# delete hosts file
+	chroot edit rm /etc/hosts
+	#nameserver settings
+	chroot edit rm /etc/resolv.conf
+	# if installed software, be sure to run
+	chroot edit rm /var/lib/dbus/machine-id
+	chroot edit rm /sbin/initctl
+	chroot edit dpkg-divert --rename --remove /sbin/initctl
+
+	#now umount (unmount) special filesystems and exit chroot
+	chroot edit umount /proc || umount -lf /proc
+	chroot edit umount /sys
+	chroot edit umount /dev/pts
+	#exit
+        sleep 2
+	umount mnt
+	umount edit/dev
+
+pause
+
+	#Producing the CD image
+	##Assembling the file system
+	###Regenerate manifest
+	chmod +w extract-cd/casper/filesystem.manifest
+	sudo chroot edit dpkg-query -W --showformat='${Package} ${Version}\n' > extract-cd/casper/filesystem.manifest
+	sudo cp extract-cd/casper/filesystem.manifest extract-cd/casper/filesystem.manifest-desktop
+	sudo sed -i '/ubiquity/d' extract-cd/casper/filesystem.manifest-desktop
+	sudo sed -i '/casper/d' extract-cd/casper/filesystem.manifest-desktop
+	#Compress filesystem
+	sudo rm extract-cd/casper/filesystem.squashfs
+	sudo mksquashfs edit extract-cd/casper/filesystem.squashfs
+
+	# Update the filesystem.size file, which is needed by the installer:
+	printf $(sudo du -sx --block-size=1 edit | cut -f1) > extract-cd/casper/filesystem.size
+
+	# Set an image name in extract-cd/README.diskdefines
+	#sudo gedit extract-cd/README.diskdefines
+	sed -i -e "s/#define DISKNAME  /#define DISKNAME  VNX - /g" extract-cd/README.diskdefines
+
+	# Remove old md5sum.txt and calculate new md5 sums
+	cd extract-cd
+	sudo rm md5sum.txt
+	find -type f -print0 | sudo xargs -0 md5sum | grep -v isolinux/boot.cat | sudo tee md5sum.txt
+
+	# Create the ISO image
+	sudo mkisofs -D -r -V "$IMAGE_NAME" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ../$DST_ISO_NAME .
+
+	mv ../$DST_ISO_NAME ../..
+	cd ../..
+
+	# Remove temporary data
+	#rm -rf livecdtmp
+
+	# test
+	#cd ..
+	#qemu -cdrom $DST_ISO_NAME -boot d -m 512
+
+}
+
+function usage {
+	echo "**"
+	echo "**  Usage: make_iso -s [source_iso_file] [Options]"
+	echo "**"
+	echo "**  Options:"
+	echo "**       -u [path_to_usb_drive] installs live cd in usb key"
+	echo "**       -i [basic|full]   basic installs only UML and Ubuntu-server filesystems"
+	echo "**                         full installs all of them. basic is recommended."
+	echo "**       -w [working_dir]  directory where the image and temporal files will be located"
+	echo "                           (defaults to current dir)"
+	echo "**"
+}
+
+
+
+
+sdir=$( pwd )
+cdir=$( dirname $0 )
+#cd $cdir
+#echo "cdir:$cdir  sdir:$sdir"
+
+# default parameter values
+SOURCE_ISO=""
+USB_KEY=""
+INSTALL_TYPE="basic"
+WORK_DIR=$( pwd )
+
+while getopts ":s:u:i:w:" opt; do
+  echo "opt=$opt"
+  case $opt in
+    s)
+      if [[ $OPTARG = -* ]]; then
+        echo "**"
+        echo "**  ERROR: incorrect format of -s option parameter"
+        usage
+        exit 1
+      fi
+      SOURCE_ISO=$( readlink -m $OPTARG )
+      echo "SOURCE_ISO=%s\n" $SOURCE_ISO
+      if [ ! -f $OPTARG ]; then
+        echo "**"
+        echo "*****  ERROR: file $OPTARG not found."
+        usage
+        exit 1
+      fi
+#      SOURCE_ISO=$OPTARG
+      ;;
+    u)
+      if [[ $OPTARG = -* ]]; then
+        echo "**"
+        echo "**  ERROR: incorrect format of -usbkey option parameter"
+        usage
+        exit 1
+      fi
+      USB_KEY=$( readlink -m $OPTARG )
+      if [ ! -d $USB_KEY ]; then
+        echo "**"
+        echo "**  ERROR: usb device $OPTARG not found"
+        usage
+        exit 1
+      fi
+#      USB_KEY=$OPTARG
+      ;;
+    i)
+      if [[ $OPTARG = -* ]]; then
+        echo "Format error."
+        usage
+        exit 1
+      fi
+      if [[ ! $OPTARG = basic && ! $OPTARG = full ]]; then
+        echo "Invalid value $OPTARG for -i option "
+        usage
+        exit 1
+      fi
+      INSTALL_TYPE=$OPTARG
+      ;;
+    w)
+      if [[ $OPTARG = -* ]]; then
+        echo "**"
+        echo "**  ERROR: incorrect format of -w option parameter"
+        usage
+        exit 1
+      fi
+      WORK_DIR=$( readlink -m $OPTARG )
+      echo "WORK_DIR=%s\n" $WORK_DIR
+      if [ ! -d $WORK_DIR ]; then
+        echo "**"
+        echo "*****  ERROR: working directory $WORK_DIR not found."
+        usage
+        exit 1
+      fi
+#      SOURCE_ISO=$OPTARG
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [[ $SOURCE_ISO = "" ]]; then
+        echo "Please specify source iso file."
+        usage
+        exit 1
+fi
+
+main $SOURCE_ISO $USB_KEY $INSTALL_TYPE $WORK_DIR
