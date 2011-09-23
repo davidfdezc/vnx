@@ -181,7 +181,7 @@ echo "--"
 echo "-- vnx_install_chroot called - mode=$1"
 echo "--"
 
-INSTALL_TYPE=""
+INSTALL_TYPE=$1
 
 cdir=$( dirname $0 )
 cd $cdir
@@ -190,11 +190,13 @@ cd $cdir
 export HOME=/root
 export LC_ALL=C
 
-
-install_basic
-#sleep 10
-if [[ $INSTALL_TYPE = "full" ]]; then
-	install_rest
+if [[ $INSTALL_TYPE = "basic" ]]; then
+    install_basic
+    #echo "instalo basic ($INSTALL_TYPE)"
+    #sleep 10
+elif [[ $INSTALL_TYPE = "full" ]]; then
+    install_basic
+    install_rest
 fi
 
 	# sustituir 2.6.15-26-k7 por la versión del kernel que salga en /lib/modules
@@ -209,36 +211,5 @@ cd $cdir
 rm -rf vnx_install_chroot
 exit 0
 
-
-
-
-INSTALL_TYPE=""
-
-cdir=$( dirname $0 )
-cd $cdir
-
-# To avoid locale issues and in order to import GPG keys
-export HOME=/root
-export LC_ALL=C
-
-
-install_basic
-#echo "instalo basic ($INSTALL_TYPE)"
-#sleep 10
-if [[ $INSTALL_TYPE = "full" ]]; then
-	install_rest
-fi
-
-	# sustituir 2.6.15-26-k7 por la versión del kernel que salga en /lib/modules
-	# hacer ls de /lib/modules, guardarlo en variable, y hacer mk... $variable
-	#mkinitramfs -o /initrd.gz 2.6.32-28-generic
-#	kvers=$(ls /lib/modules)
-#        mkinitramfs -o /initrd.lz $kvers
-
-
-
-cd $cdir
-rm -rf script_chroot
-exit 0
 
 

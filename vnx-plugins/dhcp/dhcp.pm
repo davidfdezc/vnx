@@ -51,7 +51,7 @@ use VNX::CheckSemantics;   # To use validate_xml
 use VNX::Globals;          # To use wlog
 use VNX::Execution;        # To use wlog
 use Socket;                # To resolve hostnames to IPs
-use Net::Netmask;
+use NetAddr::IP;
 use Switch;
 use Data::Dumper;
 
@@ -227,9 +227,9 @@ sub getFiles{
 					        
                                 # <network>
 					            my $network = $subnet->findnodes('network')->[0];
-                                my $net_block = new Net::Netmask($network->textContent());
+                                my $net_block = NetAddr::IP->new($network->textContent());
                                             
-                                my $base_ip = $net_block->base();
+                                my $base_ip = $net_block->addr();
                                 my $mask = $net_block->mask();
                                 print SERVER "subnet $base_ip netmask $mask {\n";
 					
@@ -274,8 +274,9 @@ sub getFiles{
                                     my $hostname = $host->getAttribute("name");
                                     my $hostmac  = $host->getAttribute("mac");
                                     my $hostip   = $host->getAttribute("ip");
+                                    my $host_ip_obj = NetAddr::IP->new($hostip);
                                     # ignore unmatching host declarations
-                                    if ( $net_block->match($hostip) ) {
+                                    if ( $host_ip_obj->within($net_block) ) { 
                                         print SERVER "host $hostname {\n  hardware ethernet $hostmac;\n  fixed-address $hostip;\n}\n\n"; 
                                     }
                                 }

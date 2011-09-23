@@ -1,7 +1,7 @@
 #!/bin/bash
 
 HOST=$1
-VNXSRCDIR=/root/vnx/workspace/vnx/vnx/
+VNXSRCDIR=/root/vnx/workspace/vnx/
 #VNXSRCDIR=/almacen/vnx/workspace/vnx/
 REMOTETMPDIR=vnx-update
 
