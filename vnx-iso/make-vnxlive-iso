@@ -161,10 +161,14 @@ pause
     #
 
     # Modificar el script que va a ir a chroot y copiarlo a chroot
-    cp $cdir/vnx_install_chroot.sh vnx_install_chroot
-    sed --in-place -e 's/INSTALL_TYPE\=\(""\)/INSTALL_TYPE\=\"'$INSTALL_TYPE'"/g' vnx_install_chroot
-    mv vnx_install_chroot edit
+#    cp $cdir/vnx_install_chroot.sh vnx_install_chroot
+#    sed --in-place -e 's/INSTALL_TYPE\=\(""\)/INSTALL_TYPE\=\"'$INSTALL_TYPE'"/g' vnx_install_chroot
+#    mv vnx_install_chroot edit
+#    chmod +x edit/vnx_install_chroot
+
+    cp $cdir/vnx_install_chroot.sh edit/vnx_install_chroot
     chmod +x edit/vnx_install_chroot
+
 pause
     echo "-- Executing vnx_install_chroot"
     chroot edit ./vnx_install_chroot $INSTALL_TYPE
@@ -315,10 +319,12 @@ function usage {
 	echo "**"
 	echo "**  Options:"
 	echo "**       -u [path_to_usb_drive] installs live cd in usb key"
-	echo "**       -i [basic|full]   basic installs only UML and Ubuntu-server filesystems"
-	echo "**                         full installs all of them. basic is recommended."
+	echo "**       -i [none|basic|full] VNX installation type:"
+    echo "**                              'none' does not install VNX"
+    echo "**                              'basic' installs only UML and Ubuntu-server filesystems"
+	echo "**                              'full' installs all of them. basic is recommended."
 	echo "**       -w [working_dir]  directory where the image and temporal files will be located"
-	echo "                           (defaults to current dir)"
+	echo "**                         (defaults to current dir)"
 	echo "**"
 }
 
@@ -378,7 +384,7 @@ while getopts ":s:u:i:w:" opt; do
         usage
         exit 1
       fi
-      if [[ ! $OPTARG = basic && ! $OPTARG = full ]]; then
+      if [[ ! $OPTARG = none && ! $OPTARG = basic && ! $OPTARG = full ]]; then
         echo "Invalid value $OPTARG for -i option "
         usage
         exit 1

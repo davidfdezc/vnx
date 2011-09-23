@@ -114,7 +114,7 @@ my $db_connection_info;
 	# Path for dynamips config file
 my $dynamips_ext_path;
 
-my $version = "1.92beta1";
+my $version = "2.0";
 my $release = "DD/MM/YYYY";
 my $branch = "";
 
@@ -393,6 +393,7 @@ sub parseArguments{
 	
 	my $arg_lenght = $#ARGV +1;
 	for ($i==0; $i<$arg_lenght; $i++){
+		
 		# Search for execution mode
 		if ($ARGV[$i] eq '-t' || $ARGV[$i] eq '--create' || $ARGV[$i] eq '-x' || $ARGV[$i] eq '--exe' || 
 		$ARGV[$i] eq '--execute' ||	$ARGV[$i] eq '-P' || $ARGV[$i] eq '--destroy' || $ARGV[$i] eq '-d'||
@@ -2036,7 +2037,7 @@ sub initAndCheckVNXScenario {
    
 	my $exemode = $EXE_NORMAL;
 	# Build the VNX::BinariesData object
-	my $bd = new BinariesData($exemode);
+	my $bd = new VNX::BinariesData($exemode);
 	
    	# 7. To check version number
 	# Load XML file content
@@ -2070,13 +2071,13 @@ sub initAndCheckVNXScenario {
     my $doc = $parser->parsefile($input_file);   	
    
 	# Build the VNX::Execution object
-	$execution = new Execution($vnx_dir,$exemode,"host> ",'',$uid);
+	$execution = new VNX::Execution($vnx_dir,$exemode,"host> ",'',$uid);
 
    	# Calculate the directory where the input_file lives
    	my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
 	# Build the VNX::DataHandler object
-   	$dh = new DataHandler($execution,$doc,'','','',$xml_dir,$input_file);
+   	$dh = new VNX::DataHandler($execution,$doc,'','','',$xml_dir,$input_file);
    	#$dh->set_boot_timeout($boot_timeout);
    	$dh->set_vnx_dir($vnx_dir);
    	$dh->set_tmp_dir($tmp_dir);
