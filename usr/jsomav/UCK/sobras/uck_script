@@ -1,0 +1,142 @@
+    # Remove install icon and examples folder that would otherwise be copied to the Desktop
+    #rm -rf edit/usr/share/applications/ubiquity-gtkui.desktop
+    #rm -rf edit/usr/share/example-content
+    #dentro
+    rm -rf /usr/share/applications/ubiquity-gtkui.desktop
+    rm -rf /usr/share/example-content
+    rm -rf /etc/skel/examples.desktop
+    
+    #fuera
+     # Increase timeout of main menu
+    #sed --in-place -e 's/timeout 50/timeout 5000/g' extract-cd/isolinux/isolinux.cfg
+    sudo sed --in-place -e 's/timeout 50/timeout 5000/g' /home/jorge/tmp/remaster-iso/isolinux/isolinux.cfg
+    
+    
+    # fuera
+    # su
+        # Remove install option from main menu
+    echo 'default live
+label live
+  menu label ^Try Ubuntu without installing
+  kernel /casper/vmlinuz
+  append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --
+label check
+  menu label ^Check disc for defects
+  kernel /casper/vmlinuz
+  append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --
+label memtest
+  menu label Test ^memory
+  kernel /install/mt86plus
+label hd
+  menu label ^Boot from first hard disk
+  localboot 0x80' > /home/jorge/tmp/remaster-iso/isolinux/text.cfg
+    
+    
+    #fuera
+    # su
+    # Show logo during main menu
+    #sed --in-place -e 's/hidden-timeout=2/hidden-timeout=1/g' extract-cd/isolinux/gfxboot.cfg
+    sed --in-place -e 's/hidden-timeout=2/hidden-timeout=1/g' /home/jorge/tmp/remaster-iso/isolinux/gfxboot.cfg
+
+
+# fuera
+#su
+    # Copy images
+    #cp ${cdir}/images/access.pcx ${cdir}/images/splash.pcx extract-cd/isolinux/    
+    cp /home/jorge/workspace/vnx/vnx-iso/images/access.pcx /home/jorge/workspace/vnx/vnx-iso/images/splash.pcx /home/jorge/tmp/remaster-iso/isolinux/
+
+
+#NO dentro    
+        # vnx-user
+    sed -i -e "s/export USERNAME=\"ubuntu\"/export USERNAME=\"vnx-user\"/g" /etc/casper.conf
+    
+    
+ #NO, fuera   
+    	# Remove the (Casper) Autologin
+	#cd extract-cd/casper
+	cd /home/jorge/tmp/remaster-iso/casper/
+	mkdir lztempdir
+	cd lztempdir
+	lzma -dc -S .lz ../initrd.lz | cpio -imvd --no-absolute-filenames
+#	gedit scripts/casper-bottom/25configure_init
+	# borrar $USERNAME de la linea 25
+	cp ../initrd.lz ../inird.lz.orig
+	find . | cpio --quiet --dereference -o -H newc | lzma -7 > ../initrd.lz
+#	cd ../../..
+    cd ../
+	##############
+	
+	
+#walpaper
+# fuera
+#cp /home/jorge/Desktop/wallpapernesbg.jpg remaster-root/usr/share/backgrounds/
+cp /home/jorge/Desktop/wallpaper.png /home/jorge/tmp/remaster-root/usr/share/backgrounds/warty-final-ubuntu.png
+	
+	
+
+#dentro
+#############
+VNX
+#############
+    # Package Installation
+    # Enable universe and multiverse
+    cp /etc/apt/sources.list /etc/apt/sources.list.backup
+    sed -i -e "s/# deb/deb/g" /etc/apt/sources.list
+
+    # Update and install
+    apt-get update
+    #apt-get install -y build-essential qemu-kvm libvirt-bin vlan xterm bridge-utils  screen virt-manager virt-viewer libxml-checker-perl libxml-parser-perl libnetaddr-ip-perl libnet-pcap-perl libnet-ipv6addr-perl liberror-perl libexception-class-perl uml-utilities libxml-libxml-perl libxml2-dev libgnutls-dev libdevmapper-dev libterm-readline-perl-perl libnet-telnet-perl libnet-ip-perl libreadonly-perl libmath-round-perl libappconfig-perl libdbi-perl graphviz libnl-dev genisoimage gnome-terminal libfile-homedir-perl
+    apt-get -y install build-essential qemu-kvm libvirt-bin vlan xterm \
+        bridge-utils  screen virt-manager virt-viewer libxml-checker-perl \
+        libxml-parser-perl libnetaddr-ip-perl libnet-pcap-perl \
+        libnet-ipv6addr-perl liberror-perl libexception-class-perl \
+        uml-utilities libxml-libxml-perl libxml2-dev libgnutls-dev \
+        libdevmapper-dev libterm-readline-perl-perl libnet-telnet-perl \
+        libnet-ip-perl libreadonly-perl libmath-round-perl libappconfig-perl \
+        libdbi-perl graphviz libnl-dev genisoimage gnome-terminal \
+        libfile-homedir-perl python-dev libsasl2-dev tree
+
+    # If you use 64 bits version of Ubuntu, install 32 bits compatibility libraries:
+    # apt-get install ia32-libs
+
+    #Install libvirt 0.9.3:
+    stop libvirt-bin
+    wget http://libvirt.org/sources/libvirt-0.9.3.tar.gz
+    tar xfvz libvirt-0.9.3.tar.gz
+    cd libvirt-0.9.3
+    ./configure --without-xen --prefix=/usr && make && make install
+    start libvirt-bin
+
+    # For Ubuntu 10.04, just install the libsys-virt-perl package
+    apt-get install libsys-virt-perl
+
+    # Install VNX:
+    mkdir /tmp/vnx-update
+    cd /tmp/vnx-update
+    wget -N http://idefix.dit.upm.es/download/vnx/vnx-latest.tgz
+    tar xfvz vnx-latest.tgz
+    cd vnx-*
+    ./install_vnx
+
+#############
+
+
+
+
+	#dentro
+		# After customization make sure that there are no users with a UID > 999. Otherwise your image won't boot because no initial user is available (see /usr/share/initramfs-tools/scripts/casper-bottom/10adduser). While in chroot:
+	#awk -F: '$3 > 999' /etc/passwd
+	#If you get any hits, try changing the uid:
+	#usermod -u 500 $hit
+	
+	usermod -u 500 vnx
+    usermod -u 501 nobody
+	
+	#chroot edit awk -F: '$3 > 999' /etc/passwd | awk -F: '{print "usermod -u 500" $1}' | bash
+
+	
+	# NO  fuera del fs
+	 #mkinitramfs -o /home/jorge/tmp/remaster-iso/casper/initrd.lz $(chroot /home/jorge/tmp/remaster-root ls /lib/modules)
+	
+	
+	
