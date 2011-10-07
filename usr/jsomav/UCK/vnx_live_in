@@ -12,7 +12,7 @@ rm -rf /etc/skel/examples.desktop
     
 	
 #############
-VNX
+#VNX
 #############
     # Package Installation
     # Enable universe and multiverse
