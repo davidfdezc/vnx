@@ -60,7 +60,8 @@ function install {
          install_interactive
          exit
       fi
-      echo "Download successful, extracting."
+      echo ""
+      echo "Extracting $rootfs_spec..."
       
       bunzip2 $rootfs_spec
       #Create symbolic link if -l
@@ -70,7 +71,6 @@ function install {
          echo "Creating simbolic link: $linkname"
          #ln -s $chosen $linkname
       fi
-      continue
    else
       install_interactive
    fi
@@ -126,14 +126,18 @@ function install_interactive {
             chosenbz2url=(${baseaddress}${chosenbz2})
             chosenmd5=$(echo ${arrayfilelinks[$choice]/.bz2/.md5} | awk '{print $3}')
             chosenmd5url=(${baseaddress}${chosenmd5}) 
-#           cd /usr/share/vnx/filesystems/TEST
-#           wget -N $chosenbz2url
-#           bunzip2 chosenbz2
+            cd /usr/share/vnx/filesystems/TEST
+            wget -N $chosenbz2url
+            echo "Extracting $chosenbz2..."
+            bunzip2 $chosenbz2
             # Create symbolic link if -l
             if [ $createsymlink = yes ] ; then
                linkname=$(makeLinkName $chosen )
                echo "Creating simbolic link: $linkname"
 #              ln -s $chosen $linkname
+               echo "$chosenbz2 successfully installed."
+               echo ""
+               sleep 1
             fi
             continue
          fi

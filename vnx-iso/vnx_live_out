@@ -1,14 +1,21 @@
 #!/bin/bash
 
-# run as root    
+# run as root
 
-images_path="/home/jorge/workspace/vnx/vnx-iso/images"
+cdir=$( dirname $0 )
+cd $cdir
+
+images_path="images"
+remaster_path="/tmp/vnx-live"
+
+
 
 # Increase timeout of main menu
-sudo sed --in-place -e 's/timeout 50/timeout 5000/g' ~/tmp/remaster-iso/isolinux/isolinux.cfg
+sed --in-place -e 's/timeout 50/timeout 5000/g' $remaster_path/remaster-iso/isolinux/isolinux.cfg
     
     
 # Remove install option from main menu
+#sudo chmod 777 $remaster_path/remaster-iso/isolinux/text.cfg
 echo 'default live
 label live
   menu label ^Try Ubuntu without installing
@@ -23,15 +30,16 @@ label memtest
   kernel /install/mt86plus
 label hd
   menu label ^Boot from first hard disk
-  localboot 0x80' > ~/tmp/remaster-iso/isolinux/text.cfg
+  localboot 0x80' > $remaster_path/remaster-iso/isolinux/text.cfg
+#sudo chmod 444 $remaster_path/remaster-iso/isolinux/text.cfg
     
     
 # Show logo during main menu
-sed --in-place -e 's/hidden-timeout=2/hidden-timeout=1/g' ~/tmp/remaster-iso/isolinux/gfxboot.cfg
+sed --in-place -e 's/hidden-timeout=2/hidden-timeout=1/g' $remaster_path/remaster-iso/isolinux/gfxboot.cfg
 
 
 # Copy images
-cp $images_path/access.pcx $images_path/splash.pcx ~/tmp/remaster-iso/isolinux/
+cp $images_path/access.pcx $images_path/splash.pcx $remaster_path/remaster-iso/isolinux/
     
     
 ## De momento lo dejamos, no funciona.
@@ -50,11 +58,11 @@ cp $images_path/access.pcx $images_path/splash.pcx ~/tmp/remaster-iso/isolinux/
 	
 	
 # Wallpaper
-cp $images_path/wallpaper.png ~/tmp/remaster-root/usr/share/backgrounds/warty-final-ubuntu.png
+sudo cp $images_path/wallpaper.png $remaster_path/remaster-root/usr/share/backgrounds/warty-final-ubuntu.png
 	
 
 # No hace falta mientras no quitemos el Casper autologin
-# mkinitramfs -o /home/jorge/tmp/remaster-iso/casper/initrd.lz $(chroot /home/jorge/tmp/remaster-root ls /lib/modules)
+# mkinitramfs -o $remaster_path/remaster-iso/casper/initrd.lz $(chroot $remaster_path/remaster-root ls /lib/modules)
 	
-	
+cp $cdir/vnx_install_fs.sh  $cdir/vnx_live_in $remaster_path/remaster-root/tmp/
 	
