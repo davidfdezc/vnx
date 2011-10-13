@@ -58,7 +58,7 @@ cp $images_path/access.pcx $images_path/splash.pcx $remaster_path/remaster-iso/i
 	
 	
 # Wallpaper
-sudo cp $images_path/wallpaper.png $remaster_path/remaster-root/usr/share/backgrounds/warty-final-ubuntu.png
+sudo cp ../vnx-logos/vnx-fondo-1024.png $remaster_path/remaster-root/usr/share/backgrounds/warty-final-ubuntu.png
 	
 
 # No hace falta mientras no quitemos el Casper autologin
