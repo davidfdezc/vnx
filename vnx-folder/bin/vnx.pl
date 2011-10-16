@@ -2440,7 +2440,7 @@ sub get_vm_ftrees_and_execs {
 
     my $vm      = shift;
     my $vm_name = shift;
-    my $mode    = shift; # 'exec' or 'shutdown'
+    my $mode    = shift; 
     my $seq     = shift; 
     my $plugin_ftree_list_ref = shift;
     my $plugin_exec_list_ref  = shift;
@@ -2451,6 +2451,8 @@ sub get_vm_ftrees_and_execs {
     my $vm_plugin_execs  = 0; 
     my $vm_ftrees = 0; 
     my $vm_execs  = 0; 
+    
+    my $merged_type = $dh->get_vm_merged_type($vm);
     
 #    my $mode_tag;            
 #    if ($mode eq 'define') {
@@ -2545,11 +2547,19 @@ sub get_vm_ftrees_and_execs {
             my $ftree_tag = $xdoc->createElement('filetree');
             $plugin_cmds->appendChild($ftree_tag);
             $ftree_tag->setAttribute( seq => "$seq");
-            if ( ( -d "$files_dir$files{$key}" )    # If $files{$key} is a directory...
-                 && ( !( $file[0] =~ /\/$/ ) )  ) {     # ...and $file[0] (dst dir) does not end with a "/"
-                # Add a slash; <filetree> root attribute must be a directory
-                $ftree_tag->setAttribute( root => "$file[0]/" );
-            } else {
+            if ( -d "$files_dir$files{$key}" )  {   # If $files{$key} is a directory...
+                if ( $merged_type eq "libvirt-kvm-windows" ) { # Windows vm
+                    if  ( !( $file[0] =~ /\$/ ) ) {     # ...and $file[0] (dst dir) does not end with a "\"
+                        # Add a slash; <filetree> root attribute must be a directory
+                        $ftree_tag->setAttribute( root => "$file[0]\\" );
+                    }
+                } else { # not windows
+                    if  ( !( $file[0] =~ /\/$/ ) ) {     # ...and $file[0] (dst dir) does not end with a "/"
+                        # Add a slash; <filetree> root attribute must be a directory
+                        $ftree_tag->setAttribute( root => "$file[0]/" );
+                    }
+                }
+            } else { # $files{$key} is not a directory...
                 $ftree_tag->setAttribute( root => "$file[0]" );
             }           
             $ftree_tag->appendChild($xdoc->createTextNode( "$files{$key}" ));
@@ -2673,11 +2683,21 @@ sub get_vm_ftrees_and_execs {
                 # Copy the files/dirs to "filetree/$dst_num" dir
                 my $src = &get_abs_path ($value);
                 #$src = &chompslash($src);
-                if ( ( -d $src )    # If $src is a directory...
-                    && ( !( $root =~ /\/$/ ) )  ) {     # ...and $root does not end with a "/"
-                    # Add a slash; <filetree> root attribute must be a directory
-                    wlog (N, "WARNING: root attribute must be a directory (end with a \"/\") in " . $filetree->toString(1));
-                    $filetree->setAttribute( root => "$root/" );
+                if ( -d $src ) {   # If $src is a directory...
+                
+	                if ( $merged_type eq "libvirt-kvm-windows" ) { # Windows vm
+	                    if  ( !( $root =~ /\$/ ) ) {     # ...and $file[0] (dst dir) does not end with a "\"
+	                        # Add a slash; <filetree> root attribute must be a directory
+                            wlog (N, "WARNING: root attribute must be a directory (end with a \"\\\") in " . $filetree->toString(1));
+                            $filetree->setAttribute( root => "$root\\" );
+	                    }
+	                } else { # not windows
+	                    if  ( !( $root =~ /\/$/ ) ) {     # ...and $file[0] (dst dir) does not end with a "/"
+	                        # Add a slash; <filetree> root attribute must be a directory
+		                    wlog (N, "WARNING: root attribute must be a directory (end with a \"/\") in " . $filetree->toString(1));
+		                    $filetree->setAttribute( root => "$root/" );
+	                    }
+	                }
                 } 
                     
                 my $dst_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num";

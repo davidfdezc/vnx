@@ -7,7 +7,7 @@
 #VNX_MAJOR="2"
 #VNX_MINOR="0b"
 # Automatically self updated (do not edit):
-#VNX_LATEST_REVISION="118"
+#VNX_LATEST_REVISION="930"
 
 RELDATE=$( date +%d/%m/%Y_%H:%M )
 
@@ -15,8 +15,8 @@ RELDATE=$( date +%d/%m/%Y_%H:%M )
 cdir=$( dirname $0 )
 source $cdir/VERSION
 
-VNX_LATEST_REVISION=$( wget -q -O - http://idefix.dit.upm.es/cgi-bin/get-new-vnx-revision.php | \
-         sed -e 's/<vnx_build_ver>\(.*\)<\/vnx_build_ver>/\1/' )
+#VNX_LATEST_REVISION=$( wget -q -O - http://idefix.dit.upm.es/cgi-bin/get-new-vnx-revision.php | \
+#         sed -e 's/<vnx_build_ver>\(.*\)<\/vnx_build_ver>/\1/' )
 
 #
 # Build version names

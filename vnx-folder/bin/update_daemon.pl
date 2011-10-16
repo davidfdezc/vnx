@@ -88,8 +88,14 @@ print "-- Creating vnx_update.xml file...\n";
 print "--    $line\n";
 system $command;
 
-print "-- Creating $aceTarFile tar file...\n";
-system "tar xfvz $aceTarFile -C $tmpisodir --strip-components=1";
+if ($aceTarFile =~ /vnx-aced-lf/) {
+	# Linux and FreeBSD
+	print "-- Creating $aceTarFile tar file...\n";
+	system "tar xfvz $aceTarFile -C $tmpisodir --strip-components=1";
+} elsif ($aceTarFile =~ /vnx-aced-win/) {
+	# Windows
+    system "cp $aceTarFile $tmpisodir";
+}
 
 print "-- Creating iso filesystem...\n";
 print "--    mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .

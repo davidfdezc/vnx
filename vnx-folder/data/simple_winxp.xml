@@ -30,7 +30,8 @@ SPAIN
     <scenario_name>simple_winxp</scenario_name>
     <automac offset="3"/>
     <vm_mgmt type="none" />
-    <vm_defaults exec_mode="mconsole">
+    <vm_defaults>
+        <console id="0" display="yes"/>
     </vm_defaults>
   </global>
   
@@ -43,13 +44,13 @@ SPAIN
     <if id="1" net="Net0">
       <ipv4>10.0.0.3/24</ipv4>
     </if>
-    <filetree seq="vnxtxt" root="c:\temp">conf/txtfile</filetree>
-    <filetree seq="vnxwww" root="c:\temp">conf/txtfile</filetree>
-    <exec seq="vnxtxt" type="verbatim" mode="exec">notepad c:\temp\vnx.txt</exec>
-    <exec seq="vnxwww" type="verbatim" mode="cmd">start /max c:\temp\vnx.html</exec>
-    <exec seq="calc" type="verbatim" mode="system">calc.exe</exec>
-    <exec seq="logout" type="verbatim" mode="system">shutdown -l</exec>
-    <exec seq="reboot" type="verbatim" mode="system">shutdown -r -t 5</exec>
+    <filetree seq="vnxtxt" root="c:\windows\temp">conf/txtfile</filetree>
+    <filetree seq="vnxwww" root="c:\windows\temp">conf/txtfile</filetree>
+    <exec seq="vnxtxt" type="verbatim" ostype="exec">notepad c:\windows\temp\vnx.txt</exec>
+    <exec seq="vnxwww" type="verbatim" ostype="cmd">start /max c:\windows\temp\vnx.html</exec>
+    <exec seq="calc"   type="verbatim" ostype="system">calc.exe</exec>
+    <exec seq="logout" type="verbatim" ostype="system">shutdown -l</exec>
+    <exec seq="reboot" type="verbatim" ostype="system">shutdown -r -t 5</exec>
   </vm>
   
   <host>
