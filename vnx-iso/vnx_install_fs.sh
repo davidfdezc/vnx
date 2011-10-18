@@ -2,7 +2,7 @@
 
 # constants
 
-fsdir="/usr/share/vnx/filesystems/TEST"
+fsdir="/usr/share/vnx/filesystems"
 baseaddress="http://idefix.dit.upm.es/vnx/filesystems/"
 createsymlink=""
 rootfs_spec=""
