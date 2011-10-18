@@ -48,7 +48,7 @@ rm -rf /etc/skel/examples.desktop
     apt-get install libsys-virt-perl
 
     # Install VNX:
-    mkdir /tmp/vnx-update
+    mkdir -p /tmp/vnx-update
     cd /tmp/vnx-update
     wget -N http://idefix.dit.upm.es/download/vnx/vnx-latest.tgz
     tar xfvz vnx-latest.tgz
@@ -58,7 +58,7 @@ rm -rf /etc/skel/examples.desktop
 #############
 
 
-
+cd /tmp
 
 # No users with a UID > 999
 usermod -u 500 vnx
@@ -67,7 +67,7 @@ usermod -u 501 nobody
 #chroot edit awk -F: '$3 > 999' /etc/passwd | awk -F: '{print "usermod -u 500" $1}' | bash
 
 
-./install_fs.sh
+#./install_fs.sh
 
 exit 0	
 	
