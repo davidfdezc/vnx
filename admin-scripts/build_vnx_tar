@@ -177,6 +177,7 @@ echo "** "
 # Copy new version to idefix webserver (only if this script is executed from idefix)
 #
 HNAME=$( hostname -f )
+#echo "$HNAME..."
 if [ $HNAME = 'idefix.dit.upm.es' ]; then
   if [ -d /var/www/download/vnx ]; then 
     echo "Copying new version to http://idefix.dit.upm.es/download/vnx..."
