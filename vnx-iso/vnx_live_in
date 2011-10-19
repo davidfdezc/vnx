@@ -67,7 +67,15 @@ usermod -u 501 nobody
 #chroot edit awk -F: '$3 > 999' /etc/passwd | awk -F: '{print "usermod -u 500" $1}' | bash
 
 
-#./install_fs.sh
+# Steps for vnx_install_fs.sh script
+#
+# set environment variable HOME to /root/.
+HOME=/root
+# install curl
+apt-get install curl
+
+
+#./vnx_install_fs.sh
 
 exit 0	
 	

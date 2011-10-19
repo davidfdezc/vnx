@@ -77,7 +77,10 @@ function install {
          chosen=$(echo $rootfs_spec | sed -e "s/.bz2//g")
          linkname=$(makeLinkName $chosen)
          echo "Creating simbolic link: $linkname"
-         #ln -s $chosen $linkname
+         ln -s $chosen $linkname
+         echo "$rootfs_spec successfully installed."
+         echo ""
+         rm $rootfs_spec
       fi
    else
       install_interactive
@@ -127,7 +130,7 @@ function install_interactive {
 
       # Check that chosen number is on the list (0<=$choice<=max) and install
       if [ $choice -ge 0 ] ; then 
-         if [ $choice -lt `expr ${#arrayfilelinks[@]} - 1` ] ; then
+         if [ $choice -le `expr ${#arrayfilelinks[@]} - 1` ] ; then
 
             chosenbz2=$(echo ${arrayfilelinks[$choice]} | awk '{print $3}')
             chosen=$(echo $chosenbz2 | sed -e "s/.bz2//g")
@@ -142,9 +145,10 @@ function install_interactive {
             if [ $createsymlink = yes ] ; then
                linkname=$(makeLinkName $chosen )
                echo "Creating simbolic link: $linkname"
-#              ln -s $chosen $linkname
+               ln -s $chosen $linkname
                echo "$chosenbz2 successfully installed."
                echo ""
+               rm $chosenbz2
                sleep 1
             fi
             continue
