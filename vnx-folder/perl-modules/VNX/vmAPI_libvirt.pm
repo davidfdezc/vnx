@@ -1267,7 +1267,6 @@ sub startVM {
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
-
 		my @doms = $con->list_defined_domains();
 
 		foreach my $listDom (@doms) {
@@ -1286,13 +1285,11 @@ sub startVM {
 				
 				#		
 			    # Console management
-			    # 
-    			
+			    #     			
    				# First, we have to change the 'UNK_VNC_DISPLAY' and 'UNK_PTS_DEV' tags 
 				# we temporarily wrote to console files (./vnx/.../vms/$vm_name/console) 
 				# by the correct values assigned by libvirt to the virtual machine
-				my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
-  	
+				my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";	
 				# Graphical console (id=0)
 				if ($type ne "libvirt-kvm-olive" ) { # Olive routers do not have graphical consoles
 					# TODO: use $execution->execute
@@ -1303,36 +1300,33 @@ sub startVM {
 			       		sleep 2;
 			       		$vncDisplay=`$cmd`;
 			       		if ($vncDisplay eq '') {execution->smartdie ("Cannot get display for $vm_name. Error executing command: $cmd")}
-			       	}
-			       	
+			       	}		       	
 			       	$vncDisplay =~ s/\s+$//;    # Delete linefeed at the end		
 					$execution->execute ($bd->get_binaries_path_ref->{"sed"}." -i -e 's/UNK_VNC_DISPLAY/$vncDisplay/' $consFile");
 					#print "****** sed -i -e 's/UNK_VNC_DISPLAY/$vncDisplay/' $consFile\n";
 				}
-			
 				# Text console (id=1)
 			    if ($type ne "libvirt-kvm-windows")  { # Windows does not have text console
 			    	# Check if con1 is of type "libvirt_pts"
 			    	my $conData= &get_conf_value ($consFile, '', 'con1');
 					if ( defined $conData) {
-					    my @consField = split(/,/, $conData);
+					    my @consField = split(/,/, $conData);					    
 					    if ($consField[1] eq 'libvirt_pts') {
 			        		my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system ttyconsole $vm_name";
 			           		my $ptsDev=`$cmd`;
 					       	if ($ptsDev eq '') { # wait and repeat command again
 					       		wlog (V, "Command $cmd failed. Retrying...");
-					       		sleep 2;
+					       		sleep 2;				       		
 					       		$ptsDev=`$cmd`;
 					       		if ($ptsDev eq '') {execution->smartdie ("Cannot get pts device for $vm_name. Error executing command: $cmd")}
 					       	}
 			           		$ptsDev =~ s/\s+$//;    # Delete linefeed at the end		
 							$execution->execute ($bd->get_binaries_path_ref->{"sed"}." -i -e 's#UNK_PTS_DEV#$ptsDev#' $consFile");
 					    }
-					} else {
+					} else {						
 						print "WARNING (vm=$vm_name): no data for console #1 found in $consFile"
 					}
-				}
-			   
+				}		   
 				# Then, we just read the console file and start the active consoles,
 				# unless options -n|--no_console were specified by the user
 				unless ($no_consoles eq 1){
@@ -1364,7 +1358,6 @@ sub startVM {
                         }	    		
                     }
                 }
-
 				$error = 0;
 				return $error;
 			}
@@ -2205,7 +2198,7 @@ sub executeCMD {
 		$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
 		my $dst_num = 1;
 		
-pak "pak1";
+
 		
 		#		
 		# Process of <filetree> tags
@@ -2298,7 +2291,7 @@ pak "pak1";
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 		$execution->pop_verb_prompt();
 		
-#pak "pak2";
+
 
 		# Print command.xml file content to log if VVV
 		open FILE, "< $sdisk_content/command.xml";
@@ -2308,7 +2301,7 @@ pak "pak1";
         # Save a copy of the last command.xml vm main dir 
         $execution->execute( "cp " . "$sdisk_content/command.xml " . $dh->get_vm_dir($vm_name) . "/${vm_name}_command.xml" );
 
-#pak "pak3";
+
 
         if ($merged_type ne "libvirt-kvm-olive") {
 
@@ -2324,13 +2317,13 @@ pak "pak1";
 	        # Wait for confirmation from the vm		
 			waitfiletree($dh->get_vm_dir($vm_name) .'/'.$vm_name.'_socket');
 			# mount empty iso, while waiting for new command	
-			$execution->execute("touch $empty_iso_disk");
+			$execution->execute("touch $empty_iso_disk");		
 			$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" $empty_iso_disk hdb --mode readonly --type cdrom'");
 			sleep 1;
-#pak "pak4";
 	
 		   	# Cleaning
-	        $execution->execute("rm $iso_disk $empty_iso_disk");
+		   	# It gave an error when rebooting because it didn't find the empty.iso
+	        #$execution->execute("rm $iso_disk $empty_iso_disk");
 	        $execution->execute("rm -rf $sdisk_content");
 	        $execution->execute("rm -rf " . $dh->get_vm_tmp_dir($vm_name) . "/$seq");
 
@@ -2344,7 +2337,6 @@ pak "pak1";
 	        ) or die("Can't connect to server: $!\n");
 	        print $vmsocket "exeCommand\n";     
 	        readSocketResponse ($vmsocket);
-#pak "pak4";
             # Cleaning
             $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
             $execution->execute( "rm -rf $sdisk_content/filetree/*");
@@ -2353,7 +2345,6 @@ pak "pak1";
             $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
 	    }
 
-#pak "pak5";
 	
 		
 	###########################################
