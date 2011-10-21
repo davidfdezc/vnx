@@ -54,6 +54,8 @@ rm -rf /etc/skel/examples.desktop
     tar xfvz vnx-latest.tgz
     cd vnx-*
     ./install_vnx
+    mv /etc/vnx.conf.sample /etc/vnx.conf
+    
 
 #############
 

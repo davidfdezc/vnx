@@ -1425,9 +1425,10 @@ sub shutdownVM {
 				$listDom->shutdown();
 				&change_vm_status( $vm_name, "REMOVE" );
 
-				# remove run directory (de momento no se puede porque necesitamos saber a que pid esperar)
-				# lo habilito para la demo
-				$execution->execute( "rm -rf " . $dh->get_vm_run_dir($vm_name) . "/*" );
+				# remove run directory (Commented because if we remove pid file, shutdown won't
+				# wait for the pid of the vm, so most probably reboot mode won't work since we will
+				# attempt to start the machine again before it has finished shutdowning)
+                # $execution->execute( "rm -rf " . $dh->get_vm_run_dir($vm_name) . "/*" );
 
 				print "Domain shutdown\n" if ($exemode == $EXE_VERBOSE);
 				return $error;
