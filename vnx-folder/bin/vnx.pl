@@ -956,7 +956,7 @@ sub main {
      	if ($exemode != $EXE_DEBUG) {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless &scenario_exists($dh->get_scename);
-     	}
+     	}   	
      	&mode_shutdown;
      	&mode_start;
    	}
@@ -1246,14 +1246,14 @@ sub start_VMs {
         if ($args->get('n')){
             $no_console = "1";
         }
-       
+      
         # call the corresponding vmAPI
         my $vm_type = $vm->getAttribute("type");
         my $error = "VNX::vmAPI_$vm_type"->startVM($vm_name, $merged_type, $no_console);
         if ($error ne 0) {
             wlog (N, "VNX::vmAPI_${vm_type}->startVM returns " . $error);
         }
-
+ 
         my $mng_if_value = &mng_if_value( $vm );
         # To configure management device (id 0), if needed
         if ( $dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no" ) {

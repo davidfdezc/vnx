@@ -80,7 +80,6 @@ function install {
          ln -s $chosen $linkname
          echo "$rootfs_spec successfully installed."
          echo ""
-         rm $rootfs_spec
       fi
    else
       install_interactive
@@ -148,7 +147,6 @@ function install_interactive {
                ln -s $chosen $linkname
                echo "$chosenbz2 successfully installed."
                echo ""
-               rm $chosenbz2
                sleep 1
             fi
             continue
