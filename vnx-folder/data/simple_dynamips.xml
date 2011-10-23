@@ -33,7 +33,7 @@ SPAIN
     <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="44">
        <host_mapping />
     </vm_mgmt> 
-    <vm_defaults exec_mode="mconsole">
+    <vm_defaults>
 	</vm_defaults>
     <dynamips_ext>simple_dynamips-dn.xml</dynamips_ext>
   </global>
@@ -52,12 +52,12 @@ SPAIN
 		<ipv6>2001:db8::11/64</ipv6>
 		<ipv6>2001:db9::11/64</ipv6>
     </if>
-    <exec seq="brief"    type="verbatim" mode="telnet" ostype="show">show ip interface brief</exec>
-    <exec seq="showcfg"  type="verbatim" mode="telnet" ostype="show">show running-config</exec>
-    <exec seq="hostname" type="verbatim" mode="telnet" ostype="set" >hostname Router1</exec>
-    <exec seq="cmdfile"  type="file"     mode="telnet" ostype="show" >conf/cisco-cmd-file.conf</exec>
-    <exec seq="cmdfile2" type="file"     mode="telnet" ostype="set"  >conf/cisco-cmd-file2.conf</exec>
-    <exec seq="loadcfg"  type="verbatim" mode="telnet" ostype="load">conf/cisco.conf</exec>
+    <exec seq="brief"    type="verbatim" ostype="show">show ip interface brief</exec>
+    <exec seq="showcfg"  type="verbatim" ostype="show">show running-config</exec>
+    <exec seq="hostname" type="verbatim" ostype="set" >hostname Router1</exec>
+    <exec seq="cmdfile"  type="file"     ostype="show" >conf/cisco-cmd-file.conf</exec>
+    <exec seq="cmdfile2" type="file"     ostype="set"  >conf/cisco-cmd-file2.conf</exec>
+    <exec seq="loadcfg"  type="verbatim" ostype="load">conf/cisco.conf</exec>
   </vm>
 
   <host>
