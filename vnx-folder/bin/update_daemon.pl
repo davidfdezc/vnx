@@ -44,6 +44,26 @@ if ($vmName eq ""){
    exit(1);
 }
 
+# Check mkisofs or genisoimage binary is available
+my $make_iso_cmd = 'mkisofs';
+my $fail = system("which $make_iso_cmd > /dev/null");
+if ($fail) { # Try genisoimage 
+    print "-- mkisofs not found; trying genisoimage\n";
+    $make_iso_cmd = 'genisoimage';
+    $fail = system("which $make_iso_cmd > /dev/null");
+	if ($fail) { 
+       print "--\n"; 
+       print "-- ERROR: neither mkisofs nor genisoimage binaries found\n"; 
+       print "--\n"; 
+       exit (1);
+	}
+} 
+my $where = `which $make_iso_cmd`;
+
+chomp($where);
+$make_iso_cmd = $where;
+#print "make_iso_cmd=$make_iso_cmd\n";
+
 my $curDir=getcwd();
 print "-- Current dir=$curDir\n";
 my $vnxBinDir = dirname ( abs_path($0) );
@@ -98,9 +118,9 @@ if ($aceTarFile =~ /vnx-aced-lf/) {
 }
 
 print "-- Creating iso filesystem...\n";
-print "--    mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
+print "--    $make_iso_cmd -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
        " -allow-lowercase -allow-multidot -d -o $tmpdir/vnx_update.iso $tmpisodir\n";
-system "mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
+system "$make_iso_cmd -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
        " -allow-lowercase -allow-multidot -d -o $tmpdir/vnx_update.iso $tmpisodir";
 #print "--   rm -rf $tmpisodir\n";
 system "rm -rf $tmpisodir";
