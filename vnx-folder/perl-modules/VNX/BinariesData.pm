@@ -338,12 +338,22 @@ sub check_binaries {
    foreach (@_) {
       #print "Checking $_... " if (($exe_mode == EXE_VERBOSE) || ($exe_mode == EXE_DEBUG));
       my $fail = system("which $_ > /dev/null");
+      my $where = `which $_`;
+      
+      # Particular cases:
+      # - If mkisofs is not found, try with genisoimage (needed for Debian hosts)
+      if ( ($_ eq 'mkisofs') && ($fail) ) {
+        #print "which 'genisoimage' > /dev/null\n";
+        $fail = system("which genisoimage > /dev/null");
+        $where = `which genisoimage`;
+        
+      }
+      
       if ($fail) {
          print "$_ not found\n" if (($exe_mode == EXE_VERBOSE) || ($exe_mode == EXE_DEBUG));;
 	     $unchecked++;
       }
       else {
-         my $where = `which $_`;
          chomp($where);
          #print "$where\n" if (($exe_mode == EXE_VERBOSE) || ($exe_mode == EXE_DEBUG));;
          # Add to the binary_path hash array

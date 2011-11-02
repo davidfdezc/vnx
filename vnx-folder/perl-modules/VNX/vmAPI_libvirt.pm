@@ -2084,10 +2084,8 @@ sub executeCMD {
 
 			$execution->execute("mkdir /tmp/diskc.$seq.$random_id");
 # REESCRIBIMOS ESTAS LINEAS CON LAS NUEVAS COSAS QUE USAMOS
-#			$execution->execute( "cp " . $dh->get_tmp_dir . "/vnx.$vm_name.$seq.$random_id" . " " . "/tmp/diskc.$seq.$random_id/" . "command.xml" );
             $execution->execute( "cp " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml" . " " . "$filetree_host" );
-#			$execution->execute("mkisofs -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/diskc.$seq.$random_id.iso /tmp/diskc.$seq.$random_id/");
-			$execution->execute("mkisofs -d -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
+			$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"} . " -d -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
 			my $disk_command_windows_xml;
 			$disk_command_windows_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 			
@@ -2308,7 +2306,7 @@ sub executeCMD {
 	        # Create the shared cdrom and offer it to the VM 
 	        my $iso_disk = $dh->get_vm_tmp_dir($vm_name) . "/disk.$random_id.iso";
 	        my $empty_iso_disk = $dh->get_vm_tmp_dir($vm_name) . "/empty.iso";
-			$execution->execute("mkisofs -d -nobak -follow-links -max-iso9660-filename -allow-leading-dots " . 
+			$execution->execute( $bd->get_binaries_path_ref->{"mkisofs"} . " -d -nobak -follow-links -max-iso9660-filename -allow-leading-dots " . 
 			                    "-pad -quiet -allow-lowercase -allow-multidot " . 
 			                    "-o $iso_disk $sdisk_content");
 			$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" $iso_disk hdb --mode readonly --type cdrom'");
