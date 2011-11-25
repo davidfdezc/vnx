@@ -400,6 +400,32 @@ sub create_config_files {
     if ($password) {
         print ZEBRA "password $password\n";	
     }
+
+    ################################################
+    # <interface name="name">
+    #    <description>text1</description>
+    #    <ip_adress>AA.BB.CC.DD/EE</ip_address>
+    # .........................................
+    # interface name
+    # description texto1
+    # ip address AA.BB.CC.DD/EE
+    #
+    foreach my $if ($vm->findnodes('interface')) {
+        print ZEBRA "interface " . $if->getAttribute('name') . "\n";
+        my $description_tag  = $if->findnodes('description')->[0];
+    	if ($description_tag) {
+    	   print ZEBRA " description " . $description_tag->textContent() . "\n";
+    	}
+    	my $ip_address_tag  = $if->findnodes('ip_address')->[0];
+    	if ($ip_address_tag) {
+    	   print ZEBRA " ip address " . $ip_address_tag->textContent() . "\n";
+    	}
+    }
+    print "\n";
+    #
+    #
+    ################################################
+    
     print ZEBRA "log file /var/log/zebra/zebra.log\n";          
     close (ZEBRA);
                 
@@ -409,6 +435,28 @@ sub create_config_files {
     print OSPFD "hostname $hostname\n";
     print OSPFD "password $password\n";
     print OSPFD "log file /var/log/zebra/ospfd.log\n!\n";
+    
+    ################################################
+    # <interface name="name">
+    #    <ip_ospf>option1 text1</ip_ospf>
+    #    <ip_ospf>option2 text2</ip_ospf>
+    # .........................................
+    # interface name
+    # ip ospf option1 text1
+    # ip ospf option2 text2
+    #
+    foreach my $if ($vm->findnodes('interface')) {
+        print OSPFD "interface " . $if->getAttribute('name') . "\n";
+        foreach my $ip_ospf_tag ($if->findnodes('ip_ospf')) {
+    	   print OSPFD " ip ospf " . $ip_ospf_tag->textContent() . "\n";
+        }
+        print "!\n";
+    }
+    print "!\n";
+    #
+    #
+    ################################################
+    
     print OSPFD "router ospf\n";
 
     # Process <network> tags
