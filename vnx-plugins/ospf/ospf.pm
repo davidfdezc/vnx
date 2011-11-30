@@ -378,7 +378,6 @@ sub create_config_files {
     
     my $zebra_file = $files_dir . "/$vm_name"."_zebra.conf";
     my $ospfd_file = $files_dir . "/$vm_name"."_ospfd.conf";
-    print "$zebra_file"; <STDIN>;
             
     # Hostname and password
     my $hostname = $vm_name; # Default hostname is vm_name
