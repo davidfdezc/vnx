@@ -378,6 +378,7 @@ sub create_config_files {
     
     my $zebra_file = $files_dir . "/$vm_name"."_zebra.conf";
     my $ospfd_file = $files_dir . "/$vm_name"."_ospfd.conf";
+    print "$zebra_file"; <STDIN>;
             
     # Hostname and password
     my $hostname = $vm_name; # Default hostname is vm_name
@@ -402,21 +403,22 @@ sub create_config_files {
     }
 
     ################################################
-    # <interface name="name">
+    # <lo>
     #    <description>text1</description>
     #    <ip_adress>AA.BB.CC.DD/EE</ip_address>
+    # </lo>
     # .........................................
     # interface name
     # description texto1
     # ip address AA.BB.CC.DD/EE
     #
-    foreach my $if ($vm->findnodes('interface')) {
-        print ZEBRA "interface " . $if->getAttribute('name') . "\n";
-        my $description_tag  = $if->findnodes('description')->[0];
+    foreach my $lo ($vm->findnodes('lo')) {
+        print ZEBRA "interface lo\n";
+        my $description_tag  = $lo->findnodes('description')->[0];
     	if ($description_tag) {
     	   print ZEBRA " description " . $description_tag->textContent() . "\n";
     	}
-    	my $ip_address_tag  = $if->findnodes('ip_address')->[0];
+    	my $ip_address_tag  = $lo->findnodes('ip_address')->[0];
     	if ($ip_address_tag) {
     	   print ZEBRA " ip address " . $ip_address_tag->textContent() . "\n";
     	}
@@ -437,15 +439,16 @@ sub create_config_files {
     print OSPFD "log file /var/log/zebra/ospfd.log\n!\n";
     
     ################################################
-    # <interface name="name">
+    # <if name="name">
     #    <ip_ospf>option1 text1</ip_ospf>
     #    <ip_ospf>option2 text2</ip_ospf>
+    # </if>
     # .........................................
     # interface name
     # ip ospf option1 text1
     # ip ospf option2 text2
     #
-    foreach my $if ($vm->findnodes('interface')) {
+    foreach my $if ($vm->findnodes('if')) {
         print OSPFD "interface " . $if->getAttribute('name') . "\n";
         foreach my $ip_ospf_tag ($if->findnodes('ip_ospf')) {
     	   print OSPFD " ip ospf " . $ip_ospf_tag->textContent() . "\n";
@@ -459,6 +462,11 @@ sub create_config_files {
     
     print OSPFD "router ospf\n";
 
+    # Process <router_id> tag
+    foreach my $router_id ($vm->findnodes('router_id')) {
+        print OSPFD " ospf router-id " . $router_id->textContent() . "\n";
+    }
+
     # Process <network> tags
     foreach my $network ($vm->findnodes('network')) {
         print OSPFD " network " . $network->textContent() . " area " . $network->getAttribute('area') . "\n";
@@ -469,6 +477,8 @@ sub create_config_files {
         print OSPFD "passive-interface " . $passive_if->textContent() . "\n";        
     }
 
+    print OSPFD "!\n";
+    print OSPFD "line vty\n";
     print OSPFD "!\n";          
     close (OSPFD);  
 
