@@ -22,7 +22,8 @@ rm -rf /etc/skel/examples.desktop
 
     # Update and install
     apt-get update
-    #apt-get install -y build-essential qemu-kvm libvirt-bin vlan xterm bridge-utils  screen virt-manager virt-viewer libxml-checker-perl libxml-parser-perl libnetaddr-ip-perl libnet-pcap-perl libnet-ipv6addr-perl liberror-perl libexception-class-perl uml-utilities libxml-libxml-perl libxml2-dev libgnutls-dev libdevmapper-dev libterm-readline-perl-perl libnet-telnet-perl libnet-ip-perl libreadonly-perl libmath-round-perl libappconfig-perl libdbi-perl graphviz libnl-dev genisoimage gnome-terminal libfile-homedir-perl
+    #apt-get install -y build-essential qemu-kvm libvirt-bin vlan xterm bridge-utils  screen virt-manager virt-viewer libxml-checker-perl libxml-parser-perl libnetaddr-ip-perl libnet-pcap-perl libnet-ipv6addr-perl liberror-perl libexception-class-perl uml-utilities libxml-libxml-perl libxml2-dev libgnutls-dev libdevmapper-dev libterm-readline-perl-perl libnet-telnet-perl libnet-ip-perl libreadonly-perl libmath-round-perl libappconfig-perl libdbi-perl graphviz libnl-dev genisoimage gnome-terminal libfile-homedir-perl w3m
+    apt-get -y dist-upgrade
     apt-get -y install build-essential qemu-kvm libvirt-bin vlan xterm \
         bridge-utils  screen virt-manager virt-viewer libxml-checker-perl \
         libxml-parser-perl libnetaddr-ip-perl libnet-pcap-perl \
@@ -31,7 +32,8 @@ rm -rf /etc/skel/examples.desktop
         libdevmapper-dev libterm-readline-perl-perl libnet-telnet-perl \
         libnet-ip-perl libreadonly-perl libmath-round-perl libappconfig-perl \
         libdbi-perl graphviz libnl-dev genisoimage gnome-terminal \
-        libfile-homedir-perl python-dev libsasl2-dev tree
+        libfile-homedir-perl python-dev libsasl2-dev tree \
+        wireshark nmap aptsh w3m
 
     # If you use 64 bits version of Ubuntu, install 32 bits compatibility libraries:
     # apt-get install ia32-libs
@@ -45,7 +47,7 @@ rm -rf /etc/skel/examples.desktop
     start libvirt-bin
 
     # For Ubuntu 10.04, just install the libsys-virt-perl package
-    apt-get install libsys-virt-perl
+    apt-get -y install libsys-virt-perl
 
     # Install VNX:
     mkdir -p /tmp/vnx-update
@@ -74,7 +76,7 @@ usermod -u 501 nobody
 # set environment variable HOME to /root/.
 HOME=/root
 # install curl
-apt-get install curl
+apt-get -y install curl
 
 
 #./vnx_install_fs.sh

@@ -3,7 +3,8 @@
 # constants
 
 fsdir="/usr/share/vnx/filesystems"
-baseaddress="http://idefix.dit.upm.es/vnx/filesystems/"
+#baseaddress="http://idefix.dit.upm.es/vnx/filesystems/"
+baseaddress="http://localhost/vnx/filesystems/"
 createsymlink=""
 rootfs_spec=""
 
