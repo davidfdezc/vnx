@@ -1390,22 +1390,32 @@ sub executeCMD {
 		        if ( $root =~ /\/$/ ) {
 		            $execution->execute( "# Create the directory if it does not exist", *COMMAND_FILE );
 		            $execution->execute( "if [ -d $root ]; then", *COMMAND_FILE );
-		            $execution->execute( "    mkdir -vp $root >> $uml_log_file", *COMMAND_FILE );
+                    #$execution->execute( "    mkdir -vp $root >> $uml_log_file", *COMMAND_FILE );
+                    $execution->execute( "    mkdir -p $root >> $uml_log_file", *COMMAND_FILE );
 		            $execution->execute( "fi", *COMMAND_FILE );
-		            $execution->execute( "cp -Rv $filetree_vm/* $root >> $uml_log_file", *COMMAND_FILE );
-		            if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root/*  >> $uml_log_file",  *COMMAND_FILE ); }
-		            if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root/* >> $uml_log_file", *COMMAND_FILE ); }
-		            if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root/*  >> $uml_log_file", *COMMAND_FILE ); }
+                    #$execution->execute( "cp -Rv $filetree_vm/* $root >> $uml_log_file", *COMMAND_FILE );
+                    #if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root/*  >> $uml_log_file",  *COMMAND_FILE ); }
+                    #if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root/* >> $uml_log_file", *COMMAND_FILE ); }
+                    #if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root/*  >> $uml_log_file", *COMMAND_FILE ); }
+                    $execution->execute( "cp -R $filetree_vm/* $root >> $uml_log_file", *COMMAND_FILE );
+                    if ( $user ne ''  ) { $execution->execute( "chown -R $user $root/*  >> $uml_log_file",  *COMMAND_FILE ); }
+                    if ( $group ne '' ) { $execution->execute( "chown -R .$group $root/* >> $uml_log_file", *COMMAND_FILE ); }
+                    if ( $perms ne '' ) { $execution->execute( "chmod -R $perms $root/*  >> $uml_log_file", *COMMAND_FILE ); }
 		        } else {
 		            my $root_dir = dirname($root);
 		            $execution->execute( "# Create the directory if it does not exist", *COMMAND_FILE );
 		            $execution->execute( "if [ -d $root_dir ]; then", *COMMAND_FILE );
-		            $execution->execute( "    mkdir -vp $root_dir >> $uml_log_file", *COMMAND_FILE );
+                    #$execution->execute( "    mkdir -vp $root_dir >> $uml_log_file", *COMMAND_FILE );
+                    $execution->execute( "    mkdir -p $root_dir >> $uml_log_file", *COMMAND_FILE );
 		            $execution->execute( "fi", *COMMAND_FILE );
-		            $execution->execute( "cp -Rv $filetree_vm/* $root", *COMMAND_FILE );
-		            if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root >> $uml_log_file", *COMMAND_FILE );   }
-		            if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root >> $uml_log_file", *COMMAND_FILE ); }
-		            if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root >> $uml_log_file", *COMMAND_FILE );  }
+                    #$execution->execute( "cp -Rv $filetree_vm/* $root", *COMMAND_FILE );
+                    #if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root >> $uml_log_file", *COMMAND_FILE );   }
+                    #if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root >> $uml_log_file", *COMMAND_FILE ); }
+                    #if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root >> $uml_log_file", *COMMAND_FILE );  }
+                    $execution->execute( "cp -R $filetree_vm/* $root", *COMMAND_FILE );
+                    if ( $user ne ''  ) { $execution->execute( "chown -R $user $root >> $uml_log_file", *COMMAND_FILE );   }
+                    if ( $group ne '' ) { $execution->execute( "chown -R .$group $root >> $uml_log_file", *COMMAND_FILE ); }
+                    if ( $perms ne '' ) { $execution->execute( "chmod -R $perms $root >> $uml_log_file", *COMMAND_FILE );  }
 		        }
                 
                 $execution->execute("echo 1 > /mnt/hostfs/filetree_cp.$ftree_id.end",*COMMAND_FILE);
@@ -2683,20 +2693,29 @@ sub create_vm_onboot_commands_file {
 	        $execution->execute( "if [ -d $root ]; then", *CONFILE );
 	        $execution->execute( "    mkdir -vp $root >> $uml_log_file", *CONFILE );
 	        $execution->execute( "fi", *CONFILE );
-	        $execution->execute( "cp -Rv $filetree_vm/* $root >> $uml_log_file", *CONFILE );
-	        if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root/*  >> $uml_log_file",  *CONFILE ); }
-	        if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root/* >> $uml_log_file", *CONFILE ); }
-	        if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root/*  >> $uml_log_file", *CONFILE ); }
+            #$execution->execute( "cp -Rv $filetree_vm/* $root >> $uml_log_file", *CONFILE );
+            #if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root/*  >> $uml_log_file",  *CONFILE ); }
+            #if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root/* >> $uml_log_file", *CONFILE ); }
+            #if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root/*  >> $uml_log_file", *CONFILE ); }
+            $execution->execute( "cp -R $filetree_vm/* $root >> $uml_log_file", *CONFILE );
+            if ( $user ne ''  ) { $execution->execute( "chown -R $user $root/*  >> $uml_log_file",  *CONFILE ); }
+            if ( $group ne '' ) { $execution->execute( "chown -R .$group $root/* >> $uml_log_file", *CONFILE ); }
+            if ( $perms ne '' ) { $execution->execute( "chmod -R $perms $root/*  >> $uml_log_file", *CONFILE ); }
         } else {
             my $root_dir = dirname($root);
             $execution->execute( "# Create the directory if it does not exist", *CONFILE );
             $execution->execute( "if [ -d $root_dir ]; then", *CONFILE );
-            $execution->execute( "    mkdir -vp $root_dir >> $uml_log_file", *CONFILE );
+            #$execution->execute( "    mkdir -vp $root_dir >> $uml_log_file", *CONFILE );
+            $execution->execute( "    mkdir -p $root_dir >> $uml_log_file", *CONFILE );
             $execution->execute( "fi", *CONFILE );
-            $execution->execute( "cp -Rv $filetree_vm/* $root", *CONFILE );
-            if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root >> $uml_log_file", *CONFILE );   }
-            if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root >> $uml_log_file", *CONFILE ); }
-            if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root >> $uml_log_file", *CONFILE );  }
+            #$execution->execute( "cp -Rv $filetree_vm/* $root", *CONFILE );
+            #if ( $user ne ''  ) { $execution->execute( "chown -vR $user $root >> $uml_log_file", *CONFILE );   }
+            #if ( $group ne '' ) { $execution->execute( "chown -vR .$group $root >> $uml_log_file", *CONFILE ); }
+            #if ( $perms ne '' ) { $execution->execute( "chmod -vR $perms $root >> $uml_log_file", *CONFILE );  }
+            $execution->execute( "cp -R $filetree_vm/* $root", *CONFILE );
+            if ( $user ne ''  ) { $execution->execute( "chown -R $user $root >> $uml_log_file", *CONFILE );   }
+            if ( $group ne '' ) { $execution->execute( "chown -R .$group $root >> $uml_log_file", *CONFILE ); }
+            if ( $perms ne '' ) { $execution->execute( "chmod -R $perms $root >> $uml_log_file", *CONFILE );  }
         }
         
         $ftree_num++;
