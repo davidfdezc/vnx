@@ -569,7 +569,7 @@ sub main {
       	print "                              E.T.S.I. Telecomunicación\n";
       	print "                          Universidad Politécnica de Madrid\n";
       	print "\n";
-      	print "                   Version: $version" . "$branch (build on $release)\n";
+      	print "                   Version: $version" . "$branch (built on $release)\n";
       	print "\n";
       	exit(0);
    	}

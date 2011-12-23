@@ -560,7 +560,7 @@ sub startVM {
 
 	# Background UML execution without consoles by default
 	push( @params, "uml_dir=" . $dh->get_vm_dir($vm_name) . "/ umid=run con=null" );
-	#push( @params, "uml_dir=" . $dh->get_vm_dir($vm_name) . "/ umid=run con=xterm" );
+	# push( @params, "uml_dir=" . $dh->get_vm_dir($vm_name) . "/ umid=run con=xterm" );
 
 	# Process <console> tags
 	my @console_list = $dh->merge_console($virtualm);
