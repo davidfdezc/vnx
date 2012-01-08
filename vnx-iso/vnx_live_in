@@ -57,7 +57,12 @@ rm -rf /etc/skel/examples.desktop
     cd vnx-*
     ./install_vnx
     mv /etc/vnx.conf.sample /etc/vnx.conf
+    sed -i -e 's&#vnx_dir=~/.vnx&vnx_dir=/tmp/.vnx&' /etc/vnx.conf
     
+# Install yad
+sudo add-apt-repository ppa:webupd8team/y-ppa-manager
+sudo apt-get update
+sudo apt-get -y install yad
 
 #############
 
