@@ -34,15 +34,16 @@ use AppConfig qw(:expand :argcount);    # AppConfig module constants import
 use EDIV::cluster_host;                 # Cluster Host class
 use Socket;								# To resolve hostnames to IPs
 use Term::ANSIColor;
+use VNX::ClusterConfig;
 
 ###########################################################
 # Global variables 
 ###########################################################
 
 # Cluster
-my $cluster_config;    					# AppConfig object to read cluster config
-my $phy_hosts;        					# List of cluster members
-my @cluster_hosts;						# Cluster host object array to send to segmentator
+#my $cluster_config;    					# AppConfig object to read cluster config
+#my $phy_hosts;        					# List of cluster members
+#my @cluster_hosts;						# Cluster host object array to send to segmentator
 
 # Arguments
 my $mode = $ARGV[0];
@@ -87,6 +88,7 @@ if (!($mode =~ /[0-9]+/)) {
 # Subroutines
 #
 
+=BEGIN
 #
 # Fill the cluster hosts
 #
@@ -161,6 +163,8 @@ sub fillClusterHosts {
 	}
 
 }
+=END
+=cut
 
 #
 # Subroutine to send vn program
@@ -168,6 +172,9 @@ sub fillClusterHosts {
 sub sendVn{
 	
 	foreach my $physical_host (@cluster_hosts) {
+		if ( ($#hosts ge 0) &&  # hosts array is empty. No hosts specified in command line
+		     ( ) ) {
+		}	
 		my $ip = $physical_host->ipAddress;
 		print "Copying vn command to $ip...";
 		my $scp_command = `scp -2 -o 'StrictHostKeyChecking no' /usr/bin/vn root\@$ip:/tmp/`;

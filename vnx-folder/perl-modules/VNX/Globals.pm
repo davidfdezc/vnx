@@ -92,9 +92,9 @@ our @EXPORT = qw(
 # Version information
 # my $version = "[arroba]PACKAGE_VERSION[arroba]";[JSF]
 # my $release = "[arroba]RELEASE_DATE[arroba]";[JSF]
-my $version;;
-my $release;
-my $branch;
+our $version;;
+our $release;
+our $branch;
 
 ###########################################################
 # Global objects

@@ -16,7 +16,8 @@ then
    exit 1
 fi
 VNX_LIBS="$PERL_LIBS/VNX/"
-EDIV_LIBS="$PERL_LIBS/EDIV/"
+#EDIV_LIBS="$PERL_LIBS/EDIV/"
+EDIV_LIBS="$PERL_LIBS/VNX/"
 
 echo "** "
 echo "** Installing VNX v${VNX_VERSION}... "
