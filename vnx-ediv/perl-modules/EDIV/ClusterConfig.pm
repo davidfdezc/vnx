@@ -148,8 +148,8 @@ sub read_cluster_config {
 		# Read current host settings from config file
 		# Get hostname
 		my $cfg_host_name;
-		unless ( $cfg_host_name = $cluster_config->get("$current_host_id"."_hostname") )
-			{ return "'hostname' configuration parameter not found in section [$current_host_id]";	}
+		unless ( $cfg_host_name = $cluster_config->get("$current_host_id"."_host_name") )
+			{ return "'host_name' configuration parameter not found in section [$current_host_id]";	}
 		my $packed_ip = gethostbyname($cfg_host_name);
 		unless ( defined($packed_ip) ) {
 			return "ERROR: cannot get IP address for host $current_host_id";
@@ -171,8 +171,8 @@ sub read_cluster_config {
 			{ return "'max_vms' configuration parameter not found in section [$current_host_id]";	}
 		
 		my $ifname;
-		unless ( $ifname = $cluster_config->get("$current_host_id"."_ifname") )
-			{ return "'ifname' configuration parameter not found in section [$current_host_id]";	}
+		unless ( $ifname = $cluster_config->get("$current_host_id"."_if_name") )
+			{ return "'if_name' configuration parameter not found in section [$current_host_id]";	}
 		
 		my $cpu_dynamic_command = 'cat /proc/loadavg | awk \'{print $1}\'';
 		my $cpu_dynamic = `ssh -2 -o 'StrictHostKeyChecking no' -X root\@$ip $cpu_dynamic_command`;
