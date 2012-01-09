@@ -192,10 +192,10 @@ if ( $mode eq '-t' | $mode eq '--create' ) {
 	}
 	
 	print "\n  **** Calling segmentator... ****\n\n";
-	my $rdom_tree = \$dom_tree;
-	my $rvms_to_split = \@vms_to_split;
-	my $rcluster_hosts = \@cluster_hosts;
-	my $rstatic_assignment = \%static_assignment;
+	#my $ref_dom_tree = \$dom_tree;
+	#my $ref_vms_to_split = \@vms_to_split;
+	#my $ref_cluster_hosts = \@cluster_hosts;
+	#my $ref_static_assignment = \%static_assignment;
 
 	push (@INC, "/usr/share/ediv/algorithms/");
 	push (@INC, "/usr/local/share/ediv/algorithms/");
@@ -226,7 +226,7 @@ if ( $mode eq '-t' | $mode eq '--create' ) {
     	die();
     }
 	
-	%allocation = $segmentation_module->split($rdom_tree, $rcluster_hosts, $rvms_to_split, $rstatic_assignment);
+	%allocation = $segmentation_module->split(\$dom_tree, \@cluster_hosts, \$cluster, \@vms_to_split, \%static_assignment);
 	
 	if ($allocation{"error"} eq "error"){
 			&cleanDB;
@@ -1474,7 +1474,7 @@ sub cleanDB {
 	my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
 #	my $scenName=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 		
-	my $query_string = "DELETE FROM hosts WHERE simulation = '$scenName'";
+	my $query_string = ;
 	my $query = $dbh->prepare($query_string);
 	$query->execute();
 	$query->finish();
@@ -2025,4 +2025,27 @@ sub ediv_die {
    printf "%s (%s): %s \n", (caller(1))[3], (caller(0))[2], $mess;
    printf "----------------------------------------------------------------------------------\n";
    exit 1;
+}
+
+
+sub query_db {
+	
+	my $query_string = shift;
+	my $ref
+	
+    my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
+    my $query = $dbh->prepare($query_string);
+    $query->execute();
+
+    if 
+    my $contenido = $query->fetchrow_array();
+    $query->finish();
+
+
+    my $query_string = "SELECT `simulation` FROM hosts WHERE status = 'running' AND simulation = '$scenName'";
+    my $query = $dbh->prepare($query_string);
+    $query->execute();
+
+    $dbh->disconnect;
+
 }

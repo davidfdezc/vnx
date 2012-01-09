@@ -34,11 +34,6 @@ use Math::Round;
 # Global variables 
 ###########################################################
 
-my $scenario;
-my @cluster_info;
-my $cluster_size;
-my @vms_to_split;
-my %static_assignment;
 
 ###########################################################
 # Subroutines
@@ -52,18 +47,19 @@ sub name {
 
 }
 
-	###########################################################
-	# Subroutine to obtain segmentation mode
-	###########################################################
+#
+# Subroutine to obtain segmentation mode
+#
 sub split {
 
-	my ( $class, $rdom_tree, $rcluster_hosts, $rvms_to_split, $rstatic_assignment ) = @_;
+	my ( $class, $ref_dom_tree, $ref_cluster_hosts, $ref_cluster, $rvms_to_split, $ref_static_assignment ) = @_;
 	
-	$scenario = $$rdom_tree;
-	@cluster_info = @$rcluster_hosts;
-	$cluster_size = @cluster_info;
-	@vms_to_split = @$rvms_to_split;
-	%static_assignment = %$rstatic_assignment;
+	my $scenario = $$ref_dom_tree;
+	my @cluster_info = @$ref_cluster_hosts;
+	my $cluster_size = @cluster_info;
+	my $cluster = $$ref_cluster;
+	my @vms_to_split = @$rvms_to_split;
+	my %static_assignment = %$ref_static_assignment;
 	
 
 	print("Segmentator: Cluster physical machines -> $cluster_size\n");
@@ -106,11 +102,14 @@ sub split {
 			my $vm = $vms_to_split[$i];
 			my $selected_hostname = $cluster_info[$0]->{_hostname};
 			
-			for (my $j=1; $j<$cluster_size; $j++) {
-				my $hostName = $cluster_info[$j]->{_hostname};
+#			for (my $j=1; $j<$cluster_size; $j++) {
+            foreach my $host_id (@cluster_info) {
+                #my $hostName = $cluster_info[$j]->{_hostname};
+                my $hostName = $cluster->{hosts}{$host_id}->host_name;
 				if ($offset{$hostName} < $offset{$selected_hostname}){
 					$selected_hostname = $hostName;
 				}
+
 			}
 			$allocation{$vm} = $selected_hostname;
 			print("Segmentator: Virtual machine $vm to physical host $selected_hostname\n");

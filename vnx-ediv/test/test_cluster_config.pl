@@ -61,7 +61,7 @@ print "\nData of host in list: @host_list\n";
 
 foreach $host (@host_list) {
 	print "\nData of $host:\n";
-	print "    hostname="   . $cluster->{hosts}{$host}->host_name . "\n";
+	print "    host_name="  . $cluster->{hosts}{$host}->host_name . "\n";
 	print "    ip_address=" . $cluster->{hosts}{$host}->ip_address . "\n";
 	print "    mem="        . $cluster->{hosts}{$host}->mem . "\n";
 	print "    cpu="        . $cluster->{hosts}{$host}->cpu . "\n";
