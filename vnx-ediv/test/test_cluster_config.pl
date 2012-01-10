@@ -60,13 +60,17 @@ my @host_list = qw(calamar chopito);
 print "\nData of host in list: @host_list\n";
 
 foreach $host (@host_list) {
-	print "\nData of $host:\n";
-	print "    host_name="  . $cluster->{hosts}{$host}->host_name . "\n";
-	print "    ip_address=" . $cluster->{hosts}{$host}->ip_address . "\n";
-	print "    mem="        . $cluster->{hosts}{$host}->mem . "\n";
-	print "    cpu="        . $cluster->{hosts}{$host}->cpu . "\n";
-	print "    max_vms="    . $cluster->{hosts}{$host}->max_vms . "\n";
-	print "    ifname="     . $cluster->{hosts}{$host}->if_name . "\n";	
+	if (defined( $cluster->{hosts}{calamar})) {
+		print "\nData of $host:\n";
+		print "    host_name="  . $cluster->{hosts}{$host}->host_name . "\n";
+		print "    ip_address=" . $cluster->{hosts}{$host}->ip_address . "\n";
+		print "    mem="        . $cluster->{hosts}{$host}->mem . "\n";
+		print "    cpu="        . $cluster->{hosts}{$host}->cpu . "\n";
+		print "    max_vms="    . $cluster->{hosts}{$host}->max_vms . "\n";
+		print "    ifname="     . $cluster->{hosts}{$host}->if_name . "\n";	
+	} else {
+		print "$host does not belong to cluster\n"		
+	}
 }
 
 print "--------------------------------------------------------------------\n";

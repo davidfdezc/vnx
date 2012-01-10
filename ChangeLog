@@ -1,3 +1,10 @@
+11/01/2012:
+
+- Added -v (verbose) and -i (copy new version to idefix repository) to build_tar* scripts
+
+.....
+.....
+
 16/9/2011
 
 - Changed the format of multiple sequences form space-separated to comma-separated list. Ej:

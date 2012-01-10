@@ -1,5 +1,28 @@
 #!/bin/bash
 
+
+# Parse arguments
+while getopts "vi" opt; do
+  echo "Options:"
+  case $opt in
+    v)
+      echo "Verbose mode" >&2
+      VERBOSE=yes
+      ;;
+    i)
+      echo "Install on idefix repository" >&2
+	  UPDATEIDEFIX=yes 
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+	  echo "Usage: build_tar_and_install_vnx [-i] [-v]"
+	  echo "           -i copies the new version to idefix repository (only if executed from idefix)"
+	  echo "           -v verbose mode"
+      ;;
+  esac
+done
+
+
 #
 # Version format: major.minor.revision
 #
@@ -81,7 +104,11 @@ cp vnx-autoconf/open-source/olive/*  tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION
 sed --in-place -e "s%DD/MM/YYYY%$RELDATE%"     tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION/vnxolived
 sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION/vnxolived
 cd tmp/aced
-tar cfvz vnx-aced-olive-${ACED_OLIVE_VERSION}.tgz vnx-aced-olive-$ACED_OLIVE_VERSION
+if [ $VERBOSE ]; then
+    tar cfvz vnx-aced-olive-${ACED_OLIVE_VERSION}.tgz vnx-aced-olive-$ACED_OLIVE_VERSION
+else
+    tar cfz vnx-aced-olive-${ACED_OLIVE_VERSION}.tgz vnx-aced-olive-$ACED_OLIVE_VERSION
+fi
 rm -rf vnx-aced-olive-$ACED_OLIVE_VERSION
 cd ../..
 #
@@ -103,7 +130,11 @@ cp -r vnx-autoconf/open-source/freebsd \
 sed --in-place -e "s%DD/MM/YYYY%$RELDATE%"     tmp/aced/vnx-aced-lf-$ACED_LF_VERSION/vnxaced.pl
 sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/aced/vnx-aced-lf-$ACED_LF_VERSION/vnxaced.pl
 cd tmp/aced
-tar cfvz vnx-aced-lf-${ACED_LF_VERSION}.tgz vnx-aced-lf-$ACED_LF_VERSION
+if [ $VERBOSE ]; then
+    tar cfvz vnx-aced-lf-${ACED_LF_VERSION}.tgz vnx-aced-lf-$ACED_LF_VERSION
+else
+    tar cfz vnx-aced-lf-${ACED_LF_VERSION}.tgz vnx-aced-lf-$ACED_LF_VERSION
+fi
 rm -rf vnx-aced-lf-$ACED_LF_VERSION
 cd ../..
 
@@ -132,10 +163,10 @@ mkdir -p tmp/${FNAME}/plugins/examples
 # For each plugin
 for p in `ls vnx-plugins`
 do 
-	cp -v vnx-plugins/$p/$p.pm  tmp/${FNAME}/plugins 
-#    cp -v vnx-plugins/$p/$p.dtd tmp/${FNAME}/plugins 
-    cp -v vnx-plugins/$p/$p.xsd tmp/${FNAME}/plugins 
-    cp -vr vnx-plugins/$p/examples/* tmp/${FNAME}/plugins/examples 
+	cp $VERBOSE vnx-plugins/$p/$p.pm  tmp/${FNAME}/plugins 
+#    cp $VERBOSE vnx-plugins/$p/$p.dtd tmp/${FNAME}/plugins 
+    cp $VERBOSE vnx-plugins/$p/$p.xsd tmp/${FNAME}/plugins 
+    cp $VERBOSE -r vnx-plugins/$p/examples/* tmp/${FNAME}/plugins/examples 
 done
 
 #
@@ -152,7 +183,11 @@ mv tmp/${FNAME}/doc/00-readme.txt tmp/${FNAME}
 # Create tar file and move it to distrib directory
 #
 cd tmp
-tar cfvz  ${FNAME}.tgz ${FNAME}
+if [ $VERBOSE ]; then
+    tar cfvz  ${FNAME}.tgz ${FNAME}
+else
+    tar cfz  ${FNAME}.tgz ${FNAME}
+fi
 mv ${FNAME}.tgz ../distrib
 cd ../distrib
 #
@@ -178,16 +213,17 @@ echo "** "
 #
 HNAME=$( hostname -f )
 #echo "$HNAME..."
-if [ $HNAME = 'idefix.dit.upm.es' ]; then
-  if [ -d /var/www/download/vnx ]; then 
-    echo "Copying new version to http://idefix.dit.upm.es/download/vnx..."
-    cp -v distrib/${FNAME}.tgz /var/www/download/vnx
-    rm -v /var/www/download/vnx/vnx-latest.tgz
-    ln -s /var/www/download/vnx/${FNAME}.tgz /var/www/download/vnx/vnx-latest.tgz
-    echo "...done"
-  fi  
+if [ $UPDATEIDEFIX ]; then
+	if [ $HNAME = 'idefix.dit.upm.es' ]; then
+	  if [ -d /var/www/download/vnx ]; then 
+	    echo "Copying new version to http://idefix.dit.upm.es/download/vnx..."
+	    cp -v distrib/${FNAME}.tgz /var/www/download/vnx
+	    rm -v /var/www/download/vnx/vnx-latest.tgz
+	    ln -s /var/www/download/vnx/${FNAME}.tgz /var/www/download/vnx/vnx-latest.tgz
+	    echo "...done"
+	  fi  
+	fi
 fi
-
 
 #echo "** REMINDER: This script has been modified, please make sure to push the new changeset to the repositories, in order to register the new version."
 
