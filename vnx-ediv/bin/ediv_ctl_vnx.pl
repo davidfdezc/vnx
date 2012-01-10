@@ -43,6 +43,8 @@ use POSIX qw(setsid setuid setgid);
 use XML::LibXML;
 use Cwd 'abs_path';
 use Term::ANSIColor;
+use Data::Dumper;
+
 
 use Socket;								# To resolve hostnames to IPs
 
@@ -130,7 +132,6 @@ my $branch = "";
 
 # Argument handling
 &parseArguments;	
-wlog (V, "** parseArguments called");
 
 my $vnxConfigFile = "/etc/vnx.conf";
 # Set VNX and TMP directories
@@ -201,10 +202,13 @@ if ( $mode eq '-t' | $mode eq '--create' ) {
 	#my $ref_static_assignment = \%static_assignment;
 
 	push (@INC, "/usr/share/ediv/algorithms/");
-	push (@INC, "/usr/local/share/ediv/algorithms/");
+	#push (@INC, "/usr/local/share/ediv/algorithms/");
 	
+	wlog (V, "** \@plugins = \n" . Dumper (@plugins));
+	print "** \@plugins = \n" . Dumper (@plugins);
 	foreach my $plugin (@plugins){
 		
+		wlog (VVV, "** plugin = $plugin");
 		push (@INC, "/usr/share/perl5/EDIV/SegmentationModules/");
 		push (@INC, "/usr/local/share/perl/5.10.1/EDIV/SegmentationModules/");
     	
@@ -388,7 +392,7 @@ sub parseArguments{
 	my $arg_lenght = $#ARGV +1;
 	for (my $i=0; $i<$arg_lenght; $i++){
 		
-		print "**** Argument: $ARGV[$i]\n";
+		#print "** Arg: $ARGV[$i]\n";
 		# Search for execution mode
 		if ($ARGV[$i] eq '-t' || $ARGV[$i] eq '--create' || $ARGV[$i] eq '-x' || $ARGV[$i] eq '--exe' || 
 		$ARGV[$i] eq '--execute' ||	$ARGV[$i] eq '-P' || $ARGV[$i] eq '--destroy' || $ARGV[$i] eq '-d'||
@@ -405,7 +409,8 @@ sub parseArguments{
 			$mode = $ARGV[$i];
 		}
 		# Search for scenario xml file
-		if ($ARGV[$i] eq '-s' | $ARGV[$i] eq '-f'){
+#		if ($ARGV[$i] eq '-s' | $ARGV[$i] eq '-f'){
+		if ($ARGV[$i] eq '-f'){
 			my $vnunl_scenario_arg = $i+1;
 			$vnx_scenario = $ARGV[$vnunl_scenario_arg];
 			open(FILEHANDLE, $vnx_scenario) or die  "The scenario file $vnx_scenario doesn't exist... Aborting";
@@ -445,15 +450,12 @@ sub parseArguments{
 		$exemode = $EXE_NORMAL;
         if ($ARGV[$i] eq '-v'){
             $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=V;
-            print "************* V\n"
         }
         if ($ARGV[$i] eq '-vv'){
             $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VV;
-            print "************* VV\n"
         }
         if ($ARGV[$i] eq '-vvv'){
             $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VVV;
-            print "************* VVV\n"
         }		
 		
 	}
@@ -463,7 +465,7 @@ sub parseArguments{
 	}
 	print "********************* vnx_scenario = $vnx_scenario\n";
 	unless (defined($vnx_scenario)) {
-		die ("You didn't specify a valid scenario xml file... Aborting");
+		die ("You didn't specify a valid scenario xml file (missing -f option)... Aborting");
 	}
 	unless (defined($cluster_conf_file)) {
 		$cluster_conf_file = "/etc/ediv/cluster.conf";
@@ -499,7 +501,7 @@ sub getSegmentationModules {
 	
 	my @paths;
 	push (@paths, "/usr/share/ediv/algorithms/");
-	push (@paths, "/usr/local/share/ediv/algorithms/");
+	#push (@paths, "/usr/local/share/ediv/algorithms/");
 	
 	foreach my $path (@paths){
 		opendir(DIRHANDLE, "$path"); 
@@ -543,7 +545,8 @@ sub parseScenario {
 		} 
 	
 		# Creating simulation in the database
-		$query_string = "INSERT INTO simulations (name) VALUES ('$scenName','0','0')";
+		#$query_string = "INSERT INTO simulations (name) VALUES ('$scenName')";
+		$query_string = "INSERT INTO simulations (name,automac_offset,mgnet_offset) VALUES ('$scenName','0','0')";
 		$query = $dbh->prepare($query_string);
 		$query->execute();
 		$query->finish();
@@ -1265,7 +1268,7 @@ sub checkFinish {
 		chomp($scenario);
 		$dbh->disconnect;
 		
-		my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
+		$dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
 		$query_string = "UPDATE hosts SET status = 'running' WHERE status = 'creating' AND host = '$host_name'";
 		$query = $dbh->prepare($query_string);
 		$query->execute();
@@ -1319,14 +1322,19 @@ sub checkFinish {
 =cut
 }
 
-	###########################################################
-	# Subroutine to execute purge mode in cluster
-	###########################################################
+#
+# purgeScenario
+#
+# Subroutine to execute purge mode in cluster
+#
 sub purgeScenario {
 	my $dbh;
 #	my $scenName=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 	my $host_ip;
 	my $host_name;
+	
+	my @db_resp;
+	my $scenario_name;
 
 	my $scenario;
 	foreach my $host (@cluster_hosts) {
@@ -1354,20 +1362,28 @@ sub purgeScenario {
 		}else{
 			$simulation_status = "purging";
 		}
+		
+		
+	    my $error = query_db ("SELECT `local_simulation` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$scenName'", \@db_resp);
+	    if ($error) { ediv_die ("$error") };
+	    if (defined($db_resp[0]->[0])) {
+	    	$scenario_name = $db_resp[0]->[0]; 	
+	    }
+	    		
+		#my $query_string = "SELECT `local_simulation` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$scenName'";
+		#my $query = $dbh->prepare($query_string);
+		#$query->execute();
+		#my $scenario_name = $query->fetchrow_array();
+		#$query->finish();
 
-		my $query_string = "SELECT `local_simulation` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$scenName'";
+		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$scenName'";
 		my $query = $dbh->prepare($query_string);
-		$query->execute();
-		my $scenario_name = $query->fetchrow_array();
-		$query->finish();
-
-		$query_string = "SELECT `local_specification` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$scenName'";
-		$query = $dbh->prepare($query_string);
 		$query->execute();
 		my $scenario_bin = $query->fetchrow_array();
 		$query->finish();
 		
 		$scenario_name = "/tmp/$scenario_name".".xml";
+		wlog (VVV, "** scenario_name = $scenario_name");
 		open(FILEHANDLE, ">$scenario_name") or die 'cannot open file';
 		print FILEHANDLE "$scenario_bin";
 		close (FILEHANDLE);
@@ -1508,7 +1524,7 @@ sub cleanDB {
 	$query->finish();
 	
     $error = query_db ("DELETE FROM simulations WHERE name = '$scenName'"); 
-    if ($error) { die "$error" }
+    if ($error) { ediv_die ("$error") }
 	#$query_string = "DELETE FROM simulations WHERE name = '$scenName'";
 	#$query = $dbh->prepare($query_string);
 	#$query->execute();
@@ -1999,7 +2015,7 @@ sub initAndCheckVNXScenario {
 	my $error;
 	$error = validate_xml ($input_file);
 	if ( $error ) {
-        &vnx_die ("XML file ($input_file) validation failed:\n$error\n");
+        &ediv_die ("XML file ($input_file) validation failed:\n$error\n");
 	}
 
    	# Create DOM tree

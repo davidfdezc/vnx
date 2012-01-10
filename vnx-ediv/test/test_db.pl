@@ -71,7 +71,7 @@ print "\n-------------------------------------------\nQuery = $query\n";
 $error = query_db ($query);
 if ($error) { die "** $error" }
 
-undef @response;
+@response = ();
 #$query = "SELECT `name` FROM simulations";
 $query = "SELECT * FROM simulations";
 print "\n-------------------------------------------\nQuery = $query\n";
@@ -80,6 +80,9 @@ if ($error) { die "** $error" }
 
 print "\n-------------------------------------------\nResponse:\n" 
       . Dumper(@response) . "\n";
+
+print "\n-------------------------------------------\nResponse:\n"
+      . $response[0]->[0] . "\n" . $response[0]->[1] . "\n" . $response[0]->[2] . "\n";
 
 print "\n";
 
