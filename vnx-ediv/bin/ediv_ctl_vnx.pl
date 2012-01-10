@@ -57,6 +57,8 @@ use VNX::BinariesData;
 use VNX::DataHandler;
 use VNX::vmAPI_dynamips;
 use VNX::ClusterConfig;
+use VNX::Execution;
+
 
 ###########################################################
 # Global variables 
@@ -128,6 +130,7 @@ my $branch = "";
 
 # Argument handling
 &parseArguments;	
+wlog (V, "** parseArguments called");
 
 my $vnxConfigFile = "/etc/vnx.conf";
 # Set VNX and TMP directories
@@ -380,10 +383,12 @@ exit();
 # Subroutine to parse command line arguments
 ###########################################################
 sub parseArguments{
-	
+
+# TODO: use module Getopt like as in VNX	
 	my $arg_lenght = $#ARGV +1;
 	for (my $i=0; $i<$arg_lenght; $i++){
 		
+		print "**** Argument: $ARGV[$i]\n";
 		# Search for execution mode
 		if ($ARGV[$i] eq '-t' || $ARGV[$i] eq '--create' || $ARGV[$i] eq '-x' || $ARGV[$i] eq '--exe' || 
 		$ARGV[$i] eq '--execute' ||	$ARGV[$i] eq '-P' || $ARGV[$i] eq '--destroy' || $ARGV[$i] eq '-d'||
@@ -436,6 +441,21 @@ sub parseArguments{
 		if ($ARGV[$i] eq '-n' || $ARGV[$i] eq '--no-console'){
 			$no_console = "--no-console";
 		}		
+		
+		$exemode = $EXE_NORMAL;
+        if ($ARGV[$i] eq '-v'){
+            $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=V;
+            print "************* V\n"
+        }
+        if ($ARGV[$i] eq '-vv'){
+            $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VV;
+            print "************* VV\n"
+        }
+        if ($ARGV[$i] eq '-vvv'){
+            $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VVV;
+            print "************* VVV\n"
+        }		
+		
 	}
 	print "********************* mode = $mode\n";
 	unless (defined($mode)) {
@@ -523,7 +543,7 @@ sub parseScenario {
 		} 
 	
 		# Creating simulation in the database
-		$query_string = "INSERT INTO simulations (name) VALUES ('$scenName')";
+		$query_string = "INSERT INTO simulations (name) VALUES ('$scenName','0','0')";
 		$query = $dbh->prepare($query_string);
 		$query->execute();
 		$query->finish();
@@ -1471,10 +1491,13 @@ sub destroyScenario {
 	# Subroutine to clean simulation from DB
 	###########################################################
 sub cleanDB {
+	
+	wlog (V, "** cleanDB called");
 	my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
 #	my $scenName=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
+	my $error;
 		
-	my $query_string = ;
+    my $query_string = "DELETE FROM hosts WHERE simulation = '$scenName'";
 	my $query = $dbh->prepare($query_string);
 	$query->execute();
 	$query->finish();
@@ -1484,10 +1507,13 @@ sub cleanDB {
 	$query->execute();
 	$query->finish();
 	
-	$query_string = "DELETE FROM simulations WHERE name = '$scenName'";
-	$query = $dbh->prepare($query_string);
-	$query->execute();
-	$query->finish();
+    $error = query_db ("DELETE FROM simulations WHERE name = '$scenName'"); 
+    if ($error) { die "$error" }
+	#$query_string = "DELETE FROM simulations WHERE name = '$scenName'";
+	#$query = $dbh->prepare($query_string);
+	#$query->execute();
+	#$query->finish();
+
 	
 	$query_string = "DELETE FROM vlans WHERE simulation = '$scenName'";
 	$query = $dbh->prepare($query_string);
@@ -2027,25 +2053,64 @@ sub ediv_die {
    exit 1;
 }
 
+#
+# query_db
+#
+# Make a query to EDIV database 
+#
+# Arguments:
+# - query_string, a string with an SQL query
+# - ref_response (optional), a reference to an array were the result of the query will be stored  
+#
+# Returns:
+# - '' if no error; or a string describing the error in other cases 
+#
+# Example 1:
+# 
+#   $query = "INSERT INTO simulations VALUES ('example','7','22')";
+#   $error = query_db ($query);
+#   if ($error) { die "** $error" }
+# 
+# Example 2:
+#
+#   my @response;
+#   $query = "SELECT * FROM simulations";
+#   $error = query_db ($query, \@response);
+#   if ($error) { die "** $error" }
+#
+#   print it with Dumper
+#   print "Response:\n"; 
+#   print "Number of rows=" . @response . "\n";
+#   foreach my $row (@response) {
+#       print "Row:  ";
+#       foreach my $field (@$row) {
+#           if (defined($field)) { print $field . " "} else {print "undefined "; }
+#       }
+#       print "\n";
+#   }
 
 sub query_db {
-	
-	my $query_string = shift;
-	my $ref
-	
-    my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
-    my $query = $dbh->prepare($query_string);
-    $query->execute();
+    
+    my $query_string = shift;
+    my $ref_response = shift;
+    my $error;
+    
+    wlog (V, "DB: query_db -> $query_string"); 
+    my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass}) 
+       or return "DB ERROR: Cannot connect to database. " . DBI->errstr;
+    my $query = $dbh->prepare($query_string) 
+       or return "DB ERROR: Cannot prepare query to database. " . DBI->errstr;
+    $query->execute()
+       or return "DB ERROR: Cannot execute query to database. " . DBI->errstr;
 
-    if 
-    my $contenido = $query->fetchrow_array();
+    if (defined($ref_response)) {
+        while (my @row = $query->fetchrow_array()) {
+            push (@$ref_response, \@row)
+        }
+    }
     $query->finish();
-
-
-    my $query_string = "SELECT `simulation` FROM hosts WHERE status = 'running' AND simulation = '$scenName'";
-    my $query = $dbh->prepare($query_string);
-    $query->execute();
-
     $dbh->disconnect;
+
+    return '';
 
 }
