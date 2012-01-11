@@ -98,8 +98,7 @@ my $dom_tree;							# Dom Tree with scenario specification
 my $globalNode;							# Global node from dom tree
 my $restriction_file;					# Static assigment file
 
-	# Assignation
-my %allocation;							# Asignation of virtual machine - host
+my %allocation;							# Asignation of virtual machine - host_id
 
 my @vms_to_split;						# VMs that haven't been assigned by static
 my %static_assignment;					# VMs that have assigned by estatic
@@ -124,14 +123,21 @@ my $dynamips_ext_path;
 my $version = "2.0";
 my $release = "DD/MM/YYYY";
 my $branch = "";
+my $hline = "----------------------------------------------------------------------------------";
+
 
 ###########################################################
 # Main	
 ###########################################################
 
+print "\n" . $hline . "\n";
+print "Distributed Virtual Networks over LinuX (DVNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es\n";
+print "Version: $version" . "$branch (built on $release)\n";
+print $hline . "\n";
+
 
 # Argument handling
-&parseArguments;	
+parseArguments();	
 
 my $vnxConfigFile = "/etc/vnx.conf";
 # Set VNX and TMP directories
@@ -155,7 +161,7 @@ if (my $res = read_cluster_config) {
 }
 
 # init global objects and check VNX scenario correctness 
-&initAndCheckVNXScenario ($vnx_scenario); 
+initAndCheckVNXScenario ($vnx_scenario); 
 	
 # Check which running mode is selected
 if ( $mode eq '-t' | $mode eq '--create' ) {
@@ -380,7 +386,7 @@ exit();
 ###########################################################
 # Subroutine to parse command line arguments
 ###########################################################
-sub parseArguments{
+sub parseArguments {
 
 # TODO: use module Getopt like as in VNX	
 	my $arg_lenght = $#ARGV +1;
@@ -458,11 +464,11 @@ sub parseArguments{
         }		        
         		
 	}
-	print "********************* mode = $mode\n";
+	#print "  mode = $mode\n";
 	unless (defined($mode)) {
 		die ("You didn't specify a valid execution mode (-t, -x, -P, -d)... Aborting");
 	}
-	print "********************* vnx_scenario = $vnx_scenario\n";
+	print "  vnx_scenario = $vnx_scenario\n";
 	unless (defined($vnx_scenario)) {
 		die ("You didn't specify a valid scenario xml file (missing -f option)... Aborting");
 	}
@@ -476,7 +482,7 @@ sub parseArguments{
 		open(FILEHANDLE, $cluster_conf_file) or die "The cluster configuration file doesn't exist in /etc/ediv or in /usr/local/etc/ediv... Aborting";
 		close(FILEHANDLE);
 	}
-	print "\n****** Using cluster configuration file: $cluster_conf_file ******\n";
+	print "  Cluster configuration file: $cluster_conf_file\n";
 }
 
 	
@@ -814,7 +820,7 @@ sub splitIntoFiles {
 		my $vm_name = $vm->getAttribute("name");
 		my $host_id = $allocation{$vm_name};
 		
-		print "**** $vm_name\n";
+		print "**** $vm_name allocated to host $host_id\n";
 		#añadimos type para base de datos
 		my $vm_type = $vm->getAttribute("type");
 
@@ -989,8 +995,9 @@ sub netTreatment {
 			my $external;
 			my $command_list;
 			foreach my $host (@cluster_hosts) {
-				if ($cluster->{hosts}{$host}->host_name eq $host_id) {
+				if ($host eq $host_id) {
 					$external = $cluster->{hosts}{$host}->if_name;
+					#wlog (VVV, "****** external=$external");
 				}				
 			}
 			my $currentScenario = $scenarioHash{$host_id};
@@ -1033,7 +1040,7 @@ sub netTreatment {
 	foreach my $host_id (keys(%commands)){
 		my $host_ip;
 		foreach my $host (@cluster_hosts) {
-			if ($cluster->{hosts}{$host}->host_name eq $host_id) {
+			if ($host eq $host_id) {
 				$host_ip = $cluster->{hosts}{$host}->ip_address;
 			}				
 		}
@@ -1165,7 +1172,7 @@ sub sendScenarios {
 		#my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
 		my $currentScenario = $scenarioHash{$host_id};
 		foreach my $host (@cluster_hosts) {
-			if ($cluster->{hosts}{$host}->host_name eq $host_id) {
+			if ($host eq $host_id) {
 				$host_ip = $cluster->{hosts}{$host}->ip_address;
 			}				
 		}

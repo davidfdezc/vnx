@@ -66,12 +66,13 @@ our $vlan = {
 };
 
 # Cluster hosts configuration
-our @cluster_hosts;	
+our @cluster_hosts;	    # Array with all the host_id's of the hosts in the cluster
+
 our $cluster = {
     hosts         => { my %hosts }, # Hash that associates host_id with host records
-    def_seg_alg   => undef,
-    mgmt_net      => undef,
-    mgmt_net_mask => undef,
+    def_seg_alg   => undef,         # Default segmentation algorithm configured for the cluster 
+    mgmt_net      => undef,         # Prefix for the management interfaces
+    mgmt_net_mask => undef,         # Prefix mask for the management interfaces
     
 };
 
@@ -192,13 +193,14 @@ sub read_cluster_config {
 		my $cluster_host = eval { new_host VNX::ClusterConfig(); } or die ($@);
 			
 		# Fill cluster host object with parsed data
+        $cluster_host->host_id("$current_host_id");
 		$cluster_host->host_name("$host_name");
 		$cluster_host->ip_address("$ip");
 		$cluster_host->mem("$mem");
 		$cluster_host->cpu("$cpu");
 		$cluster_host->max_vms("$max_vms");
 		$cluster_host->if_name("$ifname");
-		$cluster_host->cpuDynamic("$cpu_dynamic");
+		$cluster_host->cpu_dynamic("$cpu_dynamic");
 		$cluster_host->vnx_dir("$vnx_dir");
 		
 		# Store the host object inside cluster arrays
@@ -221,7 +223,8 @@ sub new_host {
     my ($class) = @_;
     
     my $self = {
-        _hostname => undef,		# IP Name of host
+        _hostid => undef,       # host identifier 
+        _hostname => undef,     # IP Name of host
         _ipaddress => undef,	# IP Address of host        _mem => undef, 			# RAM MegaBytes
         _cpu => undef,			# Percentage of CPU speed
         _maxvm => undef,		# Maximum virtualized host (0 = unlimited)
@@ -236,10 +239,11 @@ sub new_host {
 #
 # Accessor methods for the host record fields
 #
-sub cpuDynamic {
-    my ( $self, $cpudynamic ) = @_;
-    $self->{_cpudynamic} = $cpudynamic if defined($cpudynamic);
-    return $self->{_cpudynamic};
+
+sub host_id {
+    my ( $self, $host_id ) = @_;
+    $self->{_hostid} = $host_id if defined($host_id);
+    return $self->{_hostid};
 }
 
 sub host_name {
@@ -278,6 +282,11 @@ sub if_name {
     return $self->{_ifname};
 }
 
+sub cpu_dynamic {
+    my ( $self, $cpudynamic ) = @_;
+    $self->{_cpudynamic} = $cpudynamic if defined($cpudynamic);
+    return $self->{_cpudynamic};
+}
 sub vnx_dir {
     my ( $self, $vnx_dir ) = @_;
     $self->{_vnxdir} = $vnx_dir if defined($vnx_dir);

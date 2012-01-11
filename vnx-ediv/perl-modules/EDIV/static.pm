@@ -42,9 +42,9 @@ my @vms_to_split;
 # Subroutines
 ###########################################################
 	
-	###########################################################
-	# Constructor
-	###########################################################
+#
+# Constructor
+#
 sub new {
 	my ( $class, $restriction_file, $dom_tree, @cluster_info ) = @_;
 	
@@ -60,9 +60,9 @@ sub new {
 	return $self;
 }
 
-	###########################################################
-	# Subroutine to check basic rules
-	###########################################################
+#
+# Subroutine to check basic rules
+#
 sub initial_check {
 	
 	my $errorCode = 0;
@@ -190,7 +190,8 @@ sub initial_check {
 	my $cluster_size = $self->{cluster_size};
 	my @clusterHostList;
 	for (my $i=0; $i<$cluster_size; $i++) {
-		my $hostname = $self->{cluster_info}[$i]->{_hostname};
+        #my $hostname = $self->{cluster_info}[$i]->{_hostname};
+        my $hostname = $self->{cluster_info}[$i];
 		@clusterHostList = (@clusterHostList, $hostname);
 	}
 		# Get host names from restriction file
@@ -243,9 +244,11 @@ sub initial_check {
 	}
 	return $errorCode;
 }
-	###########################################################
-	# Subroutine to assign virtual machines
-	###########################################################
+
+
+#
+# Subroutine to assign virtual machines
+#
 sub assign {
 	my $self = shift;
 		
@@ -348,7 +351,8 @@ sub assign {
 				if ($hostName eq undef){
 					my $cluster_size = $self->{cluster_size};
 					my $index = $j % $cluster_size;
-					$hostName = $self->{cluster_info}[$index]->{_hostname};
+                    #$hostName = $self->{cluster_info}[$index]->{_hostname};
+                    $hostName = $self->{cluster_info}[$index];
 				}
 				my $vmName = $vmAffinityList->item($i)->getFirstChild->getData;
 				$static_assignment{$vmName} = $hostName;
@@ -407,7 +411,8 @@ sub assign {
 				}
 				$hostName = $static_assignment{$vmName};
 			}else {
-				$hostName = $self->{cluster_info}[$0]->{_hostname};
+                #$hostName = $self->{cluster_info}[$0]->{_hostname};
+                $hostName = $self->{cluster_info}[$0];
 			}
 			$j++;
 		}
@@ -476,7 +481,8 @@ sub assign {
 			my $cluster_size = $self->{cluster_size};
 			my @availableHostList;
 			for (my $i=0; $i<$cluster_size; $i++) {
-				my $hostname = $self->{cluster_info}[$i]->{_hostname};
+                #my $hostname = $self->{cluster_info}[$i]->{_hostname};
+                my $hostname = $self->{cluster_info}[$i];
 				my $j = 0;
 				my $available = 1;
 				while (defined(my $unavailableHost = $unavailableHostList[$j])) {
