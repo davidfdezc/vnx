@@ -73,4 +73,10 @@ foreach $host (@host_list) {
 	}
 }
 
+for (my $i = 0; $i < @cluster_hosts; $i++) {
+	print "\nhost_name="  . $cluster->{hosts}{$cluster_hosts[$i]}->host_name . "\n";
+}
+
 print "--------------------------------------------------------------------\n";
+
+

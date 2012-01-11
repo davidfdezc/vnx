@@ -29,6 +29,8 @@ package round_robin;
 use strict;
 use XML::DOM;
 use Math::Round;
+use VNX::Globals;
+use VNX::Execution;
 
 ###########################################################
 # Global variables 
@@ -55,14 +57,14 @@ sub split {
 	my ( $class, $ref_dom_tree, $ref_cluster_hosts, $ref_cluster, $rvms_to_split, $ref_static_assignment ) = @_;
 	
 	my $scenario = $$ref_dom_tree;
-	my @cluster_info = @$ref_cluster_hosts;
-	my $cluster_size = @cluster_info;
+	my @cluster_hosts = @$ref_cluster_hosts;
+	my $cluster_size = @cluster_hosts;
 	my $cluster = $$ref_cluster;
 	my @vms_to_split = @$rvms_to_split;
 	my %static_assignment = %$ref_static_assignment;
 	
 
-	print("Segmentator: Cluster physical machines -> $cluster_size\n");
+	wlog (N, "Segmentator: Cluster physical machines -> $cluster_size\n");
 
 	my %allocation;
 	
@@ -82,7 +84,8 @@ sub split {
 			my $virtualm = $VMList->item($i);
 			my $virtualm_name = $virtualm->getAttribute("name");
 			my $assigned_host_index = $i % $cluster_size;
-			my $assigned_host = $cluster_info[$assigned_host_index]->{_hostname};
+            #my $assigned_host = $cluster_hosts[$assigned_host_index]->{_hostname};
+            my $assigned_host = $cluster->{hosts}{$cluster_hosts[$assigned_host_index]}->host_name;
 			$allocation{$virtualm_name} = $assigned_host;
 			print("Segmentator: Virtual machine $virtualm_name to physical host $assigned_host\n"); 	
 		}
@@ -100,11 +103,11 @@ sub split {
 		my $vms_to_split_size = @vms_to_split;
 		for (my $i=0; $i<$vms_to_split_size; $i++){
 			my $vm = $vms_to_split[$i];
-			my $selected_hostname = $cluster_info[$0]->{_hostname};
+			my $selected_hostname = $cluster_hosts[$0]->{_hostname};
 			
 #			for (my $j=1; $j<$cluster_size; $j++) {
-            foreach my $host_id (@cluster_info) {
-                #my $hostName = $cluster_info[$j]->{_hostname};
+            foreach my $host_id (@cluster_hosts) {
+                #my $hostName = $cluster_hosts[$j]->{_hostname};
                 my $hostName = $cluster->{hosts}{$host_id}->host_name;
 				if ($offset{$hostName} < $offset{$selected_hostname}){
 					$selected_hostname = $hostName;
