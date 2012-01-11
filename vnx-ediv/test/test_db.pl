@@ -100,6 +100,8 @@ sub query_db {
        or return "DB ERROR: Cannot execute query to database. " . DBI->errstr;
 
     if (defined($ref_response)) {
+    	# Reset array
+        @$ref_response = ();
         while (my @row = $query->fetchrow_array()) {
             push (@$ref_response, \@row)
         }
