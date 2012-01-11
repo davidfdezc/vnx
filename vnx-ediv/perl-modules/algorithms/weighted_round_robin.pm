@@ -70,7 +70,7 @@ sub split {
 		$j++;
 	}
 		
-	if ($static_assignment_undef){
+	if ($static_assignment_undef){ # No static assignements
 		my $VMList = $scenario->getElementsByTagName("vm");		# Scenario virtual machines node list
 		my $vm_number = $VMList->getLength;						# Number of virtual machines of scenario
 		
@@ -82,7 +82,7 @@ sub split {
 			$allocation{$virtualm_name} = $assigned_host;
 			print("Segmentator: Virtual machine $virtualm_name to physical host $assigned_host\n"); 	
 		}
-	} else {
+    } else { # Some vms are statically assigned
 		my %offset;
 		my @keys = keys (%static_assignment);
 		my $j = 0;
