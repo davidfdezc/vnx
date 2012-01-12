@@ -26,34 +26,24 @@
 # Modules import
 ###########################################################
 
+use strict;
+use warnings;
 use XML::DOM;          					# XML management library
 use File::Basename;    					# File management library
 use AppConfig;         					# Config files management library
 use AppConfig qw(:expand :argcount);    # AppConfig module constants import
 use EDIV::cluster_host;                 # Cluster Host class
 use Socket;								# To resolve hostnames to IPs
+use VNX::Globals;
+use VNX::ClusterMgmt;
+use VNX::Execution;
 
-	# Module to handle databases
+# Module to handle databases
 use DBI;
 
 ###########################################################
 # Global variables 
 ###########################################################
-
-	# DB
-my $db;
-my $db_type;
-my $db_host;
-my $db_port;
-my $db_user;
-my $db_pass;
-my $db_connection_info;
-
-	# Cluster
-my $cluster_file;						# Cluster configuration file
-my $cluster_config;    					# AppConfig object to read cluster config
-my $phy_hosts;        					# List of cluster members
-my @cluster_hosts;						# Cluster host object array to send to segmentator
 
 my $host = $ARGV[0];
 
@@ -61,74 +51,54 @@ my $host = $ARGV[0];
 # Main	
 ###########################################################
 
+my $cluster_conf_file = "/etc/ediv/cluster.conf";
 
+print "--------------------------------------------------------------------\n";
+print "ediv_cluster_cleanup\n\n";
+print "Config file = $cluster_conf_file\n";
 
-print("ediv_cluster_cleanup: You chose cleaning the whole cluster hosts, push ENTER to continue or CONTROL-C to abort\n");
-my $input = <STDIN>;	
+# Read and parse cluster config
+if (my $res = read_cluster_config($cluster_conf_file)) { 
+    print "ERROR: $res\n";  
+    exit 1; 
+}
 
-	# Fill the cluster hosts.
-&fillClusterHosts;
+# Build the VNX::Execution object. Needed to use wlog function
+my $execution = new VNX::Execution('',$EXE_NORMAL,"host> ",'',0);
 
-	# Get DB configuration
-&getDBConfiguration;
+print("You chose cleaning the whole cluster hosts, push ENTER to continue or CONTROL-C to abort\n");
+my $input = <STDIN>;    
 
 open STDERR, ">>/dev/null" or die ;
-	# Clean DB
+
+# Clean DB
 &cleanDB;
 
-	# Delete running simulations.
+# Delete running simulations.
 &deleteSimulations;
 
-	# Delete ssh.
+# Delete ssh.
 &deleteSSH;
 
-	# Delete vlans
+# Delete vlans
 &deleteVlans;
 
-# Main end
-###########################################################
 
-###########################################################
-# Subroutines
-###########################################################
-
-	###########################################################
-	# Subroutine to obtain DB configuration info
-	###########################################################
-sub getDBConfiguration {
-	
-	my $db_config = AppConfig->new(
-		{
-			CASE  => 0,                     # Case insensitive
-			ERROR => \&error_management,    # Error control function
-			CREATE => 1,    				# Variables that weren't previously defined, are created
-			GLOBAL => {
-				DEFAULT  => "<unset>",		# Default value for all variables
-				ARGCOUNT => ARGCOUNT_ONE,	# All variables contain a single value...
-			}
-		}
-	);
-	$db_config->file($cluster_file);		# read the default cluster config file
-	
-		# Create corresponding cluster host objects
-	
-	$db = $db_config->get("db_name");
-	$db_type = $db_config->get("db_type");
-	$db_host = $db_config->get("db_host");
-	$db_port = $db_config->get("db_port");
-	$db_user = $db_config->get("db_user");
-	$db_pass = $db_config->get("db_pass");
-	$db_connection_info = "DBI:$db_type:database=$db;$db_host:$db_port";	
-	
-}	
-
-	###########################################################
-	# Subroutine to clean DB
-	###########################################################
+#
+# Subroutine to clean DB
+#
 sub cleanDB{
 		
-		my $dbh = DBI->connect($db_connection_info,$db_user,$db_pass);
-		
+		my $error;
+		$error = query_db ("TRUNCATE TABLE  `hosts`");       #if ($error) { die "** $error" }
+        $error = query_db ("TRUNCATE TABLE  `simulations`"); if ($error) { die "** $error" }
+        $error = query_db ("TRUNCATE TABLE  `vms`");         if ($error) { die "** $error" }
+        $error = query_db ("TRUNCATE TABLE  `vlans`");       if ($error) { die "** $error" }
+        $error = query_db ("TRUNCATE TABLE  `nets`");        if ($error) { die "** $error" }
+
+=BEGIN
+        my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass}) or die "DB ERROR: Cannot connect to database. " . DBI->errstr;
+	
 		my $query_string = "TRUNCATE TABLE  `hosts`";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
@@ -155,73 +125,16 @@ sub cleanDB{
 		$query->finish();
 		
 		$dbh->disconnect;
-}
-	
-	###########################################################
-	# Fill the cluster hosts
-	###########################################################
-sub fillClusterHosts {
-	
-	$cluster_config = AppConfig->new(
-		{
-			CASE  => 0,                     # Case insensitive
-			ERROR => \&error_management,    # Error control function
-			CREATE => 1,    				# Variables that weren't previously defined, are created
-			GLOBAL => {
-				DEFAULT  => "<unset>",		# Default value for all variables
-				ARGCOUNT => ARGCOUNT_ONE,	# All variables contain a single value...
-			}
-		}
-	);
-	$cluster_config->define( "cluster_host", { ARGCOUNT => ARGCOUNT_LIST } );	# ...except [CLUSTER] => host
-	
-	$cluster_file = "/etc/ediv/cluster.conf";
-	open(FILEHANDLE, $cluster_file) or undef $cluster_file;
-	close(FILEHANDLE);
-	if ($cluster_file eq undef){
-		$cluster_file = "/usr/local/etc/ediv/cluster.conf";
-		open(FILEHANDLE, $cluster_file) or die "The cluster configuration file doesn't exist in /etc/ediv or in /usr/local/etc/ediv... Aborting";
-		close(FILEHANDLE);
-	}
-	$cluster_config->file($cluster_file);							# read the default cluster config file
-	
-		# Create corresponding cluster host objects
-	
-	$phy_hosts = ( $cluster_config->get("cluster_host") );
-	
-		# Per cluster existing host
-	my $i=0;
-	while (defined(my $current_name = $phy_hosts->[$i])) {
-	
-		# Read current cluster host settings
-		my $name = $current_name;
-		my $packed_ip = gethostbyname($current_name);
-		my $ip = inet_ntoa($packed_ip);
-		my $hostname = gethostbyaddr($packed_ip, AF_INET);;
-		my $ifname = $cluster_config->get("$current_name"."_ifname");
-			
-		# Create new cluster host object
-		my $cluster_host = eval { new cluster_host(); } or die ($@);
-			
-		# Fill cluster host object with parsed data
-		$cluster_host->hostName("$hostname");
-		$cluster_host->ipAddress("$ip");;
-		$cluster_host->ifName("$ifname");
-
-			
-		# Put the complete cluster host object inside @cluster_hosts array
-		push(@cluster_hosts, $cluster_host);
-		$i++;
-	}
-	undef $i;
+=END
+=cut
 }
 
-	###########################################################
-	# Subroutine to delete running simulations
-	###########################################################
+#
+# Subroutine to delete running simulations
+#
 sub deleteSimulations{
 	
-	foreach $physical_host (@cluster_hosts) {
+	foreach my $physical_host (@cluster_hosts) {
 		my $ip = $physical_host->ipAddress;
 		my $kill_command = 'killall linux vnuml';
 		my $kill = `ssh -2 -o 'StrictHostKeyChecking no' -X root\@$ip $kill_command`;
@@ -232,23 +145,23 @@ sub deleteSimulations{
 	}
 }
 
-	###########################################################
-	# Subroutine to delete ssh 
-	###########################################################
+#
+# Subroutine to delete ssh 
+#
 sub deleteSSH {
 
 	# VERY DANGEROUS!!!!
 	system (`killall ssh`);
 }
 
-	###########################################################
-	# Subroutine to delete vlans 
-	###########################################################
+#
+# Subroutine to delete vlans 
+#
 sub deleteVlans{
 	
-	my $firstVlan = $cluster_config->get("vlan_first");
-	my $lastVlan = $cluster_config->get("vlan_last");
-	foreach $physical_host (@cluster_hosts) {
+	my $firstVlan = $vlan->{first};
+	my $lastVlan  = $vlan->{last};
+	foreach my $physical_host (@cluster_hosts) {
 		my $hostname = $physical_host->hostName;
 		my $hostIP = $physical_host->ipAddress;
 		my $vlan = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$hostIP 'for ((i=$firstVlan;i<=$lastVlan;i++)); do vconfig rem eth1.\$i;  done'";
@@ -256,6 +169,3 @@ sub deleteVlans{
 	}
 	
 }
-
-# Subroutines end
-###########################################################

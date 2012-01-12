@@ -2,16 +2,16 @@
 
 # Test for the VNX::ClusterConfig module
 
-use VNX::ClusterConfig;
+use VNX::ClusterMgmt;
 
-$cluster_conf_file = "/etc/ediv/cluster.conf";
+my $cluster_conf_file = "/etc/ediv/cluster.conf";
 
 print "--------------------------------------------------------------------\n";
 print "Testing VNX::ClusterConfig module\n\n";
 print "Config file = $cluster_conf_file\n";
 
-
-if (my $res = read_cluster_config) { 
+# Read and parse cluster config
+if (my $res = read_cluster_config($cluster_conf_file)) { 
 	print "ERROR: $res\n";	
 	exit 1; 
 }

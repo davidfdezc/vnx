@@ -58,7 +58,7 @@ use VNX::FileChecks;
 use VNX::BinariesData;
 use VNX::DataHandler;
 use VNX::vmAPI_dynamips;
-use VNX::ClusterConfig;
+use VNX::ClusterMgmt;
 use VNX::Execution;
 
 
@@ -67,18 +67,11 @@ use VNX::Execution;
 ###########################################################
 	
 # Cluster
-#my $cluster_conf_file;					# Cluster conf file
-#my $cluster_config;    					# AppConfig object to read cluster config
-#my $phy_hosts;        					# List of cluster members
-#my @cluster_hosts;						# Cluster host object array to send to segmentator
+my $cluster_conf_file;					# Cluster conf file
 	
 	# VLAN Assignment
 my $firstVlan;         					# First VLAN number
 my $lastVlan;          					# Last VLAN number
-
-	# Management Network
-#my $management_network;					# Management network
-#my $management_network_mask;			# Mask of management network
 
 # Modes
 my $partition_mode;						# Default partition mode
@@ -108,14 +101,7 @@ my $segmentation_module;
 
 my $conf_plugin_file;					# Configuration plugin file
 
-# Database variables
-#my $db;
-#my $db_type;
-#my $db_host;
-#my $db_port;
-#my $db_user;
-#my $db_pass;
-#my $db_connection_info;	
+
 
 	# Path for dynamips config file
 my $dynamips_ext_path;
@@ -155,7 +141,7 @@ if (!defined $vnx_dir) {
 #print ("  VNX dir=$vnx_dir\n");
 
 # Read cluster configuration file
-if (my $res = read_cluster_config) { 
+if (my $res = read_cluster_config($cluster_conf_file)) { 
 	print "ERROR: $res\n";	
 	exit 1; 
 }
@@ -245,7 +231,7 @@ if ( $mode eq '-t' | $mode eq '--create' ) {
 		&assignVLAN;
 	}	
 	# Split into files
-	wlog (VVV, "****************************** Calling splitIntoFiles...");
+    wlog (VVV, "****************************** Calling splitIntoFiles...");
 	&splitIntoFiles;
 	# Make a tgz compressed file containing VM execution config 
 	&getConfiguration;
@@ -804,7 +790,6 @@ sub fillScenarioArray {
 #
 sub splitIntoFiles {
 
-
     wlog (VVV, "** splitIntoFiles called");
 	my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
 	# We explore the vms on the node and call vmPlacer to place them on the scenarios	
@@ -823,6 +808,7 @@ sub splitIntoFiles {
 		print "**** $vm_name allocated to host $host_id\n";
 		#añadimos type para base de datos
 		my $vm_type = $vm->getAttribute("type");
+        wlog (V, "**** $vm_name of type $vm_type allocated to host $host_id");
 
 		#print "*** OLD: \n";
 		#print $vm->toString;
@@ -843,7 +829,7 @@ sub splitIntoFiles {
 		#print $vnxNode->toString;
 		#print "***\n";
 
-		unless ($vm_name){
+		#unless ($vm_name){
 			# Creating virtual machines in the database
             wlog (VVV, "** splitIntoFiles: Creating virtual machine $vm_name in db");
 
@@ -863,7 +849,7 @@ sub splitIntoFiles {
 			$query->execute();
 			$query->finish();
 
-		}		
+		#}		
 	}
 
 	# We add the corresponding nets to subscenario specification file
@@ -1368,27 +1354,38 @@ sub checkFinish {
 # Subroutine to execute purge mode in cluster
 #
 sub purgeScenario {
-	my $dbh;
+
+	#my $dbh;
 #	my $scenName=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 	my $host_ip;
 	my $host_name;
 	
 	my @db_resp;
-	my $scenario_name;
+    my $scenario_name;  
+    my $scenario_bin;
+    my $error;
 
 	my $scenario;
 	foreach my $host (@cluster_hosts) {
-		my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
+
+		#my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
 		my $vlan_command;
 		$host_ip   = $cluster->{hosts}{$host}->ip_address;			
 		$host_name = $cluster->{hosts}{$host}->host_name;
 
 		# If vm specified with -M is not running in current host, check the next one.
 		if ($vm_name){
-			my $query_string = "SELECT `host` FROM vms WHERE name='$vm_name'";
-			my $query = $dbh->prepare($query_string);
-			$query->execute();
-			my $host_of_vm = $query->fetchrow_array();
+
+            $error = query_db ("SELECT `host` FROM vms WHERE name='$vm_name'", \@db_resp);
+            if ($error) { ediv_die ("$error") };
+            my $host_of_vm;
+            if (defined($db_resp[0]->[0])) {
+                my $host_of_vm = $db_resp[0]->[0];  
+            }
+			#my $query_string = "SELECT `host` FROM vms WHERE name='$vm_name'";
+			#my $query = $dbh->prepare($query_string);
+			#$query->execute();
+			#my $host_of_vm = $query->fetchrow_array();
 
 			unless ($host_name eq $host_of_vm){
 				next;
@@ -1404,7 +1401,7 @@ sub purgeScenario {
 		}
 		
 		
-	    my $error = query_db ("SELECT `local_simulation` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$scenName'", \@db_resp);
+	    $error = query_db ("SELECT `local_simulation` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$scenName'", \@db_resp);
 	    if ($error) { ediv_die ("$error") };
 	    if (defined($db_resp[0]->[0])) {
 	    	$scenario_name = $db_resp[0]->[0]; 	
@@ -1415,12 +1412,16 @@ sub purgeScenario {
 		#$query->execute();
 		#my $scenario_name = $query->fetchrow_array();
 		#$query->finish();
-
-		my $query_string = "SELECT `local_specification` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$scenName'";
-		my $query = $dbh->prepare($query_string);
-		$query->execute();
-		my $scenario_bin = $query->fetchrow_array();
-		$query->finish();
+        $error = query_db ("SELECT `local_specification` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$scenName'", \@db_resp);
+        if ($error) { ediv_die ("$error") };
+        if (defined($db_resp[0]->[0])) {
+            $scenario_bin = $db_resp[0]->[0];  
+        }
+		#my $query_string = "SELECT `local_specification` FROM hosts WHERE status = '$simulation_status' AND host = '$host_name' AND simulation = '$scenName'";
+		#my $query = $dbh->prepare($query_string);
+		#$query->execute();
+		#my $scenario_bin = $query->fetchrow_array();
+		#$query->finish();
 		
 		$scenario_name = "/tmp/$scenario_name".".xml";
 		wlog (VVV, "** scenario_name = $scenario_name");
@@ -1444,19 +1445,25 @@ sub purgeScenario {
 
 		unless ($vm_name){
 			#Clean vlans
-			$query_string = "SELECT `number`, `external_if` FROM vlans WHERE host = '$host_name' AND simulation = '$scenName'";
-			$query = $dbh->prepare($query_string);
-			$query->execute();
-			
-			while (my @vlans = $query->fetchrow_array()) {
-				$vlan_command = $vlan_command . "vconfig rem $vlans[1].$vlans[0]\n";
-			}
-			$query->finish();
+	        $error = query_db ("SELECT `number`, `external_if` FROM vlans WHERE host = '$host_name' AND simulation = '$scenName'", \@db_resp);
+	        if ($error) { ediv_die ("$error") };
+
+            #$query_string = "SELECT `number`, `external_if` FROM vlans WHERE host = '$host_name' AND simulation = '$scenName'";
+            #$query = $dbh->prepare($query_string);
+            #$query->execute();
+
+            foreach my $vlans (@db_resp) {
+                $vlan_command = $vlan_command . "vconfig rem $$vlans[1].$$vlans[0]\n";
+            }
+			#while (my @vlans = $query->fetchrow_array()) {
+			#	$vlan_command = $vlan_command . "vconfig rem $vlans[1].$vlans[0]\n";
+			#}
+			#$query->finish();
 			$vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
 			&daemonize($vlan_command, "/tmp/$host_name"."_log");
 		}	
 	}
-	$dbh->disconnect;	
+	#$dbh->disconnect;	
 }
 
 	###########################################################
@@ -1840,19 +1847,24 @@ print "scenario name:'$scenario_name'\n";
 	# Subroutine to create tunnels to operate remote VMs from a local port
 	###########################################################
 sub tunnelize {	
+
 	my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
 #	my $scenName=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 	my $localport = 64000;
 
+    print "** %allocation:\n" . Dumper (%allocation) . "\n";
+
 	foreach $vm_name (keys (%allocation)) {
-		my $host_name = $allocation{$vm_name};
 		
+		my $host_name = $allocation{$vm_name};
+
 		# continue only if type of vm is "uml"
 		my $query_string = "SELECT `type` FROM vms WHERE name='$vm_name'";
-			my $query = $dbh->prepare($query_string);
-			$query->execute();
-			my $type_of_vm = $query->fetchrow_array();
-		unless($type_of_vm eq "uml"){
+		my $query = $dbh->prepare($query_string);
+		$query->execute();
+		my $vm_type = $query->fetchrow_array();
+        wlog (VVV, "** $host_name, $vm_name, $vm_type");
+		unless($vm_type eq "uml"){
 			next;
 		}	
 		
@@ -1870,7 +1882,6 @@ sub tunnelize {
 		}
 		system("ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:$vm_name:22 $host_name");
 
-	
 		$query_string = "UPDATE vms SET ssh_port = '$localport' WHERE name='$vm_name'";
 		$query = $dbh->prepare($query_string);
 		$query->execute();
@@ -1886,8 +1897,9 @@ sub tunnelize {
 	$query->execute();
 			
 	while (my @ports = $query->fetchrow_array()) {
-		print ("\tTo access VM $ports[0] at $ports[1] use local port $ports[2]\n");
-	
+        if (defined($ports[2])) {
+            print ("\tTo access VM $ports[0] at $ports[1] use local port $ports[2]\n");
+        }
 	}
 	$query->finish();
 	print "\n\tUse command ssh -2 root\@localhost -p <port> to access VMs\n";
@@ -1895,6 +1907,7 @@ sub tunnelize {
 	print "\tWhere <port> is a port number of the previous list\n";
 	print "\tThe port list can be found running ediv_console.pl info\n";
 	$dbh->disconnect;
+	
 }
 
 	###########################################################
@@ -2109,66 +2122,3 @@ sub ediv_die {
    exit 1;
 }
 
-#
-# query_db
-#
-# Make a query to EDIV database 
-#
-# Arguments:
-# - query_string, a string with an SQL query
-# - ref_response (optional), a reference to an array were the result of the query will be stored  
-#
-# Returns:
-# - '' if no error; or a string describing the error in other cases 
-#
-# Example 1:
-# 
-#   $query = "INSERT INTO simulations VALUES ('example','7','22')";
-#   $error = query_db ($query);
-#   if ($error) { die "** $error" }
-# 
-# Example 2:
-#
-#   my @response;
-#   $query = "SELECT * FROM simulations";
-#   $error = query_db ($query, \@response);
-#   if ($error) { die "** $error" }
-#
-#   print it with Dumper
-#   print "Response:\n"; 
-#   print "Number of rows=" . @response . "\n";
-#   foreach my $row (@response) {
-#       print "Row:  ";
-#       foreach my $field (@$row) {
-#           if (defined($field)) { print $field . " "} else {print "undefined "; }
-#       }
-#       print "\n";
-#   }
-
-sub query_db {
-    
-    my $query_string = shift;
-    my $ref_response = shift;
-    my $error;
-    
-    wlog (V, "DB: query_db -> $query_string"); 
-    my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass}) 
-       or return "DB ERROR: Cannot connect to database. " . DBI->errstr;
-    my $query = $dbh->prepare($query_string) 
-       or return "DB ERROR: Cannot prepare query to database. " . DBI->errstr;
-    $query->execute()
-       or return "DB ERROR: Cannot execute query to database. " . DBI->errstr;
-
-    if (defined($ref_response)) {
-    	# Reset array
-    	@$ref_response = ();
-        while (my @row = $query->fetchrow_array()) {
-            push (@$ref_response, \@row)
-        }
-    }
-    $query->finish();
-    $dbh->disconnect;
-
-    return '';
-
-}
