@@ -27,6 +27,7 @@
 ###########################################################
 
 use strict;
+use warnings;
 use XML::DOM;          					# XML management library
 use File::Basename;    					# File management library
 use AppConfig;         					# Config files management library
@@ -45,12 +46,14 @@ use VNX::ClusterConfig;
 #my $phy_hosts;        					# List of cluster members
 #my @cluster_hosts;						# Cluster host object array to send to segmentator
 
+$cluster_conf_file = "/etc/ediv/cluster.conf";
+
 # Arguments
 my $mode = $ARGV[0];
-my @hosts = ();
+my @host_list = ();
 my $i=1;
-while ($ARGV[$i] ne '') {
-	push (@hosts, $ARGV[$i]);
+while (defined($ARGV[$i])) {
+	push (@host_list, $ARGV[$i]);
 	$i++;
 }
 
@@ -70,8 +73,11 @@ if (!($mode =~ /[0-9]+/)) {
 	exit(1);
 }
 
-# Fill the cluster hosts.
-&fillClusterHosts;
+# Read and parse cluster config
+if (my $res = read_cluster_config) { 
+    print "ERROR: $res\n";  
+    exit 1; 
+}
 
 # Send vn
 &sendVn;
@@ -171,11 +177,11 @@ sub fillClusterHosts {
 #
 sub sendVn{
 	
-	foreach my $physical_host (@cluster_hosts) {
-		if ( ($#hosts ge 0) &&  # hosts array is empty. No hosts specified in command line
+	foreach my $host (@cluster_hosts) {
+		if ( ($#host_list ge 0) &&  # host_list array is empty. No hosts specified in command line
 		     ( ) ) {
 		}	
-		my $ip = $physical_host->ipAddress;
+		my $ip = $cluster->{hosts}{$host}->ip_address;
 		print "Copying vn command to $ip...";
 		my $scp_command = `scp -2 -o 'StrictHostKeyChecking no' /usr/bin/vn root\@$ip:/tmp/`;
 		system ($scp_command);
@@ -199,11 +205,11 @@ sub monitor{
 		my $date=`date`;
 		push (@output, "Date: " . color ('bold') . "$date" . color('reset') . "\n");
 
-		foreach my $physical_host (@cluster_hosts) {
-			my $ip = $physical_host->ipAddress;
+		foreach my $host (@cluster_hosts) {
+			my $ip = $cluster->{hosts}{$host}->ip_address;
 			
-			my $hostname = $physical_host->hostName;
-			if ($hostname eq "") { $hostname=$physical_host->ipAddress };
+			my $hostname = $cluster->{hosts}{$host}->host_name;
+			if ($hostname eq "") { $hostname = $cluster->{hosts}{$host}->ip_address };
 			
    			push (@output, "Host: " . color ('bold') . "$hostname" . color('reset') . "\n\n");
 
@@ -218,8 +224,10 @@ sub monitor{
 			my $numScenariosCmd = "/tmp/vn console 2>&1 | grep available | awk '{print NF}'";
 			my $numScenarios = `ssh -2 -o 'StrictHostKeyChecking no' root\@$ip $numScenariosCmd`;
 			chomp $numScenarios;
-							
-			if ($numScenarios < 3) {
+            if ($numScenarios eq '') {
+            	$numScenarios = 0;
+            }							
+			if ( $numScenarios < 3) {
 				push (@output, "  No active scenarios on this host\n\n");
 			} else {
 				my $scenarios = `ssh -2 -o 'StrictHostKeyChecking no' root\@$ip /tmp/vn console | grep available`;
