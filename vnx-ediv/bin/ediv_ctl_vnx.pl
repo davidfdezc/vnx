@@ -683,7 +683,7 @@ sub is_scenario_running {
 # Subroutine to read VLAN configuration from cluster config or database
 #
 sub assignVLAN {
-	my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
+	#my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
 	$firstVlan = $vlan->{first};
 	$lastVlan  = $vlan->{last};	
 
@@ -709,7 +709,7 @@ sub assignVLAN {
 			die ("There isn't more free vlans... Aborting");
 		}	
 	}	
-	$dbh->disconnect;
+	#$dbh->disconnect;
 }
 	
 	
@@ -1382,19 +1382,23 @@ sub checkFinish {
 		push (@output1, sprintf (" %-24s%-24s%-20s%-40s\n", "VM name", "Host", "Status", "Status file"));			
 		push (@output1, sprintf ("---------------------------------------------------------------------------------------------------------------\n"));			
 
-		foreach my $host(@cluster_hosts){
-			my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
-			$host_ip = $cluster->{hosts}{$host}->ip_address;
-			$host_name = $cluster->{hosts}{$host}->host_name;
+		foreach my $host_id (@cluster_hosts){
+			#my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
+			$host_ip = $cluster->{hosts}{$host_id}->ip_address;
+			#$host_name = $cluster->{hosts}{$host_id}->host_name;
 			
 			foreach my $vms (keys (%allocation)){
-				if ($allocation{$vms} eq $host_name){
-					my $statusFile = $cluster->{hosts}{$host}->vnx_dir . "/scenarios/" . $scenario_name . "_" . $host_name . "/vms/$vms/status";
+				wlog (VVV, "** vm=$vms, host_id=$host_id");
+				if ($allocation{$vms} eq $host_id){
+					my $statusFile = $cluster->{hosts}{$host_id}->vnx_dir . "/scenarios/" 
+					                 . $scenario_name . "_" . $host_id . "/vms/$vms/status";
 					my $status_command = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat $statusFile 2> /dev/null'";
+                    wlog (VVV, "** Executing: $status_command");
 					my $status = `$status_command`;
 					chomp ($status);
+                    wlog (VVV, "** Executing: status=$status");
 					if (!$status) { $status = "undefined" }
-					push (@output2, color ('bold'). sprintf (" %-24s%-24s%-20s%-40s\n", $vms, $host_name, $status, $statusFile) . color('reset'));
+					push (@output2, color ('bold'). sprintf (" %-24s%-24s%-20s%-40s\n", $vms, $host_id, $status, $statusFile) . color('reset'));
 					if (!($status eq "running")) {
 						$notAllRunning = "yes";
 					}
@@ -1411,17 +1415,17 @@ sub checkFinish {
     my $error;
     my @db_resp;
     
-	foreach my $host (@cluster_hosts){
+	foreach my $host_id (@cluster_hosts){
 		#my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
-		$host_ip   = $cluster->{hosts}{$host}->ip_address;
-		$host_name = $cluster->{hosts}{$host}->host_name;
+		#$host_ip   = $cluster->{hosts}{$host_id}->ip_address;
+		#$host_name = $cluster->{hosts}{$host_id}->host_name;
 
-	    $error = query_db ("SELECT `local_simulation` FROM hosts WHERE status = 'creating' AND host = '$host_name'", \@db_resp);
-	    if ($error) { ediv_die ("$error") };
-	    if ( defined($db_resp[0]->[0]) ) {
-	    	 $scenario = $db_resp[0]->[0];
-	    	 chomp($scenario);
-        }
+	    #$error = query_db ("SELECT `local_simulation` FROM hosts WHERE status = 'creating' AND host = '$host_name'", \@db_resp);
+	    #if ($error) { ediv_die ("$error") };
+	    #if ( defined($db_resp[0]->[0]) ) {
+	    #	 $scenario = $db_resp[0]->[0];
+	    #	 chomp($scenario);
+        #}
 		#my $query_string = "SELECT `local_simulation` FROM hosts WHERE status = 'creating' AND host = '$host_name'";
 		#my $query = $dbh->prepare($query_string);
 		#$query->execute();
@@ -1430,7 +1434,7 @@ sub checkFinish {
 		#chomp($scenario);
 		#$dbh->disconnect;
 		
-        $error = query_db ("UPDATE hosts SET status = 'running' WHERE status = 'creating' AND host = '$host_name'");
+        $error = query_db ("UPDATE hosts SET status = 'running' WHERE status = 'creating' AND host = '$host_id'");
         if ($error) { ediv_die ("$error") };
 		#$dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
 		#$query_string = "UPDATE hosts SET status = 'running' WHERE status = 'creating' AND host = '$host_name'";
@@ -2139,7 +2143,7 @@ sub tunnelize {
 	my $error;
 	my @db_resp;
 
-    print "** %allocation:\n" . Dumper (%allocation) . "\n";
+    #print "** %allocation:\n" . Dumper (%allocation) . "\n";
 
 	foreach $vm_name (keys (%allocation)) {
 		

@@ -1952,11 +1952,11 @@ sub host_config {
    for ( my $i = 0; $i < $if_list->getLength; $i++) {
       	my $if = $if_list->item($i);
 
-      	# To get name attribute
+      	# To get net name attribute
       	my $net = $if->getAttribute("net");
       
 	  	my $net_mode;
-	  	# To get list of defined <net>
+	  	# Look for the net_mode (virtual_bridge or uml_switch) of this net
    	  	my $net_list = $doc->getElementsByTagName("net");
    	  	for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
       		my $neti = $net_list->item($i);
@@ -3972,10 +3972,12 @@ sub vnet_ifs {
    }
    close BRCTLSHOW;
 
+    wlog (VVV, "------");
    # To look for virtual network processing the list
    # Note that we skip the first line (due to this line is the header of
    # brctl show: bridge name, brige id, etc.)
    for ( my $i = 1; $i < $line; $i++) {
+      wlog (VVV, "$brctlshow[$i]");
       $_ = $brctlshow[$i];
       # Some brctl versions seems to show a different message when no
       # interface is used in a virtual bridge. Skip those

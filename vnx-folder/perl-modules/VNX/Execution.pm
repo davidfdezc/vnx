@@ -378,13 +378,18 @@ sub wlog {
 	
 	my $msg_level = shift;   # Posible values: V, VV, VVV
 	my $msg       = shift;
+	my $prompt    = shift;
+
+    unless (defined($prompt)) {
+    	$prompt = "vnx-log-$EXE_VERBOSITY_LEVEL>";  
+    }
 	
 	my $exe_mode = $execution->get_exe_mode();
 	#print "~~ wlog: msg_level=$msg_level, exe_mode=$exe_mode, EXE_VERBOSITY_LEVEL=$EXE_VERBOSITY_LEVEL\n";		
     if ($msg_level == N) {
         printf "$msg\n";      
     } elsif ( ($exe_mode == $EXE_DEBUG) || ( ($exe_mode == $EXE_VERBOSE) && ( $msg_level <= $EXE_VERBOSITY_LEVEL ) ) ) { 
-		printf "vnx-log-$EXE_VERBOSITY_LEVEL>  $msg\n";		
+		printf "$prompt$msg\n";		
 	}  
 }
 
