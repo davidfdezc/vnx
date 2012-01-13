@@ -31,6 +31,8 @@ use AppConfig;                          # Config files management library
 use AppConfig qw(:expand :argcount);    # AppConfig module constants import
 use Socket;                             # To resolve hostnames to IPs
 use VNX::Globals;
+use VNX::Execution;
+use Data::Dumper;
 
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(
@@ -341,8 +343,8 @@ sub query_db {
     my $ref_response = shift;
     my $error;
     
-    print ( "DB: query_db -> $query_string\n"); 
-    #wlog (V, "DB: query_db -> $query_string"); 
+    wlog (VVV, "----", "");
+    wlog (VVV, "$query_string", "DB Query: "); 
     my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass}) 
        or return "DB ERROR: Cannot connect to database. " . DBI->errstr;
     my $query = $dbh->prepare($query_string) 
@@ -353,10 +355,21 @@ sub query_db {
     if (defined($ref_response)) {
         # Reset array
         @$ref_response = ();
+        wlog (VVV, " ", "DB Response:");
+        my $i=0;
         while (my @row = $query->fetchrow_array()) {
-            push (@$ref_response, \@row)
+            push (@$ref_response, \@row);
+            my $line;
+            foreach my $field (@row) { 
+            	unless (defined($field)) { $field='undef' }
+            	if (defined($line)) {$line .= ", $field"} else {$line = $field} 
+            } 
+            wlog (VVV, "$line", "  Row$i: ");
+            $i++;
         }
+        #wlog (VVV, " " . Dumper (@$ref_response), "DB Response:");
     }
+    wlog (VVV, "----", "");
     $query->finish();
     $dbh->disconnect;
 
