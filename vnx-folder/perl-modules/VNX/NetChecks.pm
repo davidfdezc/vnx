@@ -33,7 +33,13 @@ use warnings;
 use Exporter;
 
 our @ISA = qw(Exporter);
-our @EXPORT = qw( tundevice_needed check_net_host_conn );
+our @EXPORT = qw( 
+    tundevice_needed 
+    check_net_host_conn 
+    vnet_exists_br
+    vnet_exists_sw
+    vnet_ifs    
+);
 
 use VNX::Globals;
 use VNX::DocumentChecks;
@@ -73,7 +79,6 @@ sub tundevice_needed {
    }
    
    # 2. Management interfaces
-   #return 1 if ($vmmgmt_type eq 'private' && &at_least_one_vm_with_mng_if($dh,@machines) ne "");
    return 1 if ($vmmgmt_type eq 'private' && &at_least_one_vm_with_mng_if(@machines) ne "");
    
    return 0;
@@ -98,6 +103,124 @@ sub check_net_host_conn {
       return 1 if ($net eq $net_name);
    }
    return 0;
+}
+
+# vnet_exists_br
+#
+# If the virtual network (implemented with a bridge) whose name is given
+# as first argument exists, returns 1. In other case, returns 0.
+#
+# It based in `brctl show` parsing.
+sub vnet_exists_br {
+
+   my $vnet_name = shift;
+
+   # To get `brctl show`
+   my @brctlshow;
+   my $line = 0;
+   my $pipe = $bd->get_binaries_path_ref->{"brctl"} . " show |";
+   open BRCTLSHOW, "$pipe";
+   while (<BRCTLSHOW>) {
+      chomp;
+      $brctlshow[$line++] = $_;
+   }
+   close BRCTLSHOW;
+
+   # To look for virtual network processing the list
+   # Note that we skip the first line (due to this line is the header of
+   # brctl show: bridge name, brige id, etc.)
+   for ( my $i = 1; $i < $line; $i++) {
+      $_ = $brctlshow[$i];
+      # We are interestend only in the first and last "word" of the line
+#      /^(\S+)\s.*\s(\S+)$/;   # DFC 14/1/2012: changed; it didn't work because lines can be ended with some spaces
+                               #      Besides only the bridge name is needed ($1)    
+      /^(\S+)\s.*/;
+      if (defined($1) && ($1 eq $vnet_name) ) {
+        # If equal, the virtual network has been found
+        return 1;
+      }
+   }
+
+   # If virtual network is not found:
+   return 0;
+
+}
+
+# vnet_exists_sw
+#
+# If the virtual network (implemented with a uml_switch) whose name is given
+# as first argument exists, returns 1. In other case, returns 0.
+#
+sub vnet_exists_sw {
+
+   my $vnet_name = shift;
+
+   # To search for $dh->get_networks_dir()/$vnet_name.ctl socket file
+   if (-S $dh->get_networks_dir . "/$vnet_name.ctl") {
+      return 1;
+   }
+   else {
+      return 0;
+   }
+   
+}
+
+# vnet_ifs
+#
+# Returns a list in which each element is one of the interfaces (TUN/TAP devices
+# or host OS physical interfaces) of the virtual network given as argument.
+#
+# It based in `brctl show` parsing.
+sub vnet_ifs {
+
+   my $vnet_name = shift;
+   my @if_list;
+
+   # To get `brctl show`
+   my @brctlshow;
+   my $line = 0;
+   my $pipe = $bd->get_binaries_path_ref->{"brctl"} . " show |";
+   open BRCTLSHOW, "$pipe";
+   while (<BRCTLSHOW>) {
+      chomp;
+      $brctlshow[$line++] = $_;
+   }
+   close BRCTLSHOW;
+
+   # To look for virtual network processing the list
+   # Note that we skip the first line (due to this line is the header of
+   # brctl show: bridge name, brige id, etc.)
+   for ( my $i = 1; $i < $line; $i++) {
+      $_ = $brctlshow[$i];
+      # Some brctl versions seems to show a different message when no
+      # interface is used in a virtual bridge. Skip those
+      unless (/Function not implemented/) {
+         # We are interestend only in the first and last "word" of the line
+         /^(\S+)\s.*\s(\S+)$/;
+         if (defined($1) && ($1 eq $vnet_name) ) {
+            # To push interface into the list
+            push (@if_list,$2);
+
+            # Internal loop (it breaks when a line not only with the interface name is found)
+            for ( my $j = $i+1; $j < $line; $j++) {
+               $_ = $brctlshow[$j];
+               if (/^(\S+)\s.*\s(\S+)$/) {
+                  last;
+               }
+               # To push interface into the list
+               /.*\s(\S+)$/;
+               push (@if_list,$1);
+            }
+            
+            # The end...
+            last;
+         }       
+      }
+   }
+
+   # To return list
+   return @if_list;
+
 }
 
 1;

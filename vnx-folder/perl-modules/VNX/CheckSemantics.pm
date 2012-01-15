@@ -394,7 +394,7 @@ sub check_doc {
 	    # (we eliminate the .XXX from the interface name) 
 		my $external_base_if = $external_if;
 		$external_base_if =~ s/\..*//;
-	    if (system($bp->{"ifconfig"} . " $external_base_if 2&> /dev/null")) {
+	    if (system($bp->{"ifconfig"} . " $external_base_if > /dev/null 2>&1")) {
 	      return "in network $name, $external_base_if does not exist";
 	    } 
 	    # Check the VLAN attribute (to compose the physical name, for 
@@ -755,7 +755,7 @@ sub check_doc {
          }
          
          # It exists?         
-         if (system($bp->{"ifconfig"} . " $name 2&> /dev/null")) {
+         if (system($bp->{"ifconfig"} . " $name > /dev/null 2>&1")) {
 	        return "physicalif $name does not exists";
          }         
          
@@ -792,7 +792,7 @@ sub check_doc {
          }
 
          # It exists?
-         if (system($bp->{"ifconfig"} . " $name 2&> /dev/null")) {
+         if (system($bp->{"ifconfig"} . " $name > /dev/null 2>&1")) {
 	        return "physicalif $name does not exists";
          }
 

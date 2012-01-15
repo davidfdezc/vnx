@@ -769,7 +769,6 @@ sub main {
 	        &vnx_die ("Olive XML configuration file ($oliveConfFile) validation failed:\n$error\n");
 		}
 	}
-
    	# 6b (delayed because it required the $dh object constructed)
    	# To check optional screen binaries
    	$bd->add_additional_screen_binaries();
@@ -1484,7 +1483,7 @@ sub mode_exeinfo {
     if (! $opt_M ) {
 
         # Get descriptions of user-defined commands
-        my %vm_seqs = get_seqs($dh->get_doc);      
+        my %vm_seqs = $dh->get_seqs();      
            
         if ( keys(%vm_seqs) > 0) {
             wlog (N, "\nUser-defined command sequences for scenario '" . $dh->get_scename . "'");
@@ -1529,7 +1528,7 @@ sub mode_exeinfo {
             unless ($vm_hash{$vm_name}){  next; }
             
             # Get descriptions of user-defines commands
-            my %vm_seqs = get_seqs($vm);      
+            my %vm_seqs = $dh->get_seqs($vm);      
              
             wlog (N, "User-defined command sequences for vm '$vm_name'");
             wlog (N, $hline);
@@ -1586,31 +1585,6 @@ sub get_seq_desc {
     }
 }
 
-#
-# get_seqs
-#
-# Returns an array with all the sequences defined for the node passed in $vm
-#  - If $vm is a virtual machine, returns the sequences for that vm
-#  - If $vm is the global node (dh->$doc), returns all the sequences for the scenario 
-#
-sub get_seqs {
-       
-    my $vm = shift;
-
-    my %vm_seqs;
-    
-    my $filetree_list = $vm->getElementsByTagName("filetree");
-    for ( my $j = 0 ; $j < $filetree_list->getLength ; $j++ ) {
-        $vm_seqs{$filetree_list->item($j)->getAttribute('seq')} = 'yes';
-    }
-    my $exec_list = $vm->getElementsByTagName("exec");
-    for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
-        $vm_seqs{$exec_list->item($j)->getAttribute('seq')} = 'yes';
-    }
-
-    return %vm_seqs;
-}
-
 
 
 ####################################################################################
@@ -1632,12 +1606,12 @@ sub configure_switched_networks {
 
        my $command;
        # We get attributes
-       my $net_name    = $net_list->item($i)->getAttribute("name");
-       my $mode    = $net_list->item($i)->getAttribute("mode");
-       my $sock    = &do_path_expansion($net_list->item($i)->getAttribute("sock"));
+       my $net_name = $net_list->item($i)->getAttribute("name");
+       my $mode     = $net_list->item($i)->getAttribute("mode");
+       my $sock     = &do_path_expansion($net_list->item($i)->getAttribute("sock"));
        my $external_if = $net_list->item($i)->getAttribute("external");
-       my $vlan    = $net_list->item($i)->getAttribute("vlan");
-       $command = $net_list->item($i)->getAttribute("uml_switch_binary");
+       my $vlan     = $net_list->item($i)->getAttribute("vlan");
+       $command     = $net_list->item($i)->getAttribute("uml_switch_binary");
 
        # Capture related attributes
        my $capture_file = $net_list->item($i)->getAttribute("capture_file");
@@ -1776,7 +1750,9 @@ sub configure_switched_networks {
 
 }
 
-######################################################
+#
+# configure_virtual_bridged_networks
+#
 # To create TUN/TAP devices
 sub configure_virtual_bridged_networks {
 
@@ -1799,6 +1775,7 @@ sub configure_virtual_bridged_networks {
       #!$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
      
       # To create management device (id 0), if needed
+      # The name of the if is: $vm_name . "-e0"
       my $mng_if_value = &mng_if_value($vm);
       
       if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
@@ -1869,7 +1846,8 @@ sub configure_virtual_bridged_networks {
 	        unless ($vlan =~ /^$/ ) {
 	           # If there is not any configured VLAN at this interface, we have to enable it
 	           unless (&check_vlan($external_if,"*")) {
-                  $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
+                  #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
+                  $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
 	           }
 	           # If VLAN is already configured at this interface, we haven't to configure it
 	           unless (&check_vlan($external_if,$vlan)) {
@@ -1882,9 +1860,11 @@ sub configure_virtual_bridged_networks {
 	     
 	        # If the interface is already added to the bridge, we haven't to add it
 	        my @if_list = &vnet_ifs($net_name);
+	        wlog (VVV, "vnet_ifs returns @if_list");
 	        $_ = "@if_list";
 	        unless (/\b($external_if)\b/) {
-               $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
+               $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
+               #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
 	           $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $external_if");
 	        }
 	        # We increase interface use counter
@@ -1938,25 +1918,27 @@ sub tun_connect {
 # Host configuration
 sub host_config {
 
-   my $doc = $dh->get_doc;
+    my $doc = $dh->get_doc;
 
-   # If host tag is not present, there is nothing to do
-   return if ($doc->getElementsByTagName("host")->getLength eq 0);
+    # If host tag is not present, there is nothing to do
+    return if ($doc->getElementsByTagName("host")->getLength eq 0);
 
-   my $host = $doc->getElementsByTagName("host")->item(0);
+    my $host = $doc->getElementsByTagName("host")->item(0);
 
-   # To get host's interfaces list
-   my $if_list = $host->getElementsByTagName("hostif");
+    # To get host's interfaces list
+    my $if_list = $host->getElementsByTagName("hostif");
 
-   # To process list
-   for ( my $i = 0; $i < $if_list->getLength; $i++) {
-      	my $if = $if_list->item($i);
+    # To process list
+    for ( my $i = 0; $i < $if_list->getLength; $i++) {
+        my $if = $if_list->item($i);
 
-      	# To get net name attribute
+        # To get name and mode attribute
       	my $net = $if->getAttribute("net");
-      
-	  	my $net_mode;
-	  	# Look for the net_mode (virtual_bridge or uml_switch) of this net
+	  	my $net_mode = $dh->get_net_mode ($net);
+	  	wlog (VVV, "** hostif: net=$net, net_mode=$net_mode");
+	  	
+=BEGIN	  	
+	  	# To get list of defined <net>
    	  	my $net_list = $doc->getElementsByTagName("net");
    	  	for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
       		my $neti = $net_list->item($i);
@@ -1967,123 +1949,118 @@ sub host_config {
 		    	#print "**** hostif:   $net_name, $net_mode\n"
 		    }
    	  	}
+=END
+=cut   	  	
 
 		if ($net_mode eq 'uml_switch') {
-	  		# Create TUN device
-	  		$execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -t $net -u " . $execution->get_uid . " -f " . $dh->get_tun_device);
-		}
+			# Create TUN device
+            $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -t $net -u " . $execution->get_uid . " -f " . $dh->get_tun_device);
+        }
 
       	# Interface configuration
       	# 1a. To process interface IPv4 addresses
       	# The first address have to be assigned without "add" to avoid creating subinterfaces
       	if ($dh->is_ipv4_enabled) {
-         	my $ipv4_list = $if->getElementsByTagName("ipv4");
-         	my $command = "";
-         	for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
-            	my $ip = &text_tag($ipv4_list->item($j));
-	        	my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
-	        	if (&valid_ipv4_with_mask($ip)) {
-	           		# Implicit slashed mask in the address
-	           		$ip =~ /.(\d+)$/;
-	           		$ipv4_effective_mask = &slashed_to_dotted_mask($1);
+            my $ipv4_list = $if->getElementsByTagName("ipv4");
+            my $command = "";
+            for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
+                my $ip = &text_tag($ipv4_list->item($j));
+                my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
+                if (&valid_ipv4_with_mask($ip)) {
+                    # Implicit slashed mask in the address
+                    $ip =~ /.(\d+)$/;
+                    $ipv4_effective_mask = &slashed_to_dotted_mask($1);
 	           		# The IP need to be chomped of the mask suffix
 	           		$ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
 	           		$ip = "$1.$2.$3.$4";
-	        	}
-	        	else {
-	           		# Check the value of the mask attribute
-	           		my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
-	           		if ($ipv4_mask_attr ne "") {
-	              		# Slashed or dotted?
-	              		if (&valid_dotted_mask($ipv4_mask_attr)) {
-	                 	$ipv4_effective_mask = $ipv4_mask_attr;
-	              	}
-	              	else {
-	                 	$ipv4_mask_attr =~ /.(\d+)$/;
-	                 	$ipv4_effective_mask = &slashed_to_dotted_mask($1);
-	              	}
-	           	} else {
-                  	 	wlog (N, "WARNING (host): no mask defined for $ip address of host interface. Using default mask ($ipv4_effective_mask)");
-	           	}
-	       	}
-	       
-            $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net $command $ip netmask $ipv4_effective_mask " . $dh->get_promisc);
-		    $command = "add";
-      	}
-   	}
+                } else {
+                    # Check the value of the mask attribute
+                    my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
+                    if ($ipv4_mask_attr ne "") {
+                        # Slashed or dotted?
+                        if (&valid_dotted_mask($ipv4_mask_attr)) {
+                            $ipv4_effective_mask = $ipv4_mask_attr;
+                        } else {
+                            $ipv4_mask_attr =~ /.(\d+)$/;
+                            $ipv4_effective_mask = &slashed_to_dotted_mask($1);
+                        }
+                    } else {
+                        wlog (N, "WARNING (host): no mask defined for $ip address of host interface. Using default mask ($ipv4_effective_mask)");
+                    }
+                }
+                $command = "add";
+                $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net $command $ip netmask $ipv4_effective_mask " . $dh->get_promisc);
+            }
+        }
 
-      # 2a. To process interface IPv6 addresses
-      my $ipv6_list = $if->getElementsByTagName("ipv6");
-      if ($dh->is_ipv6_enabled) {
-         for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
-            my $ip = &text_tag($ipv6_list->item($j));
-            if (&valid_ipv6_with_mask($ip)) {
-	           # Implicit slashed mask in the address
-	           $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip");
-	        }
-	        else {
-	           # Check the value of the mask attribute
- 	           my $ipv6_effective_mask = "/64"; # Default mask value	       
-	           my $ipv6_mask_attr = $ipv6_list->item($j)->getAttribute("mask");
-	           if ($ipv6_mask_attr ne "") {
-	              # Note that, in the case of IPv6, mask are always slashed
-                  $ipv6_effective_mask = $ipv6_mask_attr;
-	           }
-	           $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip$ipv6_effective_mask");
+        # 2a. To process interface IPv6 addresses
+        my $ipv6_list = $if->getElementsByTagName("ipv6");
+        if ($dh->is_ipv6_enabled) {
+            for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
+                my $ip = &text_tag($ipv6_list->item($j));
+                if (&valid_ipv6_with_mask($ip)) {
+                    # Implicit slashed mask in the address
+                    $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip");
+                } else {
+                    # Check the value of the mask attribute
+                    my $ipv6_effective_mask = "/64"; # Default mask value	       
+                    my $ipv6_mask_attr = $ipv6_list->item($j)->getAttribute("mask");
+                    if ($ipv6_mask_attr ne "") {
+                        # Note that, in the case of IPv6, mask are always slashed
+                        $ipv6_effective_mask = $ipv6_mask_attr;
+                    }
+                    $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip$ipv6_effective_mask");
 	           
-	        }
-	     }
-      }
-   }
+                }
+            }
+        }
+    }
 
-   # To get host's routes list
-   my $route_list = $host->getElementsByTagName("route");
-   for ( my $i = 0; $i < $route_list->getLength; $i++) {
-       my $route_dest = &text_tag($route_list->item($i));;
-       my $route_gw = $route_list->item($i)->getAttribute("gw");
-       my $route_type = $route_list->item($i)->getAttribute("type");
-       # Routes for IPv4
-       if ($route_type eq "ipv4") {
-          if ($dh->is_ipv4_enabled) {
-             if ($route_dest eq "default") {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add default gw $route_gw");
-             } 
-             elsif ($route_dest =~ /\/32$/) {
-	        # Special case: X.X.X.X/32 destinations are not actually nets, but host. The syntax of
-		# route command changes a bit in this case
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -host $route_dest gw $route_gw");
-	     }
-	     else {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -net $route_dest gw $route_gw");
-             }
-             #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add $route_dest gw $route_gw");
-          }
-       }
-       # Routes for IPv6
-       else {
-          if ($dh->is_ipv6_enabled) {
-             if ($route_dest eq "default") {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $route_gw");
-             }
-             else {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add $route_dest gw $route_gw");
-             }
-          }
-       }
+    # To get host's routes list
+    my $route_list = $host->getElementsByTagName("route");
+    for ( my $i = 0; $i < $route_list->getLength; $i++) {
+        my $route_dest = &text_tag($route_list->item($i));;
+        my $route_gw = $route_list->item($i)->getAttribute("gw");
+        my $route_type = $route_list->item($i)->getAttribute("type");
+        # Routes for IPv4
+        if ($route_type eq "ipv4") {
+            if ($dh->is_ipv4_enabled) {
+                if ($route_dest eq "default") {
+                    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add default gw $route_gw");
+                } elsif ($route_dest =~ /\/32$/) {
+                    # Special case: X.X.X.X/32 destinations are not actually nets, but host. The syntax of
+                    # route command changes a bit in this case
+                    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -host $route_dest gw $route_gw");
+                } else {
+                    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -net $route_dest gw $route_gw");
+                }
+                #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add $route_dest gw $route_gw");
+            }
+        }
+        # Routes for IPv6
+        else {
+            if ($dh->is_ipv6_enabled) {
+                if ($route_dest eq "default") {
+                    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $route_gw");
+                } else {
+                    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add $route_dest gw $route_gw");
+                }
+            }
+        }
     }
 
     # Enable host forwarding
     my $forwarding = $host->getElementsByTagName("forwarding");
     if ($forwarding->getLength == 1) {
-       my $f_type = $forwarding->item(0)->getAttribute("type");
-       $f_type = "ip" if ($f_type =~ /^$/);
-       # TODO: change this. When not in VERBOSE mode, echos are redirected to null and do not work... 
-       if ($dh->is_ipv4_enabled) {
-          $execution->execute($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv4/ip_forward") if ($f_type eq "ip" or $f_type eq "ipv4");
-       }
-       if ($dh->is_ipv6_enabled) {
-          $execution->execute($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv6/conf/all/forwarding") if ($f_type eq "ip" or $f_type eq "ipv6");
-       }
+        my $f_type = $forwarding->item(0)->getAttribute("type");
+        $f_type = "ip" if ($f_type =~ /^$/);
+        # TODO: change this. When not in VERBOSE mode, echos are redirected to null and do not work... 
+        if ($dh->is_ipv4_enabled) {
+            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv4/ip_forward") if ($f_type eq "ip" or $f_type eq "ipv4");
+        }
+        if ($dh->is_ipv6_enabled) {
+            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv6/conf/all/forwarding") if ($f_type eq "ip" or $f_type eq "ipv6");
+        }
     }
 
 }
@@ -2852,10 +2829,11 @@ sub host_unconfig {
    for ( my $i = 0; $i < $if_list->getLength; $i++) {
 	   	my $if = $if_list->item($i);
 
-	   	# To get name attribute
+	   	# To get name and mode attribute
 	   	my $net = $if->getAttribute("net");
+        my $net_mode = $dh->get_net_mode ($net);
 
-	  	my $net_mode;
+=BEGIN
 	  	# To get list of defined <net>
    	  	my $net_list = $doc->getElementsByTagName("net");
    	  	for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
@@ -2867,9 +2845,12 @@ sub host_unconfig {
 		    	#print "**** hostif:   $net_name, $net_mode\n"
 		    }
    	  	}
+=END
+=cut
+
+# TODO: delete the addresses
 
 	   	# Destroy the tun device
-	   	#print "*** host_unconfig\n";
 		if ($net_mode eq 'uml_switch') {
 	   		$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net down");
 			$execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $net -f " . $dh->get_tun_device);
@@ -2885,45 +2866,43 @@ sub host_unconfig {
 
 sub external_if_remove {
 
-   my $doc = $dh->get_doc;
+    my $doc = $dh->get_doc;
 
-   # To get list of defined <net>
-   my $net_list = $doc->getElementsByTagName("net");
+    # To get list of defined <net>
+    my $net_list = $doc->getElementsByTagName("net");
 
-   # To process list, decreasing use counter of external interfaces
-   for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
-      my $net = $net_list->item($i);
+    # To process list, decreasing use counter of external interfaces
+    for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+        my $net = $net_list->item($i);
 
-      # To get name attribute
-      my $vm_name = $net->getAttribute("name");
+        # To get name attribute
+        my $vm_name = $net->getAttribute("name");
 
-      # We check if there is an associated external interface
-      my $external_if = $net->getAttribute("external");
-      next if ($external_if =~ /^$/);
+        # We check if there is an associated external interface
+        my $external_if = $net->getAttribute("external");
+        next if ($external_if =~ /^$/);
 
-      # To check if VLAN is being used
-      my $vlan = $net->getAttribute("vlan");
-      $external_if .= ".$vlan" unless ($vlan =~ /^$/);
+        # To check if VLAN is being used
+        my $vlan = $net->getAttribute("vlan");
+        $external_if .= ".$vlan" unless ($vlan =~ /^$/);
 
-      # To decrease use counter
-      &dec_cter($external_if);
+        # To decrease use counter
+        &dec_cter($external_if);
 
-      # To clean up not in use physical interfaces
-      if (&get_cter($external_if) == 0) {
-         $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $vm_name 0.0.0.0 " . $dh->get_promisc . " up");
-         $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delif $vm_name $external_if");
-	 unless ($vlan =~ /^$/) {
-	    $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " rem $external_if");
-	 }
-	 else {
-	    # Note that now the interface has no IP address nor mask assigned, it is
-            # unconfigured! Tag <physicalif> is checked to try restore the interface
-            # configuration (if it exists)
-	    &physicalif_config($external_if);
-	 }
-      }
-   }
-
+        # To clean up not in use physical interfaces
+        if (&get_cter($external_if) == 0) {
+            $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $vm_name 0.0.0.0 " . $dh->get_promisc . " up");
+            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delif $vm_name $external_if");
+            unless ($vlan =~ /^$/) {
+                $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " rem $external_if");
+            } else { # No vlan associated to external if
+                # Note that now the interface has no IP address nor mask assigned, it is
+                # unconfigured! Tag <physicalif> is checked to try restore the interface
+                # configuration (if it exists)
+                &physicalif_config($external_if);
+            }
+        }
+    }
 }
 
 ######################################################
@@ -3841,7 +3820,7 @@ sub physicalif_config {
 #
 # Returns true if the scenario (first argument) is currently running
 #
-# In the current version, this check is perform looking for the lock file
+# In the current version, this check is performed looking for the lock file
 # in the directory that stores scenario files
 sub scenario_exists {
 
@@ -3892,123 +3871,6 @@ sub get_net_by_mode {
    return 0;	
 }
 
-# vnet_exists_br
-#
-# If the virtual network (implemented with a bridge) whose name is given
-# as first argument exists, returns 1. In other case, returns 0.
-#
-# It based in `brctl show` parsing.
-sub vnet_exists_br {
-
-   my $vnet_name = shift;
-
-   # To get `brctl show`
-   my @brctlshow;
-   my $line = 0;
-   my $pipe = $bd->get_binaries_path_ref->{"brctl"} . " show |";
-   open BRCTLSHOW, "$pipe";
-   while (<BRCTLSHOW>) {
-      chomp;
-      $brctlshow[$line++] = $_;
-   }
-   close BRCTLSHOW;
-
-   # To look for virtual network processing the list
-   # Note that we skip the first line (due to this line is the header of
-   # brctl show: bridge name, brige id, etc.)
-   for ( my $i = 1; $i < $line; $i++) {
-      $_ = $brctlshow[$i];
-      # We are interestend only in the first and last "word" of the line
-      /^(\S+)\s.*\s(\S+)$/;
-      if ($1 eq $vnet_name) {
-      	# If equal, the virtual network has been found
-      	return 1;
-      }
-   }
-
-   # If virtual network is not found:
-   return 0;
-
-}
-
-# vnet_exists_sw
-#
-# If the virtual network (implemented with a uml_switch) whose name is given
-# as first argument exists, returns 1. In other case, returns 0.
-#
-sub vnet_exists_sw {
-
-   my $vnet_name = shift;
-
-   # To search for $dh->get_networks_dir()/$vnet_name.ctl socket file
-   if (-S $dh->get_networks_dir . "/$vnet_name.ctl") {
-      return 1;
-   }
-   else {
-      return 0;
-   }
-   
-}
-
-# vnet_ifs
-#
-# Returns a list in which each element is one of the interfaces (TUN/TAP devices
-# or host OS physical interfaces) of the virtual network given as argument.
-#
-# It based in `brctl show` parsing.
-sub vnet_ifs {
-
-   my $vnet_name = shift;
-   my @if_list;
-
-   # To get `brctl show`
-   my @brctlshow;
-   my $line = 0;
-   my $pipe = $bd->get_binaries_path_ref->{"brctl"} . " show |";
-   open BRCTLSHOW, "$pipe";
-   while (<BRCTLSHOW>) {
-      chomp;
-      $brctlshow[$line++] = $_;
-   }
-   close BRCTLSHOW;
-
-    wlog (VVV, "------");
-   # To look for virtual network processing the list
-   # Note that we skip the first line (due to this line is the header of
-   # brctl show: bridge name, brige id, etc.)
-   for ( my $i = 1; $i < $line; $i++) {
-      wlog (VVV, "$brctlshow[$i]");
-      $_ = $brctlshow[$i];
-      # Some brctl versions seems to show a different message when no
-      # interface is used in a virtual bridge. Skip those
-      unless (/Function not implemented/) {
-         # We are interestend only in the first and last "word" of the line
-         /^(\S+)\s.*\s(\S+)$/;
-         if ($1 eq $vnet_name) {
-      	    # To push interface into the list
-            push (@if_list,$2);
-
-	        # Internal loop (it breaks when a line not only with the interface name is found)
-      	    for ( my $j = $i+1; $j < $line; $j++) {
-	           $_ = $brctlshow[$j];
-	           if (/^(\S+)\s.*\s(\S+)$/) {
-	              last;
-	           }
-	           # To push interface into the list
-	           /.*\s(\S+)$/;
-	           push (@if_list,$1);
-            }
-            
-	        # The end...
-	        last;
-	     }	     
-      }
-   }
-
-   # To return list
-   return @if_list;
-
-}
 
 # check_vlan
 #
