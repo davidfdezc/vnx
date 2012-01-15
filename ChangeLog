@@ -1,7 +1,7 @@
 11/01/2012:
 
 - Added -v (verbose) and -i (copy new version to idefix repository) to build_tar* scripts
-
+- Changed all ifconfig xx 0.0.0.0 up commands by "ip link set xx up"
 .....
 .....
 

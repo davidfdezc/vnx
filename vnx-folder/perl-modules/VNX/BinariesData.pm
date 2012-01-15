@@ -60,7 +60,7 @@ sub new {
    "ifconfig", "cp", "cat", "lsof", "chown",
    "hostname", "route", "scp", "chmod", "ssh", "uml_mconsole",                                                                             
    "date", "ps", "grep", "kill", "ln", "mkisofs", "mktemp", "su", "find",
-   "qemu-img", "mkfs.msdos", "mount", "umount", "virsh", "sed");
+   "qemu-img", "mkfs.msdos", "mount", "umount", "virsh", "sed", "ip");
    
    # List of optional binaries for xterm, vlan, screen and
    # uml_switch (defaults are empty: the add_additional_*_binaries 

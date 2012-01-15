@@ -1452,6 +1452,27 @@ sub get_net_type {
 	return ''
 }
 
+#
+# get_net_mode: returns the mode of a <net> ('' if not found).
+#
+sub get_net_mode {
+
+    my $self = shift;
+    my $netName = shift;
+    
+    #my $doc = $self->{'doc'}->get_doc;
+    #my $net_list = $doc->getElementsByTagName ("net");
+    my $net_list = $self->{'doc'}->getElementsByTagName("net");
+    for (my $i = 0; $i < $net_list->getLength; $i++) {
+        my $net = $net_list->item ($i);
+        my $name = $net->getAttribute ("name");
+        if ($name eq $netName) {
+            return $net->getAttribute ("mode");
+        }
+    }
+    return ''
+}
+
 
 #
 # get_vms_in_a_net: returns references to two arrays with the virtual machines and the 
@@ -1521,5 +1542,35 @@ sub get_vm_merged_type {
 	}
 	return $merged_type;
 }
+
+#
+# get_seqs
+#
+# Returns an array with all the sequences defined for the node passed in $vm
+#  - If $vm is a virtual machine, returns the sequences for that vm
+#  - If $vm is not defined, the global node (dh->$doc) is used, and returns all 
+#    the sequences for the complete scenario 
+#
+sub get_seqs {
+
+    my $self = shift;
+    my $vm = shift;
+    my %vm_seqs;
+
+    unless (defined($vm)) {
+    	$vm = $self->{'doc'}
+    }
+    my $filetree_list = $vm->getElementsByTagName("filetree");
+    for ( my $j = 0 ; $j < $filetree_list->getLength ; $j++ ) {
+        $vm_seqs{$filetree_list->item($j)->getAttribute('seq')} = 'yes';
+    }
+    my $exec_list = $vm->getElementsByTagName("exec");
+    for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
+        $vm_seqs{$exec_list->item($j)->getAttribute('seq')} = 'yes';
+    }
+
+    return %vm_seqs;
+}
+
 
 1;
