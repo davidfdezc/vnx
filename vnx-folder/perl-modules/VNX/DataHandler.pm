@@ -1473,6 +1473,48 @@ sub get_net_mode {
     return ''
 }
 
+#
+# get_net_extif: returns the external attribute of a <net> ('' if not found).
+#
+sub get_net_extif {
+
+    my $self = shift;
+    my $netName = shift;
+    
+    #my $doc = $self->{'doc'}->get_doc;
+    #my $net_list = $doc->getElementsByTagName ("net");
+    my $net_list = $self->{'doc'}->getElementsByTagName("net");
+    for (my $i = 0; $i < $net_list->getLength; $i++) {
+        my $net = $net_list->item ($i);
+        my $name = $net->getAttribute ("name");
+        if ($name eq $netName) {
+            return $net->getAttribute ("external");
+        }
+    }
+    return ''
+}
+
+#
+# get_net_vlan: returns the vlan attribute of a <net> ('' if not found).
+#
+sub get_net_vlan {
+
+    my $self = shift;
+    my $netName = shift;
+    
+    #my $doc = $self->{'doc'}->get_doc;
+    #my $net_list = $doc->getElementsByTagName ("net");
+    my $net_list = $self->{'doc'}->getElementsByTagName("net");
+    for (my $i = 0; $i < $net_list->getLength; $i++) {
+        my $net = $net_list->item ($i);
+        my $name = $net->getAttribute ("name");
+        if ($name eq $netName) {
+            return $net->getAttribute ("vlan");
+        }
+    }
+    return ''
+}
+
 
 #
 # get_vms_in_a_net: returns references to two arrays with the virtual machines and the 

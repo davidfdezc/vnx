@@ -1,5 +1,12 @@
 11/01/2012:
 
+- Changed ifconfig and route commands to use ip instead. Commands:
+     - Activate interface: ip link set eth1 up
+     - Add address: ip addr add 2001::2/64 dev br0
+     - Delete address: ip addr del 2001::2/64 dev br0
+     - Add route: ip -4 add route 10.1.1.0/24 via 10.1.1.1
+     - Delete route: ip -4 del route 10.1.1.0/24 via 10.1.1.1
+
 - Added -v (verbose) and -i (copy new version to idefix repository) to build_tar* scripts
 - Changed all ifconfig xx 0.0.0.0 up commands by "ip link set xx up"
 .....
