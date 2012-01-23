@@ -620,21 +620,14 @@ sub main {
    	$vmStartupDelay = $opt_y if ($opt_y);
    	   	
    	# 3. To extract and check input
-   	my $input;
-   	$input = $opt_f if ($opt_f);
-   	##$input = $opt_t if ($opt_t); [JSF]
-   	##$input = $opt_x if ($opt_x);
-   	##$input = $opt_d if ($opt_d);
-   	##$input = $opt_P if ($opt_P);
+   	$input_file = $opt_f if ($opt_f);
 
    	# Check for file and cmd_seq, depending the mode
    	my $cmdseq = '';
    	if ($opt_execute) {
       	$cmdseq = $opt_execute
    	} 
-   
-   	$input_file = $input;
- 
+    
    	# Reserved words for cmd_seq
    	#if ($cmdseq eq "always") {
    	#   &vnuml_die ("\"always\" is a reserved word and can not be used as cmd_seq\n");
@@ -1259,12 +1252,16 @@ sub start_VMs {
             # As the VM has necessarily been previously defined, the management ip address is already defined in file
             # (get_admin_address has been called from make_vmAPI_doc ) 
             my %net = &get_admin_address( 'file', $vm_name );
-            $execution->execute( $bd->get_binaries_path_ref->{"ifconfig"}
-                . " $vm_name-e0 "
-                . $net{'host'}->addr()
-                . " netmask "
-                . $net{'host'}->mask()
-                . " up" );
+            #$execution->execute( $bd->get_binaries_path_ref->{"ifconfig"}
+            #    . " $vm_name-e0 "
+            #    . $net{'host'}->addr()
+            #    . " netmask "
+            #    . $net{'host'}->mask()
+            #    . " up" );
+            my $ip_addr = NetAddr::IP->new($net{'host'}->addr(),$net{'host'}->mask());
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set dev $vm_name-e0 up");
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $vm_name-e0");
+               
         }
 
         undef($curr_uml);
@@ -1805,7 +1802,8 @@ sub configure_virtual_bridged_networks {
 	        $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
 
             # To set up device
-            $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if 0.0.0.0 " . $dh->get_promisc . " up");
+            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if 0.0.0.0 " . $dh->get_promisc . " up");
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set dev $tun_if up");
                         
 	     }
       }
@@ -1837,7 +1835,8 @@ sub configure_virtual_bridged_networks {
                $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
 	        }
 	        sleep 1;    # needed in SuSE 8.2
-	        $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
+            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");	        
          }
 
          # Is there an external interface associated with the network?
@@ -1937,84 +1936,13 @@ sub host_config {
 	  	my $net_mode = $dh->get_net_mode ($net);
 	  	wlog (VVV, "** hostif: net=$net, net_mode=$net_mode");
 	  	
-=BEGIN	  	
-	  	# To get list of defined <net>
-   	  	my $net_list = $doc->getElementsByTagName("net");
-   	  	for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
-      		my $neti = $net_list->item($i);
-      		# To get name attribute
-		    my $net_name = $neti->getAttribute("name");
-		    if ($net_name eq $net) {
-		    	$net_mode = $neti->getAttribute("mode");
-		    	#print "**** hostif:   $net_name, $net_mode\n"
-		    }
-   	  	}
-=END
-=cut   	  	
-
 		if ($net_mode eq 'uml_switch') {
 			# Create TUN device
             $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -t $net -u " . $execution->get_uid . " -f " . $dh->get_tun_device);
         }
-
-      	# Interface configuration
-      	# 1a. To process interface IPv4 addresses
-      	# The first address have to be assigned without "add" to avoid creating subinterfaces
-      	if ($dh->is_ipv4_enabled) {
-            my $ipv4_list = $if->getElementsByTagName("ipv4");
-            my $command = "";
-            for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
-                my $ip = &text_tag($ipv4_list->item($j));
-                my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
-                if (&valid_ipv4_with_mask($ip)) {
-                    # Implicit slashed mask in the address
-                    $ip =~ /.(\d+)$/;
-                    $ipv4_effective_mask = &slashed_to_dotted_mask($1);
-	           		# The IP need to be chomped of the mask suffix
-	           		$ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
-	           		$ip = "$1.$2.$3.$4";
-                } else {
-                    # Check the value of the mask attribute
-                    my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
-                    if ($ipv4_mask_attr ne "") {
-                        # Slashed or dotted?
-                        if (&valid_dotted_mask($ipv4_mask_attr)) {
-                            $ipv4_effective_mask = $ipv4_mask_attr;
-                        } else {
-                            $ipv4_mask_attr =~ /.(\d+)$/;
-                            $ipv4_effective_mask = &slashed_to_dotted_mask($1);
-                        }
-                    } else {
-                        wlog (N, "WARNING (host): no mask defined for $ip address of host interface. Using default mask ($ipv4_effective_mask)");
-                    }
-                }
-                $command = "add";
-                $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net $command $ip netmask $ipv4_effective_mask " . $dh->get_promisc);
-            }
-        }
-
-        # 2a. To process interface IPv6 addresses
-        my $ipv6_list = $if->getElementsByTagName("ipv6");
-        if ($dh->is_ipv6_enabled) {
-            for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
-                my $ip = &text_tag($ipv6_list->item($j));
-                if (&valid_ipv6_with_mask($ip)) {
-                    # Implicit slashed mask in the address
-                    $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip");
-                } else {
-                    # Check the value of the mask attribute
-                    my $ipv6_effective_mask = "/64"; # Default mask value	       
-                    my $ipv6_mask_attr = $ipv6_list->item($j)->getAttribute("mask");
-                    if ($ipv6_mask_attr ne "") {
-                        # Note that, in the case of IPv6, mask are always slashed
-                        $ipv6_effective_mask = $ipv6_mask_attr;
-                    }
-                    $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip$ipv6_effective_mask");
-	           
-                }
-            }
-        }
+        hostif_addr_conf ($if, $net, 'add');
     }
+
 
     # To get host's routes list
     my $route_list = $host->getElementsByTagName("route");
@@ -2026,13 +1954,16 @@ sub host_config {
         if ($route_type eq "ipv4") {
             if ($dh->is_ipv4_enabled) {
                 if ($route_dest eq "default") {
-                    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add default gw $route_gw");
+                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add default gw $route_gw");
+                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $route_gw");
                 } elsif ($route_dest =~ /\/32$/) {
                     # Special case: X.X.X.X/32 destinations are not actually nets, but host. The syntax of
                     # route command changes a bit in this case
-                    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -host $route_dest gw $route_gw");
+                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -host $route_dest gw $route_gw");
+                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add $route_dest via $route_gw");
                 } else {
-                    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -net $route_dest gw $route_gw");
+                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -net $route_dest gw $route_gw");
+                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add $route_dest via $route_gw");
                 }
                 #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add $route_dest gw $route_gw");
             }
@@ -2041,9 +1972,11 @@ sub host_config {
         else {
             if ($dh->is_ipv6_enabled) {
                 if ($route_dest eq "default") {
-                    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $route_gw");
+                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $route_gw");
+                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $route_gw");
                 } else {
-                    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add $route_dest gw $route_gw");
+                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add $route_dest gw $route_gw");
+                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route add $route_dest via $route_gw");
                 }
             }
         }
@@ -2063,6 +1996,83 @@ sub host_config {
         }
     }
 
+}
+
+#
+# Adds or deletes the host interface addresses
+#
+sub hostif_addr_conf {
+    
+    my $if  = shift;    
+    my $net = shift;
+    my $cmd = shift; # add or del
+
+    my $ext_if = $dh->get_net_extif ($net);
+
+    # Interface configuration
+    # 1a. To process interface IPv4 addresses
+    if ($dh->is_ipv4_enabled) {
+
+        my $ipv4_list = $if->getElementsByTagName("ipv4");
+        for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
+            my $ip = &text_tag($ipv4_list->item($j));
+            my $ipv4_effective_mask = "255.255.255.0"; # Default mask value
+            my $ip_addr;       
+            if (&valid_ipv4_with_mask($ip)) {
+                # Implicit slashed mask in the address
+                $ip_addr = NetAddr::IP->new($ip);
+            } else {
+                # Check the value of the mask attribute
+                my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
+                if ($ipv4_mask_attr ne "") {
+                    # Slashed or dotted?
+                    if (&valid_dotted_mask($ipv4_mask_attr)) {
+                        $ipv4_effective_mask = $ipv4_mask_attr;
+                    } else {
+                        $ipv4_mask_attr =~ /.(\d+)$/;
+                        $ipv4_effective_mask = &slashed_to_dotted_mask($1);
+                    }
+                } else {
+                    wlog (N, "WARNING (host): no mask defined for $ip address of host interface. Using default mask ($ipv4_effective_mask)");
+                }
+                $ip_addr = NetAddr::IP->new($ip, $ipv4_effective_mask);
+            }
+            if ( ($ext_if) && ($cmd eq 'add') ) {
+            	# Delete the address from the external interface before configuring it in the network bridge.
+            	# If not done, connectivity problems will arise... 
+                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr del " . $ip_addr->cidr() . " dev $ext_if");
+            }
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr $cmd " . $ip_addr->cidr() . " dev $net");
+         }
+    }
+
+    # 2a. To process interface IPv6 addresses
+    my $ipv6_list = $if->getElementsByTagName("ipv6");
+    if ($dh->is_ipv6_enabled) {
+            
+        for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
+            my $ip = &text_tag($ipv6_list->item($j));
+            if (&valid_ipv6_with_mask($ip)) {
+                # Implicit slashed mask in the address
+                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr $cmd $ip dev $net");
+            } else {
+                # Check the value of the mask attribute
+                my $ipv6_effective_mask = "/64"; # Default mask value          
+                my $ipv6_mask_attr = $ipv6_list->item($j)->getAttribute("mask");
+                if ($ipv6_mask_attr ne "") {
+                    # Note that, in the case of IPv6, mask are always slashed
+                    $ipv6_effective_mask = $ipv6_mask_attr;
+                }
+	            if ( ($ext_if) && ($cmd eq 'add') ) {
+	                # Delete the address from the external interface before configuring it in the network bridge.
+	                # If not done, connectivity problems will arise... 
+	                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr del $ip$ipv6_effective_mask dev $ext_if");
+	            }
+                #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip$ipv6_effective_mask");
+                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr $cmd $ip$ipv6_effective_mask dev $net");
+            }
+        }
+    }
 }
 
 ######################################################
@@ -2795,30 +2805,33 @@ sub host_unconfig {
        # Routes for IPv4
        if ($route_type eq "ipv4") {
           if ($dh->is_ipv4_enabled) {
+                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route del $route_dest via $route_gw");
+=BEGIN    	
              if ($route_dest eq "default") {
                 $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del $route_dest gw $route_gw");
-             } 
-             elsif ($route_dest =~ /\/32$/) {
-	        # Special case: X.X.X.X/32 destinations are not actually nets, but host. The syntax of
-		# route command changes a bit in this case
+             } elsif ($route_dest =~ /\/32$/) {
+	            # Special case: X.X.X.X/32 destinations are not actually nets, but host. The syntax of
+		        # route command changes a bit in this case
                 $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del -host $route_dest gw $route_gw");
-	     }
-             else {
+	         } else {
                 $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del -net $route_dest gw $route_gw");
              }
              #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del $route_dest gw $route_gw");
+=END
+=cut
           }
+
        }
        # Routes for IPv6
-       else {
-          if ($dh->is_ipv6_enabled) {
-             if ($route_dest eq "default") {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 del 2000::/3 gw $route_gw");
-             }
-             else {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 del $route_dest gw $route_gw");
-             }
-          }
+        else {
+            if ($dh->is_ipv6_enabled) {
+                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route del $route_dest via $route_gw");
+                #if ($route_dest eq "default") {
+                #    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 del 2000::/3 gw $route_gw");
+                #} else {
+                #    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 del $route_dest gw $route_gw");
+                #}
+            }
        }
    }
 
@@ -2848,11 +2861,13 @@ sub host_unconfig {
 =END
 =cut
 
-# TODO: delete the addresses
+        # Delete host if addresses
+        hostif_addr_conf ($if, $net, 'del');
 
 	   	# Destroy the tun device
 		if ($net_mode eq 'uml_switch') {
-	   		$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net down");
+	   		#$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net down");
+	   		$execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net down");           
 			$execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $net -f " . $dh->get_tun_device);
 		}
    }
@@ -2876,7 +2891,7 @@ sub external_if_remove {
         my $net = $net_list->item($i);
 
         # To get name attribute
-        my $vm_name = $net->getAttribute("name");
+        my $net_name = $net->getAttribute("name");
 
         # We check if there is an associated external interface
         my $external_if = $net->getAttribute("external");
@@ -2891,8 +2906,9 @@ sub external_if_remove {
 
         # To clean up not in use physical interfaces
         if (&get_cter($external_if) == 0) {
-            $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $vm_name 0.0.0.0 " . $dh->get_promisc . " up");
-            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delif $vm_name $external_if");
+            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");         
+            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delif $net_name $external_if");
             unless ($vlan =~ /^$/) {
                 $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " rem $external_if");
             } else { # No vlan associated to external if
@@ -2972,7 +2988,8 @@ sub tun_destroy {
       
       if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
          my $tun_if = $vm_name . "-e0";
-         $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
+         #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
+         $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
          $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
       }
 
@@ -2994,7 +3011,8 @@ sub tun_destroy {
             my $tun_if = $vm_name . "-e" . $id;
 
             # To throw away TUN device
-            $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
+            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
 
             # To remove TUN device
             #print "*** tun_destroy\n";
@@ -3030,7 +3048,8 @@ sub bridges_destroy {
 
          # Set bridge down and remove it only in the case there isn't any associated interface 
          if (&vnet_ifs($net_name) == 0) {
-            $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name down");
+            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name down");
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net_name down");
             $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delbr $net_name");
          }
       }
@@ -3796,9 +3815,11 @@ sub physicalif_config {
       	 	#IPv6 configuration
       	 	my $ip = $phyif->getAttribute("ip");
       	 	my $gw = $phyif->getAttribute("gw");
-      	 	$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $interface add $ip");
+            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $interface add $ip");
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr add $ip dev $interface");
       	 	unless ($gw =~ /^$/ ) {
-               $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $gw");	        
+               #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $gw");            
+               $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $gw");            
       	 	}
       	 }
       	 else {
@@ -3807,9 +3828,12 @@ sub physicalif_config {
 	        my $gw = $phyif->getAttribute("gw");
    	        my $mask = $phyif->getAttribute("mask");
             $mask="255.255.255.0" if ($mask =~ /^$/);
-	        $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $interface $ip netmask $mask");
+            my $ip_addr = NetAddr::IP->new($ip,$mask);
+            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $interface $ip netmask $mask");
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $interface");
        	 	unless ($gw =~ /^$/ ) {
-	           $execution->execute($bd->get_binaries_path_ref->{"route"} . " add default gw $gw");
+               #$execution->execute($bd->get_binaries_path_ref->{"route"} . " add default gw $gw");
+               $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $gw");
        	 	}
       	 }
       }
@@ -4153,7 +4177,11 @@ sub mgmt_sock_create {
    }
 
    $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u $user -t $tap");
-   $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tap $hostip netmask $effective_mask up");
+
+   #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tap $hostip netmask $effective_mask up");
+   my $ip_addr = NetAddr::IP->new($hostip,$effective_mask);
+   $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set dev $tap up");
+   $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $tap");
    #$execution->execute_bg($bd->get_binaries_path_ref->{"su"} . " -pc '".$bd->get_binaries_path_ref->{"uml_switch"}." -tap $tap -unix $socket < /dev/null > /dev/null &' $user");
    $execution->execute_bg($bd->get_binaries_path_ref->{"uml_switch"}." -tap $tap -unix $socket",'/dev/null');
    sleep 1;
@@ -4174,7 +4202,8 @@ sub mgmt_sock_destroy {
    
    $execution->execute($bd->get_binaries_path_ref->{"kill"} . " `".$bd->get_binaries_path_ref->{"lsof"}." -t $socket`");
    $execution->execute($bd->get_binaries_path_ref->{"rm"} . " $socket");
-   $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tap down");
+   #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tap down");
+   $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set dev $tap down");
    $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tap");
 }
 

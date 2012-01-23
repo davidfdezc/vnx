@@ -53,6 +53,7 @@ our @EXPORT = qw(
 	$DEFAULT_TMP_DIR
 	$DEFAULT_VNX_DIR
 	$DEFAULT_CONF_FILE
+	$DEFAULT_CLUSTER_CONF_FILE
 	$CONS_DISPLAY_DEFAULT
 	$CONS_BASE_PORT
 	$CONS1_DEFAULT_TYPE
@@ -115,6 +116,7 @@ our $vnxConfigFile; # VNX Configuration file
 Readonly::Scalar our $DEFAULT_TMP_DIR => '/tmp';
 Readonly::Scalar our $DEFAULT_CONF_FILE => '/etc/vnx.conf';
 Readonly::Scalar our $DEFAULT_VNX_DIR => '~/.vnx';
+Readonly::Scalar our $DEFAULT_CLUSTER_CONF_FILE => '/etc/ediv/cluster.conf';
 
 # Console Management
 Readonly::Scalar our $CONS_DISPLAY_DEFAULT => 'yes';    # By default consoles are displayed at startup
