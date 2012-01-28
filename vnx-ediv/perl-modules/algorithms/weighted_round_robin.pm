@@ -27,16 +27,16 @@ package weighted_round_robin;
 ###########################################################
 
 use strict;
+use warnings;
 use XML::DOM;
 use Math::Round;
+use VNX::Globals;
+use VNX::Execution;
 
 
-###########################################################
-# Subroutines
-###########################################################
-	###########################################################
-	# Subroutine to obtain segmentation name
-	###########################################################
+#
+# Subroutine to obtain segmentation name
+#
 sub name {
 
 	my $name = "WeightedRoundRobin";
@@ -46,19 +46,30 @@ sub name {
 #
 # Subroutine to obtain segmentation mode
 #
+# 
+# Arguments:
+# - ref_dom_tree
+# - ref_cluster_hosts
+# - ref_cluster
+# - ref_vms_to_split, a reference to an array with the names of the vms to distribute
+# - ref_static_assignment, reference to a hash with the vms assigned statically
+#
+# Returns:
+# - %allocation, a hash that associates vm names to host_id's (the keys are vm names)
+# 
 sub split {
 
 	my ( $class, $ref_dom_tree, $ref_cluster_hosts, $ref_cluster, $rvms_to_split, $ref_static_assignment ) = @_;
 	
 	my $scenario = $$ref_dom_tree;
-	my @cluster_info = @$ref_cluster_hosts;
-	my $cluster_size = @cluster_info;
+	my @cluster_hosts = @$ref_cluster_hosts;
+	my $cluster_size = @cluster_hosts;
 	my $cluster = $$ref_cluster;
 	my @vms_to_split = @$rvms_to_split;
 	my %static_assignment = %$ref_static_assignment;	
 
 
-	print("Segmentator: Cluster physical machines -> $cluster_size\n");
+	wlog (VV, "Segmentator: Cluster physical machines -> $cluster_size");
 
 	my %allocation;
 	
@@ -78,7 +89,8 @@ sub split {
 			my $virtualm = $VMList->item($i);
 			my $virtualm_name = $virtualm->getAttribute("name");
 			my $assigned_host_index = $i % $cluster_size;
-			my $assigned_host = $cluster_info[$assigned_host_index]->{_hostname};
+			#my $assigned_host = $cluster_hosts[$assigned_host_index]->{_hostname};
+			my $assigned_host = $cluster->{hosts}{$cluster_hosts[$assigned_host_index]}->host_id;
 			$allocation{$virtualm_name} = $assigned_host;
 			print("Segmentator: Virtual machine $virtualm_name to physical host $assigned_host\n"); 	
 		}
@@ -96,19 +108,20 @@ sub split {
 		my $vms_to_split_size = @vms_to_split;
 		for (my $i=0; $i<$vms_to_split_size; $i++){
 			my $vm = $vms_to_split[$i];
-			my $selected_hostname = $cluster_info[$0]->{_hostname};
+			my $selected_host = $cluster_hosts[0];
+			#my $selected_hostname = $cluster_hosts[$0]->{_hostname};
 			
 #			for (my $j=1; $j<$cluster_size; $j++) {
-            foreach my $host_id (@cluster_info) {
-				#my $hostName = $cluster_info[$j]->{_hostname};
+            foreach my $host_id (@cluster_hosts) {
+				#my $hostName = $cluster_hosts[$j]->{_hostname};
 				my $hostName = $cluster->{hosts}{$host_id}->host_name;
-				if ($offset{$hostName} < $offset{$selected_hostname}){
-					$selected_hostname = $hostName;
+				if ($offset{$hostName} < $offset{$selected_host}){
+					$selected_host = $hostName;
 				}
 			}
-			$allocation{$vm} = $selected_hostname;
-			print("Segmentator: Virtual machine $vm to physical host $selected_hostname\n");
-			$offset{$selected_hostname}++;			
+			$allocation{$vm} = $selected_host;
+			print("Segmentator: Virtual machine $vm to physical host $selected_host\n");
+			$offset{$selected_host}++;			
 			
 		}
 		
@@ -118,5 +131,3 @@ sub split {
 
 }
 1
-# Subroutines end
-###########################################################

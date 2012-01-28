@@ -380,7 +380,7 @@ sub wlog {
 	my $msg       = shift;
 	my $prompt    = shift;
 
-    unless (defined($prompt)) {
+    unless ( defined($prompt) or $msg_level == N) {
     	$prompt = "vnx-log-$EXE_VERBOSITY_LEVEL>";  
     }
 	
