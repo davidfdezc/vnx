@@ -27,6 +27,7 @@ package round_robin;
 #
 
 use strict;
+use warnings;
 use XML::DOM;
 use Math::Round;
 use VNX::Globals;
@@ -67,7 +68,7 @@ sub split {
 	my @vms_to_split = @$ref_vms_to_split;
 	my %static_assignment = %$ref_static_assignment;   
 
-	wlog (N, "Segmentator: Cluster physical machines -> $cluster_size\n");
+	wlog (VV, "Segmentator: Cluster physical machines -> $cluster_size\n");
 
 	my %allocation;
 	
@@ -135,5 +136,3 @@ sub split {
 
 }
 1
-# Subroutines end
-###########################################################

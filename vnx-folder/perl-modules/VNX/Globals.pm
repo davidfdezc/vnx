@@ -54,6 +54,9 @@ our @EXPORT = qw(
 	$DEFAULT_VNX_DIR
 	$DEFAULT_CONF_FILE
 	$DEFAULT_CLUSTER_CONF_FILE
+    $EDIV_SEG_ALGORITHMS_DIR
+    $EDIV_LOGS_DIR
+    	
 	$CONS_DISPLAY_DEFAULT
 	$CONS_BASE_PORT
 	$CONS1_DEFAULT_TYPE
@@ -117,6 +120,8 @@ Readonly::Scalar our $DEFAULT_TMP_DIR => '/tmp';
 Readonly::Scalar our $DEFAULT_CONF_FILE => '/etc/vnx.conf';
 Readonly::Scalar our $DEFAULT_VNX_DIR => '~/.vnx';
 Readonly::Scalar our $DEFAULT_CLUSTER_CONF_FILE => '/etc/ediv/cluster.conf';
+Readonly::Scalar our $EDIV_SEG_ALGORITHMS_DIR => '/usr/share/vnx/lib/seg-alg';
+Readonly::Scalar our $EDIV_LOGS_DIR => '/var/log/ediv';
 
 # Console Management
 Readonly::Scalar our $CONS_DISPLAY_DEFAULT => 'yes';    # By default consoles are displayed at startup

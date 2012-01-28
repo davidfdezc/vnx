@@ -511,11 +511,15 @@ sub main {
       
    	if ($how_many_args gt 1) {
       	&usage;
-      	&vnx_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --showmap or -H\n");
+      	&vnx_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, " .
+      	          "-V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, " .
+      	          "--resume, --reboot, --reset, --showmap or -H\n");
    	}
    	if ( ($how_many_args lt 1) && (!$opt_D) ) {
       	&usage;
-      	&vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start, --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, --show-map, --console, --console-info, -V or -H\n");
+      	&vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, " . 
+      	          "--start, --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, " . 
+      	          "--show-map, --console, --console-info, -V or -H\n");
    	}
    	if (($opt_F) && (!($opt_shutdown))) { 
       	&usage; 
@@ -1010,19 +1014,19 @@ sub main {
         &mode_exeinfo;
     }
    
-   else {
-      $execution->smartdie("if you are seeing this text something terribly horrible has happened...\n");
-   }
+    else {
+        $execution->smartdie("if you are seeing this text something terribly horrible has happened...\n");
+    }
+
+    # Call the finalize subrutine in plugins
+    foreach my $plugin (@plugins) {
+        $plugin->finalizePlugin;
+    }
    
-   # Call the finalize subrutine in plugins
-   foreach my $plugin (@plugins) {
-      $plugin->finalizePlugin;
-   }
-   
-   # Remove lock
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vnx_dir . "/LOCK");
-   my $total_time = time() - $start_time;
-   wlog (N, "Total time elapsed: $total_time seconds");
+    # Remove lock
+    $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vnx_dir . "/LOCK");
+    my $total_time = time() - $start_time;
+    wlog (N, "Total time elapsed: $total_time seconds");
 
 }
 

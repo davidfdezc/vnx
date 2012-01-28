@@ -41,8 +41,21 @@ our @EXPORT = qw(
     $vlan
     $cluster
     @cluster_hosts
+    @cluster_active_hosts
     read_cluster_config
     query_db
+    reset_database
+    delete_scenario_from_database
+    get_host_status
+    get_host_hostname
+    get_host_ipaddr
+    get_host_cpu
+    get_host_maxvms
+    get_host_ifname
+    get_host_cpudynamic
+    get_host_vnxdir
+    get_host_hypervisor
+    host_active
 );
 
 ###########################################################
@@ -69,7 +82,8 @@ our $vlan = {
 };
 
 # Cluster hosts configuration
-our @cluster_hosts;     # Array with all the host_id's of the hosts in the cluster
+our @cluster_hosts;            # Array with all the host_id's of the hosts in the cluster
+our @cluster_active_hosts;     # Array with all the host_id's of the hosts in the cluster which are active
 
 our $cluster = {
     hosts         => { my %hosts }, # Hash that associates host_id with host records
@@ -165,7 +179,7 @@ sub read_cluster_config {
         }
         my $ip = inet_ntoa($packed_ip);
         my $host_name = gethostbyaddr($packed_ip, AF_INET);
-        if ($host_name eq '') { $host_name = $ip }
+        unless (defined($host_name)) { $host_name = $ip }
         
         my $mem;
         unless ( $mem = $cluster_config->get("$current_host_id"."_mem") )
@@ -182,21 +196,7 @@ sub read_cluster_config {
         my $ifname;
         unless ( $ifname = $cluster_config->get("$current_host_id"."_if_name") )
             { return "'if_name' configuration parameter not found in section [$current_host_id]";   }
-        
-        my $cpu_dynamic_command = 'cat /proc/loadavg | awk \'{print $1}\'';
-        my $cpu_dynamic = `ssh -2 -o 'StrictHostKeyChecking no' -X root\@$ip $cpu_dynamic_command`;
-        chomp $cpu_dynamic;
-            
-        # Get vnx_dir for each host in the cluster 
-        my $vnx_dir = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^vnx_dir'`;
-        if ($vnx_dir eq '') { 
-            $vnx_dir = $DEFAULT_VNX_DIR
-        } else {
-            my @aux = split(/=/, $vnx_dir);
-            chomp($aux[1]);
-            $vnx_dir=$aux[1];
-        }   
-            
+
         # Create new cluster host object
         my $cluster_host = eval { new_host VNX::ClusterMgmt(); } or die ($@);
             
@@ -208,13 +208,48 @@ sub read_cluster_config {
         $cluster_host->cpu("$cpu");
         $cluster_host->max_vms("$max_vms");
         $cluster_host->if_name("$ifname");
-        $cluster_host->cpu_dynamic("$cpu_dynamic");
-        $cluster_host->vnx_dir("$vnx_dir");
-        
+
+        # Check whether the host is active or not
+		my $not_active = system ("ssh -2 -o 'StrictHostKeyChecking no' -X root\@$ip uptime > /dev/null 2>&1 ");
+		if ($not_active) {
+            print "WARNING: cannot connect to host $current_host_id ($res). Marked as inactive.\n";
+            $cluster_host->status("inactive");
+		} else {
+            $cluster_host->status("active");
+	        my $cpu_dynamic_command = 'cat /proc/loadavg | awk \'{print $1}\'';
+	        my $cpu_dynamic = `ssh -2 -o 'StrictHostKeyChecking no' -X root\@$ip $cpu_dynamic_command`;
+	        chomp $cpu_dynamic;
+	        $cluster_host->cpu_dynamic("$cpu_dynamic");
+	            
+	        # Get vnx_dir from host vnx conf file (/etc/vnx.conf) 
+	        my $vnx_dir = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^vnx_dir'`;
+	        if ($vnx_dir eq '') { 
+	            $vnx_dir = $DEFAULT_VNX_DIR
+	        } else {
+	            my @aux = split(/=/, $vnx_dir);
+	            chomp($aux[1]);
+	            $vnx_dir=$aux[1];
+	        }   
+	        $cluster_host->vnx_dir("$vnx_dir");
+
+            # Get hypervisor from host vnx conf file (/etc/vnx.conf) 
+            my $hypervisor = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^hypervisor'`;
+            if ($hypervisor eq '') { 
+                $hypervisor = $LIBVIRT_DEFAULT_HYPERVISOR
+            } else {
+                my @aux = split(/=/, $hypervisor);
+                chomp($aux[1]);
+                $hypervisor=$aux[1];
+            }   
+            $cluster_host->hypervisor("$hypervisor");
+		}
+                    
         # Store the host object inside cluster arrays
         $cluster->{hosts}{$current_host_id} = $cluster_host;
         push(@cluster_hosts, $current_host_id);
-
+        unless ($not_active) {
+            push(@cluster_active_hosts, $current_host_id);
+        }
     }
 
     $cluster->{def_seg_alg} = $cluster_config->get("cluster_default_segmentation");
@@ -232,26 +267,34 @@ sub new_host {
     
     my $self = {
         _hostid => undef,       # host identifier 
+        _status => undef,       # active or inactive
         _hostname => undef,     # IP Name of host
         _ipaddress => undef,    # IP Address of host        _mem => undef,          # RAM MegaBytes
         _cpu => undef,          # Percentage of CPU speed
         _maxvm => undef,        # Maximum virtualized host (0 = unlimited)
         _ifname => undef,       # Network interface of the physical host
         _cpudynamic => undef,   # CPU load in present time
-        _vnxdir => undef        # VNX directory  
+        _vnxdir => undef,        # VNX directory  
+        _hypervisor => undef    # hypervisor used by libvirt  
     };
     bless $self, $class;
     return $self;
 }
     
 #
-# Accessor methods for the host record fields
+# Internat accessor methods for the host record fields
 #
 
 sub host_id {
     my ( $self, $host_id ) = @_;
     $self->{_hostid} = $host_id if defined($host_id);
     return $self->{_hostid};
+}
+
+sub status {
+    my ( $self, $status ) = @_;
+    $self->{_status} = $status if defined($status);
+    return $self->{_status};
 }
 
 sub host_name {
@@ -295,10 +338,69 @@ sub cpu_dynamic {
     $self->{_cpudynamic} = $cpudynamic if defined($cpudynamic);
     return $self->{_cpudynamic};
 }
+
 sub vnx_dir {
     my ( $self, $vnx_dir ) = @_;
     $self->{_vnxdir} = $vnx_dir if defined($vnx_dir);
     return $self->{_vnxdir};
+}
+
+sub hypervisor {
+    my ( $self, $hypervisor ) = @_;
+    $self->{_hypervisor} = $hypervisor if defined($hypervisor);
+    return $self->{_hypervisor};
+}
+
+# Fuctions to simplify access to hosts info by host_id
+
+sub get_host_status {
+	my $host_id = shift;
+	return $cluster->{hosts}{$host_id}->status
+}
+
+sub get_host_hostname {
+    my $host_id = shift;
+    return $cluster->{hosts}{$host_id}->host_name
+}
+
+sub get_host_ipaddr {
+    my $host_id = shift;
+    return $cluster->{hosts}{$host_id}->ip_address
+}
+
+sub get_host_cpu {
+    my $host_id = shift;
+    return $cluster->{hosts}{$host_id}->cpu
+}
+
+sub get_host_maxvms {
+    my $host_id = shift;
+    return $cluster->{hosts}{$host_id}->max_vms
+}
+
+sub get_host_ifname {
+    my $host_id = shift;
+    return $cluster->{hosts}{$host_id}->if_name
+}
+
+sub get_host_cpudynamic {
+    my $host_id = shift;
+    return $cluster->{hosts}{$host_id}->cpu_dynamic
+}
+
+sub get_host_vnxdir {
+    my $host_id = shift;
+    return $cluster->{hosts}{$host_id}->vnx_dir
+}
+
+sub get_host_hypervisor {
+    my $host_id = shift;
+    return $cluster->{hosts}{$host_id}->hypervisor
+}
+
+sub host_active {
+    my $host_id = shift;
+    return ($cluster->{hosts}{$host_id}->status eq 'active')
 }
 
 #
@@ -377,6 +479,52 @@ sub query_db {
 
 }
 
+#
+# reset_database
+#
+# Deletes the whole database content
+#
+sub reset_database {
+        
+        my $error;
+        $error = query_db ("TRUNCATE TABLE  `hosts`");       if ($error) { die "** $error" }
+        $error = query_db ("TRUNCATE TABLE  `simulations`"); if ($error) { die "** $error" }
+        $error = query_db ("TRUNCATE TABLE  `vms`");         if ($error) { die "** $error" }
+        $error = query_db ("TRUNCATE TABLE  `vlans`");       if ($error) { die "** $error" }
+        $error = query_db ("TRUNCATE TABLE  `nets`");        if ($error) { die "** $error" }
+}
 
+#
+# delete_scenario_from_database
+#
+# Deletes a secenario from database tables
+#
+sub delete_scenario_from_database {
+    
+    my $scenario_name = shift;
+    
+    wlog (V, "-- delete_scenario_from_database called");
+    my $error;
+    
+    $error = query_db ("DELETE FROM hosts WHERE simulation = '$scenario_name'");
+    if ($error) { ediv_die ("$error") };
+    #my $query_string = "DELETE FROM hosts WHERE simulation = '$scenario_name'";
+    
+    $error = query_db ("DELETE FROM nets WHERE simulation = '$scenario_name'");
+    if ($error) { ediv_die ("$error") };
+    #$query_string = "DELETE FROM nets WHERE simulation = '$scenario_name'";
+    
+    $error = query_db ("DELETE FROM simulations WHERE name = '$scenario_name'"); 
+    if ($error) { ediv_die ("$error") }
+    #$query_string = "DELETE FROM simulations WHERE name = '$scenario_name'";
+
+    $error = query_db ("DELETE FROM vlans WHERE simulation = '$scenario_name'"); 
+    if ($error) { ediv_die ("$error") }
+    #$query_string = "DELETE FROM vlans WHERE simulation = '$scenario_name'";
+    
+    $error = query_db ("DELETE FROM vms WHERE simulation = '$scenario_name'"); 
+    if ($error) { ediv_die ("$error") }
+    #$query_string = "DELETE FROM vms WHERE simulation = '$scenario_name'";
+}
 1;
 ###########################################################

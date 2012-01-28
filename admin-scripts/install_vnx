@@ -20,7 +20,7 @@ done
 
 VNX_VERSION="0.14b"
 ROOTFS_VERSION="es-v023b"
-EDIV_ALG_MODULES_DIR="/usr/share/ediv/algorithms"
+EDIV_ALG_MODULES_DIR="/usr/share/vnx/lib/seg-alg"
 
 # Move to the directory where this script is
 cdir=$( dirname $0 )
