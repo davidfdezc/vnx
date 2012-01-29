@@ -121,7 +121,7 @@ Readonly::Scalar our $DEFAULT_CONF_FILE => '/etc/vnx.conf';
 Readonly::Scalar our $DEFAULT_VNX_DIR => '~/.vnx';
 Readonly::Scalar our $DEFAULT_CLUSTER_CONF_FILE => '/etc/ediv/cluster.conf';
 Readonly::Scalar our $EDIV_SEG_ALGORITHMS_DIR => '/usr/share/vnx/lib/seg-alg';
-Readonly::Scalar our $EDIV_LOGS_DIR => '/var/log/ediv';
+Readonly::Scalar our $EDIV_LOGS_DIR => '/var/log/vnx';
 
 # Console Management
 Readonly::Scalar our $CONS_DISPLAY_DEFAULT => 'yes';    # By default consoles are displayed at startup

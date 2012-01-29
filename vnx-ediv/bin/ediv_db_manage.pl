@@ -193,7 +193,10 @@ sub createDB{
 	
 	$query_string = "CREATE TABLE IF NOT EXISTS `vms` (
   					`name` text collate utf8_spanish_ci NOT NULL,
-  					`type` text collate utf8_spanish_ci NOT NULL,
+                    `type` text collate utf8_spanish_ci NOT NULL,
+                    `subtype` text collate utf8_spanish_ci NOT NULL,
+                    `os` text collate utf8_spanish_ci NOT NULL,
+                    `status` text collate utf8_spanish_ci NOT NULL,
   					`simulation` text collate utf8_spanish_ci NOT NULL,
   					`host` text collate utf8_spanish_ci NOT NULL,
   					`ssh_port` int(11) default NULL
