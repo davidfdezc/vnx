@@ -44,6 +44,7 @@ our @EXPORT = qw(
     @cluster_active_hosts
     read_cluster_config
     query_db
+    get_vm_host
     reset_database
     delete_scenario_from_database
     get_host_status
@@ -477,6 +478,26 @@ sub query_db {
 
     return '';
 
+}
+
+#
+# get_vm_host
+#
+# Returns the host assigned to a 
+# 
+sub get_vm_host {
+
+    my $vm_name = shift;
+    my $error;
+    my @db_resp;
+
+    $error = query_db ("SELECT `host` FROM vms WHERE name='$vm_name'", \@db_resp);
+    if ($error) { ediv_die ("$error") };
+    if (defined($db_resp[0]->[0])) {
+        return $db_resp[0]->[0];  
+    } else {
+        wlog (N, "ERROR (get_vm_host): cannot get the host assigned to vm $vm_name from database");
+    }
 }
 
 #
