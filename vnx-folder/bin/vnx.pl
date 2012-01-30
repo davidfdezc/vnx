@@ -585,7 +585,7 @@ sub main {
    	}
 
    	# 2. Optional arguments
-   	$exemode = $EXE_NORMAL;
+   	$exemode = $EXE_NORMAL; $EXE_VERBOSITY_LEVEL=N;
    	if ($opt_v)   { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=V }
    	if ($opt_vv)  { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VV }
    	if ($opt_vvv) { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VVV }

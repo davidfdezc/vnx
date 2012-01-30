@@ -323,11 +323,12 @@ sub main {
     }
 
     # 2. Optional arguments
-    $exemode = $EXE_NORMAL;
+    $exemode = $EXE_NORMAL; $EXE_VERBOSITY_LEVEL=N;
     if ($opt_v)   { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=V }
     if ($opt_vv)  { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VV }
     if ($opt_vvv) { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VVV }
     #$exemode = $EXE_DEBUG if ($opt_g);
+    print "***** verbosity=$EXE_VERBOSITY_LEVEL\n";
 
     # Check for file and cmd_seq, depending the mode
     my $cmdseq = '';
@@ -487,7 +488,8 @@ sub mode_create {
 	    # Segmentation processing
 	    if (defined($restriction_file)){
 	        wlog (VV, "\n  -- Precessing segmentation restriction file $restriction_file... ****\n");
-	        my $restriction = static->new($restriction_file, $dom_tree, @cluster_active_hosts); 
+            #my $restriction = static->new($restriction_file, $dom_tree, @cluster_active_hosts); 
+            my $restriction = static->new($restriction_file, $dh->get_doc, @cluster_active_hosts); 
 	        %static_assignment = $restriction->assign();
 	        if ($static_assignment{"error"} eq "error"){
 	            delete_scenario_from_database ($scenario_name);
@@ -517,7 +519,9 @@ sub mode_create {
 	        die();
 	    }
 	        
-	    %allocation = $segmentation_module->split(\$dom_tree, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
+        #%allocation = $segmentation_module->split(\$dom_tree, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
+        my $dom_tree = $dh->get_doc;
+        %allocation = $segmentation_module->split(\$dom_tree, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
 	        
 	    if (defined($allocation{"error"})){
 	            delete_scenario_from_database ($scenario_name);
@@ -527,14 +531,14 @@ sub mode_create {
 	    wlog (N, "\n  ---- Configuring distributed networking in cluster ****");
 	            
 	    # Fill the scenario array
-	    fillScenarioArray();
+	    fillScenarioArray('yes');
 	    unless ($vm_name){
 	        # Assign first and last VLAN.
 	        &assignVLAN;
 	    }   
 	    # Split into files
 	    wlog (VVV, "****************************** Calling splitIntoFiles...");
-	    &splitIntoFiles;
+	    &splitIntoFiles ('yes');
 	    # Make a tgz compressed file containing VM execution config 
 	    &getConfiguration;
 	    # Send Configuration to each host.
@@ -773,7 +777,8 @@ sub mode_seginfo {
     # Segmentation processing
     if (defined($restriction_file)){
         wlog (VV, "\n  **** Calling static processor... ****\n");
-        my $restriction = static->new($restriction_file, $dom_tree, @cluster_active_hosts); 
+        #my $restriction = static->new($restriction_file, $dom_tree, @cluster_active_hosts); 
+        my $restriction = static->new($restriction_file, $dh->get_doc, @cluster_active_hosts); 
         
         %static_assignment = $restriction->assign();
         if ($static_assignment{"error"} eq "error"){
@@ -806,14 +811,22 @@ sub mode_seginfo {
        delete_scenario_from_database ($scenario_name);
        die();
     }
-        
+    
+    my $dom_tree = $dh->get_doc;
     %allocation = $segmentation_module->split(\$dom_tree, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
         
     if (defined($allocation{"error"})){
-            delete_scenario_from_database ($scenario_name);
+            wlog (N, "ERROR: in segmentation module  $segmentation_module");
             die();
     }
-
+    fillScenarioArray();
+    assignVLAN();
+    splitIntoFiles();
+    foreach my $host_id (@cluster_active_hosts) {
+        my $subscenario_fname = "/tmp/" . $scenario_name . "_" . $host_id . ".xml"; 
+        my $currentScenario = $scenarioHash{$host_id};      
+        $currentScenario->printToFile("$subscenario_fname");
+    }
 }
 
 sub mode_segalginfo {
@@ -1033,8 +1046,14 @@ sub assignVLAN {
 #
 sub fillScenarioArray {
 	
+	my $change_db = shift; # if not defined, the database is not changed 
+
+    #print $dh->get_doc->toString;
+	
 	# Create a new template document by cloning the scenario tree
-	my $templateDoc= $dom_tree->cloneNode("true");
+    #my $templateDoc= $dom_tree->cloneNode("true");
+    my $templateDoc= $dh->get_doc->cloneNode("true");
+    
     my $newVnxNode=$templateDoc->getElementsByTagName("vnx")->item(0);
 	#print $newVnxNode->getNodeTypeName."\n";
 	#print $newVnxNode->getNodeName."\n";
@@ -1113,10 +1132,12 @@ sub fillScenarioArray {
 		$scenarioHash{$host_id} = $scenarioDoc;	
         wlog (VVV, "---- fillScenarioArray: assigned scenario for $host_id\n");
 		
-		# Save data into DB
-        my $error = query_db ("INSERT INTO hosts (simulation,local_simulation,host,ip,status) VALUES " 
-                           . "('$scenario_name','$host_scen_name','$host_id','$current_host_ip','creating')");
-        if ($error) { die "** $error" }
+		if (defined($change_db)) {
+	        # Save data into DB
+	        my $error = query_db ("INSERT INTO hosts (simulation,local_simulation,host,ip,status) VALUES " 
+	                           . "('$scenario_name','$host_scen_name','$host_id','$current_host_ip','creating')");
+	        if ($error) { die "** $error" }
+		}
         
 	}
 	#wlog (VVV, "****** fillScenarioArray:\n" . Dumper(keys(%scenarioHash)) );
@@ -1130,15 +1151,20 @@ sub fillScenarioArray {
 #
 sub splitIntoFiles {
 
+    my $change_db = shift; # if not defined, the database is not changed 
+
     my $error; 
     my @db_resp;
     
     wlog (VVV, "-- splitIntoFiles called");
+    
+    #print $globalNode->toString;
+    #print $dh->get_doc->toString;
+    
 	# We explore the vms on the node and call vmPlacer to place them on the scenarios	
 	my $virtualmList=$globalNode->getElementsByTagName("vm");
 
 	my $vmListLength = $virtualmList->getLength;
-#	my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 
 	# Add VMs to corresponding subscenario specification file
 	for (my $m=0; $m<$vmListLength; $m++){
@@ -1176,16 +1202,18 @@ sub splitIntoFiles {
 			# Creating virtual machines in the database
             wlog (VVV, "** splitIntoFiles: Creating virtual machine $vm_name in db");
 
-	        $error = query_db ("SELECT `name` FROM vms WHERE name='$vm_name'", \@db_resp);
-	        if ($error) { ediv_die ("$error") };
-	        if ( defined($db_resp[0]->[0]) ) {
-                delete_scenario_from_database ($scenario_name);
-                die ("The vm $vm_name was already created... Aborting");
-	        }
-	        # Register the new vm in the database
-            $error = query_db ("INSERT INTO vms (name,type,subtype,os,status,simulation,host) " . 
-                               "VALUES ('$vm_name','$vm_type','$vm_subtype','$vm_os','inactive','$scenario_name','$host_id')");
-            if ($error) { ediv_die ("$error") };
+            if (defined($change_db)) {
+		        $error = query_db ("SELECT `name` FROM vms WHERE name='$vm_name'", \@db_resp);
+		        if ($error) { ediv_die ("$error") };
+		        if ( defined($db_resp[0]->[0]) ) {
+	                delete_scenario_from_database ($scenario_name);
+	                die ("The vm $vm_name was already created... Aborting");
+		        }
+		        # Register the new vm in the database
+	            $error = query_db ("INSERT INTO vms (name,type,subtype,os,status,simulation,host) " . 
+	                               "VALUES ('$vm_name','$vm_type','$vm_subtype','$vm_os','inactive','$scenario_name','$host_id')");
+	            if ($error) { ediv_die ("$error") };
+            }
 	}
 
 	# We add the corresponding nets to subscenario specification file
@@ -1227,9 +1255,11 @@ sub splitIntoFiles {
 			}				
 		}
 	}
-	unless ($vm_name){
-		&netTreatment;
-		&setAutomac;
+	if (defined($change_db)) {
+	    unless ($vm_name){
+	        &netTreatment;
+	        &setAutomac;
+	    }
 	}
 }
 
@@ -1253,18 +1283,17 @@ sub netTreatment {
 		my $currentNet=$nets->item($h);
 		my $nameOfNet=$currentNet->getAttribute("name");
 		
-		#Creating virtual nets in the database
-        $error = query_db ("SELECT `name` FROM nets WHERE name='$nameOfNet'", \@db_resp);
-        if ($error) { ediv_die ("$error") };
-        if ( defined($db_resp[0]->[0]) ) {
-            print ("INFO: The net $nameOfNet was already created...");
+		# Creating virtual nets in the database
+	    $error = query_db ("SELECT `name` FROM nets WHERE name='$nameOfNet'", \@db_resp);
+	    if ($error) { ediv_die ("$error") };
+	    if ( defined($db_resp[0]->[0]) ) {
+	        print ("INFO: The net $nameOfNet was already created...");
         }
-		#my $query_string = "SELECT `name` FROM nets WHERE name='$nameOfNet'";
         $error = query_db ("INSERT INTO nets (name,simulation) VALUES ('$nameOfNet','$scenario_name')");
         if ($error) { ediv_die ("$error") };
 		#$query_string = "INSERT INTO nets (name,simulation) VALUES ('$nameOfNet','$scenario_name')";
-		
-			# For exploring each scenario on scenarioarray	
+        		
+        # For exploring each scenario on scenarioarray	
 		my @net_host_list;
 		foreach my $host_id (keys(%scenarioHash)) {
 			my $currentScenario = $scenarioHash{$host_id};
@@ -1330,17 +1359,9 @@ sub netTreatment {
 							# Adding external interface to virtual net
 				            $error = query_db ("UPDATE nets SET external = '$external.$net_vlan' WHERE name='$currentNetName'");
 				            if ($error) { ediv_die ("$error") };
-							#my $query_string = "UPDATE nets SET external = '$external.$net_vlan' WHERE name='$currentNetName'";
-							#my $query = $dbh->prepare($query_string);
-							#$query->execute();
-							#$query->finish();
 							
                             $error = query_db ("INSERT INTO vlans (number,simulation,host,external_if) VALUES ('$net_vlan','$scenario_name','$host_id','$external')");
                             if ($error) { ediv_die ("$error") };
-							#$query_string = "INSERT INTO vlans (number,simulation,host,external_if) VALUES ('$net_vlan','$scenario_name','$host_id','$external')";
-							#$query = $dbh->prepare($query_string);
-							#$query->execute();
-							#$query->finish();
 		
 							my $vlan_command = "vconfig add $external $net_vlan\nifconfig $external.$net_vlan 0.0.0.0 up\n";
 							$commands{$host_id} = defined ($commands{$host_id}) ? $commands{$host_id}."$vlan_command" 
@@ -1938,7 +1959,8 @@ sub sendConfiguration {
         foreach my $host_id (@cluster_active_hosts) {  
 	        my $host_ip   = get_host_ipaddr ($host_id);            
 	        my $host_name = get_host_hostname ($host_id);
-			my $dynamips_user_path = &get_abs_path ( $dom_tree->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
+            #my $dynamips_user_path = &get_abs_path ( $dom_tree->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
+            my $dynamips_user_path = &get_abs_path ( $dh->get_doc->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
 			print "** dynamips_user_path=$dynamips_user_path\n";
 			#my $scp_command = "scp -2 $dynamips_user_path root\@$host_ip:$dynamips_ext_path".$filename."/dynamips-dn.xml";
 			my $scp_command = "scp -2 $dynamips_user_path root\@$host_ip:/tmp/dynamips-dn.xml";
@@ -2248,7 +2270,7 @@ sub initAndCheckVNXScenario {
 	
 	my $input_file = shift;
 	
-	print "***** initAndCheckVNXScenario called: $input_file\n";
+	print "---- initAndCheckVNXScenario called: $input_file\n";
    	my $vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
    	my $tmp_dir = "/tmp";
    	#my $uid = $>;
@@ -2285,10 +2307,11 @@ sub initAndCheckVNXScenario {
 
    	# Create DOM tree and set globalNode and scenario name
 	my $parser = new XML::DOM::Parser;
-    $dom_tree = $parser->parsefile($input_file);   	
+    my $dom_tree = $parser->parsefile($input_file);   	
     $globalNode = $dom_tree->getElementsByTagName("vnx")->item(0);
     $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
-   
+
+    #print "**********************************************\n" . $dom_tree->toString;   
 	# Build the VNX::Execution object
 	#$execution = new VNX::Execution($vnx_dir,$exemode,"host> ",'',$uid);
 
@@ -2321,7 +2344,8 @@ sub initAndCheckVNXScenario {
 	
     # if dynamips_ext node is present, update path
     $dynamips_ext_path = "";
-    my $dynamips_extTagList=$dom_tree->getElementsByTagName("dynamips_ext");
+    #my $dynamips_extTagList=$dom_tree->getElementsByTagName("dynamips_ext");
+    my $dynamips_extTagList=$dh->get_doc->getElementsByTagName("dynamips_ext");
     my $numdynamips_ext = $dynamips_extTagList->getLength;
     if ($numdynamips_ext == 1) {
         my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
