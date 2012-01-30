@@ -1122,7 +1122,7 @@ sub check_doc {
        return "$conf (conf) does not exist or is not readable/executable (user $uid_name)" unless (-r $conf);
     }
         
- 	# Check <exec> mode and ostype attribute values in relation with the VM type and set default 
+ 	# Check exec_mode attribute of <vm> and ostype attribute of <exec> mode in relation with the VM type and set default 
  	# values if not specified in the XML file
     $vm_list = $doc->getElementsByTagName("vm");
     # For each virtual machine 
@@ -1130,60 +1130,89 @@ sub check_doc {
         my $vm = $vm_list->item($i);
         my $vmName = $vm->getAttribute("name");
         my $merged_type = $dh->get_vm_merged_type($vm);
-        
+
+        # Check exec_mode attribute of <vm>
+        my $exec_mode = $vm->getAttribute("exec_mode");
+
+        if ($merged_type eq 'uml') {
+           if ($exec_mode eq '') { # Set default value 
+               $vm->setAttribute( 'exec_mode', "$EXEC_MODES_UML[0]" );
+           } elsif ( "@EXEC_MODES_UML" !~ $exec_mode )  {
+               return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+        } elsif ($merged_type eq 'libvirt-kvm-linux') {
+           if ($exec_mode eq '') { # Set default value 
+               $vm->setAttribute( 'exec_mode', "$EXEC_MODES_LIBVIRT_KVM_LINUX[0]" );
+           } elsif ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $exec_mode )  {
+               return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+        } elsif ($merged_type eq 'libvirt-kvm-windows') {
+           if ($exec_mode eq '') { # Set default value 
+               $vm->setAttribute( 'exec_mode', "$EXEC_MODES_LIBVIRT_KVM_WINDOWS[0]" );
+           } elsif ( "@EXEC_MODES_LIBVIRT_KVM_WINDOWS" !~ $exec_mode )  {
+               return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+        } elsif ($merged_type eq 'libvirt-kvm-olive') {
+           if ($exec_mode eq '') { # Set default value 
+               $vm->setAttribute( 'exec_mode', "$EXEC_MODES_LIBVIRT_KVM_OLIVE[0]" );
+           } elsif ( "@EXEC_MODES_LIBVIRT_KVM_OLIVE" !~ $exec_mode )  {
+               return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+        } elsif ( ($merged_type eq 'dynamips-c3600') or ($merged_type eq 'dynamips-c7200') )  {
+           if ($exec_mode eq '') { # Set default value 
+               $vm->setAttribute( 'exec_mode', "$EXEC_MODES_DYNAMIPS[0]" );
+           } elsif ( "@EXEC_MODES_DYNAMIPS" !~ $exec_mode )  {
+               return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+        }
         my $exec_list = $vm->getElementsByTagName("exec");
         # For each <exec> in the vm
         for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
         	my $cmd = $exec_list->item($j);
-            my $cmdMode = $cmd->getAttribute("mode");
+            # my $cmdMode = $cmd->getAttribute("mode"); # mode attribute eliminated from <exec>
             my $cmdOSType = $cmd->getAttribute("ostype");
             #print ("****** vm=$vmName,type=$merged_type, exec_mode=$cmdMode, exec_ostype=$cmdOSType\n");
 
             if ($merged_type eq 'uml') {
-            	if ($cmdMode eq '') { # Set default value 
-            		$cmd->setAttribute( 'mode', "$EXEC_MODES_UML[0]" );
-            	} elsif ( "@EXEC_MODES_UML" !~ $cmdMode )  {
-       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+#            	if ($cmdMode eq '') { # Set default value 
+#            		$cmd->setAttribute( 'mode', "$EXEC_MODES_UML[0]" );
+#            	} elsif ( "@EXEC_MODES_UML" !~ $cmdMode )  {
+#       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
             	if ($cmdOSType eq '') { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_UML[0]" );
             	} elsif ( "@EXEC_OSTYPE_UML" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
 
             } elsif ($merged_type eq 'libvirt-kvm-linux') {
-            	if ($cmdMode eq '') { # Set default value 
-            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_LINUX[0]" );
-            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $cmdMode )  {
-       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
+#            	if ($cmdMode eq '') { # Set default value 
+#            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_LINUX[0]" );
+#            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $cmdMode )  {
+#       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
             	if ($cmdOSType eq '') { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_LINUX[0]" );
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_LINUX" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
 
             } elsif ($merged_type eq 'libvirt-kvm-windows') {
-            	if ($cmdMode eq '') { # Set default value 
-            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_WINDOWS[0]" );
-            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_WINDOWS" !~ $cmdMode )  {
-       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+#            	if ($cmdMode eq '') { # Set default value 
+#            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_WINDOWS[0]" );
+#            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_WINDOWS" !~ $cmdMode )  {
+#       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
             	if ($cmdOSType eq '') { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS[0]" );
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
 
             } elsif ($merged_type eq 'libvirt-kvm-olive') {
-            	if ($cmdMode eq '') { # Set default value 
-            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_OLIVE[0]" );
-            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_OLIVE" !~ $cmdMode )  {
-       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+#            	if ($cmdMode eq '') { # Set default value 
+#            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_OLIVE[0]" );
+#            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_OLIVE" !~ $cmdMode )  {
+#       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
             	if ($cmdOSType eq '') { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_OLIVE[0]" );
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_OLIVE" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
 
             } elsif ( ($merged_type eq 'dynamips-c3600') or ($merged_type eq 'dynamips-c7200') )  {
-            	if ($cmdMode eq '') { # Set default value 
-            		$cmd->setAttribute( 'mode', "$EXEC_MODES_DYNAMIPS[0]" );
-            	} elsif ( "@EXEC_MODES_DYNAMIPS" !~ $cmdMode )  {
-       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
+#            	if ($cmdMode eq '') { # Set default value 
+#            		$cmd->setAttribute( 'mode', "$EXEC_MODES_DYNAMIPS[0]" );
+#            	} elsif ( "@EXEC_MODES_DYNAMIPS" !~ $cmdMode )  {
+#       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
             	if ($cmdOSType eq '') { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_DYNAMIPS[0]" );
             	} elsif ( "@EXEC_OSTYPE_DYNAMIPS" !~ $cmdOSType )  {
