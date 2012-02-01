@@ -418,14 +418,14 @@ sub host_active {
 #
 # Example 1:
 # 
-#   $query = "INSERT INTO simulations VALUES ('example','7','22')";
+#   $query = "INSERT INTO scenarios VALUES ('example','7','22')";
 #   $error = query_db ($query);
 #   if ($error) { die "** $error" }
 # 
 # Example 2:
 #
 #   my @response;
-#   $query = "SELECT * FROM simulations";
+#   $query = "SELECT * FROM scenarios";
 #   $error = query_db ($query, \@response);
 #   if ($error) { die "** $error" }
 #
@@ -509,7 +509,7 @@ sub reset_database {
         
         my $error;
         $error = query_db ("TRUNCATE TABLE  `hosts`");       if ($error) { die "** $error" }
-        $error = query_db ("TRUNCATE TABLE  `simulations`"); if ($error) { die "** $error" }
+        $error = query_db ("TRUNCATE TABLE  `scenarios`"); if ($error) { die "** $error" }
         $error = query_db ("TRUNCATE TABLE  `vms`");         if ($error) { die "** $error" }
         $error = query_db ("TRUNCATE TABLE  `vlans`");       if ($error) { die "** $error" }
         $error = query_db ("TRUNCATE TABLE  `nets`");        if ($error) { die "** $error" }
@@ -527,25 +527,20 @@ sub delete_scenario_from_database {
     wlog (V, "-- delete_scenario_from_database called");
     my $error;
     
-    $error = query_db ("DELETE FROM hosts WHERE simulation = '$scenario_name'");
+    $error = query_db ("DELETE FROM hosts WHERE scenario = '$scenario_name'");
     if ($error) { ediv_die ("$error") };
-    #my $query_string = "DELETE FROM hosts WHERE simulation = '$scenario_name'";
     
-    $error = query_db ("DELETE FROM nets WHERE simulation = '$scenario_name'");
+    $error = query_db ("DELETE FROM nets WHERE scenario = '$scenario_name'");
     if ($error) { ediv_die ("$error") };
-    #$query_string = "DELETE FROM nets WHERE simulation = '$scenario_name'";
     
-    $error = query_db ("DELETE FROM simulations WHERE name = '$scenario_name'"); 
+    $error = query_db ("DELETE FROM scenarios WHERE name = '$scenario_name'"); 
     if ($error) { ediv_die ("$error") }
-    #$query_string = "DELETE FROM simulations WHERE name = '$scenario_name'";
 
-    $error = query_db ("DELETE FROM vlans WHERE simulation = '$scenario_name'"); 
+    $error = query_db ("DELETE FROM vlans WHERE scenario = '$scenario_name'"); 
     if ($error) { ediv_die ("$error") }
-    #$query_string = "DELETE FROM vlans WHERE simulation = '$scenario_name'";
     
-    $error = query_db ("DELETE FROM vms WHERE simulation = '$scenario_name'"); 
+    $error = query_db ("DELETE FROM vms WHERE scenario = '$scenario_name'"); 
     if ($error) { ediv_die ("$error") }
-    #$query_string = "DELETE FROM vms WHERE simulation = '$scenario_name'";
 }
 1;
 ###########################################################

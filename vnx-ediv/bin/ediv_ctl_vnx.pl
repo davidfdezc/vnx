@@ -79,15 +79,16 @@ my $partition_mode;						# Default partition mode
 my $mode;								# Running mode
 my $configuration;						# =1 if scenario has configuration files
 # TODO: -M can specify a list of vms not only one
-my $vm_name; 							# VM specified with -M tag
+#my $vm_name; 							# VM specified with -M tag
 my $no_console; 						# Stores the value of --no-console command line option
+#my $cmdseq;
 	
 	# Scenario
 my $vnx_scenario;						# VNX scenario file name
 my %scenarioHash; 						# Scenarios. Every scenario belongs to a host machine
 										# Key -> host_id, Value -> XML Scenario							
 my $scenario_name;						# Scenario name specified in XML 
-my $dom_tree;							# Dom Tree with scenario specification
+my $doc;							# Dom Tree with scenario specification
 my $globalNode;							# Global node from dom tree
 my $restriction_file;					# Static assigment file
 
@@ -328,7 +329,6 @@ sub main {
     if ($opt_vv)  { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VV }
     if ($opt_vvv) { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VVV }
     #$exemode = $EXE_DEBUG if ($opt_g);
-    print "***** verbosity=$EXE_VERBOSITY_LEVEL\n";
 
     # Check for file and cmd_seq, depending the mode
     my $cmdseq = '';
@@ -387,9 +387,9 @@ sub main {
 
     # Option -M: vm list
     # TODO: only one vm allowed now. COnvert to process a list of Vms
-    if ($opt_M) {
-        $vm_name = $opt_M; 
-    }    
+    #if ($opt_M) {
+    #    $vm_name = $opt_M; 
+    #}    
 
     # Search for -n|--no-console tag
     $no_console = '';
@@ -420,7 +420,7 @@ sub main {
 
     unless ( ($mode eq 'seg-alg-info') or ($mode eq 'clean-cluster') ) {
 	    # init global objects and check VNX scenario correctness 
-	    initAndCheckVNXScenario ($vnx_scenario); 
+	    initAndCheckVNXScenario ($vnx_scenario, $opt_M, $cmdseq); 
     }
 
 	# Call mode handler
@@ -457,38 +457,39 @@ sub mode_create {
 
     my $error;
     my @db_resp;
+    my $opt_M = $args->get('M');
        
     # Scenario launching mode
     wlog (N, "\n---- mode: $mode\n---- Creating scenario $vnx_scenario");
         
     # Parse scenario XML.
     #wlog (VV, "\n  **** Parsing scenario ****\n");
-    &parseScenario ($vnx_scenario);
+    #&parseScenario ($vnx_scenario);
     
-    # Checking if the simulation already exists
-    $error = query_db ("SELECT `name` FROM simulations WHERE name='$scenario_name'", \@db_resp);
+    # Checking if the scenario already exists
+    $error = query_db ("SELECT `name` FROM scenarios WHERE name='$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
 
-    if ( $vm_name && !defined($db_resp[0]->[0])) {
+    if ( $opt_M && !defined($db_resp[0]->[0])) {
         
         # ERROR: trying to start a vm of a non-existent scenario
-        die ("ERROR: Scenario $scenario_name not found. Cannot use -M $vm_name option over a non existent scenario.");
+        die ("ERROR: Scenario $scenario_name not found. Cannot use -M $opt_M option over a non existent scenario.");
         
-    } elsif ( !$vm_name && defined($db_resp[0]->[0])) {
+    } elsif ( !$opt_M && defined($db_resp[0]->[0])) {
         
         # ERROR: trying to create an already existent scenario
         die ("ERROR: Scenario $scenario_name was already created.");
         
-    } elsif ( !$vm_name && !defined($db_resp[0]->[0])) {
+    } elsif ( !$opt_M && !defined($db_resp[0]->[0])) {
         
         # Creating a new scenario
-        $error = query_db ("INSERT INTO simulations (name,automac_offset,mgnet_offset) VALUES ('$scenario_name','0','0')");
+        $error = query_db ("INSERT INTO scenarios (name,automac_offset,mgnet_offset) VALUES ('$scenario_name','0','0')");
         if ($error) { ediv_die ("$error") };
         
 	    # Segmentation processing
 	    if (defined($restriction_file)){
 	        wlog (VV, "\n  -- Precessing segmentation restriction file $restriction_file... ****\n");
-            #my $restriction = static->new($restriction_file, $dom_tree, @cluster_active_hosts); 
+            #my $restriction = static->new($restriction_file, $doc, @cluster_active_hosts); 
             my $restriction = static->new($restriction_file, $dh->get_doc, @cluster_active_hosts); 
 	        %static_assignment = $restriction->assign();
 	        if ($static_assignment{"error"} eq "error"){
@@ -519,9 +520,9 @@ sub mode_create {
 	        die();
 	    }
 	        
-        #%allocation = $segmentation_module->split(\$dom_tree, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
-        my $dom_tree = $dh->get_doc;
-        %allocation = $segmentation_module->split(\$dom_tree, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
+        #%allocation = $segmentation_module->split(\$doc, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
+        my $doc = $dh->get_doc;
+        %allocation = $segmentation_module->split(\$doc, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
 	        
 	    if (defined($allocation{"error"})){
 	            delete_scenario_from_database ($scenario_name);
@@ -532,10 +533,10 @@ sub mode_create {
 	            
 	    # Fill the scenario array
 	    fillScenarioArray('yes');
-	    unless ($vm_name){
+	    #unless ($opt_M){
 	        # Assign first and last VLAN.
 	        &assignVLAN;
-	    }   
+	    #}   
 	    # Split into files
 	    wlog (VVV, "****************************** Calling splitIntoFiles...");
 	    &splitIntoFiles ('yes');
@@ -550,61 +551,87 @@ sub mode_create {
 	    # Send scenario files to the hosts and run them with VNX (-t option)
 	    &sendScenarios;
 	      
-	    unless ($vm_name){
+	    #unless ($opt_M){
 	        # Check if every VM is running and ready
-	        wlog (N, "\n\n  **** Checking simulation status ****\n");
+	        wlog (N, "\n\n  **** Checking scenario status ****\n");
 	        &checkFinish;
 	            
 	        # Create a ssh tunnel to access remote VMs
 	        wlog (N, "\n\n  **** Creating tunnels to access VM ****\n");
 	        &tunnelize;
-	    }
+	    #}
         
-    } elsif ( $vm_name && defined($db_resp[0]->[0])) {
+    } elsif ( $opt_M && defined($db_resp[0]->[0])) {
 
-        # Creating a vm over an existent scenario 
-        
-        # Check the status of the vm
-        # If it is already started, finish with an error
-        # VM status: inactive, active, suspended, hibernated
-        $error = query_db ("SELECT `status` FROM vms WHERE name = '$vm_name' AND simulation = '$scenario_name'", \@db_resp);
-        if ($error) { ediv_die ("$error") };
-        if (defined($db_resp[0]->[0])) { 
-        	if ( $db_resp[0]->[0] ne 'inactive' ) {
-	            wlog (N, "ERROR: virtual machine $vm_name specified in '-M' option not inactive (status=$db_resp[0]->[0])");
+        #
+        # Creating one or more vms over an existent scenario 
+        #
+        # Check that all vms in -M option exist and are in inactive state
+        my @vms = $dh->get_vm_to_use_ordered; # List of vms included in -M option
+        for ( my $i = 0; $i < @vms; $i++) {
+            
+            my $vm = $vms[$i];
+            my $vm_name = $vm->getAttribute("name");
+	        # Check the status of the vm
+	        # If it is already started, finish with an error
+	        # VM status: inactive, active, suspended, hibernated
+	        $error = query_db ("SELECT `status` FROM vms WHERE name = '$vm_name' AND scenario = '$scenario_name'", \@db_resp);
+	        if ($error) { ediv_die ("$error") };
+	        if (defined($db_resp[0]->[0])) { 
+	            if ( $db_resp[0]->[0] ne 'inactive' ) {
+	                wlog (N, "ERROR: virtual machine $vm_name specified in '-M' option not inactive (status=$db_resp[0]->[0])");
+	                die(); 
+	            }
+	        } else {
+	            wlog (N, "ERROR: virtual machine $vm_name specified in '-M' option not found");
 	            die(); 
-        	}
-        } else {
-        	wlog (N, "ERROR: virtual machine $vm_name specified in '-M' option not found");
-        	die(); 
-        }      
+	        }      
+        }
         
-        # get the host where the vm is running
-        my $host_id = get_vm_host($vm_name);
-        my $host_ip   = get_host_ipaddr ($host_id);            
-        my $host_name = get_host_hostname ($host_id);
+        my %hosts_involved;
         
-        # Start the vm
-        my $subscenario_name = get_host_subscenario_name ($host_name, $scenario_name);
-        my $subscenario_fname = "/tmp/$subscenario_name".".xml";
-        my $subscenario_xml = get_host_subscenario_xml ($host_name, $scenario_name, $subscenario_fname);
-        if ( (defined($subscenario_name)) && (defined($subscenario_xml)) ) {
+        for ( my $i = 0; $i < @vms; $i++) {
 
-            my $scp_command = "scp -2 $subscenario_fname root\@$host_ip:/tmp/";
-            &daemonize($scp_command, "$host_name"."_log");
-    
-            my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $subscenario_fname\'";
-            &daemonize($permissions_command, "$host_name"."_log");
-            
-            my $option_M = "-M $vm_name";
-            my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -t -f $subscenario_fname " . $option_M . "'";
-            &daemonize($ssh_command, "$host_name"."_log");  
-            
-            # update vm status in db
-            # TODO: update all vms when -M allows a list of vms
-            my $error = query_db ("UPDATE vms SET status = 'active' WHERE name='$vm_name'");
-            if ($error) { ediv_die ("$error") };
+            # get the host where the vm is running
+            my $vm_name = $vms[$i]->getAttribute("name");
+	        my $host_id = get_vm_host($vm_name);
 
+            # add it to the list
+            if (defined($hosts_involved{$host_id}) ) {
+            	$hosts_involved{$host_id} += ",$vm_name"; 
+            } else {
+                $hosts_involved{$host_id} = "$vm_name"; 
+            }
+        }            
+            
+        foreach my $host_id (keys %hosts_involved) {
+	        
+	        # Start the vms located on that host 
+            my $host_ip = get_host_ipaddr ($host_id);            
+	        my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
+	        my $subscenario_fname = "/tmp/$subscenario_name".".xml";
+	        my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $subscenario_fname);
+	        if ( (defined($subscenario_name)) && (defined($subscenario_xml)) ) {
+	
+	            my $scp_command = "scp -2 $subscenario_fname root\@$host_ip:/tmp/";
+	            &daemonize($scp_command, "$host_id"."_log");
+	    
+	            my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $subscenario_fname\'";
+	            &daemonize($permissions_command, "$host_id"."_log");
+	            
+	            my $option_M = "-M $hosts_involved{$host_id}";
+	            my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -t -f $subscenario_fname " . $option_M . "'";
+	            &daemonize($ssh_command, "$host_id"."_log");  
+	            
+	
+	        }        
+        }   
+
+        # Update vm status in db
+        for ( my $i = 0; $i < @vms; $i++) {
+            my $vm_name = $vms[$i]->getAttribute("name");
+	        my $error = query_db ("UPDATE vms SET status = 'active' WHERE name='$vm_name'");
+	        if ($error) { ediv_die ("$error") };
         }        
     }
 	
@@ -614,6 +641,7 @@ sub mode_shutdown {
 
     my $error;
     my @db_resp;
+    my $opt_M = $args->get('M');
 
     # Clean and destroy scenario temporary files
     wlog (N, "\n---- mode: $mode\n---- Shutdowning scenario $vnx_scenario");
@@ -621,16 +649,16 @@ sub mode_shutdown {
     # Parse scenario XML
     #&parseScenario; 
     
-    # Checking if the simulation is running
-    $error = query_db ("SELECT `simulation` FROM hosts WHERE status = 'running' AND simulation = '$scenario_name'", \@db_resp);
+    # Checking if the scenario is running
+    $error = query_db ("SELECT `scenario` FROM hosts WHERE status = 'running' AND scenario = '$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
     unless ( defined($db_resp[0]->[0]) ) {
-        die ("The simulation $scenario_name wasn't running... Aborting");
+        die ("The scenario $scenario_name wasn't running... Aborting");
     }       
         
-    # If no -M option, mark simulation as "destroying"
-    unless ($vm_name){
-        $error = query_db ("UPDATE hosts SET status = 'destroying' WHERE status = 'running' AND simulation = '$scenario_name'");
+    # If no -M option, mark scenario as "destroying"
+    unless ($opt_M){
+        $error = query_db ("UPDATE hosts SET status = 'destroying' WHERE status = 'running' AND scenario = '$scenario_name'");
         if ($error) { ediv_die ("$error") };
     }
     
@@ -647,8 +675,8 @@ sub mode_shutdown {
     &destroyScenario;
     sleep(5);
     
-    unless ($vm_name){      
-        # Clean simulation from database
+    unless ($opt_M){      
+        # Clean scenario from database
         delete_scenario_from_database ($scenario_name);
             
         # Delete /tmp files
@@ -660,6 +688,7 @@ sub mode_destroy {
 
     my $error;
     my @db_resp;
+    my $opt_M = $args->get('M');
         
     # Clean and purge scenario temporary files
     wlog (N, "\n---- mode: $mode\n---- Purging scenario $vnx_scenario");
@@ -667,16 +696,16 @@ sub mode_destroy {
     # Parse scenario XML
     #&parseScenario;
 
-    # Checking if the simulation is running
-    $error = query_db ("SELECT `name` FROM simulations WHERE name='$scenario_name'", \@db_resp);
+    # Checking if the scenario is running
+    $error = query_db ("SELECT `name` FROM scenarios WHERE name='$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
     unless ( defined($db_resp[0]->[0]) ) {
-        die ("The simulation $scenario_name wasn't running... Aborting");
+        die ("The scenario $scenario_name wasn't running... Aborting");
     }
 
-    # If no -M option, mark simulation as "purging"
-    unless ($vm_name){
-        $error = query_db ("UPDATE hosts SET status = 'purging' WHERE status = 'running' AND simulation = '$scenario_name'");
+    # If no -M option, mark scenario as "purging"
+    unless ($opt_M){
+        $error = query_db ("UPDATE hosts SET status = 'purging' WHERE status = 'running' AND scenario = '$scenario_name'");
         if ($error) { ediv_die ("$error") };
     }
         
@@ -693,8 +722,8 @@ sub mode_destroy {
     &purgeScenario;
     sleep(5);
         
-    unless ($vm_name){  
-        # Clean simulation from database
+    unless ($opt_M){  
+        # Clean scenario from database
         delete_scenario_from_database ($scenario_name);
          
         # Delete /tmp files
@@ -717,11 +746,11 @@ sub mode_execute {
     # Parse scenario XML
     #&parseScenario;
 
-    # Checking if the simulation is running
-    $error = query_db ("SELECT `simulation` FROM hosts WHERE status = 'running' AND simulation = '$scenario_name'", \@db_resp);
+    # Checking if the scenario is running
+    $error = query_db ("SELECT `scenario` FROM hosts WHERE status = 'running' AND scenario = '$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
     unless ( defined($db_resp[0]->[0]) ) {
-        die ("The simulation $scenario_name wasn't running... Aborting");
+        die ("The scenario $scenario_name wasn't running... Aborting");
     }
         
     # Make a tgz compressed file containing VM execution config 
@@ -748,11 +777,11 @@ sub mode_others {
     #&parseScenario;
     
     # quizá el define se podría usar sin la simulacion creada ya, sobraria aqui 
-    # Checking if the simulation is running
-    $error = query_db ("SELECT `simulation` FROM hosts WHERE status = 'running' AND simulation = '$scenario_name'", \@db_resp);
+    # Checking if the scenario is running
+    $error = query_db ("SELECT `scenario` FROM hosts WHERE status = 'running' AND scenario = '$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
     unless ( defined($db_resp[0]->[0]) ) {
-        die ("The simulation $scenario_name wasn't running... Aborting");
+        die ("The scenario $scenario_name wasn't running... Aborting");
     }       
         
     # Make a tgz compressed file containing VM execution config 
@@ -777,7 +806,7 @@ sub mode_seginfo {
     # Segmentation processing
     if (defined($restriction_file)){
         wlog (VV, "\n  **** Calling static processor... ****\n");
-        #my $restriction = static->new($restriction_file, $dom_tree, @cluster_active_hosts); 
+        #my $restriction = static->new($restriction_file, $doc, @cluster_active_hosts); 
         my $restriction = static->new($restriction_file, $dh->get_doc, @cluster_active_hosts); 
         
         %static_assignment = $restriction->assign();
@@ -812,8 +841,8 @@ sub mode_seginfo {
        die();
     }
     
-    my $dom_tree = $dh->get_doc;
-    %allocation = $segmentation_module->split(\$dom_tree, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
+    my $doc = $dh->get_doc;
+    %allocation = $segmentation_module->split(\$doc, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
         
     if (defined($allocation{"error"})){
             wlog (N, "ERROR: in segmentation module  $segmentation_module");
@@ -871,11 +900,10 @@ sub mode_cleancluster {
         wlog (N, "---- Restarting cluster...");
         foreach my $host_id (@cluster_active_hosts){
             my $host_ip   = get_host_ipaddr ($host_id);
-            my $host_name = get_host_hostname ($host_id);
             my $vnx_dir = get_host_vnxdir ($host_id);
             my $hypervisor = get_host_hypervisor ($host_id);
              
-            wlog (N, "---- Host $host_name:");
+            wlog (N, "---- Host $host_id:");
 
             wlog (N, "----   Killing libvirt virtual machines...");
             my @virsh_list;
@@ -893,13 +921,13 @@ sub mode_cleancluster {
                 /^\s+(\S+)\s+(\S+)\s+(\S+)/;
                 if (defined ($2)) {
                     my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip 'virsh destroy $2'";
-                    wlog (N, "----     killing vm $2 at host $host_name");  
+                    wlog (N, "----     killing vm $2 at host $host_id");  
                     &daemonize($ssh_command, "$host_id"."_log");       
                 }
             }
                 
             wlog (N, "----   Killing uml virtual machines...(not implemented yet)");
-            wlog (N, "----   Restarting dynamips daemon at host $host_name");  
+            wlog (N, "----   Restarting dynamips daemon at host $host_id");  
             my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip '/etc/init.d/dynamips restart'";
             &daemonize($ssh_command, "$host_id"."_log");       
 
@@ -962,10 +990,10 @@ sub load_seg_plugins {
 #
 sub parseScenario {
 	
-	my $parser = new XML::DOM::Parser;
-	$dom_tree = $parser->parsefile($vnx_scenario);
-	$globalNode = $dom_tree->getElementsByTagName("vnx")->item(0);
-	$scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
+	#my $parser = new XML::DOM::Parser;
+	#$doc = $parser->parsefile($vnx_scenario);
+	#$globalNode = $doc->getElementsByTagName("vnx")->item(0);
+	#$scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 
 #   my $error;
 #   my @db_resp;
@@ -979,7 +1007,7 @@ sub parseScenario {
 
 	#if dynamips_ext node is present, update path
 #	$dynamips_ext_path = "";
-#	my $dynamips_extTagList=$dom_tree->getElementsByTagName("dynamips_ext");
+#	my $dynamips_extTagList=$doc->getElementsByTagName("dynamips_ext");
 #	my $numdynamips_ext = $dynamips_extTagList->getLength;
 #	if ($numdynamips_ext == 1) {
 #		my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
@@ -993,7 +1021,7 @@ sub is_scenario_running {
     my @db_resp;
     
     # Query the database
-    my $error = query_db ("SELECT `name` FROM simulations WHERE name='$scenario_name'", \@db_resp);
+    my $error = query_db ("SELECT `name` FROM scenarios WHERE name='$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
     if ( defined($db_resp[0]->[0]) ) {
     	return 1
@@ -1008,7 +1036,7 @@ sub is_scenario_running {
 # Subroutine to read VLAN configuration from cluster config or database
 #
 sub assignVLAN {
-	#my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
+
 	$firstVlan = $vlan->{first};
 	$lastVlan  = $vlan->{last};	
 
@@ -1020,21 +1048,12 @@ sub assignVLAN {
         unless ( defined($db_resp[0]->[0]) ) {
             last;
         }       
-		#my $query_string = "SELECT `number` FROM vlans WHERE number='$firstVlan'";
-		#my $query = $dbh->prepare($query_string);
-		#$query->execute();
-		#my $contenido = $query->fetchrow_array();
-		#unless (defined($contenido)) {
-		#	last;
-		#}
-		#$query->finish();
 		$firstVlan++;
 		if ($firstVlan >$lastVlan){
             delete_scenario_from_database ($scenario_name);
 			die ("There isn't more free vlans... Aborting");
 		}	
 	}	
-	#$dbh->disconnect;
 }
 	
 	
@@ -1051,7 +1070,7 @@ sub fillScenarioArray {
     #print $dh->get_doc->toString;
 	
 	# Create a new template document by cloning the scenario tree
-    #my $templateDoc= $dom_tree->cloneNode("true");
+    #my $templateDoc= $doc->cloneNode("true");
     my $templateDoc= $dh->get_doc->cloneNode("true");
     
     my $newVnxNode=$templateDoc->getElementsByTagName("vnx")->item(0);
@@ -1064,7 +1083,7 @@ sub fillScenarioArray {
 		} 
 	}
 	# Clone <global> section and add it to template document
-#	my $global= $dom_tree->getElementsByTagName("global")->item(0)->cloneNode("true");
+#	my $global= $doc->getElementsByTagName("global")->item(0)->cloneNode("true");
 #	$global->setOwnerDocument($templateDoc);
 #	$newVnxNode->appendChild($global);
 
@@ -1093,8 +1112,8 @@ sub fillScenarioArray {
 			for (my $m=0; $m<$vmListLength; $m++){
 				my $vm=$virtualmList->item($m);
 				my $vm_name = $vm->getAttribute("name");
-				my $host_name = $allocation{$vm_name};
-				if ($host_name eq $host_id){
+				my $vm_host_id = $allocation{$vm_name};
+				if ($vm_host_id eq $host_id){
 					my $vm_type = $vm->getAttribute("type");
 					if ($vm_type eq "dynamips"){
 						$keep_dynamips_in_scenario = 1;
@@ -1134,7 +1153,7 @@ sub fillScenarioArray {
 		
 		if (defined($change_db)) {
 	        # Save data into DB
-	        my $error = query_db ("INSERT INTO hosts (simulation,local_simulation,host,ip,status) VALUES " 
+	        my $error = query_db ("INSERT INTO hosts (scenario,local_scenario,host,ip,status) VALUES " 
 	                           . "('$scenario_name','$host_scen_name','$host_id','$current_host_ip','creating')");
 	        if ($error) { die "** $error" }
 		}
@@ -1155,6 +1174,7 @@ sub splitIntoFiles {
 
     my $error; 
     my @db_resp;
+    my $opt_M = $args->get('M');
     
     wlog (VVV, "-- splitIntoFiles called");
     
@@ -1210,7 +1230,7 @@ sub splitIntoFiles {
 	                die ("The vm $vm_name was already created... Aborting");
 		        }
 		        # Register the new vm in the database
-	            $error = query_db ("INSERT INTO vms (name,type,subtype,os,status,simulation,host) " . 
+	            $error = query_db ("INSERT INTO vms (name,type,subtype,os,status,scenario,host) " . 
 	                               "VALUES ('$vm_name','$vm_type','$vm_subtype','$vm_os','inactive','$scenario_name','$host_id')");
 	            if ($error) { ediv_die ("$error") };
             }
@@ -1256,7 +1276,7 @@ sub splitIntoFiles {
 		}
 	}
 	if (defined($change_db)) {
-	    unless ($vm_name){
+	    unless ($opt_M){
 	        &netTreatment;
 	        &setAutomac;
 	    }
@@ -1289,9 +1309,9 @@ sub netTreatment {
 	    if ( defined($db_resp[0]->[0]) ) {
 	        print ("INFO: The net $nameOfNet was already created...");
         }
-        $error = query_db ("INSERT INTO nets (name,simulation) VALUES ('$nameOfNet','$scenario_name')");
+        $error = query_db ("INSERT INTO nets (name,scenario) VALUES ('$nameOfNet','$scenario_name')");
         if ($error) { ediv_die ("$error") };
-		#$query_string = "INSERT INTO nets (name,simulation) VALUES ('$nameOfNet','$scenario_name')";
+		#$query_string = "INSERT INTO nets (name,scenario) VALUES ('$nameOfNet','$scenario_name')";
         		
         # For exploring each scenario on scenarioarray	
 		my @net_host_list;
@@ -1360,7 +1380,7 @@ sub netTreatment {
 				            $error = query_db ("UPDATE nets SET external = '$external.$net_vlan' WHERE name='$currentNetName'");
 				            if ($error) { ediv_die ("$error") };
 							
-                            $error = query_db ("INSERT INTO vlans (number,simulation,host,external_if) VALUES ('$net_vlan','$scenario_name','$host_id','$external')");
+                            $error = query_db ("INSERT INTO vlans (number,scenario,host,external_if) VALUES ('$net_vlan','$scenario_name','$host_id','$external')");
                             if ($error) { ediv_die ("$error") };
 		
 							my $vlan_command = "vconfig add $external $net_vlan\nifconfig $external.$net_vlan 0.0.0.0 up\n";
@@ -1393,9 +1413,8 @@ sub setAutomac {
 	
 	my $VmOffset;
 	my $MgnetOffset;
-#	my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 	
-    $error = query_db ("SELECT `automac_offset` FROM simulations ORDER BY `automac_offset` DESC LIMIT 0,1", \@db_resp);
+    $error = query_db ("SELECT `automac_offset` FROM scenarios ORDER BY `automac_offset` DESC LIMIT 0,1", \@db_resp);
     if ($error) { ediv_die ("$error") };
     unless ( defined($db_resp[0]->[0]) ) {
         $VmOffset = 0;
@@ -1403,7 +1422,7 @@ sub setAutomac {
         $VmOffset = $db_resp[0]->[0]; # we hope this is enough
     }
 
-    $error = query_db ("SELECT `mgnet_offset` FROM simulations ORDER BY `mgnet_offset` DESC LIMIT 0,1", \@db_resp);
+    $error = query_db ("SELECT `mgnet_offset` FROM scenarios ORDER BY `mgnet_offset` DESC LIMIT 0,1", \@db_resp);
     if ($error) { ediv_die ("$error") };
     unless ( defined($db_resp[0]->[0]) ) {
         $MgnetOffset = 0;
@@ -1469,10 +1488,10 @@ sub setAutomac {
 #		}	
 	}
 	
-    $error = query_db ("UPDATE simulations SET automac_offset = '$VmOffset' WHERE name='$scenario_name'");
+    $error = query_db ("UPDATE scenarios SET automac_offset = '$VmOffset' WHERE name='$scenario_name'");
     if ($error) { ediv_die ("$error") };
 	
-    $error = query_db ("UPDATE simulations SET mgnet_offset = '$MgnetOffset' WHERE name='$scenario_name'");
+    $error = query_db ("UPDATE scenarios SET mgnet_offset = '$MgnetOffset' WHERE name='$scenario_name'");
     if ($error) { ediv_die ("$error") };
 	
 }
@@ -1485,6 +1504,7 @@ sub setAutomac {
 sub sendScenarios {
 	
 	my @db_resp;
+    my $opt_M = $args->get('M');
 	
 	#wlog (VVV, "** " . Dumper(%scenarioHash));
 	foreach my $host_id (keys(%scenarioHash)) {
@@ -1516,7 +1536,7 @@ sub sendScenarios {
 
 		# We scape the "\" before writing the scenario to the ddbb
    		$fileData =~ s/\\/\\\\/g; 
-        my $error = query_db ("UPDATE hosts SET local_specification = '$fileData' WHERE local_simulation='$host_scen_name'");
+        my $error = query_db ("UPDATE hosts SET local_specification = '$fileData' WHERE local_scenario='$host_scen_name'");
         if ($error) { ediv_die ("$error") };
 		close (FILEHANDLE);
 		
@@ -1536,13 +1556,12 @@ sub sendScenarios {
 # checkFinish
 #
 # Subroutine to check propper finishing of launching mode (-t)
-# Uses $vnx_dir/simulations/<simulacion>/vms/<vm>/status file
+# Uses $vnx_dir/scenarios/<simulacion>/vms/<vm>/status file
 #
 sub checkFinish {
 
 	my $dbh;
 	my $host_ip;
-	my $host_name;
 	my $scenario;
 	my $file;
 	
@@ -1605,13 +1624,13 @@ sub checkFinish {
 			#$host_ip   = $cluster->{hosts}{$host_id}->ip_address;
 			#$host_name = $cluster->{hosts}{$host_id}->host_name;
 	
-		    #$error = query_db ("SELECT `local_simulation` FROM hosts WHERE status = 'creating' AND host = '$host_name'", \@db_resp);
+		    #$error = query_db ("SELECT `local_scenario` FROM hosts WHERE status = 'creating' AND host = '$host_name'", \@db_resp);
 		    #if ($error) { ediv_die ("$error") };
 		    #if ( defined($db_resp[0]->[0]) ) {
 		    #	 $scenario = $db_resp[0]->[0];
 		    #	 chomp($scenario);
 	        #}
-			#my $query_string = "SELECT `local_simulation` FROM hosts WHERE status = 'creating' AND host = '$host_name'";
+			#my $query_string = "SELECT `local_scenario` FROM hosts WHERE status = 'creating' AND host = '$host_name'";
 			#my $query = $dbh->prepare($query_string);
 			#$query->execute();
 			#$scenario = $query->fetchrow_array();
@@ -1632,7 +1651,7 @@ sub checkFinish {
 		$host_ip = $cluster->{hosts}{$host}->ip_address;
 		$host_name = $cluster->{hosts}{$host}->host_name;
 		
-		my $query_string = "SELECT `local_simulation` FROM hosts WHERE status = 'creating' AND host = '$host_name'";
+		my $query_string = "SELECT `local_scenario` FROM hosts WHERE status = 'creating' AND host = '$host_name'";
 		my $query = $dbh->prepare($query_string);
 		$query->execute();
 		$scenario = $query->fetchrow_array();
@@ -1680,7 +1699,7 @@ sub checkFinish {
 sub purgeScenario {
 
 	my $host_ip;
-	my $host_name;
+	my $host_id;
 	
 	my @db_resp;
     my $error;
@@ -1690,26 +1709,25 @@ sub purgeScenario {
 
 		my $vlan_command;
 		$host_ip   = get_host_ipaddr ($host_id);			
-		$host_name = get_host_hostname ($host_id);
 
 		# If vm specified with -M is not running in current host, check the next one.
 		if ($vm_name){
-            unless ($host_name eq get_vm_host ($vm_name) ) {
+            unless ($host_id eq get_vm_host ($vm_name) ) {
                 next;
             }
 		}			
 
-		# If vm specified with -M, do not switch simulation status to "purging".
-		my $simulation_status;
+		# If vm specified with -M, do not switch scenario status to "purging".
+		my $scenario_status;
 		if ($vm_name){
-			$simulation_status = "running";
+			$scenario_status = "running";
 		}else{
-			$simulation_status = "purging";
+			$scenario_status = "purging";
 		}
 
-        my $subscenario_name = get_host_subscenario_name ($host_name, $scenario_name);
+        my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
         my $subscenario_fname = "/tmp/$subscenario_name".".xml";
-        my $subscenario_xml = get_host_subscenario_xml ($host_name, $scenario_name, $subscenario_fname);
+        my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $subscenario_fname);
         if ( (defined($subscenario_name)) && (defined($subscenario_xml)) ) {
         	
 #	        wlog (VVV, "** subscenario_name=$subscenario_name, scenario_fname = $subscenario_fname");
@@ -1718,16 +1736,16 @@ sub purgeScenario {
 #	        close (FILEHANDLE);
 	        
 	        my $scp_command = "scp -2 $subscenario_fname root\@$host_ip:/tmp/";
-	        &daemonize($scp_command, "$host_name"."_log");
+	        &daemonize($scp_command, "$host_id"."_log");
 	
 	        my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $subscenario_fname\'";
-	        &daemonize($permissions_command, "$host_name"."_log");
+	        &daemonize($permissions_command, "$host_id"."_log");
 	        
-	        print "\n  **** Stopping simulation and network restoring in $host_name ****\n";
+	        print "\n  **** Stopping scenario and network restoring in $host_id ****\n";
 	        my $option_M = "";
 	        if ($vm_name){$option_M="-M $vm_name";}
 	        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -P -f $subscenario_fname " . $option_M . "'";
-	        &daemonize($ssh_command, "$host_name"."_log");  
+	        &daemonize($ssh_command, "$host_id"."_log");  
         	
         	# update vm status in db
         	# TODO: update all vms when -M allows a list of vms
@@ -1740,13 +1758,13 @@ sub purgeScenario {
 
         unless ($vm_name){
             #Clean vlans
-            $error = query_db ("SELECT `number`, `external_if` FROM vlans WHERE host = '$host_name' AND simulation = '$scenario_name'", \@db_resp);
+            $error = query_db ("SELECT `number`, `external_if` FROM vlans WHERE host = '$host_id' AND scenario = '$scenario_name'", \@db_resp);
             if ($error) { ediv_die ("$error") };
             foreach my $vlans (@db_resp) {
                 $vlan_command = $vlan_command . "vconfig rem $$vlans[1].$$vlans[0]\n";
             }
             $vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
-            &daemonize($vlan_command, "$host_name"."_log");
+            &daemonize($vlan_command, "$host_id"."_log");
         }   
 
 	}
@@ -1760,7 +1778,7 @@ sub purgeScenario {
 sub destroyScenario {
 	
 	my $host_ip;
-	my $host_name;
+	my $host_id;
     my $error;
     my @db_resp;
     
@@ -1769,26 +1787,25 @@ sub destroyScenario {
 			
 		my $vlan_command;
         $host_ip   = get_host_ipaddr ($host_id);            
-        $host_name = get_host_hostname ($host_id);
 			
 		# If vm specified with -M is not running in current host, check the next one.
 		if ($vm_name){
-            unless ($host_name eq get_vm_host ($vm_name) ) {
+            unless ($host_id eq get_vm_host ($vm_name) ) {
                 next;
             }
 		}	
 		
-		# If vm specified with -M, do not switch simulation status to "destroying".
-		my $simulation_status;
+		# If vm specified with -M, do not switch scenario status to "destroying".
+		my $scenario_status;
 		if ($vm_name){
-			$simulation_status = "running";
+			$scenario_status = "running";
 		}else{
-			$simulation_status = "destroying";
+			$scenario_status = "destroying";
 		}
 		
-        my $subscenario_name = get_host_subscenario_name ($host_name, $scenario_name);
+        my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
         my $subscenario_fname = "/tmp/$subscenario_name".".xml";
-        my $subscenario_xml = get_host_subscenario_xml ($host_name, $scenario_name, $subscenario_fname);
+        my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $subscenario_fname);
         if ( (defined($subscenario_name)) && (defined($subscenario_xml)) ) {
         
 #			wlog (VVV, "** subscenario_name=$subscenario_name, scenario_fname = $subscenario_fname");
@@ -1797,16 +1814,16 @@ sub destroyScenario {
 #			close (FILEHANDLE);
 	        		
 			my $scp_command = "scp -2 $subscenario_fname root\@$host_ip:/tmp/";
-			&daemonize($scp_command, "$host_name"."_log");
+			&daemonize($scp_command, "$host_id"."_log");
 	
 			my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $subscenario_fname\'";
-			&daemonize($permissions_command, "$host_name"."_log");
+			&daemonize($permissions_command, "$host_id"."_log");
 					
-			print "\n  **** Stopping simulation and network restoring in $host_name ****\n";
+			print "\n  **** Stopping scenario and network restoring in $host_id ****\n";
 			my $option_M = "";
 			if ($vm_name){$option_M="-M $vm_name";}
 			my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -d -f $subscenario_fname " . $option_M . "'";
-			&daemonize($ssh_command, "$host_name"."_log");
+			&daemonize($ssh_command, "$host_id"."_log");
 
             # update vm status in db
             # TODO: update all vms when -M allows a list of vms
@@ -1819,13 +1836,13 @@ sub destroyScenario {
 
 		unless ($vm_name){
 			#Clean vlans
-	        $error = query_db ("SELECT `number`, `external_if` FROM vlans WHERE host = '$host_name' AND simulation = '$scenario_name'", \@db_resp);
+	        $error = query_db ("SELECT `number`, `external_if` FROM vlans WHERE host = '$host_id' AND scenario = '$scenario_name'", \@db_resp);
 	        if ($error) { ediv_die ("$error") };
 			foreach my $vlans (@db_resp) {
 			     $vlan_command = $vlan_command . "vconfig rem $$vlans[1].$$vlans[0]\n";
 			}
 			$vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
-			&daemonize($vlan_command, "$host_name"."_log");
+			&daemonize($vlan_command, "$host_id"."_log");
 		}	
 	}
 }
@@ -1837,18 +1854,17 @@ sub destroyScenario {
 #
 sub deleteTMP {
 	my $host_ip;
-	my $host_name;
+	my $host_id;
 	foreach my $host_id (@cluster_active_hosts) {
 		
         $host_ip   = get_host_ipaddr ($host_id);            
-        $host_name = get_host_hostname ($host_id);
-        print "\n  **** Cleaning $host_name tmp directory ****\n";
+        print "\n  **** Cleaning $host_id tmp directory ****\n";
 		if (defined($conf_plugin_file)){
-			my $rm_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'rm -rf /tmp/$scenario_name"."_$host_name.xml /tmp/conf.tgz /tmp/$conf_plugin_file'";
-			&daemonize($rm_command, "$host_name"."_log");
+			my $rm_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'rm -rf /tmp/$scenario_name"."_$host_id.xml /tmp/conf.tgz /tmp/$conf_plugin_file'";
+			&daemonize($rm_command, "$host_id"."_log");
 		}else {
-			my $rm_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'rm -rf /tmp/$scenario_name"."_$host_name.xml /tmp/conf.tgz'";
-			# DFC comentado temporalmente...  &daemonize($rm_command, "/tmp/$host_name"."_log");
+			my $rm_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'rm -rf /tmp/$scenario_name"."_$host_id.xml /tmp/conf.tgz'";
+			# DFC comentado temporalmente...  &daemonize($rm_command, "/tmp/$host_id"."_log");
 		}
 	}			
 }
@@ -1938,12 +1954,11 @@ sub sendConfiguration {
 		print "\n\n  **** Sending configuration to cluster hosts ****\n\n";
 		foreach my $host_id (@cluster_active_hosts) {	
 	        my $host_ip   = get_host_ipaddr ($host_id);            
-	        my $host_name = get_host_hostname ($host_id);
 			my $tgz_name = "/tmp/conf.tgz";
 			my $scp_command = "scp -2 $tgz_name root\@$host_ip:/tmp/";	
 			system($scp_command);
 			my $tgz_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'tar xzf $tgz_name -C /tmp'";
-			&daemonize($tgz_command, "$host_name"."_log");
+			&daemonize($tgz_command, "$host_id"."_log");
 		}
 	}
 	my $plugin;
@@ -1958,8 +1973,7 @@ sub sendConfiguration {
 		print "\n\n  **** Sending dynamips configuration file to cluster hosts ****\n\n";
         foreach my $host_id (@cluster_active_hosts) {  
 	        my $host_ip   = get_host_ipaddr ($host_id);            
-	        my $host_name = get_host_hostname ($host_id);
-            #my $dynamips_user_path = &get_abs_path ( $dom_tree->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
+            #my $dynamips_user_path = &get_abs_path ( $doc->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
             my $dynamips_user_path = &get_abs_path ( $dh->get_doc->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
 			print "** dynamips_user_path=$dynamips_user_path\n";
 			#my $scp_command = "scp -2 $dynamips_user_path root\@$host_ip:$dynamips_ext_path".$filename."/dynamips-dn.xml";
@@ -1989,7 +2003,6 @@ sub sendConfiguration {
 	
         foreach my $host_id (@cluster_active_hosts) {  
 	        my $host_ip   = get_host_ipaddr ($host_id);            
-	        my $host_name = get_host_hostname ($host_id);
 			my $scp_command = "scp -2 $conf_plugin_file root\@$host_ip:/tmp";
 			system($scp_command);
 		}
@@ -2016,18 +2029,17 @@ sub executeConfiguration {
 #	my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
     foreach my $host_id (@cluster_active_hosts) {  
         my $host_ip   = get_host_ipaddr ($host_id);            
-        my $host_name = get_host_hostname ($host_id);
 			
 		# If vm specified with -M is not running in current host, check the next one.
 		if ($vm_name){
-            unless ($host_name eq get_vm_host ($vm_name) ) {
+            unless ($host_id eq get_vm_host ($vm_name) ) {
                 next;
             }
 		}
 			
-        my $subscenario_name = get_host_subscenario_name ($host_name, $scenario_name);
+        my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
         my $subscenario_fname = "/tmp/$subscenario_name".".xml";
-        my $subscenario_xml = get_host_subscenario_xml ($host_name, $scenario_name, $subscenario_fname);
+        my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $subscenario_fname);
         print "scenario bin:'$subscenario_xml'\n";
         print "subscenario name:'$subscenario_name'\n";
 		
@@ -2038,13 +2050,13 @@ sub executeConfiguration {
  #       para();
 	        		
 		my $scp_command = "scp -2 $subscenario_fname root\@$host_ip:/tmp/";
-		&daemonize($scp_command, "$host_name"."_log");
+		&daemonize($scp_command, "$host_id"."_log");
 		my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $subscenario_fname\'";	
-		&daemonize($permissions_command, "$host_name"."_log"); 		
+		&daemonize($permissions_command, "$host_id"."_log"); 		
 		my $option_M = "";
 		if ($vm_name){$option_M="-M $vm_name";}
 		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $subscenario_fname -v -x $cmdseq " . $option_M . "'"; 
-		&daemonize($execution_command, "$host_name"."_log");
+		&daemonize($execution_command, "$host_id"."_log");
    }
 }
 
@@ -2055,15 +2067,15 @@ sub executeConfiguration {
 # 
 sub get_host_subscenario_xml {
 
-    my $host_name = shift;
+    my $host_id = shift;
     my $subscenario_name = shift;
     my $subscenario_fname = shift;
     
     my $error;
     my @db_resp;
     
-    $error = query_db ("SELECT `local_specification` FROM hosts WHERE host = '$host_name' " . 
-                       "AND simulation = '$subscenario_name'", \@db_resp);
+    $error = query_db ("SELECT `local_specification` FROM hosts WHERE host = '$host_id' " . 
+                       "AND scenario = '$subscenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
     if (defined($db_resp[0]->[0])) {
 
@@ -2077,7 +2089,7 @@ sub get_host_subscenario_xml {
         
     } else {
     	wlog (N, "ERROR (get_host_subscenario_xml): cannot get subscenario xml " .
-    	         "from database for scenario $scenario_name and host $host_name");
+    	         "from database for scenario $scenario_name and host $host_id");
     	return undef;
     }
 }
@@ -2089,18 +2101,18 @@ sub get_host_subscenario_xml {
 # 
 sub get_host_subscenario_name {
 
-    my $host_name = shift;
+    my $host_id = shift;
     my $scenario_name = shift;
     my $error;
     my @db_resp;
     
-    $error = query_db ("SELECT `local_simulation` FROM hosts WHERE host = '$host_name' " . 
-                       "AND simulation = '$scenario_name'", \@db_resp);
+    $error = query_db ("SELECT `local_scenario` FROM hosts WHERE host = '$host_id' " . 
+                       "AND scenario = '$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
     if (defined($db_resp[0]->[0])) {
         return $db_resp[0]->[0];  
     } else {
-        wlog (N, "ERROR (get_host_subscenario_name): cannot get subscenario name from database for scenario $scenario_name and host $host_name");
+        wlog (N, "ERROR (get_host_subscenario_name): cannot get subscenario name from database for scenario $scenario_name and host $host_id");
         return undef;
     }
 }
@@ -2122,7 +2134,7 @@ sub tunnelize {
 
 	foreach $vm_name (keys (%allocation)) {
 		
-		my $host_name = $allocation{$vm_name};
+		my $host_id = $allocation{$vm_name};
 
 		# continue only if type of vm is "uml"
         $error = query_db ("SELECT `type` FROM vms WHERE name='$vm_name'", \@db_resp);
@@ -2131,7 +2143,7 @@ sub tunnelize {
         if (defined($db_resp[0]->[0])) {
            $vm_type = $db_resp[0]->[0];  
         }
-        wlog (VVV, "** $host_name, $vm_name, $vm_type");
+        wlog (VVV, "** $host_id, $vm_name, $vm_type");
 		unless($vm_type eq "uml"){
 			next;
 		}	
@@ -2145,17 +2157,17 @@ sub tunnelize {
 			$localport++;
 			
 		}
-		system("ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:$vm_name:22 $host_name");
+		system("ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:$vm_name:22 $host_id");
 
         $error = query_db ("UPDATE vms SET ssh_port = '$localport' WHERE name='$vm_name'");
         if ($error) { ediv_die ("$error") };
 		
 		if ($localport > 65535) {
-			die ("Not enough ports available but the simulation is running... you can't access to VMs using tunnels.");
+			die ("Not enough ports available but the scenario is running... you can't access to VMs using tunnels.");
 		}	
 	}
 	
-    $error = query_db ("SELECT `name`,`host`,`ssh_port` FROM vms WHERE simulation = '$scenario_name' ORDER BY `name`", \@db_resp);
+    $error = query_db ("SELECT `name`,`host`,`ssh_port` FROM vms WHERE scenario = '$scenario_name' ORDER BY `name`", \@db_resp);
     if ($error) { ediv_die ("$error") };
     foreach my $ports (@db_resp) {
         if (defined($$ports[2])) {
@@ -2163,7 +2175,7 @@ sub tunnelize {
         }
     }
 	print "\n\tUse command ssh -2 root\@localhost -p <port> to access VMs\n";
-	print "\tOr ediv_console.pl console <simulation_name> <vm_name>\n";
+	print "\tOr ediv_console.pl console <scenario_name> <vm_name>\n";
 	print "\tWhere <port> is a port number of the previous list\n";
 	print "\tThe port list can be found running ediv_console.pl info\n";
 	
@@ -2180,7 +2192,7 @@ sub untunnelize {
 	print "\n  **** Cleaning tunnels to access remote VMs ****\n\n";
 #	my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 	
-    $error = query_db ("SELECT `ssh_port` FROM vms WHERE simulation = '$scenario_name' ORDER BY `ssh_port`", \@db_resp);
+    $error = query_db ("SELECT `ssh_port` FROM vms WHERE scenario = '$scenario_name' ORDER BY `ssh_port`", \@db_resp);
     if ($error) { ediv_die ("$error") };
     foreach my $ports (@db_resp) {
         wlog (VVV, "ports=\n" . Dumper(@db_resp));
@@ -2221,34 +2233,32 @@ sub processMode {
     foreach my $host_id (@cluster_active_hosts) {  
 
         my $host_ip   = get_host_ipaddr ($host_id);            
-        my $host_name = get_host_hostname ($host_id);
 			
 		# If vm specified with -M is not running in current host, check the next one.
-	
 		if ($vm_name){
-            unless ($host_name eq get_vm_host($vm_name) ) {
+            unless ($host_id eq get_vm_host($vm_name) ) {
                 next;
             }
 		}
 	
-		my $subscenario_xml = get_host_scenario_xml ($host_name, $scenario_name);
-        my $subscenario_name = get_host_scenario_name ($host_name, $scenario_name);
+		my $subscenario_xml = get_host_scenario_xml ($host_id, $scenario_name);
+        my $subscenario_name = get_host_scenario_name ($host_id, $scenario_name);
 		my $subscenario_fname = "/tmp/$subscenario_name".".xml";
 		open(FILEHANDLE, ">$subscenario_fname") or die 'cannot open file';
 		print FILEHANDLE "$subscenario_xml";
 		close (FILEHANDLE);
 		
 		my $scp_command = "scp -2 $subscenario_fname root\@$host_ip:/tmp/";
-		&daemonize($scp_command, "$host_name"."_log");
+		&daemonize($scp_command, "$host_id"."_log");
 			
 		my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $subscenario_fname\'";
 			
-		&daemonize($permissions_command, "$host_name"."_log"); 		
+		&daemonize($permissions_command, "$host_id"."_log"); 		
 #VNX	my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnumlparser.pl -u root -v -x $cmdseq\@$scenario_name'";
 		my $option_M = "";
 		if ($vm_name){$option_M="-M $vm_name";}
 		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $subscenario_fname -v $mode " . $option_M . "'"; 
-		&daemonize($execution_command, "$host_name"."_log");
+		&daemonize($execution_command, "$host_id"."_log");
     }
 }
 
@@ -2269,6 +2279,8 @@ sub para {
 sub initAndCheckVNXScenario {
 	
 	my $input_file = shift;
+	my $opt_M      = shift;
+	my $cmdseq     = shift;
 	
 	print "---- initAndCheckVNXScenario called: $input_file\n";
    	my $vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
@@ -2307,11 +2319,11 @@ sub initAndCheckVNXScenario {
 
    	# Create DOM tree and set globalNode and scenario name
 	my $parser = new XML::DOM::Parser;
-    my $dom_tree = $parser->parsefile($input_file);   	
-    $globalNode = $dom_tree->getElementsByTagName("vnx")->item(0);
+    my $doc = $parser->parsefile($input_file);   	
+    $globalNode = $doc->getElementsByTagName("vnx")->item(0);
     $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 
-    #print "**********************************************\n" . $dom_tree->toString;   
+    #print "**********************************************\n" . $doc->toString;   
 	# Build the VNX::Execution object
 	#$execution = new VNX::Execution($vnx_dir,$exemode,"host> ",'',$uid);
 
@@ -2319,7 +2331,9 @@ sub initAndCheckVNXScenario {
    	my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
 	# Build the VNX::DataHandler object
-   	$dh = new VNX::DataHandler($execution,$dom_tree,'','','',$xml_dir,$input_file);
+   	#$dh = new VNX::DataHandler($execution,$doc,$mode,$opt_M,'',$xml_dir,$input_file);
+    $dh = new VNX::DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
+   	
    	#$dh->set_boot_timeout($boot_timeout);
    	$dh->set_vnx_dir($vnx_dir);
    	$dh->set_tmp_dir($tmp_dir);
@@ -2344,7 +2358,7 @@ sub initAndCheckVNXScenario {
 	
     # if dynamips_ext node is present, update path
     $dynamips_ext_path = "";
-    #my $dynamips_extTagList=$dom_tree->getElementsByTagName("dynamips_ext");
+    #my $dynamips_extTagList=$doc->getElementsByTagName("dynamips_ext");
     my $dynamips_extTagList=$dh->get_doc->getElementsByTagName("dynamips_ext");
     my $numdynamips_ext = $dynamips_extTagList->getLength;
     if ($numdynamips_ext == 1) {

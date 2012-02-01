@@ -3,6 +3,7 @@
 - EDIV:
      - Added show-map, clean-cluster, seg-info and seg-alg-info new options
      - Created @cluster_active_hosts new array to store active hosts
+     - Implemented -M as a comma separated list of vms
 
 - Changed ifconfig and route commands to use ip instead. Commands:
      - Activate interface: ip link set eth1 up

@@ -152,8 +152,8 @@ sub createDB{
 	$query->finish();
 	
 	$query_string = "CREATE TABLE IF NOT EXISTS `hosts` (
-  					`simulation` text collate utf8_spanish_ci NOT NULL,
-  					`local_simulation` text collate utf8_spanish_ci NOT NULL,
+  					`scenario` text collate utf8_spanish_ci NOT NULL,
+  					`local_scenario` text collate utf8_spanish_ci NOT NULL,
  					`host` text collate utf8_spanish_ci NOT NULL,
  					`local_specification` blob,
  					`ip` text collate utf8_spanish_ci NOT NULL,
@@ -165,14 +165,14 @@ sub createDB{
 	
 	$query_string = "CREATE TABLE IF NOT EXISTS `nets` (
  					`name` text collate utf8_spanish_ci NOT NULL,
-  					`simulation` text collate utf8_spanish_ci NOT NULL,
+  					`scenario` text collate utf8_spanish_ci NOT NULL,
   					`external` text collate utf8_spanish_ci
 					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_spanish_ci;";
 	$query = $dbh->prepare($query_string);
 	$query->execute();
 	$query->finish();
 	
-	$query_string = "CREATE TABLE IF NOT EXISTS `simulations` (
+	$query_string = "CREATE TABLE IF NOT EXISTS `scenarios` (
   					`name` text collate utf8_spanish_ci NOT NULL,
   					`automac_offset` int(11) default NULL,
   					`mgnet_offset` int(11) default NULL
@@ -183,7 +183,7 @@ sub createDB{
 	
 	$query_string = "CREATE TABLE IF NOT EXISTS `vlans` (
   					`number` int(11) NOT NULL,
-  					`simulation` text collate utf8_spanish_ci NOT NULL,
+  					`scenario` text collate utf8_spanish_ci NOT NULL,
   					`host` text collate utf8_spanish_ci NOT NULL,
   					`external_if` text collate utf8_spanish_ci NOT NULL
 					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_spanish_ci;";
@@ -197,7 +197,7 @@ sub createDB{
                     `subtype` text collate utf8_spanish_ci NOT NULL,
                     `os` text collate utf8_spanish_ci NOT NULL,
                     `status` text collate utf8_spanish_ci NOT NULL,
-  					`simulation` text collate utf8_spanish_ci NOT NULL,
+  					`scenario` text collate utf8_spanish_ci NOT NULL,
   					`host` text collate utf8_spanish_ci NOT NULL,
   					`ssh_port` int(11) default NULL
 					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_spanish_ci;";
