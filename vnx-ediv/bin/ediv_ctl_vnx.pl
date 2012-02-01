@@ -78,8 +78,6 @@ my $lastVlan;          					# Last VLAN number
 my $partition_mode;						# Default partition mode
 my $mode;								# Running mode
 my $configuration;						# =1 if scenario has configuration files
-# TODO: -M can specify a list of vms not only one
-#my $vm_name; 							# VM specified with -M tag
 my $no_console; 						# Stores the value of --no-console command line option
 #my $cmdseq;
 	
@@ -386,7 +384,6 @@ sub main {
     }
 
     # Option -M: vm list
-    # TODO: only one vm allowed now. COnvert to process a list of Vms
     #if ($opt_M) {
     #    $vm_name = $opt_M; 
     #}    
@@ -420,7 +417,7 @@ sub main {
 
     unless ( ($mode eq 'seg-alg-info') or ($mode eq 'clean-cluster') ) {
 	    # init global objects and check VNX scenario correctness 
-	    initAndCheckVNXScenario ($vnx_scenario, $opt_M, $cmdseq); 
+	    initialize_and_check_scenario ($vnx_scenario, $opt_M, $cmdseq); 
     }
 
 	# Call mode handler
@@ -543,13 +540,13 @@ sub mode_create {
 	    # Make a tgz compressed file containing VM execution config 
 	    &getConfiguration;
 	    # Send Configuration to each host.
-	    &sendConfiguration;
-	    #jsf: código copiado a sub sendConfiguration, borrar esta subrutina.    
+	    &send_conf_files;
+	    #jsf: código copiado a sub send_conf_files, borrar esta subrutina.    
 	    # Send dynamips configuration to each host.
 	    #&sendDynConfiguration;
 	    wlog (N, "\n\n  **** Sending scenario to cluster hosts and executing it ****\n");
 	    # Send scenario files to the hosts and run them with VNX (-t option)
-	    &sendScenarios;
+	    &send_and_start_subscenarios;
 	      
 	    #unless ($opt_M){
 	        # Check if every VM is running and ready
@@ -588,22 +585,8 @@ sub mode_create {
 	        }      
         }
         
-        my %hosts_involved;
+        my %hosts_involved = get_hosts_involved();
         
-        for ( my $i = 0; $i < @vms; $i++) {
-
-            # get the host where the vm is running
-            my $vm_name = $vms[$i]->getAttribute("name");
-	        my $host_id = get_vm_host($vm_name);
-
-            # add it to the list
-            if (defined($hosts_involved{$host_id}) ) {
-            	$hosts_involved{$host_id} += ",$vm_name"; 
-            } else {
-                $hosts_involved{$host_id} = "$vm_name"; 
-            }
-        }            
-            
         foreach my $host_id (keys %hosts_involved) {
 	        
 	        # Start the vms located on that host 
@@ -666,13 +649,13 @@ sub mode_shutdown {
     &getConfiguration;
         
     # Send Configuration to each host.
-    &sendConfiguration;
+    &send_conf_files;
         
     # Clear ssh tunnels to access remote VMs
     &untunnelize;
         
     # Purge the scenario
-    &destroyScenario;
+    &destroy_scenario;
     sleep(5);
     
     unless ($opt_M){      
@@ -713,13 +696,13 @@ sub mode_destroy {
     &getConfiguration;
         
     # Send Configuration to each host.
-    &sendConfiguration;
+    &send_conf_files;
         
     # Clear ssh tunnels to access remote VMs
     &untunnelize;
         
     # Purge the scenario
-    &purgeScenario;
+    &purge_scenario;
     sleep(5);
         
     unless ($opt_M){  
@@ -757,11 +740,11 @@ sub mode_execute {
     &getConfiguration;
         
     # Send Configuration to each host.
-    &sendConfiguration;
+    &send_conf_files;
         
     # Send Configuration to each host.
     wlog (N, "\n **** Sending commands to VMs ****");
-    &executeConfiguration($cmdseq);
+    &execute_command($cmdseq);
 	
 }
 
@@ -788,10 +771,10 @@ sub mode_others {
     &getConfiguration;
         
     # Send Configuration to each host.
-    &sendConfiguration;
+    &send_conf_files;
         
     # Process mode defined in $mode
-    &processMode;
+    &process_other_modes;
 }
 
 sub mode_seginfo {
@@ -1497,30 +1480,33 @@ sub setAutomac {
 }
 
 #
-# sendScenarios 
+# send_and_start_subscenarios 
 #
 # Subroutine to send scenario files to hosts
 #
-sub sendScenarios {
+sub send_and_start_subscenarios {
 	
 	my @db_resp;
     my $opt_M = $args->get('M');
 	
 	#wlog (VVV, "** " . Dumper(%scenarioHash));
-	foreach my $host_id (keys(%scenarioHash)) {
+	#foreach my $host_id (keys(%scenarioHash)) {
+
+    my %hosts_involved = get_hosts_involved();
+
+    foreach my $host_id (keys %hosts_involved) {
 	
-	    wlog (VVV, "**** sendScenarios: $host_id");
+	    wlog (VVV, "**** send_and_start_subscenarios: $host_id");
 	
-		#my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
 		my $currentScenario = $scenarioHash{$host_id};
         my $host_ip = get_host_ipaddr ($host_id);
 	
 		# If vm specified with -M is not running in current host, check the next one.
-		if ($vm_name){	
-            unless ($host_id eq get_vm_host ($vm_name) ) {
-                next;
-            }
-		}
+#		if ($vm_name){	
+#            unless ($host_id eq get_vm_host ($vm_name) ) {
+#                next;
+#            }
+#		}
 		
 		my $host_scen_name = $currentScenario->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
 #		my $scenario_name = $filename;
@@ -1544,8 +1530,8 @@ sub sendScenarios {
 		&daemonize($scp_command, "$host_id"."_log");
 		my $permissions_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'chmod -R 777 $hostScenFileName\'";
 		&daemonize($permissions_command, "$host_id"."_log"); 
-		my $option_M = "";
-		if ($vm_name){$option_M="-M $vm_name";}
+		my $option_M = '';
+		if ($opt_M){ $option_M = "-M $hosts_involved{$host_id}"; }
 		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $hostScenFileName -v -t -o /dev/null\ " 
 		                  . $option_M . " " . $no_console . "'";
 		&daemonize($ssh_command, "$host_id"."_log");		
@@ -1692,34 +1678,37 @@ sub checkFinish {
 }
 
 #
-# purgeScenario
+# purge_scenario
 #
 # Subroutine to execute purge mode in cluster
 #
-sub purgeScenario {
+sub purge_scenario {
 
 	my $host_ip;
 	my $host_id;
-	
 	my @db_resp;
     my $error;
-
 	my $scenario;
-	foreach my $host_id (@cluster_active_hosts) {
+    my $opt_M = $args->get('M');
+	
+    my %hosts_involved = get_hosts_involved();
+
+    # foreach my $host_id (@cluster_active_hosts) {
+    foreach my $host_id (keys %hosts_involved) {
 
 		my $vlan_command;
 		$host_ip   = get_host_ipaddr ($host_id);			
 
 		# If vm specified with -M is not running in current host, check the next one.
-		if ($vm_name){
-            unless ($host_id eq get_vm_host ($vm_name) ) {
-                next;
-            }
-		}			
+#		if ($vm_name){
+#            unless ($host_id eq get_vm_host ($vm_name) ) {
+#                next;
+#            }
+#		}			
 
 		# If vm specified with -M, do not switch scenario status to "purging".
 		my $scenario_status;
-		if ($vm_name){
+		if ($opt_M){
 			$scenario_status = "running";
 		}else{
 			$scenario_status = "purging";
@@ -1742,21 +1731,16 @@ sub purgeScenario {
 	        &daemonize($permissions_command, "$host_id"."_log");
 	        
 	        print "\n  **** Stopping scenario and network restoring in $host_id ****\n";
-	        my $option_M = "";
-	        if ($vm_name){$option_M="-M $vm_name";}
+	        my $option_M = '';
+	        if ($opt_M) { $option_M = "-M $hosts_involved{$host_id}"; }
 	        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -P -f $subscenario_fname " . $option_M . "'";
 	        &daemonize($ssh_command, "$host_id"."_log");  
-        	
-        	# update vm status in db
-        	# TODO: update all vms when -M allows a list of vms
-            my $error = query_db ("UPDATE vms SET status = 'inactive' WHERE name='$vm_name'");
-            if ($error) { ediv_die ("$error") };
-        	
+        	        	
         } else {
             wlog (V, "No subscenario entries found for scenario $vnx_scenario in host $host_id")        	
         }
 
-        unless ($vm_name){
+        unless ($opt_M){
             #Clean vlans
             $error = query_db ("SELECT `number`, `external_if` FROM vlans WHERE host = '$host_id' AND scenario = '$scenario_name'", \@db_resp);
             if ($error) { ediv_die ("$error") };
@@ -1768,36 +1752,50 @@ sub purgeScenario {
         }   
 
 	}
+	
+    # Update vm status in db
+    my @vms = $dh->get_vm_to_use_ordered; # List of vms included in -M option
+    for ( my $i = 0; $i < @vms; $i++) {
+        my $vm_name = $vms[$i]->getAttribute("name");
+        my $error = query_db ("UPDATE vms SET status = 'inactive' WHERE name='$vm_name'");
+        if ($error) { ediv_die ("$error") };
+    }        
+	
 }
 
 #
-# destroyScenario
+# destroy_scenario
 #
 # Subroutine to execute destroy mode in cluster
 #
-sub destroyScenario {
+sub destroy_scenario {
 	
 	my $host_ip;
 	my $host_id;
     my $error;
     my @db_resp;
+    my $opt_M = $args->get('M');
     
 	my $scenario;
-	foreach my $host_id (@cluster_active_hosts) {
+
+    my %hosts_involved = get_hosts_involved();
+        
+    #foreach my $host_id (@cluster_active_hosts) {
+    foreach my $host_id (keys %hosts_involved) {
 			
 		my $vlan_command;
         $host_ip   = get_host_ipaddr ($host_id);            
 			
 		# If vm specified with -M is not running in current host, check the next one.
-		if ($vm_name){
-            unless ($host_id eq get_vm_host ($vm_name) ) {
-                next;
-            }
-		}	
+#		if ($vm_name){
+#            unless ($host_id eq get_vm_host ($vm_name) ) {
+#                next;
+#            }
+#		}	
 		
 		# If vm specified with -M, do not switch scenario status to "destroying".
 		my $scenario_status;
-		if ($vm_name){
+		if ($opt_M){
 			$scenario_status = "running";
 		}else{
 			$scenario_status = "destroying";
@@ -1820,21 +1818,16 @@ sub destroyScenario {
 			&daemonize($permissions_command, "$host_id"."_log");
 					
 			print "\n  **** Stopping scenario and network restoring in $host_id ****\n";
-			my $option_M = "";
-			if ($vm_name){$option_M="-M $vm_name";}
+            my $option_M = '';
+            if ($opt_M) { $option_M = "-M $hosts_involved{$host_id}"; }
 			my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -d -f $subscenario_fname " . $option_M . "'";
 			&daemonize($ssh_command, "$host_id"."_log");
-
-            # update vm status in db
-            # TODO: update all vms when -M allows a list of vms
-            my $error = query_db ("UPDATE vms SET status = 'inactive' WHERE name='$vm_name'");
-            if ($error) { ediv_die ("$error") };
 				
         } else {
             wlog (V, "No subscenario entries found for scenario $vnx_scenario")         
         }
 
-		unless ($vm_name){
+		unless ($opt_M){
 			#Clean vlans
 	        $error = query_db ("SELECT `number`, `external_if` FROM vlans WHERE host = '$host_id' AND scenario = '$scenario_name'", \@db_resp);
 	        if ($error) { ediv_die ("$error") };
@@ -1845,6 +1838,15 @@ sub destroyScenario {
 			&daemonize($vlan_command, "$host_id"."_log");
 		}	
 	}
+	
+    # Update vm status in db
+    my @vms = $dh->get_vm_to_use_ordered; # List of vms included in -M option
+    for ( my $i = 0; $i < @vms; $i++) {
+        my $vm_name = $vms[$i]->getAttribute("name");
+        my $error = query_db ("UPDATE vms SET status = 'inactive' WHERE name='$vm_name'");
+        if ($error) { ediv_die ("$error") };
+    }        
+	
 }
 
 #
@@ -1945,11 +1947,11 @@ sub getConfiguration {
 }
 
 #
-# sendConfiguration
+# send_conf_files
 #
 # Subroutine to copy VMs execution mode configuration to cluster machines
 #
-sub sendConfiguration {
+sub send_conf_files {
 	if ($configuration == 1){
 		print "\n\n  **** Sending configuration to cluster hosts ****\n\n";
 		foreach my $host_id (@cluster_active_hosts) {	
@@ -1982,7 +1984,6 @@ sub sendConfiguration {
 		}
 	}
 
-
 	if ( defined($plugin) && defined($conf_plugin) ){
 		print "\n\n  **** Sending configuration to cluster hosts ****\n\n";
 		
@@ -2012,30 +2013,35 @@ sub sendConfiguration {
 
 
 #
-# executeConfiguration
+# execute_command
 #
 # Subroutine to execute execution mode in cluster
 #
-sub executeConfiguration {
+sub execute_command {
 
     my $error;
     my @db_resp;
+    my $opt_M = $args->get('M');
     	
 	if (!($configuration)){
 		die ("This scenario doesn't support mode -x")
 	}
 	my $cmdseq = shift;
 	my $dbh;
-#	my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
-    foreach my $host_id (@cluster_active_hosts) {  
+
+    my %hosts_involved = get_hosts_involved();
+
+    # foreach my $host_id (@cluster_active_hosts) {
+    foreach my $host_id (keys %hosts_involved) {
+
         my $host_ip   = get_host_ipaddr ($host_id);            
 			
 		# If vm specified with -M is not running in current host, check the next one.
-		if ($vm_name){
-            unless ($host_id eq get_vm_host ($vm_name) ) {
-                next;
-            }
-		}
+#		if ($vm_name){
+#            unless ($host_id eq get_vm_host ($vm_name) ) {
+#                next;
+#            }
+#		}
 			
         my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
         my $subscenario_fname = "/tmp/$subscenario_name".".xml";
@@ -2053,8 +2059,8 @@ sub executeConfiguration {
 		&daemonize($scp_command, "$host_id"."_log");
 		my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $subscenario_fname\'";	
 		&daemonize($permissions_command, "$host_id"."_log"); 		
-		my $option_M = "";
-		if ($vm_name){$option_M="-M $vm_name";}
+        my $option_M = '';
+        if ($opt_M) { $option_M = "-M $hosts_involved{$host_id}"; }
 		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $subscenario_fname -v -x $cmdseq " . $option_M . "'"; 
 		&daemonize($execution_command, "$host_id"."_log");
    }
@@ -2132,7 +2138,7 @@ sub tunnelize {
 
     #print "** %allocation:\n" . Dumper (%allocation) . "\n";
 
-	foreach $vm_name (keys (%allocation)) {
+	foreach my $vm_name (keys (%allocation)) {
 		
 		my $host_id = $allocation{$vm_name};
 
@@ -2223,23 +2229,25 @@ sub daemonize {
 #
 # Subroutine to execute execution mode in cluster
 #
-sub processMode {
+sub process_other_modes {
 	
 	my $error;
 	my @db_resp;
-	
-	#my $cmdseq = shift;
-	
-    foreach my $host_id (@cluster_active_hosts) {  
+    my $opt_M = $args->get('M');
+    
+    my %hosts_involved = get_hosts_involved();
+
+    # foreach my $host_id (@cluster_active_hosts) {
+    foreach my $host_id (keys %hosts_involved) {
 
         my $host_ip   = get_host_ipaddr ($host_id);            
 			
 		# If vm specified with -M is not running in current host, check the next one.
-		if ($vm_name){
-            unless ($host_id eq get_vm_host($vm_name) ) {
-                next;
-            }
-		}
+#		if ($vm_name){
+#            unless ($host_id eq get_vm_host($vm_name) ) {
+#                next;
+#            }
+#		}
 	
 		my $subscenario_xml = get_host_scenario_xml ($host_id, $scenario_name);
         my $subscenario_name = get_host_scenario_name ($host_id, $scenario_name);
@@ -2255,8 +2263,8 @@ sub processMode {
 			
 		&daemonize($permissions_command, "$host_id"."_log"); 		
 #VNX	my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnumlparser.pl -u root -v -x $cmdseq\@$scenario_name'";
-		my $option_M = "";
-		if ($vm_name){$option_M="-M $vm_name";}
+        my $option_M = '';
+        if ($opt_M) { $option_M = "-M $hosts_involved{$host_id}"; }
 		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $subscenario_fname -v $mode " . $option_M . "'"; 
 		&daemonize($execution_command, "$host_id"."_log");
     }
@@ -2274,15 +2282,17 @@ sub para {
 }
 
 # 
-# checkVNXScenario: checks scenario file semantics using the same code used in VNX
+# initialize_and_check_scenario
 #
-sub initAndCheckVNXScenario {
+# Does some initialization tasks and checks scenario file semantics 
+#
+sub initialize_and_check_scenario {
 	
 	my $input_file = shift;
 	my $opt_M      = shift;
 	my $cmdseq     = shift;
 	
-	print "---- initAndCheckVNXScenario called: $input_file\n";
+	print "---- initialize_and_check_scenario called: $input_file\n";
    	my $vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
    	my $tmp_dir = "/tmp";
    	#my $uid = $>;
@@ -2383,6 +2393,36 @@ sub ediv_die {
    exit 1;
 }
 
+
+# 
+# get_hosts_involved
+#
+# Returns an associative array with the list of hosts involved in the current
+# execution taking into account the -P option. The keys of the array are the 
+# hosts_id of the hosts involved and the values are a comma separated list
+# of the vms involved which run on each host. 
+#
+sub get_hosts_involved {
+	
+    my %hosts_involved;
+                
+    my @vms = $dh->get_vm_to_use_ordered; # List of vms included in -M option
+    for ( my $i = 0; $i < @vms; $i++) {
+
+        # get the host where the vm is running
+        my $vm_name = $vms[$i]->getAttribute("name");
+        my $host_id = get_vm_host($vm_name);
+
+        # add it to the list
+        if (defined($hosts_involved{$host_id}) ) {
+            $hosts_involved{$host_id} += ",$vm_name"; 
+        } else {
+            $hosts_involved{$host_id} = "$vm_name"; 
+        }
+    }            
+
+    return %hosts_involved;
+}            
 
 ####################
 # usage
