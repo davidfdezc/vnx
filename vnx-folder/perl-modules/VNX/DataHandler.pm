@@ -787,6 +787,41 @@ sub get_vm_ordered {
 
 }
 
+# get_vm_to_use_ordered
+#
+# Returns a hash with the vm names of the scenario to be used for each mode having into account -M option 
+#
+# Arguments:
+#
+# - plugins array (in order to invoke the execVmsToUse method that provide the vms for which the
+#   plugin has to execute actions)
+#
+sub get_vm_to_use_ordered {
+    
+    my $self = shift;
+    #my @plugins = @_;
+   
+    # The array to be returned at the end
+    my @vms_ordered;
+    
+    my @vms = $self->get_vm_ordered;
+    for ( my $i = 0; $i < @vms; $i++) {
+        my $name = $vms[$i]->getAttribute("name");
+
+        if ($self->{'vm_to_use'}) { # VNX has been invoked with option -M
+                                    # Only select the vm if its name is on 
+                                    # the comma separated list after "-M" 
+            my $vm_list = $self->{'vm_to_use'};
+            if ($vm_list =~ /^$name,|,$name,|,$name$|^$name$/) {
+                push (@vms_ordered, $vms[$i]);
+            }
+        } else { # No -M option, always select the vm
+            push (@vms_ordered, $vms[$i]);
+        }
+    }
+    return @vms_ordered;
+}
+
 # get_vm_to_use
 #
 # Returns a hash with the vm names of the scenario to be used for each mode. 
