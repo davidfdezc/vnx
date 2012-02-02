@@ -4,6 +4,7 @@
      - Added show-map, clean-cluster, seg-info and seg-alg-info new options
      - Created @cluster_active_hosts new array to store active hosts
      - Implemented -M as a comma separated list of vms
+     - changed argument processiog to simplify it using a hash to store arguments (%opts)
 
 - Changed ifconfig and route commands to use ip instead. Commands:
      - Activate interface: ip link set eth1 up

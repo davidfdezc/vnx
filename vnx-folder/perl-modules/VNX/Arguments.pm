@@ -61,6 +61,10 @@ sub new {
     $self->{'console-info'} = shift;
     $self->{'exe-info'}     = shift;
     $self->{'help'}         = shift;
+    $self->{'help'}         = shift;
+    $self->{'help'}         = shift;
+    $self->{'help'}         = shift;
+    
 
     $self->{'f'}      = shift;
     $self->{'c'}      = shift;

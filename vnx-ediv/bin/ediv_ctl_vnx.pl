@@ -67,6 +67,10 @@ use VNX::Execution;
 # Global variables 
 ###########################################################
 	
+	
+# Command line options hash
+my %opts = ();
+	
 # Cluster
 my $cluster_conf_file;					# Cluster conf file
 	
@@ -79,7 +83,6 @@ my $partition_mode;						# Default partition mode
 my $mode;								# Running mode
 my $configuration;						# =1 if scenario has configuration files
 my $no_console; 						# Stores the value of --no-console command line option
-#my $cmdseq;
 	
 	# Scenario
 my $vnx_scenario;						# VNX scenario file name
@@ -127,6 +130,17 @@ sub main {
 	print $hline . "\n";
 	
 	# Argument handling
+    Getopt::Long::Configure ( qw{no_auto_abbrev no_ignore_case} ); # case sensitive single-character options
+    GetOptions (\%opts,
+                'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
+                'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
+                'show-map', 'console', 'console-info', 'exe-info',
+                'help|h|H', 'seg-info', 'seg-alg-info', 'clean-cluster',
+                'v', 'vv', 'vvv', 'version|V',
+                'f=s', 'C=s', 'a=s', 'r=s', 'M=s', 'n|no-console'
+               );
+	
+=BEGIN	
 	our(
 	      $opt_define,       # define mode
 	      $opt_undefine,     # undefine mode
@@ -230,51 +244,54 @@ sub main {
           $opt_M,            # vm list
           $opt_n             # do not open consoles          
 	);
+=END
+=cut	
+	
 	
 	my $how_many_args = 0;
-	if ($opt_create) {
+	if ($opts{'create'}) {
 	    $how_many_args++; $mode = "create";	}
-	if ($opt_execute) {
+	if ($opts{'execute'}) {
 	    $how_many_args++; $mode = "execute"; }
-	if ($opt_shutdown) {
+	if ($opts{'shutdown'}) {
 		$how_many_args++; $mode = "shutdown"; }
-	if ($opt_destroy) {
+	if ($opts{'destroy'}) {
 	    $how_many_args++; $mode = "destroy"; }
-	if ($opt_V) {
+	if ($opts{'version'}) {
 	    $how_many_args++; $mode = "version"; }
-	if ($opt_help) {
+	if ($opts{'help'}) {
 	    $how_many_args++; $mode = "help"; }
-	if ($opt_define) {
+	if ($opts{'define'}) {
 	    $how_many_args++; $mode = "define"; }
-	if ($opt_start) {
+	if ($opts{'start'}) {
 	    $how_many_args++; $mode = "start"; }
-	if ($opt_undefine) {
+	if ($opts{'undefine'}) {
 	    $how_many_args++; $mode = "undefine"; }
-	if ($opt_save) {
+	if ($opts{'save'}) {
 	    $how_many_args++; $mode = "save"; }
-	if ($opt_restore) {
+	if ($opts{'restore'}) {
 	    $how_many_args++; $mode = "restore"; }
-	if ($opt_suspend) {
+	if ($opts{'suspend'}) {
 	    $how_many_args++; $mode = "suspend"; }
-	if ($opt_resume) {
+	if ($opts{'resume'}) {
 	    $how_many_args++; $mode = "resume";	}
-	if ($opt_reboot) {
+	if ($opts{'reboot'}) {
 	    $how_many_args++; $mode = "reboot";	}
-	if ($opt_reset) {
+	if ($opts{'reset'}) {
 	    $how_many_args++; $mode = "reset"; }
-	if ($opt_showmap) {
+	if ($opts{'show-map'}) {
 	    $how_many_args++; $mode = "show-map"; }
-	if ($opt_console) {
+	if ($opts{'console'}) {
 		$how_many_args++; $mode = "console"; }
-	if ($opt_consoleinfo) {
+	if ($opts{'console-info'}) {
 	    $how_many_args++; $mode = "console-info"; }
-    if ($opt_exeinfo) {
+    if ($opts{'exe-info'}) {
         $how_many_args++; $mode = "exe-info"; }
-    if ($opt_seginfo) {
+    if ($opts{'seg-info'}) {
         $how_many_args++; $mode = "seg-info"; }
-    if ($opt_segalginfo) {
+    if ($opts{'seg-alg-info'}) {
         $how_many_args++; $mode = "seg-alg-info"; }
-    if ($opt_cleancluster) {
+    if ($opts{'clean-cluster'}) {
         $how_many_args++; $mode = "clean-cluster"; }
 	  
 	if ($how_many_args gt 1) {
@@ -285,13 +302,13 @@ sub main {
 	}
     if ($how_many_args lt 1)  {
         &usage;
-        &vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start," .
+        &ediv_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start," .
                   " --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, --show-map," . 
                   "--console, --console-info, --seg-info, --clean-cluster, -V or -H\n");
     }
 	
     # Version pseudomode
-    if ($opt_V) {
+    if ($opts{'version'}) {
         my $basename = basename $0;
         print "\n";
         print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
@@ -316,39 +333,33 @@ sub main {
     }
 
     # Help pseudomode
-    if ($opt_help) {
+    if ($opts{'help'}) {
         &usage;
         exit(0);
     }
 
     # 2. Optional arguments
     $exemode = $EXE_NORMAL; $EXE_VERBOSITY_LEVEL=N;
-    if ($opt_v)   { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=V }
-    if ($opt_vv)  { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VV }
-    if ($opt_vvv) { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VVV }
-    #$exemode = $EXE_DEBUG if ($opt_g);
+    if ($opts{v})   { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=V }
+    if ($opts{vv})  { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VV }
+    if ($opts{vvv}) { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VVV }
+    #$exemode = $EXE_DEBUG if ($opts{g);
 
-    # Check for file and cmd_seq, depending the mode
-    my $cmdseq = '';
-    if ($opt_execute) {
-        $cmdseq = $opt_execute
-    } 
-	
-	# Create logs directory if not already created
+    # Create logs directory if not already created
 	system ("mkdir -p $EDIV_LOGS_DIR");
 	
     # Set scenario 
-    if ($opt_f) {
-        $vnx_scenario = $opt_f; 
+    if ($opts{f}) {
+        $vnx_scenario = $opts{f}; 
         print "Using scenario: $vnx_scenario\n";
     }
-    unless ( ($opt_V) or ($opt_help) or ($opt_segalginfo) or ($opt_cleancluster) or (-e $vnx_scenario)) {
+    unless ( ($opts{'version'}) or ($opts{'help'}) or ($opts{'seg-alg-info'}) or ($opts{'clean-cluster'}) or (-e $vnx_scenario)) {
         die ("ERROR: scenario xml file not specified (missing -f option) or not found");
     }
     
     # Set configuration file 
-    if ($opt_C) {
-        $cluster_conf_file = $opt_C; 
+    if ($opts{C}) {
+        $cluster_conf_file = $opts{C}; 
     } else {
         $cluster_conf_file = $DEFAULT_CLUSTER_CONF_FILE;
     }
@@ -365,8 +376,8 @@ sub main {
     }
 
     # Set segmentation algorithm
-    if ($opt_a) {
-        $partition_mode = $opt_a; 
+    if ($opts{a}) {
+        $partition_mode = $opts{a}; 
     } else {
         $partition_mode = $cluster->{def_seg_alg};
     }
@@ -374,9 +385,9 @@ sub main {
     print $hline . "\n";
 
     # Search for static assigment file
-    if ($opt_r) {
-        $restriction_file = $opt_r; 
-        unless ( (-e $restriction_file) or ($opt_V) or ($opt_help) ) {
+    if ($opts{r}) {
+        $restriction_file = $opts{r}; 
+        unless ( (-e $restriction_file) or ($opts{'version'}) or ($opts{'help'}) ) {
             print "\nERROR: The restriction file $restriction_file doesn't exist... Aborting\n\n";
             exit(1);
         }     
@@ -384,13 +395,13 @@ sub main {
     }
 
     # Option -M: vm list
-    #if ($opt_M) {
-    #    $vm_name = $opt_M; 
+    #if ($opts{M) {
+    #    $vm_name = $opts{M; 
     #}    
 
     # Search for -n|--no-console tag
     $no_console = '';
-    if ($opt_n) {
+    if ($opts{n}) {
         $no_console = "--no-console";
     }       
         
@@ -417,12 +428,12 @@ sub main {
 
     unless ( ($mode eq 'seg-alg-info') or ($mode eq 'clean-cluster') ) {
 	    # init global objects and check VNX scenario correctness 
-	    initialize_and_check_scenario ($vnx_scenario, $opt_M, $cmdseq); 
+	    initialize_and_check_scenario ($vnx_scenario); 
     }
 
 	# Call mode handler
 	if      ( $mode eq 'create' )        { mode_create();
-	} elsif ( $mode eq 'execute' )       { mode_execute($cmdseq)
+	} elsif ( $mode eq 'execute' )       { mode_execute()
 	} elsif ( $mode eq 'destroy' )       { mode_destroy()
 	} elsif ( $mode eq 'shutdown' )      { mode_shutdown()
 	} elsif ( $mode eq 'define' | 
@@ -454,7 +465,6 @@ sub mode_create {
 
     my $error;
     my @db_resp;
-    my $opt_M = $args->get('M');
        
     # Scenario launching mode
     wlog (N, "\n---- mode: $mode\n---- Creating scenario $vnx_scenario");
@@ -467,17 +477,17 @@ sub mode_create {
     $error = query_db ("SELECT `name` FROM scenarios WHERE name='$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
 
-    if ( $opt_M && !defined($db_resp[0]->[0])) {
+    if ( $opts{M} && !defined($db_resp[0]->[0])) {
         
         # ERROR: trying to start a vm of a non-existent scenario
-        die ("ERROR: Scenario $scenario_name not found. Cannot use -M $opt_M option over a non existent scenario.");
+        die ("ERROR: Scenario $scenario_name not found. Cannot use -M $opts{M} option over a non existent scenario.");
         
-    } elsif ( !$opt_M && defined($db_resp[0]->[0])) {
+    } elsif ( !$opts{M} && defined($db_resp[0]->[0]) ) {
         
         # ERROR: trying to create an already existent scenario
         die ("ERROR: Scenario $scenario_name was already created.");
         
-    } elsif ( !$opt_M && !defined($db_resp[0]->[0])) {
+    } elsif ( !$opts{M} && !defined($db_resp[0]->[0])) {
         
         # Creating a new scenario
         $error = query_db ("INSERT INTO scenarios (name,automac_offset,mgnet_offset) VALUES ('$scenario_name','0','0')");
@@ -485,7 +495,7 @@ sub mode_create {
         
 	    # Segmentation processing
 	    if (defined($restriction_file)){
-	        wlog (VV, "\n  -- Precessing segmentation restriction file $restriction_file... ****\n");
+	        wlog (VV, "\n  -- Processing segmentation restriction file $restriction_file... ****\n");
             #my $restriction = static->new($restriction_file, $doc, @cluster_active_hosts); 
             my $restriction = static->new($restriction_file, $dh->get_doc, @cluster_active_hosts); 
 	        %static_assignment = $restriction->assign();
@@ -530,7 +540,7 @@ sub mode_create {
 	            
 	    # Fill the scenario array
 	    fillScenarioArray('yes');
-	    #unless ($opt_M){
+	    #unless ($opts{M}){
 	        # Assign first and last VLAN.
 	        &assignVLAN;
 	    #}   
@@ -548,7 +558,7 @@ sub mode_create {
 	    # Send scenario files to the hosts and run them with VNX (-t option)
 	    &send_and_start_subscenarios;
 	      
-	    #unless ($opt_M){
+	    #unless ($opts{M}){
 	        # Check if every VM is running and ready
 	        wlog (N, "\n\n  **** Checking scenario status ****\n");
 	        &checkFinish;
@@ -558,7 +568,7 @@ sub mode_create {
 	        &tunnelize;
 	    #}
         
-    } elsif ( $opt_M && defined($db_resp[0]->[0])) {
+    } elsif ( $opts{M} && defined($db_resp[0]->[0])) {
 
         #
         # Creating one or more vms over an existent scenario 
@@ -624,7 +634,6 @@ sub mode_shutdown {
 
     my $error;
     my @db_resp;
-    my $opt_M = $args->get('M');
 
     # Clean and destroy scenario temporary files
     wlog (N, "\n---- mode: $mode\n---- Shutdowning scenario $vnx_scenario");
@@ -640,7 +649,7 @@ sub mode_shutdown {
     }       
         
     # If no -M option, mark scenario as "destroying"
-    unless ($opt_M){
+    unless ($opts{M}){
         $error = query_db ("UPDATE hosts SET status = 'destroying' WHERE status = 'running' AND scenario = '$scenario_name'");
         if ($error) { ediv_die ("$error") };
     }
@@ -655,10 +664,10 @@ sub mode_shutdown {
     &untunnelize;
         
     # Purge the scenario
-    &destroy_scenario;
+    &shutdown_scenario;
     sleep(5);
     
-    unless ($opt_M){      
+    unless ($opts{M}){      
         # Clean scenario from database
         delete_scenario_from_database ($scenario_name);
             
@@ -671,7 +680,6 @@ sub mode_destroy {
 
     my $error;
     my @db_resp;
-    my $opt_M = $args->get('M');
         
     # Clean and purge scenario temporary files
     wlog (N, "\n---- mode: $mode\n---- Purging scenario $vnx_scenario");
@@ -687,7 +695,7 @@ sub mode_destroy {
     }
 
     # If no -M option, mark scenario as "purging"
-    unless ($opt_M){
+    unless ($opts{M}){
         $error = query_db ("UPDATE hosts SET status = 'purging' WHERE status = 'running' AND scenario = '$scenario_name'");
         if ($error) { ediv_die ("$error") };
     }
@@ -705,7 +713,7 @@ sub mode_destroy {
     &purge_scenario;
     sleep(5);
         
-    unless ($opt_M){  
+    unless ($opts{M}){  
         # Clean scenario from database
         delete_scenario_from_database ($scenario_name);
          
@@ -716,15 +724,14 @@ sub mode_destroy {
 
 sub mode_execute {
 
-    my $cmdseq = shift;
     my $error;
     my @db_resp;
     
     # Execution of commands in VMs mode
-    if (!defined($cmdseq)) {
+    if (!defined($opts{'execute'})) {
         die ("You must specify the command tag to execute\n");
     }
-    wlog (N, "\n---- mode: $mode\n---- Executing commands tagged with '$cmdseq'");
+    wlog (N, "\n---- mode: $mode\n---- Executing commands tagged with '$opts{'execute'}'");
         
     # Parse scenario XML
     #&parseScenario;
@@ -744,7 +751,7 @@ sub mode_execute {
         
     # Send Configuration to each host.
     wlog (N, "\n **** Sending commands to VMs ****");
-    &execute_command($cmdseq);
+    &execute_command($opts{'execute'});
 	
 }
 
@@ -1157,7 +1164,6 @@ sub splitIntoFiles {
 
     my $error; 
     my @db_resp;
-    my $opt_M = $args->get('M');
     
     wlog (VVV, "-- splitIntoFiles called");
     
@@ -1259,7 +1265,7 @@ sub splitIntoFiles {
 		}
 	}
 	if (defined($change_db)) {
-	    unless ($opt_M){
+	    unless ($opts{M}){
 	        &netTreatment;
 	        &setAutomac;
 	    }
@@ -1487,7 +1493,6 @@ sub setAutomac {
 sub send_and_start_subscenarios {
 	
 	my @db_resp;
-    my $opt_M = $args->get('M');
 	
 	#wlog (VVV, "** " . Dumper(%scenarioHash));
 	#foreach my $host_id (keys(%scenarioHash)) {
@@ -1531,7 +1536,7 @@ sub send_and_start_subscenarios {
 		my $permissions_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'chmod -R 777 $hostScenFileName\'";
 		&daemonize($permissions_command, "$host_id"."_log"); 
 		my $option_M = '';
-		if ($opt_M){ $option_M = "-M $hosts_involved{$host_id}"; }
+		if ($opts{M}){ $option_M = "-M $hosts_involved{$host_id}"; }
 		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $hostScenFileName -v -t -o /dev/null\ " 
 		                  . $option_M . " " . $no_console . "'";
 		&daemonize($ssh_command, "$host_id"."_log");		
@@ -1689,7 +1694,6 @@ sub purge_scenario {
 	my @db_resp;
     my $error;
 	my $scenario;
-    my $opt_M = $args->get('M');
 	
     my %hosts_involved = get_hosts_involved();
 
@@ -1708,7 +1712,7 @@ sub purge_scenario {
 
 		# If vm specified with -M, do not switch scenario status to "purging".
 		my $scenario_status;
-		if ($opt_M){
+		if ($opts{M}){
 			$scenario_status = "running";
 		}else{
 			$scenario_status = "purging";
@@ -1732,7 +1736,7 @@ sub purge_scenario {
 	        
 	        print "\n  **** Stopping scenario and network restoring in $host_id ****\n";
 	        my $option_M = '';
-	        if ($opt_M) { $option_M = "-M $hosts_involved{$host_id}"; }
+	        if ($opts{M}) { $option_M = "-M $hosts_involved{$host_id}"; }
 	        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -P -f $subscenario_fname " . $option_M . "'";
 	        &daemonize($ssh_command, "$host_id"."_log");  
         	        	
@@ -1740,7 +1744,7 @@ sub purge_scenario {
             wlog (V, "No subscenario entries found for scenario $vnx_scenario in host $host_id")        	
         }
 
-        unless ($opt_M){
+        unless ($opts{M}){
             #Clean vlans
             $error = query_db ("SELECT `number`, `external_if` FROM vlans WHERE host = '$host_id' AND scenario = '$scenario_name'", \@db_resp);
             if ($error) { ediv_die ("$error") };
@@ -1764,27 +1768,33 @@ sub purge_scenario {
 }
 
 #
-# destroy_scenario
+# shutdown_scenario
 #
 # Subroutine to execute destroy mode in cluster
 #
-sub destroy_scenario {
+sub shutdown_scenario {
 	
 	my $host_ip;
 	my $host_id;
     my $error;
     my @db_resp;
-    my $opt_M = $args->get('M');
     
 	my $scenario;
 
     my %hosts_involved = get_hosts_involved();
+    
+    wlog (V, "**** shutdown_scenario: " . Dumper(%hosts_involved));    
+    wlog (V, "**** shutdown_scenario: $opts{M}");        
+        
+    
         
     #foreach my $host_id (@cluster_active_hosts) {
     foreach my $host_id (keys %hosts_involved) {
+
+        wlog (V, "**** shutdown_scenario: $host_id");        
 			
 		my $vlan_command;
-        $host_ip   = get_host_ipaddr ($host_id);            
+        $host_ip = get_host_ipaddr ($host_id);            
 			
 		# If vm specified with -M is not running in current host, check the next one.
 #		if ($vm_name){
@@ -1795,7 +1805,7 @@ sub destroy_scenario {
 		
 		# If vm specified with -M, do not switch scenario status to "destroying".
 		my $scenario_status;
-		if ($opt_M){
+		if ($opts{M}){
 			$scenario_status = "running";
 		}else{
 			$scenario_status = "destroying";
@@ -1806,11 +1816,6 @@ sub destroy_scenario {
         my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $subscenario_fname);
         if ( (defined($subscenario_name)) && (defined($subscenario_xml)) ) {
         
-#			wlog (VVV, "** subscenario_name=$subscenario_name, scenario_fname = $subscenario_fname");
-#			open(FILEHANDLE, ">$subscenario_fname") or die 'cannot open file';
-#			print FILEHANDLE "$subscenario_xml";
-#			close (FILEHANDLE);
-	        		
 			my $scp_command = "scp -2 $subscenario_fname root\@$host_ip:/tmp/";
 			&daemonize($scp_command, "$host_id"."_log");
 	
@@ -1819,7 +1824,9 @@ sub destroy_scenario {
 					
 			print "\n  **** Stopping scenario and network restoring in $host_id ****\n";
             my $option_M = '';
-            if ($opt_M) { $option_M = "-M $hosts_involved{$host_id}"; }
+            if ($opts{M}) { $option_M = "-M $hosts_involved{$host_id}"; }
+            wlog (V, "**** shutdown_scenario: $option_M");        
+            
 			my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -d -f $subscenario_fname " . $option_M . "'";
 			&daemonize($ssh_command, "$host_id"."_log");
 				
@@ -1827,7 +1834,7 @@ sub destroy_scenario {
             wlog (V, "No subscenario entries found for scenario $vnx_scenario")         
         }
 
-		unless ($opt_M){
+		unless ($opts{M}){
 			#Clean vlans
 	        $error = query_db ("SELECT `number`, `external_if` FROM vlans WHERE host = '$host_id' AND scenario = '$scenario_name'", \@db_resp);
 	        if ($error) { ediv_die ("$error") };
@@ -2021,12 +2028,10 @@ sub execute_command {
 
     my $error;
     my @db_resp;
-    my $opt_M = $args->get('M');
     	
 	if (!($configuration)){
 		die ("This scenario doesn't support mode -x")
 	}
-	my $cmdseq = shift;
 	my $dbh;
 
     my %hosts_involved = get_hosts_involved();
@@ -2060,8 +2065,8 @@ sub execute_command {
 		my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $subscenario_fname\'";	
 		&daemonize($permissions_command, "$host_id"."_log"); 		
         my $option_M = '';
-        if ($opt_M) { $option_M = "-M $hosts_involved{$host_id}"; }
-		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $subscenario_fname -v -x $cmdseq " . $option_M . "'"; 
+        if ($opts{M}) { $option_M = "-M $hosts_involved{$host_id}"; }
+		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $subscenario_fname -v -x $opts{'execute'} " . $option_M . "'"; 
 		&daemonize($execution_command, "$host_id"."_log");
    }
 }
@@ -2233,7 +2238,6 @@ sub process_other_modes {
 	
 	my $error;
 	my @db_resp;
-    my $opt_M = $args->get('M');
     
     my %hosts_involved = get_hosts_involved();
 
@@ -2262,9 +2266,9 @@ sub process_other_modes {
 		my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $subscenario_fname\'";
 			
 		&daemonize($permissions_command, "$host_id"."_log"); 		
-#VNX	my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnumlparser.pl -u root -v -x $cmdseq\@$scenario_name'";
+#VNX	my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnumlparser.pl -u root -v -x $opts{'execute'}\@$scenario_name'";
         my $option_M = '';
-        if ($opt_M) { $option_M = "-M $hosts_involved{$host_id}"; }
+        if ($opts{M}) { $option_M = "-M $hosts_involved{$host_id}"; }
 		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $subscenario_fname -v $mode " . $option_M . "'"; 
 		&daemonize($execution_command, "$host_id"."_log");
     }
@@ -2289,8 +2293,6 @@ sub para {
 sub initialize_and_check_scenario {
 	
 	my $input_file = shift;
-	my $opt_M      = shift;
-	my $cmdseq     = shift;
 	
 	print "---- initialize_and_check_scenario called: $input_file\n";
    	my $vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
@@ -2341,8 +2343,8 @@ sub initialize_and_check_scenario {
    	my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
 	# Build the VNX::DataHandler object
-   	#$dh = new VNX::DataHandler($execution,$doc,$mode,$opt_M,'',$xml_dir,$input_file);
-    $dh = new VNX::DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
+   	#$dh = new VNX::DataHandler($execution,$doc,$mode,$opts{M},'',$xml_dir,$input_file);
+    $dh = new VNX::DataHandler($execution,$doc,$mode,$opts{M},$opts{'execute'},$xml_dir,$input_file);
    	
    	#$dh->set_boot_timeout($boot_timeout);
    	$dh->set_vnx_dir($vnx_dir);
