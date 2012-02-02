@@ -61,6 +61,7 @@ sub new {
    $self->{'doc'} = shift;
    $self->{'mode'} = shift;
    $self->{'vm_to_use'} = shift;
+   $self->{'host_to_use'} = shift;
    $self->{'cmd_seq'} = shift;
    $self->{'xml_dir'} = shift;
    $self->{'input_file'} = shift;
@@ -787,14 +788,19 @@ sub get_vm_ordered {
 
 }
 
+#
 # get_vm_to_use_ordered
 #
-# Returns a hash with the vm names of the scenario to be used for each mode having into account -M option 
+# Returns a hash with the vm names of the scenario to be used for each mode having 
+# into account -M option (does not take into account -H option of EDIV) 
 #
 # Arguments:
 #
 # - plugins array (in order to invoke the execVmsToUse method that provide the vms for which the
 #   plugin has to execute actions)
+#
+# Returns:
+# - @vms_ordered
 #
 sub get_vm_to_use_ordered {
     
