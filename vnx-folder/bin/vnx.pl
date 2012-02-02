@@ -285,7 +285,8 @@ sub main {
       $opt_F,       # uml force stopping
       $opt_B,       # Blocking mode
       $opt_o,       # dump UML boot messages
-      $opt_Z        # vnumlize
+      $opt_Z,        # vnumlize
+      $opt_H
     );
    	Getopt::Long::Configure ( qw{no_auto_abbrev no_ignore_case} ); # case sensitive single-character options
    	#Getopt::Long::Configure ( qw{bundling no_auto_abbrev} ); # case sensitive single-character options
@@ -727,7 +728,7 @@ sub main {
    	my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
    	# Build the VNX::DataHandler object
-   	$dh = new VNX::DataHandler($execution,$doc,$mode,$opt_M,$cmdseq,$xml_dir,$input_file);
+   	$dh = new VNX::DataHandler($execution,$doc,$mode,$opt_M,$opt_H,$cmdseq,$xml_dir,$input_file);
    	$dh->set_boot_timeout($boot_timeout);
    	$dh->set_vnx_dir($vnx_dir);
    	$dh->set_tmp_dir($tmp_dir);

@@ -135,118 +135,10 @@ sub main {
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
                 'show-map', 'console', 'console-info', 'exe-info',
-                'help|h|H', 'seg-info', 'seg-alg-info', 'clean-cluster',
+                'help|h', 'seg-info', 'seg-alg-info', 'clean-cluster',
                 'v', 'vv', 'vvv', 'version|V',
-                'f=s', 'C=s', 'a=s', 'r=s', 'M=s', 'n|no-console'
+                'f=s', 'C=s', 'a=s', 'r=s', 'M=s', 'H=s', 'n|no-console'
                );
-	
-=BEGIN	
-	our(
-	      $opt_define,       # define mode
-	      $opt_undefine,     # undefine mode
-	      $opt_start,        # start mode
-	      $opt_create,       # create mode
-	      $opt_shutdown,     # shutdown mode
-	      $opt_destroy,      # purge (destroy) mode
-	      $opt_save,         # save mode
-	      $opt_restore,      # restore mode
-	      $opt_suspend,      # suspend mode 
-	      $opt_resume,       # resume mode
-	      $opt_reboot,       # reboot mode
-	      $opt_reset,        # reset mode
-	      $opt_execute,      # execute mode
-	      $opt_showmap,      # show-map mode
-	      $opt_console,      # console mode
-	      $opt_consoleinfo,  # console-info mode
-	      $opt_exeinfo,      # exe-info mode    
-	      $opt_help,         # help mode 
-          $opt_seginfo,      # segmentation info         
-          $opt_segalginfo,   # segmentation algorithms info         
-          $opt_cleancluster, # segmentation algorithms info
-	      $opt_v, 
-	      $opt_vv,
-	      $opt_vvv,          # log trace options
-          $opt_V,            # show version 
-          $opt_f,            # scenario file 
-          $opt_C,            # config file 
-          $opt_a,            # segmentation algorithm 
-          $opt_r,            # restrictions file 
-          $opt_M,            # vm list
-          $opt_n             # do not open consoles         
-	);
-	
-	Getopt::Long::Configure ( qw{no_auto_abbrev no_ignore_case} ); # case sensitive single-character options
-	GetOptions(  
-	           'define'         => \$opt_define,
-	           'undefine'       => \$opt_undefine, 
-	           'start'          => \$opt_start,
-	           't|create'       => \$opt_create, 
-	           'd|shutdown'     => \$opt_shutdown,
-	           'P|destroy'      => \$opt_destroy, 
-	           'save'           => \$opt_save, 
-	           'restore'        => \$opt_restore,
-	           'suspend'        => \$opt_suspend, 
-	           'resume'         => \$opt_resume,
-	           'reboot'         => \$opt_reboot, 
-	           'reset'          => \$opt_reset,
-	           'x|execute=s'    => \$opt_execute, 
-	           'show-map'       => \$opt_showmap, 
-	           'console'        => \$opt_console,
-	           'console-info'   => \$opt_consoleinfo,
-	           'exe-info'       => \$opt_exeinfo,
-	           'h|H|help'       => \$opt_help, 
-               'seg-info'       => \$opt_seginfo,
-               'seg-alg-info'   => \$opt_segalginfo,
-               'clean-cluster'  => \$opt_cleancluster,
-               'v'              => \$opt_v, 
-               'vv'             => \$opt_vv,
-               'vvv'            => \$opt_vvv,
-               'V|version'      => \$opt_V,
-               'f=s'            => \$opt_f,
-               'C=s'            => \$opt_C,
-               'a=s'            => \$opt_a,
-               'r=s',           => \$opt_r,
-               'M=s',           => \$opt_M,
-               'n|no-console'   => \$opt_n 
-               
-	);
-	# Build the argument object
-	$args = new VNX::Arguments(
-	      $opt_define,       # define mode
-	      $opt_undefine,     # undefine mode
-	      $opt_start,        # start mode
-	      $opt_create,       # create mode
-	      $opt_shutdown,     # shutdown mode
-	      $opt_destroy,      # purge (destroy) mode
-	      $opt_save,         # save mode
-	      $opt_restore,      # restore mode
-	      $opt_suspend,      # suspend mode 
-	      $opt_resume,       # resume mode
-	      $opt_reboot,       # reboot mode
-	      $opt_reset,        # reset mode
-	      $opt_execute,      # execute mode
-	      $opt_showmap,      # show-map mode
-	      $opt_console,      # console mode
-	      $opt_consoleinfo,  # console-info mode
-	      $opt_exeinfo,      # exe-info mode    
-          $opt_help,         # help mode
-          $opt_seginfo,      # segmentation info
-          $opt_segalginfo,   # segmentation info
-          $opt_cleancluster, # segmentation info
-	      $opt_v, 
-          $opt_vv,
-          $opt_vvv,          # log trace options
-	      $opt_V,            # version 
-	      $opt_f,            # scenario file
-	      $opt_C,            # config file
-          $opt_a,            # segmentation algorithm
-          $opt_r,            # restrictions file
-          $opt_M,            # vm list
-          $opt_n             # do not open consoles          
-	);
-=END
-=cut	
-	
 	
 	my $how_many_args = 0;
 	if ($opts{'create'}) {
@@ -296,13 +188,13 @@ sub main {
 	  
 	if ($how_many_args gt 1) {
 	    &usage;
-	    &ediv_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown," . 
+	    ediv_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown," . 
 	               " -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend," .
 	               " --resume, --reboot, --reset, --showmap, --seg-info, --clean-cluster or -H\n");
 	}
     if ($how_many_args lt 1)  {
         &usage;
-        &ediv_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start," .
+        ediv_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start," .
                   " --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, --show-map," . 
                   "--console, --console-info, --seg-info, --clean-cluster, -V or -H\n");
     }
@@ -351,10 +243,10 @@ sub main {
     # Set scenario 
     if ($opts{f}) {
         $vnx_scenario = $opts{f}; 
-        print "Using scenario: $vnx_scenario\n";
+        print "Using scenario:               $vnx_scenario\n";
     }
     unless ( ($opts{'version'}) or ($opts{'help'}) or ($opts{'seg-alg-info'}) or ($opts{'clean-cluster'}) or (-e $vnx_scenario)) {
-        die ("ERROR: scenario xml file not specified (missing -f option) or not found");
+        ediv_die ("ERROR: scenario xml file not specified (missing -f option) or not found");
     }
     
     # Set configuration file 
@@ -364,16 +256,26 @@ sub main {
         $cluster_conf_file = $DEFAULT_CLUSTER_CONF_FILE;
     }
     unless (-e $cluster_conf_file) {
-        die ("ERROR: Cluster configuration file ($cluster_conf_file) not found");
+        ediv_die ("ERROR: Cluster configuration file ($cluster_conf_file) not found");
     } else {
-        print "Using configuration file: $cluster_conf_file\n";
+        print "Using configuration file:     $cluster_conf_file\n";
     }
-
+    
     # Read cluster configuration file
     if (my $res = read_cluster_config($cluster_conf_file)) { 
         print "ERROR: $res\n";  
         exit 1; 
     }
+    print "Hosts in cluster:             ";
+    foreach my $host_id (@cluster_hosts) {
+        my $active_host_found;
+        foreach my $active_host (@cluster_active_hosts) {
+            if ($active_host eq $host_id) { $active_host_found = 'true'}
+        }
+        if ($active_host_found) { print "$host_id(active) " }
+        else                    { print "$host_id(inactive) " }
+    }
+    print "\n";
 
     # Set segmentation algorithm
     if ($opts{a}) {
@@ -393,11 +295,6 @@ sub main {
         }     
         print "Using restriction file: $restriction_file\n";
     }
-
-    # Option -M: vm list
-    #if ($opts{M) {
-    #    $vm_name = $opts{M; 
-    #}    
 
     # Search for -n|--no-console tag
     $no_console = '';
@@ -431,6 +328,36 @@ sub main {
 	    initialize_and_check_scenario ($vnx_scenario); 
     }
 
+    # -M option: check that all vms specified exist in the scenario
+    # Not needed; already done in CheckSemantics 
+
+    # -H option: check that host specified exist  
+    if ($opts{H}) {
+
+        my @hosts_list = split (/,/, $opts{H});
+        foreach my $host (@hosts_list) {
+            print "Checking $host\n";
+            my $host_found;
+            # Check whether the host exists
+            foreach my $host_id (@cluster_hosts) {
+                print "$host_id\n";
+                if ($host eq $host_id) { $host_found = 'true'}
+            }
+            if (!$host_found) {
+                ediv_die ("host $host specified in -H option does not exist in cluster")
+            }
+            # Check whether the host is active
+            my $active_host_found;
+            foreach my $host_id (@cluster_active_hosts) {
+                print "active:$host_id\n";
+                if ($host eq $host_id) { $active_host_found = 'true'}
+            }
+            if (!$active_host_found) {
+                ediv_die ("host $host specified in -H option is not active")
+            }           
+        }
+    }
+
 	# Call mode handler
 	if      ( $mode eq 'create' )        { mode_create();
 	} elsif ( $mode eq 'execute' )       { mode_execute()
@@ -450,7 +377,7 @@ sub main {
     } elsif ( $mode eq 'show-map' )      { mode_showmap();
 	} else {
 		# default action: die
-		die ("ERROR: Unknown mode ($mode)\n");
+		ediv_die ("ERROR: Unknown mode ($mode)\n");
 	}
 	
 	wlog (N, "\n---- Succesfully finished ----\n");
@@ -480,12 +407,12 @@ sub mode_create {
     if ( $opts{M} && !defined($db_resp[0]->[0])) {
         
         # ERROR: trying to start a vm of a non-existent scenario
-        die ("ERROR: Scenario $scenario_name not found. Cannot use -M $opts{M} option over a non existent scenario.");
+        ediv_die ("ERROR: Scenario $scenario_name is not started. \nCannot use -M $opts{M} option over a non existent scenario.");
         
     } elsif ( !$opts{M} && defined($db_resp[0]->[0]) ) {
         
         # ERROR: trying to create an already existent scenario
-        die ("ERROR: Scenario $scenario_name was already created.");
+        ediv_die ("ERROR: Scenario $scenario_name was already created.");
         
     } elsif ( !$opts{M} && !defined($db_resp[0]->[0])) {
         
@@ -501,7 +428,7 @@ sub mode_create {
 	        %static_assignment = $restriction->assign();
 	        if ($static_assignment{"error"} eq "error"){
 	            delete_scenario_from_database ($scenario_name);
-	            die();
+	            ediv_die("ERROR processing segmentation restriction file");
 	        }
 	        @vms_to_split = $restriction->remaining();
 	    }
@@ -522,9 +449,8 @@ sub mode_create {
 	        }
 	    }  
 	    unless (defined($segmentation_module)) {
-	        wlog (N, "ERROR: segmentator module $partition_mode not found");
 	        delete_scenario_from_database ($scenario_name);
-	        die();
+	        ediv_die("ERROR: segmentator module $partition_mode not found");
 	    }
 	        
         #%allocation = $segmentation_module->split(\$doc, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
@@ -533,7 +459,7 @@ sub mode_create {
 	        
 	    if (defined($allocation{"error"})){
 	            delete_scenario_from_database ($scenario_name);
-	            die();
+	            ediv_die("ERROR calling $partition_mode->split function");
 	    }
 	        
 	    wlog (N, "\n  ---- Configuring distributed networking in cluster ****");
@@ -573,7 +499,7 @@ sub mode_create {
         #
         # Creating one or more vms over an existent scenario 
         #
-        # Check that all vms in -M option exist and are in inactive state
+        # Check that all vms in -M and -H option exist and are in inactive state
         my @vms = $dh->get_vm_to_use_ordered; # List of vms included in -M option
         for ( my $i = 0; $i < @vms; $i++) {
             
@@ -586,14 +512,23 @@ sub mode_create {
 	        if ($error) { ediv_die ("$error") };
 	        if (defined($db_resp[0]->[0])) { 
 	            if ( $db_resp[0]->[0] ne 'inactive' ) {
-	                wlog (N, "ERROR: virtual machine $vm_name specified in '-M' option not inactive (status=$db_resp[0]->[0])");
-	                die(); 
+	                ediv_die("ERROR: virtual machine $vm_name specified in '-M' option not inactive (status=$db_resp[0]->[0])"); 
 	            }
 	        } else {
-	            wlog (N, "ERROR: virtual machine $vm_name specified in '-M' option not found");
-	            die(); 
+	            ediv_die("ERROR: virtual machine $vm_name specified in '-M' option not found"); 
 	        }      
         }
+
+
+#    wlog (V, "-- Virtual machines selected:");
+#    wlog (V, "  -- Options: -M $opts{M} -H $opts{H}");
+#    my %hosts_involved = get_hosts_involved();
+#    foreach my $host_id (keys %hosts_involved) {
+#        wlog (N, "  -- $host_id: $hosts_involved{$host_id}");
+#    }
+#    exit;
+
+
         
         my %hosts_involved = get_hosts_involved();
         
@@ -645,7 +580,7 @@ sub mode_shutdown {
     $error = query_db ("SELECT `scenario` FROM hosts WHERE status = 'running' AND scenario = '$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
     unless ( defined($db_resp[0]->[0]) ) {
-        die ("The scenario $scenario_name wasn't running... Aborting");
+        ediv_die ("The scenario $scenario_name wasn't running... Aborting");
     }       
         
     # If no -M option, mark scenario as "destroying"
@@ -691,7 +626,7 @@ sub mode_destroy {
     $error = query_db ("SELECT `name` FROM scenarios WHERE name='$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
     unless ( defined($db_resp[0]->[0]) ) {
-        die ("The scenario $scenario_name wasn't running... Aborting");
+        ediv_die ("The scenario $scenario_name wasn't running... Aborting");
     }
 
     # If no -M option, mark scenario as "purging"
@@ -729,7 +664,7 @@ sub mode_execute {
     
     # Execution of commands in VMs mode
     if (!defined($opts{'execute'})) {
-        die ("You must specify the command tag to execute\n");
+        ediv_die ("You must specify the command tag to execute\n");
     }
     wlog (N, "\n---- mode: $mode\n---- Executing commands tagged with '$opts{'execute'}'");
         
@@ -740,7 +675,7 @@ sub mode_execute {
     $error = query_db ("SELECT `scenario` FROM hosts WHERE status = 'running' AND scenario = '$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
     unless ( defined($db_resp[0]->[0]) ) {
-        die ("The scenario $scenario_name wasn't running... Aborting");
+        ediv_die ("The scenario $scenario_name wasn't running... Aborting");
     }
         
     # Make a tgz compressed file containing VM execution config 
@@ -771,7 +706,7 @@ sub mode_others {
     $error = query_db ("SELECT `scenario` FROM hosts WHERE status = 'running' AND scenario = '$scenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
     unless ( defined($db_resp[0]->[0]) ) {
-        die ("The scenario $scenario_name wasn't running... Aborting");
+        ediv_die ("The scenario $scenario_name wasn't running... Aborting");
     }       
         
     # Make a tgz compressed file containing VM execution config 
@@ -801,8 +736,8 @@ sub mode_seginfo {
         
         %static_assignment = $restriction->assign();
         if ($static_assignment{"error"} eq "error"){
-            delete_scenario_from_database ($scenario_name);
-            die();
+            #delete_scenario_from_database ($scenario_name);
+            ediv_die("ERROR processing segmentation restrictions file");
         }
         @vms_to_split = $restriction->remaining();
     }
@@ -826,17 +761,15 @@ sub mode_seginfo {
         }
     }  
     unless (defined($segmentation_module)) {
-       wlog (N, 'Segmentator: your choice ' . "$partition_mode" . " is not a recognized option (yet)");
        delete_scenario_from_database ($scenario_name);
-       die();
+       ediv_die('Segmentator: your choice ' . "$partition_mode" . " is not a recognized option (yet)");
     }
     
     my $doc = $dh->get_doc;
     %allocation = $segmentation_module->split(\$doc, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
         
     if (defined($allocation{"error"})){
-            wlog (N, "ERROR: in segmentation module  $segmentation_module");
-            die();
+        ediv_die("ERROR: in segmentation module  $segmentation_module");
     }
     fillScenarioArray();
     assignVLAN();
@@ -968,7 +901,7 @@ sub load_seg_plugins {
 	my $seg_plugins_size = @seg_plugins;
 	if ($seg_plugins_size == 0){
         delete_scenario_from_database ($scenario_name);
-		die ("No segmentation modules found at $EDIV_SEG_ALGORITHMS_DIR... Aborting");
+		ediv_die ("No segmentation modules found at $EDIV_SEG_ALGORITHMS_DIR... Aborting");
 	}
 
 }
@@ -1041,7 +974,7 @@ sub assignVLAN {
 		$firstVlan++;
 		if ($firstVlan >$lastVlan){
             delete_scenario_from_database ($scenario_name);
-			die ("There isn't more free vlans... Aborting");
+			ediv_die ("There isn't more free vlans... Aborting");
 		}	
 	}	
 }
@@ -1145,7 +1078,7 @@ sub fillScenarioArray {
 	        # Save data into DB
 	        my $error = query_db ("INSERT INTO hosts (scenario,local_scenario,host,ip,status) VALUES " 
 	                           . "('$scenario_name','$host_scen_name','$host_id','$current_host_ip','creating')");
-	        if ($error) { die "** $error" }
+	        if ($error) { ediv_die ("$error") }
 		}
         
 	}
@@ -1216,7 +1149,7 @@ sub splitIntoFiles {
 		        if ($error) { ediv_die ("$error") };
 		        if ( defined($db_resp[0]->[0]) ) {
 	                delete_scenario_from_database ($scenario_name);
-	                die ("The vm $vm_name was already created... Aborting");
+	                ediv_die ("The vm $vm_name was already created... Aborting");
 		        }
 		        # Register the new vm in the database
 	            $error = query_db ("INSERT INTO vms (name,type,subtype,os,status,scenario,host) " . 
@@ -1339,7 +1272,7 @@ sub netTreatment {
 			
 			if ($current_vlan >$lastVlan){
                 delete_scenario_from_database ($scenario_name);
-				die ("There isn't more free vlans... Aborting");
+				ediv_die ("There isn't more free vlans... Aborting");
 			}	
 		}
 	
@@ -1521,7 +1454,7 @@ sub send_and_start_subscenarios {
 		#print "**** $hostScenFileName \n";
 		#system ("cat $hostScenFileName");
 			# Save the local specification in DB	
-		open(FILEHANDLE, $hostScenFileName) or die  'cannot open file!';
+		open(FILEHANDLE, $hostScenFileName) or ediv_die ('cannot open file!');
 		my $fileData;
 		read (FILEHANDLE,$fileData, -s FILEHANDLE);
 
@@ -2030,7 +1963,7 @@ sub execute_command {
     my @db_resp;
     	
 	if (!($configuration)){
-		die ("This scenario doesn't support mode -x")
+		ediv_die ("This scenario doesn't support mode -x")
 	}
 	my $dbh;
 
@@ -2092,7 +2025,7 @@ sub get_host_subscenario_xml {
 
         if (defined($subscenario_fname)) {
             # Copy the XML to a $scenario_fname        	
-            open(FILEHANDLE, "> $subscenario_fname") or die 'cannot open file';
+            open(FILEHANDLE, "> $subscenario_fname") or ediv_die ('cannot open file');
             print FILEHANDLE "$db_resp[0]->[0]";
             close (FILEHANDLE);        	
         }
@@ -2174,7 +2107,7 @@ sub tunnelize {
         if ($error) { ediv_die ("$error") };
 		
 		if ($localport > 65535) {
-			die ("Not enough ports available but the scenario is running... you can't access to VMs using tunnels.");
+			ediv_die ("Not enough ports available but the scenario is running... you can't access to VMs using tunnels.");
 		}	
 	}
 	
@@ -2220,14 +2153,14 @@ sub daemonize {
     my $command = shift;
     my $output = shift;
     print("Backgrounded command:\n$command\n------> Log can be found at: $EDIV_LOGS_DIR/$output\n");
-    defined(my $pid = fork)			or die "Can't fork: $!";
+    defined(my $pid = fork)			        or ediv_die("Can't fork: $!");
     return if $pid;
-    chdir '/tmp'					or die "Can't chdir to /: $!";
-    open STDIN, '/dev/null'			or die "Can't read /dev/null: $!";
-    open STDOUT, ">>$EDIV_LOGS_DIR/$output"		or die "Can't write to $output: $!";
-    open STDERR, ">>$EDIV_LOGS_DIR/$output"		or die "Can't write to $output: $!";
-    setsid							or die "Can't start a new session: $!";
-    system("$command") == 0			or print "ERROR: Could not execute $command!";
+    chdir '/tmp'					        or ediv_die("Can't chdir to /: $!");
+    open STDIN, '/dev/null'			        or ediv_die("Can't read /dev/null: $!");
+    open STDOUT, ">>$EDIV_LOGS_DIR/$output"	or ediv_die("Can't write to $output: $!");
+    open STDERR, ">>$EDIV_LOGS_DIR/$output"	or ediv_die("Can't write to $output: $!");
+    setsid							        or ediv_die("Can't start a new session: $!");
+    system("$command") == 0			        or print "ERROR: Could not execute $command!";
     exit();
 }
 
@@ -2256,7 +2189,7 @@ sub process_other_modes {
 		my $subscenario_xml = get_host_scenario_xml ($host_id, $scenario_name);
         my $subscenario_name = get_host_scenario_name ($host_id, $scenario_name);
 		my $subscenario_fname = "/tmp/$subscenario_name".".xml";
-		open(FILEHANDLE, ">$subscenario_fname") or die 'cannot open file';
+		open(FILEHANDLE, ">$subscenario_fname") or ediv_die('cannot open file');
 		print FILEHANDLE "$subscenario_xml";
 		close (FILEHANDLE);
 		
@@ -2344,7 +2277,7 @@ sub initialize_and_check_scenario {
 
 	# Build the VNX::DataHandler object
    	#$dh = new VNX::DataHandler($execution,$doc,$mode,$opts{M},'',$xml_dir,$input_file);
-    $dh = new VNX::DataHandler($execution,$doc,$mode,$opts{M},$opts{'execute'},$xml_dir,$input_file);
+    $dh = new VNX::DataHandler($execution,$doc,$mode,$opts{M},$opts{H},$opts{'execute'},$xml_dir,$input_file);
    	
    	#$dh->set_boot_timeout($boot_timeout);
    	$dh->set_vnx_dir($vnx_dir);
@@ -2377,7 +2310,6 @@ sub initialize_and_check_scenario {
         my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
         $dynamips_ext_path = "$vnx_dir/scenarios/";
     }
-	
 }
 
 # ediv_die
@@ -2408,12 +2340,13 @@ sub get_hosts_involved {
 	
     my %hosts_involved;
                 
-    my @vms = $dh->get_vm_to_use_ordered; # List of vms included in -M option
+    my @vms = ediv_get_vm_to_use_ordered(); # List of vms included in -M option
     for ( my $i = 0; $i < @vms; $i++) {
 
         # get the host where the vm is running
         my $vm_name = $vms[$i]->getAttribute("name");
-        my $host_id = get_vm_host($vm_name);
+        #my $host_id = get_vm_host($vm_name);
+        my $host_id = $allocation{$vm_name};
 
         # add it to the list
         if (defined($hosts_involved{$host_id}) ) {
@@ -2425,6 +2358,52 @@ sub get_hosts_involved {
 
     return %hosts_involved;
 }            
+
+#
+# ediv_get_vm_to_use_ordered
+#
+# Returns an array with the vm names of the scenario to be used having 
+# into account -M and -H option 
+#
+# Arguments:
+# - none
+#
+# Returns:
+# - @vms_ordered
+#
+sub ediv_get_vm_to_use_ordered {
+    
+    my $self = shift;
+    #my @plugins = @_;
+   
+    # The array to be returned at the end
+    my @vms_ordered;
+    
+    my @vms = $self->get_vm_ordered;
+    for ( my $i = 0; $i < @vms; $i++) {
+        my $name = $vms[$i]->getAttribute("name");
+        my $host = $allocation{$name};
+        
+        if ($opts{M}) { # VNX has been invoked with option -M
+                                    # Only select the vm if its name is on 
+                                    # the comma separated list after "-M" 
+            my $vm_list = $opts{M};
+            if ($vm_list =~ /^$name,|,$name,|,$name$|^$name$/) {
+                push (@vms_ordered, $vms[$i]);
+            } 
+            elsif ($opts{H}) { 
+                my $host_list = $opts{H};
+                if ($host_list =~ /^$host,|,$host,|,$host$|^$host$/) {
+                    push (@vms_ordered, $vms[$i]);
+                }
+            }
+        }                    
+        if ( !$opts{M} && !$opts{H} ) { # Neither -M nor -H option specified, always select the VM
+            push (@vms_ordered, $vms[$i]);
+        }
+    }
+    return @vms_ordered;
+}
 
 ####################
 # usage
