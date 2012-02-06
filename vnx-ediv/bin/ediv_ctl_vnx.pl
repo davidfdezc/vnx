@@ -584,7 +584,7 @@ sub mode_shutdown {
     }       
         
     # If no -M option, mark scenario as "destroying"
-    unless ($opts{M}){
+    unless ($opts{M} or $opts{H}){
         $error = query_db ("UPDATE hosts SET status = 'destroying' WHERE status = 'running' AND scenario = '$scenario_name'");
         if ($error) { ediv_die ("$error") };
     }
@@ -2152,13 +2152,14 @@ sub daemonize {
 	print("\n");
     my $command = shift;
     my $output = shift;
-    print("Backgrounded command:\n$command\n------> Log can be found at: $EDIV_LOGS_DIR/$output\n");
+    unless ($output eq '/dev/null') { $output = "$EDIV_LOGS_DIR/$output" }
+    print("Backgrounded command:\n$command\n------> Log can be found at: $output\n");
     defined(my $pid = fork)			        or ediv_die("Can't fork: $!");
     return if $pid;
     chdir '/tmp'					        or ediv_die("Can't chdir to /: $!");
     open STDIN, '/dev/null'			        or ediv_die("Can't read /dev/null: $!");
-    open STDOUT, ">>$EDIV_LOGS_DIR/$output"	or ediv_die("Can't write to $output: $!");
-    open STDERR, ">>$EDIV_LOGS_DIR/$output"	or ediv_die("Can't write to $output: $!");
+    open STDOUT, ">> $output"	or ediv_die("Can't write to $output: $!");
+    open STDERR, ">> $output"	or ediv_die("Can't write to $output: $!");
     setsid							        or ediv_die("Can't start a new session: $!");
     system("$command") == 0			        or print "ERROR: Could not execute $command!";
     exit();
@@ -2373,13 +2374,12 @@ sub get_hosts_involved {
 #
 sub ediv_get_vm_to_use_ordered {
     
-    my $self = shift;
     #my @plugins = @_;
    
     # The array to be returned at the end
     my @vms_ordered;
     
-    my @vms = $self->get_vm_ordered;
+    my @vms = $dh->get_vm_ordered;
     for ( my $i = 0; $i < @vms; $i++) {
         my $name = $vms[$i]->getAttribute("name");
         my $host = $allocation{$name};
