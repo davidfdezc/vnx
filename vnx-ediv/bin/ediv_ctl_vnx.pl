@@ -456,11 +456,17 @@ sub mode_create {
         #%allocation = $segmentation_module->split(\$doc, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
         my $doc = $dh->get_doc;
         %allocation = $segmentation_module->split(\$doc, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
+
+        wlog (V, Dumper (%allocation));
 	        
 	    if (defined($allocation{"error"})){
 	            delete_scenario_from_database ($scenario_name);
 	            ediv_die("ERROR calling $partition_mode->split function");
 	    }
+
+       foreach my $vm (keys(%allocation)) {
+            wlog (V, "---- $vm --> $allocation{$vm}")
+       }
 	        
 	    wlog (N, "\n  ---- Configuring distributed networking in cluster ****");
 	            
@@ -2340,19 +2346,30 @@ sub ediv_die {
 sub get_hosts_involved {
 	
     my %hosts_involved;
+
+    wlog (V, "OOOOOOOOOOOOOOOOOOOO get_host_involved OOOOOOOOOOOOOOOO  " );
+    wlog (V, Dumper (%allocation));
+       foreach my $vm (keys(%allocation)) {
+            wlog (V, "---- $vm --> $allocation{$vm}")
+       }
                 
     my @vms = ediv_get_vm_to_use_ordered(); # List of vms included in -M option
+    
     for ( my $i = 0; $i < @vms; $i++) {
 
         # get the host where the vm is running
         my $vm_name = $vms[$i]->getAttribute("name");
+        wlog (V, "    vm=$vm_name");
         #my $host_id = get_vm_host($vm_name);
         my $host_id = $allocation{$vm_name};
+        wlog (V, "    vm=$vm_name, host=$host_id");
 
         # add it to the list
         if (defined($hosts_involved{$host_id}) ) {
-            $hosts_involved{$host_id} += ",$vm_name"; 
+        	wlog (V, "adding ,$vm_name");
+            $hosts_involved{$host_id} .= ",$vm_name"; 
         } else {
+            wlog (V, "adding $vm_name");
             $hosts_involved{$host_id} = "$vm_name"; 
         }
     }            
