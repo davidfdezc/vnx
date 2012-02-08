@@ -578,7 +578,10 @@ sub mode_shutdown {
 
     # Clean and destroy scenario temporary files
     wlog (N, "\n---- mode: $mode\n---- Shutdowning scenario $vnx_scenario");
-        
+
+    # Get VMs asignation to hosts from the database
+    %allocation = get_allocation_from_db();
+            
     # Parse scenario XML
     #&parseScenario; 
     
@@ -624,6 +627,9 @@ sub mode_destroy {
         
     # Clean and purge scenario temporary files
     wlog (N, "\n---- mode: $mode\n---- Purging scenario $vnx_scenario");
+
+    # Get VMs asignation to hosts from the database
+    %allocation = get_allocation_from_db();
         
     # Parse scenario XML
     #&parseScenario;
@@ -673,6 +679,9 @@ sub mode_execute {
         ediv_die ("You must specify the command tag to execute\n");
     }
     wlog (N, "\n---- mode: $mode\n---- Executing commands tagged with '$opts{'execute'}'");
+
+    # Get VMs asignation to hosts from the database
+    %allocation = get_allocation_from_db();
         
     # Parse scenario XML
     #&parseScenario;
@@ -703,6 +712,9 @@ sub mode_others {
 
     # Processing VMs mode
     wlog (N, "\n---- mode: $mode\n---- ");
+
+    # Get VMs asignation to hosts from the database
+    %allocation = get_allocation_from_db();
         
     # Parse scenario XML
     #&parseScenario;
@@ -2421,6 +2433,26 @@ sub ediv_get_vm_to_use_ordered {
     }
     return @vms_ordered;
 }
+
+#
+# get_allocation_from_db
+#
+# Gets VMs asignation to hosts from the database
+#
+sub get_allocation_from_db {
+
+    my %allocation;
+
+	my @vms = $dh->get_vm_ordered;
+    for ( my $i = 0; $i < @vms; $i++) {
+        my $vm_name = $vms[$i]->getAttribute("name");
+        my $host_id = get_vm_host ($vm_name);
+        $allocation{$vm_name} = $host_id;
+    }
+    return %allocation;
+	
+}
+
 
 ####################
 # usage
