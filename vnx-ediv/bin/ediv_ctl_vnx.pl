@@ -596,7 +596,7 @@ sub mode_shutdown {
     &shutdown_scenario;
     sleep(5);
     
-    unless ($opts{M} || $opts{H}){      
+    unless ($opts{M} || $opts{H}) {      
         # Clean scenario from database
         delete_scenario_from_database ($scenario_name);
             
@@ -698,9 +698,6 @@ sub mode_others {
     # Get VMs asignation to hosts from the database
     %allocation = get_allocation_from_db();
         
-    # Parse scenario XML
-    #&parseScenario;
-    
     # quizá el define se podría usar sin la simulacion creada ya, sobraria aqui 
     # Checking if the scenario is running
     $error = query_db ("SELECT `scenario` FROM hosts WHERE status = 'running' AND scenario = '$scenario_name'", \@db_resp);
@@ -724,10 +721,6 @@ sub mode_seginfo {
     # Show segmentation info
     wlog (N, "\n---- mode: $mode\n---- Show vms to hosts mapping for $vnx_scenario");
        
-    # Parse scenario XML.
-    #wlog (VV, "\n  **** Parsing scenario ****\n");
-    #&parseScenario ($vnx_scenario);
-    
     # Segmentation processing
     if (defined($restriction_file)){
         wlog (VV, "\n  **** Calling static processor... ****\n");
@@ -906,37 +899,6 @@ sub load_seg_plugins {
 
 }
 
-#
-# parseScenario
-#
-# Subroutine to parse XML scenario specification into DOM tree
-#
-sub parseScenario {
-	
-	#my $parser = new XML::DOM::Parser;
-	#$doc = $parser->parsefile($vnx_scenario);
-	#$globalNode = $doc->getElementsByTagName("vnx")->item(0);
-	#$scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
-
-#   my $error;
-#   my @db_resp;
-#	if ($mode eq 'create') {
-#	} elsif($mode eq 'execute') {
-#	} elsif($mode eq 'destroy') {
-#	} elsif($mode eq 'shutdown') {
-#	} elsif($mode eq 'define' | $mode eq 'undefine' | $mode eq 'start' | $mode eq 'save' | 
-#		$mode eq 'restore' | $mode eq 'suspend' | $mode eq 'resume' | $mode eq 'reboot') {
-#	}
-
-	#if dynamips_ext node is present, update path
-#	$dynamips_ext_path = "";
-#	my $dynamips_extTagList=$doc->getElementsByTagName("dynamips_ext");
-#	my $numdynamips_ext = $dynamips_extTagList->getLength;
-#	if ($numdynamips_ext == 1) {
-#		my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
-#		$dynamips_ext_path = "$vnx_dir/scenarios/";
-#	}
-}
 
 sub is_scenario_running {
 
@@ -1082,7 +1044,6 @@ sub fillScenarioArray {
 		}
         
 	}
-	#wlog (VVV, "****** fillScenarioArray:\n" . Dumper(keys(%scenarioHash)) );
 	
 }
 
