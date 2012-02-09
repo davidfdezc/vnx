@@ -447,7 +447,15 @@ sub query_db {
     my $error;
     
     wlog (VVV, "----", "");
-    wlog (VVV, "$query_string", "DB Query: "); 
+    #wlog (VVV, "$query_string", "DB Query: "); 
+
+    # Log traces (only the first 12 lines printed)
+    my $j=0;
+    foreach my $l (split /\n/ ,$query_string) {
+        wlog (VVV, "$l", "DB Query: ");
+        if (++$j > 12 ) { last };
+    }
+
     my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass}) 
        or return "DB ERROR: Cannot connect to database. " . DBI->errstr;
     my $query = $dbh->prepare($query_string) 
@@ -467,8 +475,12 @@ sub query_db {
             	unless (defined($field)) { $field='undef' }
             	if (defined($line)) {$line .= ", $field"} else {$line = $field} 
             } 
-            wlog (VVV, "$line", "  Row$i: ");
-            $i++;
+            # Log traces (only the first 12 lines printed)
+            my $j=0;
+            foreach my $l (split /\n/ ,$line) {
+                wlog (VVV, "$l", "  Row$i: ");
+                if (++$j > 12 ) { last };
+            }
         }
         #wlog (VVV, " " . Dumper (@$ref_response), "DB Response:");
     }
