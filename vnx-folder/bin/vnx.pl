@@ -276,7 +276,7 @@ sub main {
       $opt_4,       # ipv4
       $opt_6,       # ipv6
       $opt_cid,     # console id
-      $opt_D,       # delete LOCK 
+      $opt_D,       # delete VNX LOCK 
       $opt_n,       # do not open consoles
       $opt_y,       # delay among vms startup 
 
@@ -432,83 +432,25 @@ sub main {
    
    	my $how_many_args = 0;
    	my $mode;
-   	if ($opt_create) {
-      	$how_many_args++;
-      	$mode = "create";
-   	}
-   	if ($opt_execute) {
-      	$how_many_args++;
-      	$mode = "execute";
-   	}
-   	if ($opt_shutdown) {
-      	$how_many_args++;
-      	$mode = "shutdown";
-   	}
-   	if ($opt_destroy) {
-      	$how_many_args++;
-      	$mode = "destroy";
-   	}
-   	if ($opt_V) {
-      	$how_many_args++;
-      	$mode = "version";      
-   	}
-   	if ($opt_help) {
-      	$how_many_args++;
-      	$mode = "help";
-   	}
-   	if ($opt_define) {
-      	$how_many_args++;
-      	$mode = "define";
-   	}
-   	if ($opt_start) {
-      	$how_many_args++;
-      	$mode = "start";
-   	}
-   	if ($opt_undefine) {
-      	$how_many_args++;
-      	$mode = "undefine";
-   	}
-   	if ($opt_save) {
-      	$how_many_args++;
-      	$mode = "save";
-   	}
-   	if ($opt_restore) {
-      	$how_many_args++;
-      	$mode = "restore";
-   	}
-   	if ($opt_suspend) {
-      	$how_many_args++;
-      	$mode = "suspend";
-   	}
-   	if ($opt_resume) {
-      	$how_many_args++;
-      	$mode = "resume";
-   	}
-   	if ($opt_reboot) {
-      	$how_many_args++;
-      	$mode = "reboot";
-   	}
-   	if ($opt_reset) {
-      	$how_many_args++;
-      	$mode = "reset";
-   	}
-   	if ($opt_showmap) {
-      	$how_many_args++;
-      	$mode = "show-map";
-   	}
-   	if ($opt_console) {
-      	$how_many_args++;
-      	$mode = "console";
-   	}
-   	if ($opt_consoleinfo) {
-      	$how_many_args++;
-      	$mode = "console-info";
-   	}
-    if ($opt_exeinfo) {
-        $how_many_args++;
-        $mode = "exe-info";
-    }
-    
+   	if ($opt_create)      { $how_many_args++; $mode = "create";       }
+   	if ($opt_execute)     { $how_many_args++; $mode = "execute";	  }
+   	if ($opt_shutdown)    { $how_many_args++; $mode = "shutdown";     }
+   	if ($opt_destroy)     { $how_many_args++; $mode = "destroy";	  }
+   	if ($opt_V)           { $how_many_args++; $mode = "version";      }
+   	if ($opt_help)        { $how_many_args++; $mode = "help";         }
+   	if ($opt_define)      { $how_many_args++; $mode = "define";       }
+   	if ($opt_start)       { $how_many_args++; $mode = "start";        }
+   	if ($opt_undefine)    { $how_many_args++; $mode = "undefine";     }
+   	if ($opt_save)        { $how_many_args++; $mode = "save";         }
+   	if ($opt_restore)     { $how_many_args++; $mode = "restore";      }
+   	if ($opt_suspend)     { $how_many_args++; $mode = "suspend";      }
+   	if ($opt_resume)      { $how_many_args++; $mode = "resume";       }
+   	if ($opt_reboot)      { $how_many_args++; $mode = "reboot";       }
+   	if ($opt_reset)       { $how_many_args++; $mode = "reset";        }
+   	if ($opt_showmap)     { $how_many_args++; $mode = "show-map";     }
+   	if ($opt_console)     { $how_many_args++; $mode = "console";      }
+   	if ($opt_consoleinfo) { $how_many_args++; $mode = "console-info"; }
+    if ($opt_exeinfo)     { $how_many_args++; $mode = "exe-info";     }
       
    	if ($how_many_args gt 1) {
       	&usage;
@@ -2263,7 +2205,6 @@ sub mode_shutdown {
         my $vm = $vm_ordered[$i];
         my $vm_name = $vm->getAttribute("name");
 
-      
         unless ($vm_hash{$vm_name}){
           	next;
       	}

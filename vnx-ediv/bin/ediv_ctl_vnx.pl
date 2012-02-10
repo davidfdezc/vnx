@@ -478,9 +478,9 @@ sub mode_create {
 	    wlog (VVV, "****************************** Calling splitIntoFiles...");
 	    &splitIntoFiles ('yes');
 	    # Make a tgz compressed file containing VM execution config 
-	    &getConfiguration;
+	    build_scenario_conf();
 	    # Send Configuration to each host.
-	    &send_conf_files;
+	    send_conf_files();
 	    #jsf: código copiado a sub send_conf_files, borrar esta subrutina.    
 	    # Send dynamips configuration to each host.
 	    #&sendDynConfiguration;
@@ -518,10 +518,11 @@ sub mode_create {
 	        if ($error) { ediv_die ("$error") };
 	        if (defined($db_resp[0]->[0])) { 
 	            if ( $db_resp[0]->[0] ne 'inactive' ) {
-	                ediv_die("ERROR: virtual machine $vm_name specified in '-M' option not inactive (status=$db_resp[0]->[0])"); 
+	                ediv_die("\nERROR: virtual machine $vm_name specified with '-M' or '-H'" . 
+	                         " option not inactive (status=$db_resp[0]->[0])"); 
 	            }
 	        } else {
-	            ediv_die("ERROR: virtual machine $vm_name specified in '-M' option not found"); 
+	            ediv_die("ERROR: virtual machine $vm_name specified with '-M' or '-H' option not found"); 
 	        }      
         }
         
@@ -584,10 +585,10 @@ sub mode_shutdown {
     }
     
     # Make a tgz compressed file containing VM execution config 
-    &getConfiguration;
+    build_scenario_conf();
         
     # Send Configuration to each host.
-    &send_conf_files;
+    send_conf_files();
         
     # Clear ssh tunnels to access remote VMs
     &untunnelize;
@@ -630,10 +631,10 @@ sub mode_destroy {
     }
         
     # Make a tgz compressed file containing VM execution config 
-    &getConfiguration;
+    build_scenario_conf();
         
     # Send Configuration to each host.
-    &send_conf_files;
+    send_conf_files();
         
     # Clear ssh tunnels to access remote VMs
     &untunnelize;
@@ -676,10 +677,10 @@ sub mode_execute {
     }
         
     # Make a tgz compressed file containing VM execution config 
-    &getConfiguration;
+    build_scenario_conf();
         
     # Send Configuration to each host.
-    &send_conf_files;
+    send_conf_files();
         
     # Send Configuration to each host.
     wlog (N, "\n **** Sending commands to VMs ****");
@@ -707,10 +708,10 @@ sub mode_others {
     }       
         
     # Make a tgz compressed file containing VM execution config 
-    &getConfiguration;
+    build_scenario_conf();
         
     # Send Configuration to each host.
-    &send_conf_files;
+    send_conf_files();
         
     # Process mode defined in $mode
     &process_other_modes;
@@ -1738,9 +1739,9 @@ sub deleteTMP {
 #
 # Subroutine to create tgz file with configuration of VMs
 #
-sub getConfiguration {
+sub build_scenario_conf {
 	
-	wlog (VVV, "*** getConfiguration");
+	wlog (VVV, "*** build_scenario_conf");
 	
 	my $basedir = "";
 	eval {
@@ -1759,7 +1760,7 @@ sub getConfiguration {
 			my $filetreeListLength = $filetreeList->getLength;
 			for (my $m=0; $m<$filetreeListLength; $m++){
 			   my $filetree = $filetreeList->item($m)->getFirstChild->getData;
-			   wlog (VVV, "*** getConfiguration: added $filetree");
+			   wlog (VVV, "*** build_scenario_conf: added $filetree");
 			   push(@directories_list, $filetree);
 			}
 			
@@ -1768,7 +1769,7 @@ sub getConfiguration {
 			my $execListLength = $execList->getLength;
 			for (my $m=0; $m<$execListLength; $m++){
 			   my $exec = $execList->item($m)->getFirstChild->getData;
-			   wlog (VVV, "*** getConfiguration: added $exec");
+			   wlog (VVV, "*** build_scenario_conf: added $exec");
 			   push(@exec_list, $exec);
 			}
 		
@@ -2230,9 +2231,9 @@ sub initialize_and_check_scenario {
 #
 sub ediv_die {
    my $mess = shift;
-   printf "----------------------------------------------------------------------------------\n";
+   printf "--------------------------------------------------------------------------------\n";
    printf "%s (%s): %s \n", (caller(1))[3], (caller(0))[2], $mess;
-   printf "----------------------------------------------------------------------------------\n";
+   printf "--------------------------------------------------------------------------------\n";
    exit 1;
 }
 
