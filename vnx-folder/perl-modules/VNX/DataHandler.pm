@@ -974,6 +974,15 @@ sub get_sim_dir {
    return $self->get_vnx_dir . "/scenarios/" . $self->get_scename;
 }
 
+# get_sim_tmp_dir
+#
+# Returns the scenario directory
+#
+sub get_sim_tmp_dir {
+   my $self = shift;
+   return $self->get_vnx_dir . "/scenarios/" . $self->get_scename . "/tmp";
+}
+
 # get_global_run_dir
 #
 # Returns the directory containing the run time files for a scenario

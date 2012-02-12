@@ -214,6 +214,9 @@ my $vmStartupDelay;
 # Just a line...
 my $hline = "----------------------------------------------------------------------------------";
 
+# Command line options hash
+my %opts = ();
+
 
 &main;
 exit(0);
@@ -240,166 +243,33 @@ sub main {
 
    	###########################################################
    	# To get the invocation arguments
-
-   	our(
-      $opt_define,      # define mode
-      $opt_undefine,    # undefine mode
-      $opt_start,       # start mode
-      $opt_create,      # create mode
-      $opt_shutdown,    # shutdown mode
-      $opt_destroy,     # purge (destroy) mode
-      $opt_save,        # save mode
-      $opt_restore,     # restore mode
-      $opt_suspend,     # suspend mode 
-      $opt_resume,      # resume mode
-      $opt_reboot,      # reboot mode
-      $opt_reset,       # reset mode
-      $opt_execute,     # execute mode
-      $opt_showmap,     # show-map mode
-      $opt_console,     # console mode
-      $opt_consoleinfo, # console-info mode
-      $opt_exeinfo,     # exe-info mode    
-      $opt_help,        # help mode    
-
-      $opt_f,       # scenario file
-      $opt_c,       # vnx working dir
-      $opt_T,       # Tmp dir
-      $opt_config,  # config file
-      $opt_v, 
-      $opt_vv,
-      $opt_vvv,     # log trace options
-      $opt_V,       # show version 
-      $opt_M,       # vm list
-      $opt_i,       # interactive execution
-      $opt_g,       # debug mode
-      $opt_u,       # user
-      $opt_4,       # ipv4
-      $opt_6,       # ipv6
-      $opt_cid,     # console id
-      $opt_D,       # delete VNX LOCK 
-      $opt_n,       # do not open consoles
-      $opt_y,       # delay among vms startup 
-
-      $opt_e,       # screen file
-      $opt_w,       # uml boot timeout
-      $opt_F,       # uml force stopping
-      $opt_B,       # Blocking mode
-      $opt_o,       # dump UML boot messages
-      $opt_Z,        # vnumlize
-      $opt_H
-    );
-   	Getopt::Long::Configure ( qw{no_auto_abbrev no_ignore_case} ); # case sensitive single-character options
-   	#Getopt::Long::Configure ( qw{bundling no_auto_abbrev} ); # case sensitive single-character options
-   	GetOptions(  
-               'define'         => \$opt_define,
-               'undefine'       => \$opt_undefine, 
-               'start'          => \$opt_start,
-               't|create'       => \$opt_create, 
-               'd|shutdown'     => \$opt_shutdown,
-               'P|destroy'      => \$opt_destroy, 
-               'save'           => \$opt_save, 
-               'restore'        => \$opt_restore,
-               'suspend'        => \$opt_suspend, 
-               'resume'         => \$opt_resume,
-               'reboot'         => \$opt_reboot, 
-               'reset'          => \$opt_reset,
-               'x|execute=s'    => \$opt_execute, 
-               'show-map'       => \$opt_showmap, 
-               'console'        => \$opt_console,
-               'console-info'   => \$opt_consoleinfo,
-               'exe-info'       => \$opt_exeinfo,
-               'h|H|help'       => \$opt_help, 
-
-               'f=s'            => \$opt_f,
-               'c=s'            => \$opt_c,   
-               'T=s'            => \$opt_T, 
-               'C|config=s'     => \$opt_config, 
-               'v'              => \$opt_v, 
-               'vv'             => \$opt_vv,
-               'vvv'            => \$opt_vvv,
-               'V|version'      => \$opt_V,
-               'M=s'            => \$opt_M, 
-               'i'              => \$opt_i, 
-               'g'              => \$opt_g,
-               'u=s'            => \$opt_u,
-               '4'              => \$opt_4, 
-               '6'              => \$opt_6, 
-               'cid=s'          => \$opt_cid, 
-               'D'              => \$opt_D, 
-               'n|no-console'   => \$opt_n, 
-               'y|st-delay=s'   => \$opt_y,
-
-               'e=s'            => \$opt_e, 
-               'w=s'            => \$opt_w,
-               'F'              => \$opt_F, 
-               'B'              => \$opt_B, 
-               'o=s'            => \$opt_o,  
-               'Z'              => \$opt_Z
-    );
-
-   	# Build the argument object
-   	$args = new VNX::Arguments(
-	      $opt_define,      # define mode
-	      $opt_undefine,    # undefine mode
-	      $opt_start,       # start mode
-	      $opt_create,      # create mode
-	      $opt_shutdown,    # shutdown mode
-	      $opt_destroy,     # purge (destroy) mode
-	      $opt_save,        # save mode
-	      $opt_restore,     # restore mode
-	      $opt_suspend,     # suspend mode 
-	      $opt_resume,      # resume mode
-	      $opt_reboot,      # reboot mode
-	      $opt_reset,       # reset mode
-	      $opt_execute,     # execute mode
-	      $opt_showmap,     # show-map mode
-	      $opt_console,     # console mode
-	      $opt_consoleinfo, # console-info mode
-	      $opt_exeinfo,     # exe-info mode    
-	      $opt_help,        # help mode    
-	
-	      $opt_f,       # scenario file
-	      $opt_c,       # vnx working dir
-	      $opt_T,       # Tmp dir
-	      $opt_config,  # config file
-	      $opt_v, 
-	      $opt_vv,
-	      $opt_vvv,     # log trace options
-	      $opt_V,       # show version 
-	      $opt_M,       # vm list
-	      $opt_i,       # interactive execution
-	      $opt_g,       # debug mode
-	      $opt_u,       # user
-	      $opt_4,       # ipv4
-	      $opt_6,       # ipv6
-	      $opt_cid,     # console id
-	      $opt_D,       # delete LOCK 
-	      $opt_n,       # do not open consoles
-	      $opt_y,       # delay among vms startup 
-	
-	      $opt_e,       # screen file
-	      $opt_w,       # uml boot timeout
-	      $opt_F,       # uml force stopping
-	      $opt_B,       # Blocking mode
-	      $opt_o,       # dump UML boot messages
-	      $opt_Z        # vnumlize
+    Getopt::Long::Configure ( qw{no_auto_abbrev no_ignore_case} ); # case sensitive single-character options
+    GetOptions (\%opts,
+                'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
+                'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
+                'show-map', 'console', 'console-info', 'exe-info',
+                'help|h', 'v', 'vv', 'vvv', 'version|V',
+                'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
+                'u=s', '4', '6', 'cid=s', 'D', 'no-console|n', 'st-delay|y=s',
+                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z'
     );
 
    	# FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
    	# it by default
-   	$args->set('Z',1);
+    #$args->set('Z',1);
+    $opts{Z} = '1';
 
 
    	# Set configuration file 
-   	if ($opt_config) {
-   	  	$vnxConfigFile = $opt_config; 
+   	if ($opts{'config'}) {
+   	  	$vnxConfigFile = $opts{'config'}; 
    	} else {
    		$vnxConfigFile = $DEFAULT_CONF_FILE;
    	}
    	print "Using configuration file: $vnxConfigFile\n";
    
    	# Check the existance of the VNX configuration file 
-   	unless ( (-e $vnxConfigFile) or ($opt_V) or ($opt_help) ) {
+   	unless ( (-e $vnxConfigFile) or ($opts{'version'}) or ($opts{'help'}) ) {
    	 	print "\nERROR: VNX configuration file $vnxConfigFile not found\n\n";
    	 	exit(1);   	 
    	}
@@ -422,7 +292,7 @@ sub main {
 
    	# To check arguments consistency
    	# 0. Check if -f is present
-   	if (!($opt_f) && !($opt_V) && !($opt_help) && !($opt_D)) {
+   	if (!($opts{f}) && !($opts{'version'}) && !($opts{'help'}) && !($opts{D})) {
    	  	&usage;
       	&vnx_die ("Option -f missing\n");
    	}
@@ -432,25 +302,25 @@ sub main {
    
    	my $how_many_args = 0;
    	my $mode;
-   	if ($opt_create)      { $how_many_args++; $mode = "create";       }
-   	if ($opt_execute)     { $how_many_args++; $mode = "execute";	  }
-   	if ($opt_shutdown)    { $how_many_args++; $mode = "shutdown";     }
-   	if ($opt_destroy)     { $how_many_args++; $mode = "destroy";	  }
-   	if ($opt_V)           { $how_many_args++; $mode = "version";      }
-   	if ($opt_help)        { $how_many_args++; $mode = "help";         }
-   	if ($opt_define)      { $how_many_args++; $mode = "define";       }
-   	if ($opt_start)       { $how_many_args++; $mode = "start";        }
-   	if ($opt_undefine)    { $how_many_args++; $mode = "undefine";     }
-   	if ($opt_save)        { $how_many_args++; $mode = "save";         }
-   	if ($opt_restore)     { $how_many_args++; $mode = "restore";      }
-   	if ($opt_suspend)     { $how_many_args++; $mode = "suspend";      }
-   	if ($opt_resume)      { $how_many_args++; $mode = "resume";       }
-   	if ($opt_reboot)      { $how_many_args++; $mode = "reboot";       }
-   	if ($opt_reset)       { $how_many_args++; $mode = "reset";        }
-   	if ($opt_showmap)     { $how_many_args++; $mode = "show-map";     }
-   	if ($opt_console)     { $how_many_args++; $mode = "console";      }
-   	if ($opt_consoleinfo) { $how_many_args++; $mode = "console-info"; }
-    if ($opt_exeinfo)     { $how_many_args++; $mode = "exe-info";     }
+   	if ($opts{'create'})       { $how_many_args++; $mode = "create";       }
+   	if ($opts{'execute'})      { $how_many_args++; $mode = "execute";	   }
+   	if ($opts{'shutdown'})     { $how_many_args++; $mode = "shutdown";     }
+   	if ($opts{'destroy'})      { $how_many_args++; $mode = "destroy";	   }
+   	if ($opts{'version'})      { $how_many_args++; $mode = "version";      }
+   	if ($opts{'help'})         { $how_many_args++; $mode = "help";         }
+   	if ($opts{'define'})       { $how_many_args++; $mode = "define";       }
+   	if ($opts{'start'})        { $how_many_args++; $mode = "start";        }
+   	if ($opts{'undefine'})     { $how_many_args++; $mode = "undefine";     }
+   	if ($opts{'save'})         { $how_many_args++; $mode = "save";         }
+   	if ($opts{'restore'})      { $how_many_args++; $mode = "restore";      }
+   	if ($opts{'suspend'})      { $how_many_args++; $mode = "suspend";      }
+   	if ($opts{'resume'})       { $how_many_args++; $mode = "resume";       }
+   	if ($opts{'reboot'})       { $how_many_args++; $mode = "reboot";       }
+   	if ($opts{'reset'})        { $how_many_args++; $mode = "reset";        }
+   	if ($opts{'show-map'})     { $how_many_args++; $mode = "show-map";     }
+   	if ($opts{'console'})      { $how_many_args++; $mode = "console";      }
+   	if ($opts{'console-info'}) { $how_many_args++; $mode = "console-info"; }
+    if ($opts{'exe-info'})     { $how_many_args++; $mode = "exe-info";     }
       
    	if ($how_many_args gt 1) {
       	&usage;
@@ -458,46 +328,46 @@ sub main {
       	          "-V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, " .
       	          "--resume, --reboot, --reset, --showmap or -H\n");
    	}
-   	if ( ($how_many_args lt 1) && (!$opt_D) ) {
+   	if ( ($how_many_args lt 1) && (!$opts{D}) ) {
       	&usage;
       	&vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, " . 
       	          "--start, --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, " . 
       	          "--show-map, --console, --console-info, -V or -H\n");
    	}
-   	if (($opt_F) && (!($opt_shutdown))) { 
+   	if (($opts{F}) && (!($opts{'shutdown'}))) { 
       	&usage; 
       	&vnx_die ("Option -F only makes sense with -d|--shutdown mode\n"); 
    	}
-   	if (($opt_B) && ($opt_F) && ($opt_shutdown)) {
+   	if (($opts{B}) && ($opts{F}) && ($opts{'shutdown'})) {
       	&vnx_die ("Option -F and -B are incompabible\n");
    	}
-    if (($opt_o) && (!($opt_create))) {
+    if (($opts{o}) && (!($opts{'create'}))) {
       	&usage;
       	&vnx_die ("Option -o only makes sense with -t|--create mode\n");
    	}
-   	if (($opt_w) && (!($opt_create))) {
+   	if (($opts{w}) && (!($opts{'create'}))) {
       	&usage;
       	&vnx_die ("Option -w only makes sense with -t|--create mode\n");
    	}
-  	if (($opt_e) && (!($opt_create))) {
+  	if (($opts{e}) && (!($opts{'create'}))) {
       	&usage;
       	&vnx_die ("Option -e only makes sense with -t|--create mode\n");
    	}
-   	if (($opt_Z) && (!($opt_create))) {
-      	&usage;
-      	&vnx_die ("Option -Z only makes sense with -t|--create mode\n");
-   	}
-   	if (($opt_4) && ($opt_6)) {
+#   	if (($opts{Z}) && (!($opts{'create'}))) {
+#      	&usage;
+#      	&vnx_die ("Option -Z only makes sense with -t|--create mode\n");
+#   	}
+   	if (($opts{4}) && ($opts{6})) {
       	&usage;
       	&vnx_die ("-4 and -6 can not be used at the same time\n");
    	}
-   	if ( $opt_n && (!($opt_create))) {
+   	if ( $opts{'no-console'} && (!($opts{'create'}))) {
       	&usage;
       	&vnx_die ("Option -n|--no-console only makes sense with -t|--create mode\n");
    	}
 
    	# Version pseudomode
-   	if ($opt_V) {
+   	if ($opts{'version'}) {
    	  	my $basename = basename $0;
       	print "\n";
       	print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
@@ -522,27 +392,27 @@ sub main {
    	}
 
    	# Help pseudomode
-   	if ($opt_help) {
+   	if ($opts{'help'}) {
       	&usage;
       	exit(0);
    	}
 
    	# 2. Optional arguments
    	$exemode = $EXE_NORMAL; $EXE_VERBOSITY_LEVEL=N;
-   	if ($opt_v)   { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=V }
-   	if ($opt_vv)  { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VV }
-   	if ($opt_vvv) { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VVV }
-   	$exemode = $EXE_DEBUG if ($opt_g);
+   	if ($opts{v})   { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=V }
+   	if ($opts{vv})  { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VV }
+   	if ($opts{vvv}) { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VVV }
+   	$exemode = $EXE_DEBUG if ($opts{g});
    	chomp(my $pwd = `pwd`);
-   	$vnx_dir = &chompslash($opt_c) if ($opt_c);
+   	$vnx_dir = &chompslash($opts{c}) if ($opts{c});
    	$vnx_dir = "$pwd/$vnx_dir"
 		   unless (&valid_absolute_directoryname($vnx_dir));
-   	$tmp_dir = &chompslash($opt_T) if ($opt_T);
+   	$tmp_dir = &chompslash($opts{T}) if ($opts{T});
    	$tmp_dir = "$pwd/$tmp_dir"
 		   unless (&valid_absolute_directoryname($tmp_dir));	
 
    	# Delete LOCK file if -D option included
-   	if ($opt_D) {
+   	if ($opts{D}) {
    	  	print "Deleting ". $vnx_dir . "/LOCK file\n";
 	  	system "rm -f $vnx_dir/LOCK"; 
 	  	if ($how_many_args lt 1) {
@@ -550,29 +420,29 @@ sub main {
 	  	}  
    	}	
 
-   	# DFC 21/2/2011 $uid = getpwnam($opt_u) if ($> == 0 && $opt_u);
-   	$boot_timeout = $opt_w if (defined($opt_w));
+   	# DFC 21/2/2011 $uid = getpwnam($opts{u) if ($> == 0 && $opts{u);
+   	$boot_timeout = $opts{w} if (defined($opts{w}));
    	unless ($boot_timeout =~ /^\d+$/) {
-      	&vnx_die ("-w value ($opt_w) is not a valid timeout (positive integer)\n");  
+      	&vnx_die ("-w value ($opts{w}) is not a valid timeout (positive integer)\n");  
    	}
 
    	# FIXME: $enable_4 and $enable_6 are not necessary, use $args object
    	# instead and avoid redundance
    	my $enable_4 = 1;
    	my $enable_6 = 1;
-   	$enable_4 = 0 if ($opt_6);
-   	$enable_6 = 0 if ($opt_4);   
+   	$enable_4 = 0 if ($opts{6});
+   	$enable_6 = 0 if ($opts{4});   
    	
    	# Delay between vm startup
-   	$vmStartupDelay = $opt_y if ($opt_y);
+   	$vmStartupDelay = $opts{'st-delay'} if ($opts{'st-delay'});
    	   	
    	# 3. To extract and check input
-   	$input_file = $opt_f if ($opt_f);
+   	$input_file = $opts{f} if ($opts{f});
 
    	# Check for file and cmd_seq, depending the mode
    	my $cmdseq = '';
-   	if ($opt_execute) {
-      	$cmdseq = $opt_execute
+   	if ($opts{'execute'}) {
+      	$cmdseq = $opts{'execute'}
    	} 
     
    	# Reserved words for cmd_seq
@@ -661,7 +531,7 @@ sub main {
     my $doc = $parser->parsefile($input_file);
        	       	
    	# Interactive execution (press a key after each command)
-   	my $exeinteractive = ($opt_v || $opt_vv || $opt_vvv) && $opt_i;
+   	my $exeinteractive = ($opts{v} || $opts{vv} || $opts{vvv}) && $opts{i};
 
    	# Build the VNX::Execution object
    	$execution = new VNX::Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
@@ -670,7 +540,7 @@ sub main {
    	my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
    	# Build the VNX::DataHandler object
-   	$dh = new VNX::DataHandler($execution,$doc,$mode,$opt_M,$opt_H,$cmdseq,$xml_dir,$input_file);
+   	$dh = new VNX::DataHandler($execution,$doc,$mode,$opts{M},$opts{H},$cmdseq,$xml_dir,$input_file);
    	$dh->set_boot_timeout($boot_timeout);
    	$dh->set_vnx_dir($vnx_dir);
    	$dh->set_tmp_dir($tmp_dir);
@@ -712,7 +582,7 @@ sub main {
    	# 6b (delayed because it required the $dh object constructed)
    	# To check optional screen binaries
    	$bd->add_additional_screen_binaries();
-   	if (($opt_e) && ($bd->check_binaries_screen != 0)) {
+   	if (($opts{e}) && ($bd->check_binaries_screen != 0)) {
       	&vnx_die ("screen related binary is missing\n");
    	}
 
@@ -821,15 +691,15 @@ sub main {
 
    	# Mode selection
 
-   	if ($opt_create) {
-	   	if ($exemode != $EXE_DEBUG && !$opt_M && !$opt_start) {
+   	if ($mode eq 'create') {
+	   	if ($exemode != $EXE_DEBUG && !$opts{M} && !$opts{'start'}) {
          	$execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
             	if &scenario_exists($dh->get_scename);
       	}
       	&mode_define;
       	&mode_start;
    	}
-   	elsif ($opt_execute) {
+   	elsif ($mode eq 'execute') {
       	if ($exemode != $EXE_DEBUG) {
          	$execution->smartdie ("scenario " . $dh->get_scename . " does not exists: create it with -t before\n")
            		unless &scenario_exists($dh->get_scename);
@@ -837,7 +707,7 @@ sub main {
 
       	&mode_execute($cmdseq);
    	}
-   	elsif ($opt_shutdown) {
+   	elsif ($mode eq 'shutdown') {
       	if ($exemode != $EXE_DEBUG) {
          	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
            		unless &scenario_exists($dh->get_scename);
@@ -847,43 +717,45 @@ sub main {
 
       
    	}
-   	elsif ($opt_destroy) {  # elsif ($opt_P) { [JSF]
+   	elsif ($mode eq 'destroy') {  # elsif ($opts{P) { [JSF]
       	if ($exemode != $EXE_DEBUG) {
       	#   $execution->smartdie ("scenario $scename does not exist\n")
       	#     unless &scenario_exists($scename);
       	}
-      	$args->set('F',1);
+      	#$args->set('F',1);
+      	$opts{F} = '1';
       	&mode_shutdown;		# First, call destroy mode with force flag activated
       	&mode_destroy;		# Second, purge other things
       	#&mode_undefine;
    	}
-   	elsif ($opt_define){
-      	if ($exemode != $EXE_DEBUG && !$opt_M) {
+   	elsif ($mode eq 'define') {
+      	if ($exemode != $EXE_DEBUG && !$opts{M}) {
          	$execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
             	if &scenario_exists($dh->get_scename);
       	}
       	&mode_define;
    	}
-   	elsif ($opt_undefine){
-      	if ($exemode != $EXE_DEBUG && !$opt_M) {
+   	elsif ($mode eq 'undefine') {
+      	if ($exemode != $EXE_DEBUG && !$opts{M}) {
          	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
            		unless &scenario_exists($dh->get_scename);
       	}
       	&mode_undefine;
    	}
-   	elsif ($opt_start) {
+   	elsif ($mode eq 'start') {
       	if ($exemode != $EXE_DEBUG) {
          	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
            		unless &scenario_exists($dh->get_scename);
       	}
       	&mode_start;
    	}
-   	elsif ($opt_reset) {
+   	elsif ($mode eq 'reset') {
       	if ($exemode != $EXE_DEBUG) {
          	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
            		unless &scenario_exists($dh->get_scename);
       	}
-      	$args->set('F',1);
+      	#$args->set('F',1);
+      	$opts{F} = '1';
       	&mode_shutdown;		# First, call destroy mode with force flag activated
       	&mode_destroy;		# Second, purge other things
       	sleep(1);     # Let it finish
@@ -891,7 +763,7 @@ sub main {
       	&mode_start;
    	}
    
-   	elsif ($opt_reboot) {
+   	elsif ($mode eq 'reboot') {
      	if ($exemode != $EXE_DEBUG) {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless &scenario_exists($dh->get_scename);
@@ -900,14 +772,14 @@ sub main {
      	&mode_start;
    	}
    
-   	elsif ($opt_save) {
+   	elsif ($mode eq 'save') {
      	if ($exemode != $EXE_DEBUG) {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless &scenario_exists($dh->get_scename);
      	}
      	&mode_save;
    	}
-   	elsif ($opt_restore) {
+   	elsif ($mode eq 'restore') {
      	if ($exemode != $EXE_DEBUG) {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         		unless &scenario_exists($dh->get_scename);
@@ -915,7 +787,7 @@ sub main {
      	&mode_restore;
    	}
    
-   	elsif ($opt_suspend) {
+   	elsif ($mode eq 'suspend') {
      	if ($exemode != $EXE_DEBUG) {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         		unless &scenario_exists($dh->get_scename);
@@ -923,7 +795,7 @@ sub main {
      	&mode_suspend;
    	}
    
-   	elsif ($opt_resume) {
+   	elsif ($mode eq 'resume') {
      	if ($exemode != $EXE_DEBUG) {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless &scenario_exists($dh->get_scename);
@@ -931,7 +803,7 @@ sub main {
      	&mode_resume;
    	}
    
-   	elsif ($opt_showmap) {
+   	elsif ($mode eq 'show-map') {
 #     	if ($exemode != $EXE_DEBUG) {
 #        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
 #        	unless &scenario_exists($dh->get_scename);
@@ -939,21 +811,21 @@ sub main {
      	&mode_showmap;
    	}
    
-   	elsif ($opt_console) {
+   	elsif ($mode eq 'console') {
      	if ($exemode != $EXE_DEBUG) {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless &scenario_exists($dh->get_scename);
      	}
 		&mode_console;
    	}
-   	elsif ($opt_consoleinfo) {
+   	elsif ($mode eq 'console-info') {
      	if ($exemode != $EXE_DEBUG) {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless &scenario_exists($dh->get_scename);
      	}
    		&mode_consoleinfo;
    	}
-    elsif ($opt_exeinfo) {
+    elsif ($mode eq 'exe-info') {
         &mode_exeinfo;
     }
    
@@ -977,9 +849,9 @@ sub main {
 sub mode_define {
 	
    my $basename = basename $0;
-   my $opt_M = $args->get('M');
+#   my $opts{M} = $opts{M};
 
-   unless ($opt_M ){ #|| $do_not_build){
+   unless ($opts{M} ){ #|| $do_not_build){
       &build_topology;
    }
 
@@ -1010,9 +882,9 @@ sub define_VMs {
    my $dom;
    
    # If defined screen configuration file, open it
-   if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
-      open SCREEN_CONF, ">". $args->get('e')
-         or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
+   if (($opts{e}) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
+      open SCREEN_CONF, ">". $opts{e}
+         or $execution->smartdie ("can not open " . $opts{e} . ": $!")
    }
 
    # management ip counter
@@ -1059,7 +931,7 @@ sub define_VMs {
    }
 
    # Close screen configuration file
-   if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
+   if (($opts{e}) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
       close SCREEN_CONF;
    }
 }
@@ -1114,7 +986,7 @@ sub mode_start {
             if (($dh->get_host_mapping) && ($execution->get_exe_mode() != $EXE_DEBUG)); # lines in the temp file
 
         # If -B, block until ready
-        if ($args->get('B')) {
+        if ($opts{B}) {
             my $time_0 = time();
             my %vm_ips = &get_UML_command_ip("");
             while (!&UMLs_cmd_ready(%vm_ips)) {
@@ -1150,12 +1022,12 @@ sub start_VMs {
 
     my @vm_ordered = $dh->get_vm_ordered;
     my %vm_hash = $dh->get_vm_to_use;
-    my $opt_M = $args->get('M');
+#    my $opts{M} = $opts{M};
  
     # If defined screen configuration file, open it
-    if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
-        open SCREEN_CONF, ">". $args->get('e')
-            or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
+    if (($opts{e}) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
+        open SCREEN_CONF, ">". $opts{e}
+            or $execution->smartdie ("can not open " . $opts{e} . ": $!")
     }
 
     for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -1173,7 +1045,7 @@ sub start_VMs {
         eval {$on_boot = $vm->getElementsByTagName("on_boot")->item(0)->getFirstChild->getData};
         if ( (defined $on_boot) and ($on_boot eq 'no')) {
             # do not start vm unless specified in -M
-            unless ( (defined $opt_M) && ($opt_M =~ /^$vm_name,|,$vm_name,|,$vm_name$|^$vm_name$/) ) {
+            unless ( (defined $opts{M}) && ($opts{M} =~ /^$vm_name,|,$vm_name,|,$vm_name$|^$vm_name$/) ) {
                 next;
             }
         }
@@ -1182,7 +1054,7 @@ sub start_VMs {
      
         #check for option -n||--no-console (do not start consoles)
         my $no_console = "0";
-        if ($args->get('n')){
+        if ($opts{'no-console'}){
             $no_console = "1";
         }
       
@@ -1225,7 +1097,7 @@ sub start_VMs {
     }
 
     # Close screen configuration file
-    if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
+    if (($opts{e}) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
         close SCREEN_CONF;
     }
 }
@@ -1399,7 +1271,7 @@ sub mode_console {
       		next;
       	}
 
-		my $cid = $args->get('cid');
+		my $cid = $opts{cid};
 		
 		if (defined $cid) {
 			if ($cid !~ /con/) {
@@ -1420,11 +1292,11 @@ sub mode_consoleinfo {
 
 sub mode_exeinfo {
 
-    my $opt_M = $args->get('M');
+#    my $opts{M} = $opts{M};
 
     wlog (N, "\nVNX exe-info mode:");     
  
-    if (! $opt_M ) {
+    if (! $opts{M} ) {
 
         # Get descriptions of user-defined commands
         my %vm_seqs = $dh->get_seqs();      
@@ -2102,7 +1974,7 @@ sub mode_execute {
     my $num_execs  = 0;
 
    	# If -B, block until ready
-   	if ($args->get('B')) {
+   	if ($opts{B}) {
       	my $time_0 = time();
       	%vm_ips = &get_UML_command_ip($seq);
       	while (!&UMLs_cmd_ready(%vm_ips)) {
@@ -2211,7 +2083,7 @@ sub mode_shutdown {
 
         my $merged_type = $dh->get_vm_merged_type($vm);
 
-        unless ($args->get('F')){
+        unless ($opts{F}){
 
             my @plugin_ftree_list = ();
 	        my @plugin_exec_list = ();
@@ -2249,11 +2121,11 @@ sub mode_shutdown {
 	        wlog(V, "Nothing to execute for sequence $seq");
 	    }
 
-      	if ($args->get('M')){
+      	if ($opts{M}){
          	$only_vm = $vm_name;  	
       	}
       
-      	if ($args->get('F')){
+      	if ($opts{F}){
 
          	# call the corresponding vmAPI
            	my $vm_type = $vm->getAttribute("type");
@@ -2265,7 +2137,7 @@ sub mode_shutdown {
       	else{
            	# call the corresponding vmAPI
            	my $vm_type = $vm->getAttribute("type");
-           	my $error = "VNX::vmAPI_$vm_type"->shutdownVM($vm_name, $merged_type, $args->get('F'));
+           	my $error = "VNX::vmAPI_$vm_type"->shutdownVM($vm_name, $merged_type, $opts{F});
             if ($error ne 0) {
                 wlog (N, "VNX::vmAPI_${vm_type}->shutdownVM returns " . $error);
             }
@@ -2273,7 +2145,7 @@ sub mode_shutdown {
 
    	}
    
-#   unless ($args->get('M')){
+#   unless ($opts{M}){
 
 	# For non-forced mode, we have to wait all UMLs dead before to destroy 
     # TUN/TAP (next step) due to these devices are yet in use
@@ -2283,7 +2155,7 @@ sub mode_shutdown {
     # release)
     my $time_0 = time();
       
-    if ((!$args->get('F'))&&($execution->get_exe_mode() != $EXE_DEBUG)) {		
+    if ((!$opts{F})&&($execution->get_exe_mode() != $EXE_DEBUG)) {		
 
     	wlog (N, "---------- Waiting until virtual machines extinction ----------");
 
@@ -2297,8 +2169,9 @@ sub mode_shutdown {
         }       
   	}
 
-#    if (($args->get('F'))&(!($args->get('M'))))   {
-    if (!($args->get('M')))   {
+#    if (($opts{F})&(!($opts{M})))   {
+
+    if (!($opts{M}))   {
 
          # 1. To stop UML
          #   &halt;
@@ -2387,16 +2260,6 @@ sub get_vm_ftrees_and_execs {
     
     my $merged_type = $dh->get_vm_merged_type($vm);
     
-#    my $mode_tag;            
-#    if ($mode eq 'define') {
-#        $mode_tag = 'Boot';
-#    } elsif ($mode eq 'execute') {
-#        $mode_tag = 'Exec';
-#    } elsif ($mode eq 'shutdown') {
-#        $mode_tag = 'Shutdown';
-#    }
-    
-        
     # Plugin operations:
     #  1 - for each active plugin, call: $plugin->getBootFiles for define mode
     #                                    $plugin->getExecFiles for execute mode 
@@ -2431,13 +2294,6 @@ sub get_vm_ftrees_and_execs {
 
         # Call the getFiles plugin function
         %files = $plugin->getFiles($vm_name, $files_dir, $seq);
-#        if ($mode eq 'define') {
-#            %files = $plugin->getBootFiles($vm_name, $files_dir);
-#        } elsif ($mode eq 'execute') {
-#            %files = $plugin->getExecFiles($vm_name, $files_dir, $seq);
-#        } elsif ($mode eq 'shutdown') {
-#        	%files = $plugin->getShutdownFiles($vm_name, $files_dir);
-#        }
 
         if (defined($files{"ERROR"}) && $files{"ERROR"} ne "") {
             $execution->smartdie("plugin $plugin getFiles($vm_name) in mode=$mode and sequence=$seq error: ".$files{"ERROR"});
@@ -2527,13 +2383,6 @@ sub get_vm_ftrees_and_execs {
         my @commands;            
         # Call the getCommands plugin function
         @commands = $plugin->getCommands($vm_name,$seq);
-#        if ($mode eq 'define') {
-#            @commands = $plugin->getBootCommands($vm_name);
-#        } elsif ($mode eq 'execute') {
-#            @commands = $plugin->getExecCommands($vm_name,$seq);
-#        } elsif ($mode eq 'shutdown') {
-#            @commands = $plugin->getShutdownCommands($vm_name);
-#        }
         my $error = shift(@commands);
         if ($error ne "") {
             $execution->smartdie("plugin $plugin getCommands($vm_name,$seq) error: $error");
@@ -3031,7 +2880,7 @@ sub mode_destroy {
         }
  
     }
-    if ( ($vm_left eq 0) && (!$args->get('M') ) ) {
+    if ( ($vm_left eq 0) && (!$opts{M} ) ) {
         # 3. Delete supporting scenario files...
 	#    ...but only if -M option is not active (DFC 27/01/2010)
 
@@ -4111,7 +3960,7 @@ sub mgmt_sock_create {
    my $mask = shift;  
    
    my $user = "vnx";
-   $user = $args->get('u') if ($args->get('u'));
+   $user = $opts{u} if ($opts{u});
 
    # Slashed or dotted mask?
    my $effective_mask;
@@ -4183,7 +4032,7 @@ sub vnx_die {
 sub handle_sig {
 	# Reset alarm, if one has been set
 	alarm 0;
-	if ($args->get('create')) {
+	if ($opts{'create'}) {
 		&mode_shutdown;
 	}
 	if (defined($execution)) {
@@ -4194,7 +4043,9 @@ sub handle_sig {
 	}
 }
 
-
+#
+# create_dirs
+#
 sub create_dirs {
 
    my $doc = $dh->get_doc;
@@ -4227,7 +4078,7 @@ sub create_dirs {
 
 sub build_topology{
    my $basename = basename $0;
-   my $opt_M = shift;
+#   my $opts{M} = shift;
     try {
             # To load tun module if needed
             #if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
@@ -4653,8 +4504,8 @@ sub make_vmAPI_doc {
     my $o_flag_tag = $dom->createElement('o_flag');
     $vm_tag->addChild($o_flag_tag);      
     my $o_flag = "";
-    if ($args->get('o')) {
-     	$o_flag = $args->get('o');
+    if ($opts{o}) {
+     	$o_flag = $opts{o};
     }     
     $o_flag_tag->addChild($dom->createTextNode($o_flag));
 
@@ -4662,8 +4513,8 @@ sub make_vmAPI_doc {
     my $e_flag_tag = $dom->createElement('e_flag');
     $vm_tag->addChild($e_flag_tag);
     my $e_flag = "";
-    if ($args->get('e')) {
-    	$e_flag = $args->get('e');
+    if ($opts{e}) {
+    	$e_flag = $opts{e};
     }     
     $e_flag_tag->addChild($dom->createTextNode($e_flag));
 
@@ -4671,7 +4522,7 @@ sub make_vmAPI_doc {
     my $Z_flag_tag = $dom->createElement('Z_flag');
     $vm_tag->addChild($Z_flag_tag);
     my $Z_flag;
-    if ($args->get('Z')) {
+    if ($opts{Z}) {
       	$Z_flag = 1;
     }else{
       	$Z_flag = 0;
@@ -4682,7 +4533,7 @@ sub make_vmAPI_doc {
     my $F_flag_tag = $dom->createElement('F_flag');
     $vm_tag->addChild($F_flag_tag);
     my $F_flag;
-    if ($args->get('F')) {
+    if ($opts{F}) {
       	$F_flag = 1;
     }else{
       	$F_flag = 0;
@@ -5080,8 +4931,8 @@ sub print_console_table_entry {
 
 sub print_consoles_info{
 	
-	my $opt_M = $args->get('M');
-	my $briefFormat = $args->get('b');
+#	my $opts{M} = $opts{M};
+	my $briefFormat = $opts{b};
 
 	# Print information about vm consoles
     my @vm_ordered = $dh->get_vm_ordered;
@@ -5148,7 +4999,7 @@ Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnx_dir] [-u user]
 
 Main modes:
        -t|--create   -> build topology, or create virtual machine (if -M), using VNX_file as source.
-       -x cmd_seq    -> execute the cmd_seq command sequence, using VNX_file as source.
+       -x|--execute cmd_seq -> execute the cmd_seq command sequence, using VNX_file as source.
        -d|--shutdown -> destroy current scenario, or virtual machine (if -M), using VNX_file as source.
        -P|--destroy  -> purge scenario, or virtual machine (if -M), (warning: it will remove cowed 
                         filesystems!)
@@ -5227,7 +5078,7 @@ Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnx_dir] [-u user]
 
 Main modes:
        -t|--create   -> build topology, or create virtual machine (if -M), using VNX_file as source.
-       -x cmd_seq    -> execute the cmd_seq command sequence, using VNX_file as source.
+       -x|--execute cmd_seq -> execute the cmd_seq command sequence, using VNX_file as source.
        -d|--shutdown -> destroy current scenario, or virtual machine (if -M), using VNX_file as source.
        -P|--destroy  -> purge scenario, or virtual machine (if -M), (warning: it will remove cowed 
                         filesystems!)
@@ -5296,9 +5147,9 @@ print "$usage\n";
 #   my $dom;
 #   
 #   # If defined screen configuration file, open it
-#   if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
-#      open SCREEN_CONF, ">". $args->get('e')
-#         or $execution->smartdie ("can not open " . $args->get('e') . ": $!")
+#   if (($opts{e}) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
+#      open SCREEN_CONF, ">". $opts{e}
+#         or $execution->smartdie ("can not open " . $opts{e} . ": $!")
 #   }
 #
 #   #contador para management ip, lo necesita el código de bootfiles que está pasado al API.
@@ -5328,7 +5179,7 @@ print "$usage\n";
 #   }
 #
 #   # Close screen configuration file
-#   if (($args->get('e')) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
+#   if (($opts{e}) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
 #      close SCREEN_CONF;
 #   }
 #

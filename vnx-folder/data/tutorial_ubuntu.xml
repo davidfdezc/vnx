@@ -8,8 +8,8 @@ VNX Sample scenarios
 
 Name:        tutorial_ubuntu
 Description: As simple tutorial scenario made of 6 Ubuntu virtual machines (4 hosts: h1, h2, h3 and h4; 
-			 and 2 routers: r1 and r2) connected through three virtual networks. The host participates 
-			 in the scenario having a network interface in Net3.     
+             and 2 routers: r1 and r2) connected through three virtual networks. The host participates 
+             in the scenario having a network interface in Net3.     
 
 This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
 (www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
