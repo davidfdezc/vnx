@@ -2,6 +2,8 @@
 
 - VNX:
      - changed argument processing to simplify it using a hash to store arguments (%opts)
+     - option 'cid' deprecated. Now the '--console' option is used to specify console names
+       with a comma separated list (eg. --console con1,con2  )
 
 - EDIV:
      - Added show-map, clean-cluster, seg-info and seg-alg-info new options

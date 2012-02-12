@@ -134,7 +134,7 @@ sub main {
     GetOptions (\%opts,
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
-                'show-map', 'console', 'console-info', 'exe-info',
+                'show-map', 'console:s', 'console-info', 'exe-info',
                 'help|h', 'seg-info', 'seg-alg-info', 'clean-cluster',
                 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'C=s', 'a=s', 'r=s', 'M=s', 'H=s', 'n|no-console'
@@ -173,7 +173,7 @@ sub main {
 	    $how_many_args++; $mode = "reset"; }
 	if ($opts{'show-map'}) {
 	    $how_many_args++; $mode = "show-map"; }
-	if ($opts{'console'}) {
+	if (defined($opts{'console'})) {
 		$how_many_args++; $mode = "console"; }
 	if ($opts{'console-info'}) {
 	    $how_many_args++; $mode = "console-info"; }
@@ -403,6 +403,9 @@ sub main {
 			  $mode eq 'suspend' | 
 			  $mode eq 'resume' | 
 			  $mode eq 'reboot' )        { mode_others()
+    } elsif ( $mode eq 'console' )       { mode_console();
+    } elsif ( $mode eq 'console-info' )  { mode_consoleinfo();
+    } elsif ( $mode eq 'exe-info' )      { mode_exeinfo();
     } elsif ( $mode eq 'seg-info' )      { mode_seginfo();
     } elsif ( $mode eq 'seg-alg-info' )  { mode_segalginfo();
     } elsif ( $mode eq 'clean-cluster' ) { mode_cleancluster();
@@ -503,12 +506,12 @@ sub mode_create {
 	    wlog (N, "\n  ---- Configuring distributed networking in cluster ****");
 	            
 	    # Fill the scenario array
-	    fillScenarioArray('yes');
+	    create_subscenario_docs('yes');
         # Assign first and last VLAN.
         &assignVLAN;
 	    # Split into files
-	    wlog (VVV, "****************************** Calling splitIntoFiles...");
-	    &splitIntoFiles ('yes');
+	    wlog (VVV, "****************************** Calling fill_subscenario_docs...");
+	    &fill_subscenario_docs ('yes');
 	    # Make a tgz compressed file containing VM execution config 
 	    build_scenario_conf();
 	    # Send Configuration to each host.
@@ -759,6 +762,68 @@ sub mode_others {
     &process_other_modes;
 }
 
+sub mode_console {
+
+    my $error;
+    my @db_resp;
+    my $host_ip;
+    my $host_id;
+    my $scenario;
+    
+    wlog (N, "\n---- mode: $mode\n---- Executing commands tagged with '$opts{'execute'}'");
+
+    # Get VMs asignation to hosts from the database
+    %allocation = get_allocation_from_db();
+        
+    # Checking if the scenario is running
+    $error = query_db ("SELECT `scenario` FROM hosts WHERE status = 'running' AND scenario = '$scenario_name'", \@db_resp);
+    if ($error) { ediv_die ("$error") };
+    unless ( defined($db_resp[0]->[0]) ) {
+        ediv_die ("The scenario $scenario_name wasn't running... Aborting");
+    }
+
+    my %hosts_involved = get_hosts_involved();
+
+    foreach my $host_id (keys %hosts_involved) {
+
+        my $host_ip = get_host_ipaddr ($host_id);       
+        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+        my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
+        my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $host_subscenario_fname = $host_tmpdir . "$subscenario_name".".xml";
+        my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $local_subscenario_fname);
+
+        wlog (VVV, "--  mode_console: host_id = $host_id, host_ip = $host_ip, host_tmpdir = $host_tmpdir");  
+        wlog (VVV, "--  mode_console: subscenario_name = $subscenario_name");  
+        wlog (VVV, "--  mode_console: local_subscenario_fname = $local_subscenario_fname");  
+        wlog (VVV, "--  mode_console: host_subscenario_fname = $host_subscenario_fname");  
+
+        unless ( defined($subscenario_name) && defined($subscenario_xml) ) {
+            ediv_die ("Cannot get subscenario name or subscenario XML file")
+        }
+
+        # Copy subscenario to host
+        my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
+        &daemonize($scp_command, "$host_id"."_log");
+        my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
+        &daemonize($permissions_command, "$host_id"."_log");
+
+        # Execute VNX console command
+        print "\n  ---- Console command in $host_id ****\n";
+        my $option_M = '';
+        if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
+
+        my $console_options = "--console";
+        if ($opts{'console'} ne '') {
+            $console_options .= " $opts{'console'}";
+        }
+        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v $console_options -f $host_subscenario_fname " . $option_M . "'";
+        &daemonize($ssh_command, "$host_id"."_log");  
+
+    }
+}
+
+
 sub mode_seginfo {
 
     # Show segmentation info
@@ -807,9 +872,9 @@ sub mode_seginfo {
     if (defined($allocation{"error"})){
         ediv_die("ERROR: in segmentation module  $segmentation_module");
     }
-    fillScenarioArray();
+    create_subscenario_docs();
     assignVLAN();
-    splitIntoFiles();
+    fill_subscenario_docs();
     foreach my $host_id (@cluster_active_hosts) {
         my $local_subscenario_fname = $dh->get_sim_tmp_dir . $scenario_name . "_" . $host_id . ".xml"; 
         my $host_scenario = $scenarioHash{$host_id};      
@@ -986,16 +1051,16 @@ sub assignVLAN {
 	
 	
 #
-# fillScenarioArray create_subscenario_docs
+# create_subscenario_docs create_subscenario_docs
 # 
 # It creates a new dom tree for each host to store its subscenario specification
 # The new dom trees are stored in $scenarioHash associative array
 #
-sub fillScenarioArray {
+sub create_subscenario_docs {
 	
 	my $change_db = shift; # if not defined, the database is not changed 
 
-    wlog (VVV, "fillScenarioArray: $change_db");
+    wlog (VVV, "create_subscenario_docs: $change_db");
     #print $dh->get_doc->toString;
 	
 	# Create a new template document by cloning the scenario tree
@@ -1080,7 +1145,7 @@ sub fillScenarioArray {
 		
 		# Store the new document in $scenarioHash array
 		$scenarioHash{$host_id} = $doc;	
-        wlog (VVV, "---- fillScenarioArray: assigned scenario for $host_id\n");
+        wlog (VVV, "---- create_subscenario_docs: assigned scenario for $host_id\n");
 		
 		if (defined($change_db)) {
 	        # Save data into DB
@@ -1094,18 +1159,18 @@ sub fillScenarioArray {
 }
 
 #
-# splitIntoFiles
+# fill_subscenario_docs
 #
 # Split the original scenario xml file into several smaller files for each host.
 #
-sub splitIntoFiles {
+sub fill_subscenario_docs {
 
     my $change_db = shift; # if not defined, the database is not changed 
 
     my $error; 
     my @db_resp;
     
-    wlog (VVV, "-- splitIntoFiles called");
+    wlog (VVV, "-- fill_subscenario_docs called");
     
     #print $globalNode->toString;
     #print $dh->get_doc->toString;
@@ -1149,7 +1214,7 @@ sub splitIntoFiles {
 
 		#unless ($vm_name){
 			# Creating virtual machines in the database
-            wlog (VVV, "** splitIntoFiles: Creating virtual machine $vm_name in db");
+            wlog (VVV, "** fill_subscenario_docs: Creating virtual machine $vm_name in db");
 
             if (defined($change_db)) {
 		        $error = query_db ("SELECT `name` FROM vms WHERE name='$vm_name'", \@db_resp);

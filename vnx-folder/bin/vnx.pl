@@ -247,7 +247,7 @@ sub main {
     GetOptions (\%opts,
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
-                'show-map', 'console', 'console-info', 'exe-info',
+                'show-map', 'console:s', 'console-info', 'exe-info',
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'u=s', '4', '6', 'cid=s', 'D', 'no-console|n', 'st-delay|y=s',
@@ -302,37 +302,37 @@ sub main {
    
    	my $how_many_args = 0;
    	my $mode;
-   	if ($opts{'create'})       { $how_many_args++; $mode = "create";       }
-   	if ($opts{'execute'})      { $how_many_args++; $mode = "execute";	   }
-   	if ($opts{'shutdown'})     { $how_many_args++; $mode = "shutdown";     }
-   	if ($opts{'destroy'})      { $how_many_args++; $mode = "destroy";	   }
-   	if ($opts{'version'})      { $how_many_args++; $mode = "version";      }
-   	if ($opts{'help'})         { $how_many_args++; $mode = "help";         }
-   	if ($opts{'define'})       { $how_many_args++; $mode = "define";       }
-   	if ($opts{'start'})        { $how_many_args++; $mode = "start";        }
-   	if ($opts{'undefine'})     { $how_many_args++; $mode = "undefine";     }
-   	if ($opts{'save'})         { $how_many_args++; $mode = "save";         }
-   	if ($opts{'restore'})      { $how_many_args++; $mode = "restore";      }
-   	if ($opts{'suspend'})      { $how_many_args++; $mode = "suspend";      }
-   	if ($opts{'resume'})       { $how_many_args++; $mode = "resume";       }
-   	if ($opts{'reboot'})       { $how_many_args++; $mode = "reboot";       }
-   	if ($opts{'reset'})        { $how_many_args++; $mode = "reset";        }
-   	if ($opts{'show-map'})     { $how_many_args++; $mode = "show-map";     }
-   	if ($opts{'console'})      { $how_many_args++; $mode = "console";      }
-   	if ($opts{'console-info'}) { $how_many_args++; $mode = "console-info"; }
-    if ($opts{'exe-info'})     { $how_many_args++; $mode = "exe-info";     }
+   	if ($opts{'create'})           { $how_many_args++; $mode = "create";       }
+   	if ($opts{'execute'})          { $how_many_args++; $mode = "execute";	   }
+   	if ($opts{'shutdown'})         { $how_many_args++; $mode = "shutdown";     }
+   	if ($opts{'destroy'})          { $how_many_args++; $mode = "destroy";	   }
+   	if ($opts{'version'})          { $how_many_args++; $mode = "version";      }
+   	if ($opts{'help'})             { $how_many_args++; $mode = "help";         }
+   	if ($opts{'define'})           { $how_many_args++; $mode = "define";       }
+   	if ($opts{'start'})            { $how_many_args++; $mode = "start";        }
+   	if ($opts{'undefine'})         { $how_many_args++; $mode = "undefine";     }
+   	if ($opts{'save'})             { $how_many_args++; $mode = "save";         }
+   	if ($opts{'restore'})          { $how_many_args++; $mode = "restore";      }
+   	if ($opts{'suspend'})          { $how_many_args++; $mode = "suspend";      }
+   	if ($opts{'resume'})           { $how_many_args++; $mode = "resume";       }
+   	if ($opts{'reboot'})           { $how_many_args++; $mode = "reboot";       }
+   	if ($opts{'reset'})            { $how_many_args++; $mode = "reset";        }
+   	if ($opts{'show-map'})         { $how_many_args++; $mode = "show-map";     }
+   	if (defined($opts{'console'})) { $how_many_args++; $mode = "console";      }
+   	if ($opts{'console-info'})     { $how_many_args++; $mode = "console-info"; }
+    if ($opts{'exe-info'})         { $how_many_args++; $mode = "exe-info";     }
       
    	if ($how_many_args gt 1) {
       	&usage;
-      	&vnx_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown, " .
-      	          "-V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend, " .
-      	          "--resume, --reboot, --reset, --showmap or -H\n");
+      	&vnx_die ("Only one of the following options at a time:\n -t|--create, -x|--execute, -d|--shutdown, " .
+      	          "-V, -P|--destroy, --define, --start,\n --undefine, --save, --restore, --suspend, " .
+      	          "--resume, --reboot, --reset, --showmap or -H");
    	}
    	if ( ($how_many_args lt 1) && (!$opts{D}) ) {
       	&usage;
       	&vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, " . 
-      	          "--start, --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, " . 
-      	          "--show-map, --console, --console-info, -V or -H\n");
+      	          "\n--start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, " . 
+      	          "\n--show-map, --console, --console-info, -V or -H\n");
    	}
    	if (($opts{F}) && (!($opts{'shutdown'}))) { 
       	&usage; 
@@ -1270,16 +1270,19 @@ sub mode_console {
       	unless ($vm_hash{$vm_name}) {
       		next;
       	}
-
-		my $cid = $opts{cid};
 		
-		if (defined $cid) {
-			if ($cid !~ /con/) {
-				$execution->smartdie ("ERROR: console $cid unknown. Try \"vnx -f file.xml --console-info\" to see console names.\n");
-			}
-			VNX::vmAPICommon->start_console ($vm_name, $cid);
+		if ($opts{'console'} eq '') {
+            # No console names specified. Start all consoles			
+            VNX::vmAPICommon->start_consoles_from_console_file ($vm_name);
 		} else {
-			VNX::vmAPICommon->start_consoles_from_console_file ($vm_name);
+			# Console names specified (a comma separated list) 
+            my @con_names = split( /,/, $opts{'console'} );
+            foreach my $cid (@con_names) {
+	            if ($cid !~ /^con\d$/) {
+	                $execution->smartdie ("ERROR: console $cid unknown. Try \"vnx -f file.xml --console-info\" to see console names.\n");
+	            }
+	            VNX::vmAPICommon->start_console ($vm_name, $cid);
+            }
 		}
 	}       
 }
@@ -2970,8 +2973,11 @@ sub check_user {
 sub check_deprecated {
 	
     my $doc = $dh->get_doc;
-	
-    # By the moment, no check is required
+    
+    if (defined $opts{cid}) {
+    	vnx_die ("\n  'cid' option is deprecated. Use '--console con_name' to specify console names.")
+    }
+    
     
 }
 
@@ -4024,8 +4030,10 @@ sub mgmt_sock_destroy {
 #
 sub vnx_die {
    my $mess = shift;
-   printf "ERROR in %s (%s): %s \n", (caller(1))[3], (caller(0))[2], $mess;
-   exit 1;
+   printf "--------------------------------------------------------------------------------\n";
+   printf "ERROR in %s (%s):\n%s \n", (caller(1))[3], (caller(0))[2], $mess;
+   printf "--------------------------------------------------------------------------------\n";
+   exit 1;   
 }
 
 # execute a smart die
