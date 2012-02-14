@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Parse arguments
 while getopts "v" opt; do
@@ -18,13 +18,24 @@ while getopts "v" opt; do
 done
 
 
-VNX_VERSION="0.14b"
-ROOTFS_VERSION="es-v023b"
+VNX_VERSION="2.0b"
+ROOTFS_VERSION="es-v022b"
 EDIV_ALG_MODULES_DIR="/usr/share/vnx/lib/seg-alg"
 
 # Move to the directory where this script is
 cdir=$( dirname $0 )
 cd $cdir
+
+# Load current version numbers
+source VERSION
+echo "VERSIONS:"
+echo VNX_MAJOR=${VNX_MAJOR}
+echo VNX_MINOR=${VNX_MINOR}
+echo VNX_LATEST_REVISION=${VNX_LATEST_REVISION}
+
+VNX_VERSION=${VNX_MAJOR}.${VNX_MINOR}.${VNX_LATEST_REVISION}
+#VNX_VERSION_DATE=${VNX_VERSION}-`date +%Y%m%d%H%M`
+
 
 # Get perl modules directory (/usr/local/share/perl/5.10.0/ in Ubuntu)
 PERL_LIBS=$(perl -e 'use Config; print $Config{installvendorlib}')
@@ -54,7 +65,21 @@ mkdir -p $VERBOSE /usr/share/vnx/filesystems
 mkdir -p $VERBOSE /usr/share/vnx/kernels
 mkdir -p $VERBOSE /usr/share/vnx/aced
 mkdir -p $VERBOSE /usr/share/vnx/plugins
+mkdir -p $VERBOSE /usr/share/vnx/src
 mkdir -p $VERBOSE /etc/ediv
+
+#
+# save a copy of vnx tar file to /usr/share/vnx/src directory
+#
+FNAME=vnx-${VNX_VERSION}
+PWD=$(pwd)
+if [ $VERBOSE ]; then
+    tar cfvz /usr/share/vnx/src/${FNAME}.tgz ../${PWD##*/}
+else
+    tar cfz /usr/share/vnx/src/${FNAME}.tgz ../${PWD##*/}
+fi
+rm /usr/share/vnx/src/vnx-latest.tgz
+ln -s ${FNAME}.tgz /usr/share/vnx/src/vnx-latest.tgz
 
 #
 # Copy vnx
