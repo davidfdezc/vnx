@@ -301,14 +301,15 @@ sub main {
         print "ERROR: $res\n";  
         exit 1; 
     }
-    print "Hosts in cluster:             ";
+    print "Hosts in cluster:\n";
     foreach my $host_id (@cluster_hosts) {
         my $active_host_found;
+        my $status = 'inactive';
         foreach my $active_host (@cluster_active_hosts) {
-            if ($active_host eq $host_id) { $active_host_found = 'true'}
+            if ($active_host eq $host_id) { $status = 'active';}
         }
-        if ($active_host_found) { print "$host_id(active) " }
-        else                    { print "$host_id(inactive) " }
+        my $msg = sprintf ("    %-24s (%s) vnx_ver=%s", $host_id, $status, get_host_vnxver($host_id));
+        print $msg . "\n";
     }
     print "\n";
 

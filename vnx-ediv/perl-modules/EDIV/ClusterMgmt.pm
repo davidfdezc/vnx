@@ -55,6 +55,7 @@ our @EXPORT = qw(
     get_host_ifname
     get_host_cpudynamic
     get_host_vnxdir
+    get_host_vnxver
     get_host_hypervisor
     get_host_serverid
     host_active
@@ -234,6 +235,11 @@ sub read_cluster_config {
 	        }   
 	        $cluster_host->vnx_dir("$vnx_dir");
 
+            # Get VNX version from host (vnx -V -b command)
+            my $vnx_ver = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'vnx -V -b'`;
+            chomp ($vnx_ver);
+            $cluster_host->vnx_ver("$vnx_ver");
+
             # Get hypervisor from host vnx conf file (/etc/vnx.conf) 
             my $hypervisor = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^hypervisor'`;
             if ($hypervisor eq '') { 
@@ -245,7 +251,7 @@ sub read_cluster_config {
             }   
             $cluster_host->hypervisor("$hypervisor");
 
-            # Get Linux host identifier (hostid command)
+             # Get Linux host identifier (hostid command)
             my $server_id = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'hostid'`;
             chomp ($server_id);
             $cluster_host->server_id("$server_id");
@@ -284,6 +290,7 @@ sub new_host {
         _cpudynamic => undef,   # CPU load in present time
         _vnxdir => undef,       # VNX directory  
         _hypervisor => undef,   # hypervisor used by libvirt  
+        _vnxver => undef,       # VNX version  
         _serverid => undef      # Linux server id (hostid command)  
     };
     bless $self, $class;
@@ -354,6 +361,12 @@ sub vnx_dir {
     return $self->{_vnxdir};
 }
 
+sub vnx_ver {
+    my ( $self, $vnx_ver ) = @_;
+    $self->{_vnxver} = $vnx_ver if defined($vnx_ver);
+    return $self->{_vnxver};
+}
+
 sub hypervisor {
     my ( $self, $hypervisor ) = @_;
     $self->{_hypervisor} = $hypervisor if defined($hypervisor);
@@ -406,6 +419,11 @@ sub get_host_cpudynamic {
 sub get_host_vnxdir {
     my $host_id = shift;
     return $cluster->{hosts}{$host_id}->vnx_dir
+}
+
+sub get_host_vnxver {
+    my $host_id = shift;
+    return $cluster->{hosts}{$host_id}->vnx_ver
 }
 
 sub get_host_hypervisor {
