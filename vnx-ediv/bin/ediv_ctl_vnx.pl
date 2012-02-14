@@ -135,7 +135,7 @@ sub main {
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
                 'show-map', 'console:s', 'console-info', 'exe-info',
-                'help|h', 'seg-info', 'seg-alg-info', 'clean-cluster',
+                'help|h', 'seg-info', 'seg-alg-info', 'clean-cluster', 'update-hosts',
                 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'C=s', 'a=s', 'r=s', 'M=s', 'H=s', 'n|no-console'
                );
@@ -185,18 +185,20 @@ sub main {
         $how_many_args++; $mode = "seg-alg-info"; }
     if ($opts{'clean-cluster'}) {
         $how_many_args++; $mode = "clean-cluster"; }
+    if ($opts{'update-hosts'}) {
+        $how_many_args++; $mode = "update-hosts"; }
 	  
 	if ($how_many_args gt 1) {
 	    &usage;
 	    ediv_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown," . 
 	               " -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend," .
-	               " --resume, --reboot, --reset, --showmap, --seg-info, --clean-cluster or -H\n");
+	               " --resume, --reboot, --reset, --showmap, --seg-info, --clean-cluster, --update-hosts or -H\n");
 	}
     if ($how_many_args lt 1)  {
         &usage;
         ediv_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start," .
                   " --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, --show-map," . 
-                  "--console, --console-info, --seg-info, --clean-cluster, -V or -H\n");
+                  "--console, --console-info, --seg-info, --clean-cluster, --update-hosts, -V or -H\n");
     }
 	
     # Version pseudomode
@@ -277,7 +279,8 @@ sub main {
         $vnx_scenario = $opts{f}; 
         print "Using scenario:               $vnx_scenario\n";
     }
-    unless ( ($opts{'version'}) or ($opts{'help'}) or ($opts{'seg-alg-info'}) or ($opts{'clean-cluster'}) or (-e $vnx_scenario)) {
+    unless ( ($opts{'version'}) or ($opts{'help'}) or ($opts{'seg-alg-info'}) or ($opts{'clean-cluster'}) 
+            or ($opts{'update-hosts'}) or (-e $vnx_scenario)) {
         ediv_die ("ERROR: scenario xml file not specified (missing -f option) or not found");
     }
     
@@ -355,7 +358,7 @@ sub main {
     # Load segmentation algorithms array
     load_seg_plugins();
 
-    unless ( ($mode eq 'seg-alg-info') or ($mode eq 'clean-cluster') ) {
+    unless ( ($mode eq 'seg-alg-info') or ($mode eq 'clean-cluster') or ($opts{'update-hosts'}) ) {
 	    # init global objects and check VNX scenario correctness 
 	    initialize_and_check_scenario ($vnx_scenario); 
     }
@@ -409,6 +412,7 @@ sub main {
     } elsif ( $mode eq 'seg-info' )      { mode_seginfo();
     } elsif ( $mode eq 'seg-alg-info' )  { mode_segalginfo();
     } elsif ( $mode eq 'clean-cluster' ) { mode_cleancluster();
+    } elsif ( $mode eq 'update-hosts' )  { mode_updatehosts();
     } elsif ( $mode eq 'show-map' )      { mode_showmap();
 	} else {
 		# default action: die
@@ -967,6 +971,43 @@ sub mode_cleancluster {
         reset_database();;
     }
 }
+
+sub mode_updatehosts {
+
+    my $error;
+    my @db_resp;
+    
+    # Update VNX in cluster hosts
+    wlog (N, "\n---- mode: $mode\n---- Updating VNX software in cluster hosts");
+
+    my $controller_id = `hostid`; chomp ($controller_id);
+    wlog (V, "----   Controller id = $controller_id");
+
+    foreach my $host_id (@cluster_active_hosts){
+
+        if ($opts{H}) {
+            wlog (VVV, "mode_updatehosts: option -H $opts{H}"); 
+            my $host_list = $opts{H};
+            unless ($host_list =~ /^$host_id,|,$host_id,|,$host_id$|^$host_id$/) {
+                wlog (N, "----   Host $host_id skipped (not listed in -H option)");
+                next;
+            }
+        }                    
+        my $host_ip   = get_host_ipaddr ($host_id);
+        my $vnx_dir = get_host_vnxdir ($host_id);
+        my $hypervisor = get_host_hypervisor ($host_id);
+        my $server_id = get_host_serverid ($host_id);
+
+        if ($server_id eq $controller_id) {
+        	# The cluster controller is also a cluster host. Do not update it!!
+            wlog (N, "----   Host $host_id skipped (it is the controller)");
+            next;        	 
+        }            
+        wlog (N, "---- Updating VNX software on $host_id ($server_id):");
+        
+    }
+}
+
 
 sub mode_showmap {
 

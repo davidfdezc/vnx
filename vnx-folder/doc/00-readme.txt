@@ -1,4 +1,4 @@
-VNX version 0.14 beta (4/10/2010)
+Virtual Networks over linuX (VNX)
 ---------------------------------
 
 To install just execute:

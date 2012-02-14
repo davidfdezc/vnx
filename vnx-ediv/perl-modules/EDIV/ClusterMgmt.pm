@@ -56,6 +56,7 @@ our @EXPORT = qw(
     get_host_cpudynamic
     get_host_vnxdir
     get_host_hypervisor
+    get_host_serverid
     host_active
 );
 
@@ -243,6 +244,12 @@ sub read_cluster_config {
                 $hypervisor=$aux[1];
             }   
             $cluster_host->hypervisor("$hypervisor");
+
+            # Get Linux host identifier (hostid command)
+            my $server_id = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'hostid'`;
+            chomp ($server_id);
+            $cluster_host->server_id("$server_id");
+
 		}
                     
         # Store the host object inside cluster arrays
@@ -275,8 +282,9 @@ sub new_host {
         _maxvm => undef,        # Maximum virtualized host (0 = unlimited)
         _ifname => undef,       # Network interface of the physical host
         _cpudynamic => undef,   # CPU load in present time
-        _vnxdir => undef,        # VNX directory  
-        _hypervisor => undef    # hypervisor used by libvirt  
+        _vnxdir => undef,       # VNX directory  
+        _hypervisor => undef,   # hypervisor used by libvirt  
+        _serverid => undef      # Linux server id (hostid command)  
     };
     bless $self, $class;
     return $self;
@@ -352,6 +360,12 @@ sub hypervisor {
     return $self->{_hypervisor};
 }
 
+sub server_id {
+    my ( $self, $server_id ) = @_;
+    $self->{_serverid} = $server_id if defined($server_id);
+    return $self->{_serverid};
+}
+
 # Fuctions to simplify access to hosts info by host_id
 
 sub get_host_status {
@@ -397,6 +411,11 @@ sub get_host_vnxdir {
 sub get_host_hypervisor {
     my $host_id = shift;
     return $cluster->{hosts}{$host_id}->hypervisor
+}
+
+sub get_host_serverid {
+    my $host_id = shift;
+    return $cluster->{hosts}{$host_id}->server_id
 }
 
 sub host_active {

@@ -90,6 +90,11 @@ mkdir -p tmp
 rm -rf tmp/*
 mkdir -p tmp/${FNAME}
 
+# 
+# Create VERSION file
+#
+cat $cdir/VERSION > tmp/${FNAME}/VERSION 
+
 #
 # Create ACE tar files
 #
