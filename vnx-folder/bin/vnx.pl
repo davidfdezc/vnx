@@ -3,13 +3,13 @@
 # ---------------------------------------------------------------------------------
 # VNX parser. 
 #
-# Authors:        Fermin Galan Marquez (galan@dit.upm.es), Jorge Somavilla (somavilla@dit.upm.es), 
-#                 Jorge Rodriguez (jrodriguez@dit.upm.es), David Fernández (david@dit.upm.es)
+# Authors:    Fermin Galan Marquez (galan@dit.upm.es), Jorge Somavilla (somavilla@dit.upm.es), 
+#             Jorge Rodriguez (jrodriguez@dit.upm.es), David Fernández (david@dit.upm.es)
 # Coordinated by: David Fernández (david@dit.upm.es)
 # Copyright (C) 2005-2010 DIT-UPM
-# 			      Departamento de Ingenieria de Sistemas Telematicos
-#			      Universidad Politecnica de Madrid
-#			      SPAIN
+#                         Departamento de Ingenieria de Sistemas Telematicos
+#                         Universidad Politecnica de Madrid
+#                         SPAIN
 #			
 # Available at:	  http://www.dit.upm.es/vnx 
 #
@@ -228,11 +228,6 @@ exit(0);
 #
 sub main {
 	
-   	print $hline . "\n";
-   	print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es\n";
-   	print "Version: $version" . "$branch (built on $release)\n";
-    print $hline . "\n";
-
    	$ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
 
    	# DFC 21/2/2011 my $uid = $> == 0 ? getpwnam("vnx") : $>; # uid=vnx if executed as root; userid if executed as user
@@ -251,7 +246,7 @@ sub main {
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'u=s', '4', '6', 'cid=s', 'D', 'no-console|n', 'st-delay|y=s',
-                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z'
+                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b'
     );
 
    	# FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
@@ -259,6 +254,12 @@ sub main {
     #$args->set('Z',1);
     $opts{Z} = '1';
 
+    unless ($opts{b}) {
+	    print $hline . "\n";
+	    print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es\n";
+	    print "Version: $version" . "$branch (built on $release)\n";
+	    print $hline . "\n";
+    }
 
    	# Set configuration file 
    	if ($opts{'config'}) {
@@ -266,7 +267,7 @@ sub main {
    	} else {
    		$vnxConfigFile = $DEFAULT_CONF_FILE;
    	}
-   	print "Using configuration file: $vnxConfigFile\n";
+   	print "Using configuration file: $vnxConfigFile\n" if (!$opts{b});
    
    	# Check the existance of the VNX configuration file 
    	unless ( (-e $vnxConfigFile) or ($opts{'version'}) or ($opts{'help'}) ) {
@@ -279,15 +280,15 @@ sub main {
    	if (!defined $tmp_dir) {
    		$tmp_dir = $DEFAULT_TMP_DIR;
    	}
-   	print "  TMP dir=$tmp_dir\n";
+   	print "  TMP dir=$tmp_dir\n" if (!$opts{b});
    	my $vnx_dir=&get_conf_value ($vnxConfigFile, 'general', 'vnx_dir');
    	if (!defined $vnx_dir) {
    		$vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
    	} else {
    		$vnx_dir = &do_path_expansion($vnx_dir);
    	}
-   	print "  VNX dir=$vnx_dir\n";
-    print $hline . "\n";
+   	print "  VNX dir=$vnx_dir\n" if (!$opts{b});
+    print $hline . "\n"  if (!$opts{b});
    	
 
    	# To check arguments consistency
@@ -368,27 +369,35 @@ sub main {
 
    	# Version pseudomode
    	if ($opts{'version'}) {
-   	  	my $basename = basename $0;
-      	print "\n";
-      	print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
-      	print "                    `888.     .8'  `888b.     `8'  `8888    d8'  \n";
-      	print "                     `888.   .8'    8 `88b.    8     Y888..8P    \n";
-      	print "                      `888. .8'     8   `88b.  8      `8888'     \n";
-      	print "                       `888.8'      8     `88b.8     .8PY888.    \n";
-      	print "                        `888'       8       `888    d8'  `888b   \n";
-      	print "                         `8'       o8o        `8  o888o  o88888o \n";
-      	print "\n";
-      	print "                             Virtual Networks over LinuX\n";
-      	print "                              http://www.dit.upm.es/vnx      \n";
-      	print "                                    vnx\@dit.upm.es          \n";
-      	print "\n";
-      	print "                 Departamento de Ingeniería de Sistemas Telemáticos\n";
-      	print "                              E.T.S.I. Telecomunicación\n";
-      	print "                          Universidad Politécnica de Madrid\n";
-      	print "\n";
-      	print "                   Version: $version" . "$branch (built on $release)\n";
-      	print "\n";
-      	exit(0);
+   		if ($opts{b}) { 
+   			# Brief format 
+   			print "$version,$release\n";
+   			exit(0);
+   		} else {
+   			# Extended format
+	        my $basename = basename $0;
+	        print "\n";
+	        print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
+	        print "                    `888.     .8'  `888b.     `8'  `8888    d8'  \n";
+	        print "                     `888.   .8'    8 `88b.    8     Y888..8P    \n";
+	        print "                      `888. .8'     8   `88b.  8      `8888'     \n";
+	        print "                       `888.8'      8     `88b.8     .8PY888.    \n";
+	        print "                        `888'       8       `888    d8'  `888b   \n";
+	        print "                         `8'       o8o        `8  o888o  o88888o \n";
+	        print "\n";
+	        print "                             Virtual Networks over LinuX\n";
+	        print "                              http://www.dit.upm.es/vnx      \n";
+	        print "                                    vnx\@dit.upm.es          \n";
+	        print "\n";
+	        print "                 Departamento de Ingeniería de Sistemas Telemáticos\n";
+	        print "                              E.T.S.I. Telecomunicación\n";
+	        print "                          Universidad Politécnica de Madrid\n";
+	        print "\n";
+	        print "                   Version: $version" . "$branch (built on $release)\n";
+	        print "\n";
+	        exit(0);
+   		}
+   		
    	}
 
    	# Help pseudomode
@@ -4939,7 +4948,6 @@ sub print_console_table_entry {
 
 sub print_consoles_info{
 	
-#	my $opts{M} = $opts{M};
 	my $briefFormat = $opts{b};
 
 	# Print information about vm consoles
