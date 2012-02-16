@@ -168,10 +168,16 @@ mkdir -p tmp/${FNAME}/plugins/examples
 # For each plugin
 for p in `ls vnx-plugins`
 do 
-	cp $VERBOSE vnx-plugins/$p/$p.pm  tmp/${FNAME}/plugins 
+    if [ -f vnx-plugins/$p/$p.pm ]; then
+	   cp $VERBOSE vnx-plugins/$p/$p.pm  tmp/${FNAME}/plugins
+	fi 
 #    cp $VERBOSE vnx-plugins/$p/$p.dtd tmp/${FNAME}/plugins 
-    cp $VERBOSE vnx-plugins/$p/$p.xsd tmp/${FNAME}/plugins 
-    cp $VERBOSE -r vnx-plugins/$p/examples/* tmp/${FNAME}/plugins/examples 
+    if [ -f vnx-plugins/$p/$p.xsd ]; then
+        cp $VERBOSE vnx-plugins/$p/$p.xsd tmp/${FNAME}/plugins
+    fi 
+    if [ "$( ls -A vnx-plugins/$p/examples/ )" ]; then
+        cp $VERBOSE -r vnx-plugins/$p/examples/* tmp/${FNAME}/plugins/examples
+    fi 
 done
 
 #

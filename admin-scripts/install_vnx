@@ -73,13 +73,16 @@ mkdir -p $VERBOSE /etc/ediv
 #
 FNAME=vnx-${VNX_VERSION}
 PWD=$(pwd)
+DIRNAME=${PWD##*/}
+pushd .. > /dev/null
 if [ $VERBOSE ]; then
-    tar cfvz /usr/share/vnx/src/${FNAME}.tgz ../${PWD##*/}
+    tar cfvz /usr/share/vnx/src/${FNAME}.tgz $DIRNAME
 else
-    tar cfz /usr/share/vnx/src/${FNAME}.tgz ../${PWD##*/}
+    tar cfz /usr/share/vnx/src/${FNAME}.tgz $DIRNAME
 fi
 rm /usr/share/vnx/src/vnx-latest.tgz
 ln -s ${FNAME}.tgz /usr/share/vnx/src/vnx-latest.tgz
+popd > /dev/null
 
 #
 # Copy vnx
@@ -135,6 +138,7 @@ cp $VERBOSE bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
 cp $VERBOSE bin/vnx_modify_rootfs.sh /usr/share/vnx/bin/vnx_modify_rootfs
 cp $VERBOSE bin/vnx_modify_rootfs2.sh /usr/share/vnx/bin/vnx_modify_rootfs2
 cp $VERBOSE bin/vnx_update.sh /usr/share/vnx/bin/vnx_update
+cp $VERBOSE bin/vnx_update_host.sh /usr/share/vnx/bin/vnx_update_host
 cp $VERBOSE bin/vnx_set_def_rootfs.pl /usr/share/vnx/bin/vnx_set_def_rootfs
 chmod 755 /usr/share/vnx/bin/*
 

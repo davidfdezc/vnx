@@ -588,12 +588,12 @@ sub mode_create {
 	        }
 	        
 	        my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-	        &daemonize($scp_command, "$host_id"."_log");
+	        &daemonize($scp_command, "$host_id".".log");
 	        my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
-	        &daemonize($permissions_command, "$host_id"."_log");
+	        &daemonize($permissions_command, "$host_id".".log");
 	        my $option_M = "-M $hosts_involved{$host_id}";
 	        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -t -f $host_subscenario_fname " . $option_M . "'";
-	        &daemonize($ssh_command, "$host_id"."_log");  
+	        &daemonize($ssh_command, "$host_id".".log");  
         }   
 
         # Update vm status in db
@@ -809,9 +809,9 @@ sub mode_console {
 
         # Copy subscenario to host
         my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-        &daemonize($scp_command, "$host_id"."_log");
+        &daemonize($scp_command, "$host_id".".log");
         my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
-        &daemonize($permissions_command, "$host_id"."_log");
+        &daemonize($permissions_command, "$host_id".".log");
 
         # Execute VNX console command
         print "\n  ---- Console command in $host_id ****\n";
@@ -823,7 +823,7 @@ sub mode_console {
             $console_options .= " $opts{'console'}";
         }
         my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v $console_options -f $host_subscenario_fname " . $option_M . "'";
-        &daemonize($ssh_command, "$host_id"."_log");  
+        &daemonize($ssh_command, "$host_id".".log");  
 
     }
 }
@@ -951,19 +951,19 @@ sub mode_cleancluster {
                 if (defined ($2)) {
                     my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip 'virsh destroy $2'";
                     wlog (N, "----     killing vm $2 at host $host_id");  
-                    &daemonize($ssh_command, "$host_id"."_log");       
+                    &daemonize($ssh_command, "$host_id".".log");       
                 }
             }
                 
             wlog (N, "----   Killing uml virtual machines...(not implemented yet)");
             wlog (N, "----   Restarting dynamips daemon at host $host_id");  
             my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip '/etc/init.d/dynamips restart'";
-            &daemonize($ssh_command, "$host_id"."_log");       
+            &daemonize($ssh_command, "$host_id".".log");       
 
             wlog (N, "----   Deleting .vnx directories...");
             if (defined($vnx_dir)) {
                 my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip 'rm -rf $vnx_dir/../.vnx/*'";
-                &daemonize($ssh_command, "$host_id"."_log");       
+                &daemonize($ssh_command, "$host_id".".log");       
             }
 
         }           
@@ -977,17 +977,24 @@ sub mode_updatehosts {
 
     my $error;
     my @db_resp;
+    my $VNX_TARFILE = "/usr/share/vnx/src/vnx-latest.tgz";
     
     # Update VNX in cluster hosts
-    wlog (N, "\n---- mode: $mode\n---- Updating VNX software in cluster hosts");
+    wlog (N, "\n---- mode: $mode\n---- Updating VNX software in cluster hosts:");
+    if ($opts{H}) {
+        wlog (VVV, "----   option -H $opts{H}", ""); 
+    }
+
+    unless (-e "$VNX_TARFILE") {
+    	ediv_die ("Cannot update VNX in cluster hosts. $VNX_TARFILE file not found.")
+    } 
 
     my $controller_id = `hostid`; chomp ($controller_id);
-    wlog (V, "----   Controller id = $controller_id");
+    wlog (V, "----   Controller id = $controller_id", "");
 
     foreach my $host_id (@cluster_active_hosts){
 
         if ($opts{H}) {
-            wlog (VVV, "mode_updatehosts: option -H $opts{H}"); 
             my $host_list = $opts{H};
             unless ($host_list =~ /^$host_id,|,$host_id,|,$host_id$|^$host_id$/) {
                 wlog (N, "----   Host $host_id skipped (not listed in -H option)");
@@ -1001,11 +1008,39 @@ sub mode_updatehosts {
 
         if ($server_id eq $controller_id) {
         	# The cluster controller is also a cluster host. Do not update it!!
-            wlog (N, "----   Host $host_id skipped (it is the controller)");
+            wlog (N, "----   Host $host_id ($server_id): skipped (it is the controller)");
             next;        	 
         }            
-        wlog (N, "---- Updating VNX software on $host_id ($server_id):");
-        
+        wlog (N, "----   Host $host_id ($server_id): updating VNX... ");
+        # Create 
+        my $host_tmp = get_host_tmpdir($host_id);
+        my $update_dir = "$host_tmp/vnx-update-" . int(rand(1000000));
+
+        wlog (V, "----     creating directory $update_dir", "");                         
+        my $ssh_cmd = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip '" .
+                      "cd $host_tmp;" .
+                      "mkdir -vp $update_dir;" .
+                      "rm -vrf $update_dir/*;" .
+                      "'";
+        wlog (VVV, "----     $ssh_cmd", "");                         
+        system "$ssh_cmd >> /var/log/vnx/$host_id.log 2>&1 ";
+
+        wlog (V, "----     copying tar file", "");                         
+        $ssh_cmd =    "scp $VNX_TARFILE $host_ip:$update_dir";
+        wlog (VVV, "----     $ssh_cmd", "");                         
+        system "$ssh_cmd >> /var/log/vnx/$host_id.log 2>&1 ";
+
+        wlog (V, "----     uncompressing and installing VNX...", "");                         
+        $ssh_cmd =    "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip '" .
+                      "cd $update_dir;" .
+                      "tar xfvz vnx-latest.tgz;" .
+                      "cd vnx-*;" .
+                      "./install_vnx;" .
+                      "rm -vrf $update_dir/;" .
+                      "'";
+        wlog (VVV, "----     $ssh_cmd", "");                         
+        system "$ssh_cmd >> /var/log/vnx/$host_id.log 2>&1 ";
+        wlog (V, "----     ...done", "");                         
     }
 }
 
@@ -1433,7 +1468,7 @@ sub netTreatment {
 	foreach my $host_id (keys(%commands)){
 		my $host_ip = get_host_ipaddr ($host_id);
 		my $host_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip '$commands{$host_id}'";
-		&daemonize($host_command, "$host_id"."_log");
+		&daemonize($host_command, "$host_id".".log");
 	}
 }
 
@@ -1569,14 +1604,14 @@ sub send_and_start_subscenarios {
 		close (FILEHANDLE);
 		
 		my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-		&daemonize($scp_command, "$host_id"."_log");
+		&daemonize($scp_command, "$host_id".".log");
 		my $permissions_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
-		&daemonize($permissions_command, "$host_id"."_log"); 
+		&daemonize($permissions_command, "$host_id".".log"); 
 		my $option_M = '';
 		if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
 		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $host_subscenario_fname -v -t -o /dev/null\ " 
 		                  . $option_M . " " . $no_console . "'";
-		&daemonize($ssh_command, "$host_id"."_log");		
+		&daemonize($ssh_command, "$host_id".".log");		
 	}
 }
 
@@ -1763,14 +1798,14 @@ sub purge_scenario {
 		}
 
         my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-        &daemonize($scp_command, "$host_id"."_log");
+        &daemonize($scp_command, "$host_id".".log");
         my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
-        &daemonize($permissions_command, "$host_id"."_log");
+        &daemonize($permissions_command, "$host_id".".log");
         print "\n  **** Stopping scenario and network restoring in $host_id ****\n";
         my $option_M = '';
         if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
         my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -P -f $host_subscenario_fname " . $option_M . "'";
-        &daemonize($ssh_command, "$host_id"."_log");  
+        &daemonize($ssh_command, "$host_id".".log");  
 
         unless ($opts{M} || $opts{H}){      
             #Clean vlans
@@ -1780,7 +1815,7 @@ sub purge_scenario {
                 $vlan_command = $vlan_command . "vconfig rem $$vlans[1].$$vlans[0]\n";
             }
             $vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
-            &daemonize($vlan_command, "$host_id"."_log");
+            &daemonize($vlan_command, "$host_id".".log");
         }   
 
 	}
@@ -1844,16 +1879,16 @@ sub shutdown_scenario {
 		}
 		
         my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:/tmp/";
-        &daemonize($scp_command, "$host_id"."_log");
+        &daemonize($scp_command, "$host_id".".log");
         my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
-        &daemonize($permissions_command, "$host_id"."_log");
+        &daemonize($permissions_command, "$host_id".".log");
         print "\n  **** Stopping scenario and network restoring in $host_id ****\n";
         my $option_M = '';
         if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
         wlog (V, "**** shutdown_scenario: $option_M");        
             
         my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -d -f $host_subscenario_fname " . $option_M . "'";
-        &daemonize($ssh_command, "$host_id"."_log");
+        &daemonize($ssh_command, "$host_id".".log");
 				
         unless ($opts{M} || $opts{H}){      
 			#Clean vlans
@@ -1863,7 +1898,7 @@ sub shutdown_scenario {
 			     $vlan_command = $vlan_command . "vconfig rem $$vlans[1].$$vlans[0]\n";
 			}
 			$vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
-			&daemonize($vlan_command, "$host_id"."_log");
+			&daemonize($vlan_command, "$host_id".".log");
 		}	
 	}
 	
@@ -1893,11 +1928,11 @@ sub delete_dirs {
         if ($delete_all) {
             my $host_dir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name";
             my $rm_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'rm -rf $host_dir/*'";
-            &daemonize($rm_command, "$host_id"."_log");
+            &daemonize($rm_command, "$host_id".".log");
         } else {
             my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp";
             my $rm_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'rm -rf $host_tmpdir/*'";
-            &daemonize($rm_command, "$host_id"."_log");
+            &daemonize($rm_command, "$host_id".".log");
         }         
 	}	
 }
@@ -1989,7 +2024,7 @@ sub send_conf_files {
 			my $scp_command = "scp -2 $tgz_name root\@$host_ip:$host_tmpdir";	
 			system($scp_command);
 			my $tgz_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'tar xzf $tgz_name -C $host_tmpdir'";
-			&daemonize($tgz_command, "$host_id"."_log");
+			&daemonize($tgz_command, "$host_id".".log");
 		}
 	}
 	my $plugin;
@@ -2085,13 +2120,13 @@ sub execute_command {
             wlog (VVV, "--  mode_execute: commands with sequence '$seq' found in host $host_id, executing...");  
 			
 			my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-			&daemonize($scp_command, "$host_id"."_log");
+			&daemonize($scp_command, "$host_id".".log");
 			my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";	
-			&daemonize($permissions_command, "$host_id"."_log"); 		
+			&daemonize($permissions_command, "$host_id".".log"); 		
 	        my $option_M = '';
 	        if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
 			my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $host_subscenario_fname -v -x $seq " . $option_M . "'"; 
-			&daemonize($execution_command, "$host_id"."_log");
+			&daemonize($execution_command, "$host_id".".log");
             
         } else {
             wlog (VVV, "--  mode_execute: no commands with sequence '$seq' found in host $host_id, skipping...");  
@@ -2325,15 +2360,15 @@ sub process_other_modes {
 		close (FILEHANDLE);
 		
 		my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-		&daemonize($scp_command, "$host_id"."_log");
+		&daemonize($scp_command, "$host_id".".log");
 			
 		my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
 			
-		&daemonize($permissions_command, "$host_id"."_log"); 		
+		&daemonize($permissions_command, "$host_id".".log"); 		
         my $option_M = '';
         if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
 		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $host_subscenario_fname -v $mode " . $option_M . "'"; 
-		&daemonize($execution_command, "$host_id"."_log");
+		&daemonize($execution_command, "$host_id".".log");
     }
 }
 
@@ -2456,7 +2491,7 @@ sub initialize_and_check_scenario {
         # Create directory $vnx_dir/$scenario_name
         my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip 'mkdir -p $host_vnxdir/scenarios/$scenario_name/tmp'";
         wlog (V, "----   Creating scenario directories in active hosts");  
-        &daemonize($ssh_command, "$host_id"."_log");       
+        &daemonize($ssh_command, "$host_id".".log");       
     }
 }
 

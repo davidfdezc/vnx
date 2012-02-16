@@ -58,6 +58,7 @@ foreach $host (keys %{ $cluster->{hosts} }) {
     print "    ifname="     . $cluster->{hosts}{$host}->if_name . "\n";
     print "    vnx_dir="    . $cluster->{hosts}{$host}->vnx_dir . "\n";
     print "    vnx_ver="    . $cluster->{hosts}{$host}->vnx_ver . "\n";
+    print "    tmp_dir="    . $cluster->{hosts}{$host}->tmp_dir . "\n";
     print "    hypervisor=" . $cluster->{hosts}{$host}->hypervisor . "\n";
     print "    server_id="  . $cluster->{hosts}{$host}->server_id . "\n";
 	
@@ -99,4 +100,5 @@ sub print_host {
     print "    vnx_ver="    . $host_record->vnx_ver . "\n";    
     print "    hypervisor=" . $host_record->hypervisor . "\n";    
     print "    server_id="  . $host_record->server_id . "\n";    
+    print "    tmp_dir="    . $host_record->tmp_dir . "\n";    
 }

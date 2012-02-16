@@ -56,6 +56,7 @@ our @EXPORT = qw(
     get_host_cpudynamic
     get_host_vnxdir
     get_host_vnxver
+    get_host_tmpdir
     get_host_hypervisor
     get_host_serverid
     host_active
@@ -240,6 +241,17 @@ sub read_cluster_config {
             chomp ($vnx_ver);
             $cluster_host->vnx_ver("$vnx_ver");
 
+            # Get tmp_dir from host vnx conf file (/etc/vnx.conf) 
+            my $tmp_dir = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^tmp_dir'`;
+            if ($tmp_dir eq '') { 
+                $tmp_dir = $DEFAULT_TMP_DIR
+            } else {
+                my @aux = split(/=/, $tmp_dir);
+                chomp($aux[1]);
+                $tmp_dir=$aux[1];
+            }   
+            $cluster_host->tmp_dir("$tmp_dir");
+
             # Get hypervisor from host vnx conf file (/etc/vnx.conf) 
             my $hypervisor = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^hypervisor'`;
             if ($hypervisor eq '') { 
@@ -289,6 +301,7 @@ sub new_host {
         _ifname => undef,       # Network interface of the physical host
         _cpudynamic => undef,   # CPU load in present time
         _vnxdir => undef,       # VNX directory  
+        _tmpdir => undef,       # TMP directory  
         _hypervisor => undef,   # hypervisor used by libvirt  
         _vnxver => undef,       # VNX version  
         _serverid => undef      # Linux server id (hostid command)  
@@ -367,6 +380,12 @@ sub vnx_ver {
     return $self->{_vnxver};
 }
 
+sub tmp_dir {
+    my ( $self, $tmp_dir ) = @_;
+    $self->{_tmpdir} = $tmp_dir if defined($tmp_dir);
+    return $self->{_tmpdir};
+}
+
 sub hypervisor {
     my ( $self, $hypervisor ) = @_;
     $self->{_hypervisor} = $hypervisor if defined($hypervisor);
@@ -424,6 +443,11 @@ sub get_host_vnxdir {
 sub get_host_vnxver {
     my $host_id = shift;
     return $cluster->{hosts}{$host_id}->vnx_ver
+}
+
+sub get_host_tmpdir {
+    my $host_id = shift;
+    return $cluster->{hosts}{$host_id}->tmp_dir
 }
 
 sub get_host_hypervisor {
