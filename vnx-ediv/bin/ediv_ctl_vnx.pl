@@ -112,7 +112,7 @@ my $version = "2.0";
 my $release = "DD/MM/YYYY";
 my $branch = "";
 my $hline = "----------------------------------------------------------------------------------";
-
+my $SSH_POST_DELAY = 10;
 
 &main;
 exit(0);
@@ -592,7 +592,7 @@ sub mode_create {
 	        my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
 	        &daemonize($permissions_command, "$host_id".".log");
 	        my $option_M = "-M $hosts_involved{$host_id}";
-	        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -t -f $host_subscenario_fname " . $option_M . "'";
+	        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -t -f $host_subscenario_fname " . $option_M . "; sleep $SSH_POST_DELAY'";
 	        &daemonize($ssh_command, "$host_id".".log");  
         }   
 
@@ -822,7 +822,7 @@ sub mode_console {
         if ($opts{'console'} ne '') {
             $console_options .= " $opts{'console'}";
         }
-        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v $console_options -f $host_subscenario_fname " . $option_M . "'";
+        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v $console_options -f $host_subscenario_fname " . $option_M . "; sleep $SSH_POST_DELAY'";
         &daemonize($ssh_command, "$host_id".".log");  
 
     }
@@ -1610,7 +1610,7 @@ sub send_and_start_subscenarios {
 		my $option_M = '';
 		if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
 		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $host_subscenario_fname -v -t -o /dev/null\ " 
-		                  . $option_M . " " . $no_console . "'";
+		                  . $option_M . " " . $no_console . "; sleep $SSH_POST_DELAY'";
 		&daemonize($ssh_command, "$host_id".".log");		
 	}
 }
@@ -1804,7 +1804,7 @@ sub purge_scenario {
         print "\n  **** Stopping scenario and network restoring in $host_id ****\n";
         my $option_M = '';
         if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
-        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -P -f $host_subscenario_fname " . $option_M . "'";
+        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -P -f $host_subscenario_fname " . $option_M . "; sleep $SSH_POST_DELAY'";
         &daemonize($ssh_command, "$host_id".".log");  
 
         unless ($opts{M} || $opts{H}){      
@@ -1887,7 +1887,7 @@ sub shutdown_scenario {
         if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
         wlog (V, "**** shutdown_scenario: $option_M");        
             
-        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -d -f $host_subscenario_fname " . $option_M . "'";
+        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx -v -d -f $host_subscenario_fname " . $option_M . "; sleep $SSH_POST_DELAY'";
         &daemonize($ssh_command, "$host_id".".log");
 				
         unless ($opts{M} || $opts{H}){      
@@ -2125,7 +2125,7 @@ sub execute_command {
 			&daemonize($permissions_command, "$host_id".".log"); 		
 	        my $option_M = '';
 	        if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
-			my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $host_subscenario_fname -v -x $seq " . $option_M . "'"; 
+			my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $host_subscenario_fname -v -x $seq " . $option_M . "; sleep $SSH_POST_DELAY'"; 
 			&daemonize($execution_command, "$host_id".".log");
             
         } else {
@@ -2367,7 +2367,7 @@ sub process_other_modes {
 		&daemonize($permissions_command, "$host_id".".log"); 		
         my $option_M = '';
         if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
-		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $host_subscenario_fname -v $mode " . $option_M . "'"; 
+		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $host_subscenario_fname -v $mode " . $option_M . "; sleep $SSH_POST_DELAY'"; 
 		&daemonize($execution_command, "$host_id".".log");
     }
 }

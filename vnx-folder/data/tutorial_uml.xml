@@ -26,7 +26,7 @@ SPAIN
     <scenario_name>tutorial_uml</scenario_name>
     <automac/>
     <vm_mgmt type="none" />
-    <vm_defaults exec_mode="mconsole">
+    <vm_defaults>
        <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_tutorial</filesystem>
        <kernel>/usr/share/vnx/kernels/linux</kernel>
        <console id="0">xterm</console>
