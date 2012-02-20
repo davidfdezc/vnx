@@ -129,8 +129,33 @@ sub open_console {
 		return;  			
    	} elsif ($consType eq 'libvirt_pts') {
 		$command = "virsh -c $hypervisor console $vm_name";
+        unless (defined $getLineOnly) {
+            # Kill the console if already opened
+            print "`ps uax | grep \"virsh -c $hypervisor console $vm_name\" | awk '{ print \$2 }'`\n";
+            my $pids = `ps uax | grep "virsh -c $hypervisor console $vm_name" | grep -v grep | awk '{ print \$2 }'`;
+            $pids =~ s/\R/ /g;
+            if ($pids) {
+                wlog (V, "---- open_console: killing consoles processes: $pids");
+                system "kill $pids";       
+                system "sleep 1";       
+            } else {
+                wlog (V, "---- open_console: no previous consoles found");
+            }
+        }
    	} elsif ($consType eq 'uml_pts') {
 		$command = "screen -t $vm_name $consPar";
+        unless (defined $getLineOnly) {
+	        # Kill the console if already opened
+	        my $pids = `ps uax | grep -i '$command' | grep -v grep | awk '{ print \$2 }'`;
+	        $pids =~ s/\R/ /g;
+	        if ($pids) {
+	            wlog (V, "---- open_console: killing consoles processes: $pids");
+	            system "kill $pids";       
+	            system "sleep 6";       
+	        } else {
+	            wlog (V, "---- open_console: no previous consoles found");
+	        }
+        }
    	} elsif ($consType eq 'telnet') {
 		$command = "telnet localhost $consPar";						
 	} else {
@@ -151,7 +176,7 @@ sub open_console {
 	} else {
 		$execution->smartdie ("unknown value ($console_term) of console_term parameter in $vnxConfigFile");
 	}
-	if (!defined $getLineOnly) {
+	unless (defined $getLineOnly) {
 		$execution->execute($exeLine .  ">/dev/null 2>&1 &");
 	}
 	return $exeLine;
