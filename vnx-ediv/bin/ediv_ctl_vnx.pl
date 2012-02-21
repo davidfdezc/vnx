@@ -86,7 +86,7 @@ my $no_console; 						# Stores the value of --no-console command line option
 	
 	# Scenario
 my $vnx_scenario;						# VNX scenario file name
-my %scenarioHash; 						# Scenarios. Every scenario belongs to a host machine
+my %scenario_hash; 						# Scenarios. Every scenario belongs to a host machine
 										# Key -> host_id, Value -> XML Scenario							
 my $scenario_name;						# Scenario name specified in XML 
 my $doc;							# Dom Tree with scenario specification
@@ -516,7 +516,7 @@ sub mode_create {
         &assignVLAN;
 	    # Split into files
 	    wlog (VVV, "****************************** Calling fill_subscenario_docs...");
-	    &fill_subscenario_docs ('yes');
+	    fill_subscenario_docs ('yes');
 	    # Make a tgz compressed file containing VM execution config 
 	    build_scenario_conf();
 	    # Send Configuration to each host.
@@ -526,7 +526,7 @@ sub mode_create {
 	    #&sendDynConfiguration;
 	    wlog (N, "\n\n  **** Sending scenario to cluster hosts and executing it ****\n");
 	    # Send scenario files to the hosts and run them with VNX (-t option)
-	    &send_and_start_subscenarios;
+	    send_and_start_subscenarios();
 	      
         # Check if every VM is running and ready
         wlog (N, "\n\n  **** Checking scenario status ****\n");
@@ -882,8 +882,8 @@ sub mode_seginfo {
     fill_subscenario_docs();
     foreach my $host_id (@cluster_active_hosts) {
         my $local_subscenario_fname = $dh->get_sim_tmp_dir . $scenario_name . "_" . $host_id . ".xml"; 
-        my $host_scenario = $scenarioHash{$host_id};      
-        $host_scenario->printToFile("$local_subscenario_fname");
+        my $host_subdoc = $scenario_hash{$host_id};      
+        $host_subdoc->printToFile("$local_subscenario_fname");
     }
 }
 
@@ -1131,7 +1131,7 @@ sub assignVLAN {
 # create_subscenario_docs create_subscenario_docs
 # 
 # It creates a new dom tree for each host to store its subscenario specification
-# The new dom trees are stored in $scenarioHash associative array
+# The new dom trees are stored in $scenario_hash associative array
 #
 sub create_subscenario_docs {
 	
@@ -1220,8 +1220,8 @@ sub create_subscenario_docs {
 			$doc->getElementsByTagName("global")->item(0)->getElementsByTagName("vm_defaults")->item(0)->getElementsByTagName("basedir")->item(0)->getFirstChild->setData($basedir_data);
 		};		
 		
-		# Store the new document in $scenarioHash array
-		$scenarioHash{$host_id} = $doc;	
+		# Store the new document in $scenario_hash array
+		$scenario_hash{$host_id} = $doc;	
         wlog (VVV, "---- create_subscenario_docs: assigned scenario for $host_id\n");
 		
 		if (defined($change_db)) {
@@ -1238,7 +1238,9 @@ sub create_subscenario_docs {
 #
 # fill_subscenario_docs
 #
-# Split the original scenario xml file into several smaller files for each host.
+# Fill the subscenario docs by spliting the original scenario XML file following segmentator 
+# split rules stored in %allocation array.
+# Subscenario docs are stored in %scenario_hash
 #
 sub fill_subscenario_docs {
 
@@ -1279,11 +1281,11 @@ sub fill_subscenario_docs {
 		#print $newVirtualM->toString;
 		#print "***\n";
 		
-		$newVirtualM->setOwnerDocument($scenarioHash{$host_id});
+		$newVirtualM->setOwnerDocument($scenario_hash{$host_id});
 
-		my $vnxNode=$scenarioHash{$host_id}->getElementsByTagName("vnx")->item(0);
+		my $vnxNode=$scenario_hash{$host_id}->getElementsByTagName("vnx")->item(0);
 			
-		$vnxNode->setOwnerDocument($scenarioHash{$host_id});
+		$vnxNode->setOwnerDocument($scenario_hash{$host_id});
 		
 		$vnxNode->appendChild($newVirtualM);
 		#print $vnxNode->toString;
@@ -1317,10 +1319,10 @@ sub fill_subscenario_docs {
 		my $nameOfNet=$currentNet->getAttribute("name");
 
 		# For exploring each scenario on scenarioarray	
-		foreach my $host_id (keys(%scenarioHash)) {
+		foreach my $host_id (keys(%scenario_hash)) {
 			
-			my $host_scenario = $scenarioHash{$host_id};		
-			my $currentVMList = $host_scenario->getElementsByTagName("vm");
+			my $host_subdoc = $scenario_hash{$host_id};		
+			my $currentVMList = $host_subdoc->getElementsByTagName("vm");
 			my $netFlag = 0; # 1 indicates that the current net we are dealing with is already on this scenario.
 
 			# For exploring the vms on each scenario	
@@ -1334,10 +1336,10 @@ sub fill_subscenario_docs {
 					if ($nameOfNet eq $netName){
 						if ($netFlag==0){
 							my $netToAppend=$currentNet->cloneNode("true");
-							$netToAppend->setOwnerDocument($host_scenario);
+							$netToAppend->setOwnerDocument($host_subdoc);
 							
-							my $firstVM=$host_scenario->getElementsByTagName("vm")->item(0);
-							$host_scenario->getElementsByTagName("vnx")->item(0)->insertBefore($netToAppend, $firstVM);
+							my $firstVM=$host_subdoc->getElementsByTagName("vm")->item(0);
+							$host_subdoc->getElementsByTagName("vnx")->item(0)->insertBefore($netToAppend, $firstVM);
 									
 							$netFlag=1;
 						}
@@ -1386,13 +1388,13 @@ sub netTreatment {
         		
         # For exploring each scenario on scenarioarray	
 		my @net_host_list;
-		foreach my $host_id (keys(%scenarioHash)) {
-			my $host_scenario = $scenarioHash{$host_id};
-			my $host_scenario_nets = $host_scenario->getElementsByTagName("net");
-			for (my $j=0; $j<$host_scenario_nets->getLength; $j++) {
-				my $host_scenario_net = $host_scenario_nets->item($j);
+		foreach my $host_id (keys(%scenario_hash)) {
+			my $host_subdoc = $scenario_hash{$host_id};
+			my $host_subdoc_nets = $host_subdoc->getElementsByTagName("net");
+			for (my $j=0; $j<$host_subdoc_nets->getLength; $j++) {
+				my $host_subdoc_net = $host_subdoc_nets->item($j);
 				
-				if ( ($host_scenario_net->getAttribute("name")) eq ($nameOfNet)) {
+				if ( ($host_subdoc_net->getAttribute("name")) eq ($nameOfNet)) {
 					push(@net_host_list, $host_id);
 				} 
 			}							
@@ -1429,23 +1431,23 @@ sub netTreatment {
 		my $net_vlan = $current_vlan;
 		
 		# 2.2 Use previous data to modify subscenario
-		foreach my $host_id (keys(%scenarioHash)) {
+		foreach my $host_id (keys(%scenario_hash)) {
 
 			my $command_list;
             my $external = get_host_ifname ($host_id);
-			my $host_scenario = $scenarioHash{$host_id};
+			my $host_subdoc = $scenario_hash{$host_id};
 			for (my $k=0; defined($current_net->[$k]); $k++) {
 				if ($current_net->[$k] eq $host_id) {
-					my $host_scenario_nets = $host_scenario->getElementsByTagName("net");
-					for (my $l=0; $l<$host_scenario_nets->getLength; $l++) {
-						my $currentNet = $host_scenario_nets->item($l);
+					my $host_subdoc_nets = $host_subdoc->getElementsByTagName("net");
+					for (my $l=0; $l<$host_subdoc_nets->getLength; $l++) {
+						my $currentNet = $host_subdoc_nets->item($l);
 						my $currentNetName = $currentNet->getAttribute("name");
 						if ($net_name eq $currentNetName) {
 							my $treated_net = $currentNet->cloneNode("true");
 							$treated_net->setAttribute("external", "$external.$net_vlan");
 							$treated_net->setAttribute("mode", "virtual_bridge");
-							$treated_net->setOwnerDocument($host_scenario);
-							$host_scenario->getElementsByTagName("vnx")->item(0)->replaceChild($treated_net, $currentNet);
+							$treated_net->setOwnerDocument($host_subdoc);
+							$host_subdoc->getElementsByTagName("vnx")->item(0)->replaceChild($treated_net, $currentNet);
 							
 							# Adding external interface to virtual net
 				            $error = query_db ("UPDATE nets SET external = '$external.$net_vlan' WHERE name='$currentNetName'");
@@ -1504,13 +1506,13 @@ sub setAutomac {
 	my $management_network = $cluster->{mgmt_network};
 	my $management_network_mask = $cluster->{mgmt_network_mask};
 	
-	foreach my $host_id (keys(%scenarioHash)) {
+	foreach my $host_id (keys(%scenario_hash)) {
 		
-		my $host_scenario = $scenarioHash{$host_id};
-		my $automac=$host_scenario->getElementsByTagName("automac")->item(0);
+		my $host_subdoc = $scenario_hash{$host_id};
+		my $automac=$host_subdoc->getElementsByTagName("automac")->item(0);
 		if (!($automac)){
-			$automac=$host_scenario->createElement("automac");
-			$host_scenario->getElementsByTagName("global")->item(0)->appendChild($automac);
+			$automac=$host_subdoc->createElement("automac");
+			$host_subdoc->getElementsByTagName("global")->item(0)->appendChild($automac);
 			
 		}
 		
@@ -1518,14 +1520,14 @@ sub setAutomac {
 		$VmOffset +=150;  #JSF temporalmente cambiado, hasta que arregle el ""FIXMEmac"" de vnx
 		#$VmOffset +=5;
 		
-		my $management_net=$host_scenario->getElementsByTagName("vm_mgmt")->item(0);
+		my $management_net=$host_subdoc->getElementsByTagName("vm_mgmt")->item(0);
 		
 			# If management network doesn't exist, create it
 		if (!($management_net)) {
-			$management_net = $host_scenario->createElement("vm_mgmt");
+			$management_net = $host_subdoc->createElement("vm_mgmt");
 			$management_net->setAttribute("type", "private");
-			my $vm_defaults_node = $host_scenario->getElementsByTagName("vm_defaults")->item(0);
-			$host_scenario->getElementsByTagName("global")->item(0)->insertBefore($management_net, $vm_defaults_node);
+			my $vm_defaults_node = $host_subdoc->getElementsByTagName("vm_defaults")->item(0);
+			$host_subdoc->getElementsByTagName("global")->item(0)->insertBefore($management_net, $vm_defaults_node);
 		}
 			# If management network is type 'none', change it
 		if ($management_net->getAttribute("type") eq "none") {
@@ -1541,14 +1543,14 @@ sub setAutomac {
 			}				
 		}
 			# If management network doesn't use host_mapping, activate it
-		my $host_mapping_property = $host_scenario->getElementsByTagName("host_mapping")->item(0);
+		my $host_mapping_property = $host_subdoc->getElementsByTagName("host_mapping")->item(0);
 		if (!($host_mapping_property)) {
-			$host_mapping_property = $host_scenario->createElement("host_mapping");
-			$host_scenario->getElementsByTagName("vm_mgmt")->setOwnerDocument($host_scenario);
-			$host_scenario->getElementsByTagName("vm_mgmt")->item(0)->appendChild($host_mapping_property);
+			$host_mapping_property = $host_subdoc->createElement("host_mapping");
+			$host_subdoc->getElementsByTagName("vm_mgmt")->setOwnerDocument($host_subdoc);
+			$host_subdoc->getElementsByTagName("vm_mgmt")->item(0)->appendChild($host_mapping_property);
 		}
 		
-		#my $net_offset = $host_scenario->getElementsByTagName("vm_mgmt")->item(0);
+		#my $net_offset = $host_subdoc->getElementsByTagName("vm_mgmt")->item(0);
 		#$net_offset->setAttribute("offset", $MgnetOffset);
 		#$net_offset->setAttribute("mask","16");
 		
@@ -1582,26 +1584,20 @@ sub send_and_start_subscenarios {
 	
 	    wlog (VVV, "**** send_and_start_subscenarios: $host_id");
 	
-		my $host_scenario = $scenarioHash{$host_id};
-
         my $host_ip = get_host_ipaddr ($host_id);       
         my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
         my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
         my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
         my $host_subscenario_fname = $host_tmpdir . "$subscenario_name".".xml";
-        my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $local_subscenario_fname);
+        my $host_subdoc = $scenario_hash{$host_id};
 
-        $host_scenario->printToFile("$local_subscenario_fname");
+        # Write XML spec to file
+        $host_subdoc->printToFile("$local_subscenario_fname");
 		# Store the local specification to DB	
-		open(FILEHANDLE, $local_subscenario_fname) or ediv_die ('cannot open file!');
-		my $fileData;
-		read (FILEHANDLE,$fileData, -s FILEHANDLE);
-
-		# We scape the "\" before writing the scenario to the ddbb
-   		$fileData =~ s/\\/\\\\/g; 
-        my $error = query_db ("UPDATE hosts SET local_specification = '$fileData' WHERE local_scenario='$subscenario_name'");
+        my $subscenario_xml = $host_subdoc->toString;
+   		$subscenario_xml =~ s/\\/\\\\/g;  # We scape the "\" before writing the scenario to the ddbb
+        my $error = query_db ("UPDATE hosts SET local_specification = '$subscenario_xml' WHERE local_scenario='$subscenario_name'");
         if ($error) { ediv_die ("$error") };
-		close (FILEHANDLE);
 		
 		my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
 		&daemonize($scp_command, "$host_id".".log");
@@ -1778,12 +1774,13 @@ sub purge_scenario {
         my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
         my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
         my $host_subscenario_fname = $host_tmpdir . "$subscenario_name".".xml";
-        my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $local_subscenario_fname);
 
         wlog (VVV, "--  purge_scenario: host_id = $host_id, host_ip = $host_ip, host_tmpdir = $host_tmpdir");  
         wlog (VVV, "--  purge_scenario: subscenario_name = $subscenario_name");  
         wlog (VVV, "--  purge_scenario: local_subscenario_fname = $local_subscenario_fname");  
         wlog (VVV, "--  purge_scenario: host_subscenario_fname = $host_subscenario_fname");  
+
+        my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $local_subscenario_fname);
 
         unless ( defined($subscenario_name) && defined($subscenario_xml) ) {
             ediv_die ("Cannot get subscenario name or subscenario XML file")
@@ -2172,7 +2169,15 @@ sub is_host_involved_in_seq {
 #
 # get_host_subscenario_xml
 #
-# Returns the subscenario XML specification for a host
+# Retrieves the subscenario XML specification for a host from the database. 
+# 
+# Arguments:
+# - host_id
+# - subscenario_name, the name of the subscenario (scenario_host_id)
+# - subscenario_fname (optional), if set, the XML spec is written to $subscenario_fname file
+#
+# Returns:
+# - XML specification
 # 
 sub get_host_subscenario_xml {
 
@@ -2183,6 +2188,7 @@ sub get_host_subscenario_xml {
     my $error;
     my @db_resp;
     
+    # Get subscenario XML from DB 
     $error = query_db ("SELECT `local_specification` FROM hosts WHERE host = '$host_id' " . 
                        "AND scenario = '$subscenario_name'", \@db_resp);
     if ($error) { ediv_die ("$error") };
@@ -2190,7 +2196,7 @@ sub get_host_subscenario_xml {
 
         if (defined($subscenario_fname)) {
             # Copy the XML to a $scenario_fname        	
-            open(FILEHANDLE, "> $subscenario_fname") or ediv_die ('cannot open file');
+            open(FILEHANDLE, "> $subscenario_fname") or ediv_die ("cannot open file $subscenario_fname");
             print FILEHANDLE "$db_resp[0]->[0]";
             close (FILEHANDLE);        	
         }
@@ -2479,6 +2485,8 @@ sub initialize_and_check_scenario {
     if (! -d "$vnx_dir/scenarios/$scenario_name" ) {
         mkdir "$vnx_dir/scenarios/$scenario_name" 
            or ediv_die("Unable to create scenario $scenario_name working directory $vnx_dir/$scenario_name: $!\n");
+    }
+    if (! -d "$vnx_dir/scenarios/$scenario_name/tmp" ) {
         mkdir "$vnx_dir/scenarios/$scenario_name/tmp" 
            or ediv_die("Unable to create scenario $scenario_name tmp directory $vnx_dir/$scenario_name/tmp: $!\n");
     }
