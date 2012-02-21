@@ -131,11 +131,13 @@ sub open_console {
 		$command = "virsh -c $hypervisor console $vm_name";
         unless (defined $getLineOnly) {
             # Kill the console if already opened
-            my $is_cons_opened = `pgrep -fx "virsh -c $hypervisor console $vm_name"`;
-            if ($is_cons_opened) {
-                wlog (V, "---- open_console: killing console processes: $is_cons_opened");
-                system "pkill -9 -fx 'virsh -c $hypervisor console $vm_name'";
-                sleep (3);
+            print "`ps uax | grep \"virsh -c $hypervisor console $vm_name\" | awk '{ print \$2 }'`\n";
+            my $pids = `ps uax | grep "virsh -c $hypervisor console $vm_name" | grep -v grep | awk '{ print \$2 }'`;
+            $pids =~ s/\R/ /g;
+            if ($pids) {
+                wlog (V, "---- open_console: killing consoles processes: $pids");
+                system "kill $pids";       
+                system "sleep 1";       
             } else {
                 wlog (V, "---- open_console: no previous consoles found");
             }
@@ -147,38 +149,23 @@ sub open_console {
 	        my $pids = `ps uax | grep -i '$command' | grep -v grep | awk '{ print \$2 }'`;
 	        $pids =~ s/\R/ /g;
 	        if ($pids) {
-	        	# We kill all screen processes attached to this pts
 	            wlog (V, "---- open_console: killing consoles processes: $pids");
 	            system "kill $pids";       
-	            system "sleep 1"; 
+	            system "sleep 1";       
 	        } else {
 	            wlog (V, "---- open_console: no previous consoles found");
 	        }
-            # Kill the getty process associated to this pts inside the VM
-            #
-            #my $tty = $con_id;
-            #$tty =~ s/^con//;
-            #$tty = "tty" . $tty;
+	        # Restart getty on virtual machine
+	        my $con_num = $con_id;
+	        $con_num =~ s/con//;
+	        my $tty = "tty$con_num";
             my $command = $bd->get_binaries_path_ref->{"uml_mconsole"} . " " 
-                        . $dh->get_vm_run_dir($vm_name) . "/mconsole exec pkill getty -t tty$con_id 2> /dev/null";
-            wlog (V, "---- open_console: commsd = $command");
-            my $mconsole_output = `$command`;
-            wlog (V, "---- open_console: returns $mconsole_output");
-            sleep 2;
-            # Check whether the pts associated with this console has changed 
-            $command = $bd->get_binaries_path_ref->{"uml_mconsole"} . " " 
-                        . $dh->get_vm_run_dir($vm_name) . "/mconsole config con$con_id 2> /dev/null";
-            wlog (V, "---- open_console: command = $command");
-            my $pts = `$command`; chomp($pts); $pts =~ s/OK pts://; 
-            wlog (V, "---- open_console: returns $pts  (consPar=$consPar)");
-            if ($pts ne $consPar) {
-            	wlog (V, "WARNING: console pts has changed!!");
-            	# Change pts 
-                system "sed -i -e 's#$consPar#$pts#' " . $dh->get_vm_run_dir($vm_name) . "/console";
-                system "sed -i -e 's#$consPar#$pts#' " . $dh->get_vm_run_dir($vm_name) . "/pts";
-            	$consPar = $pts;
-            }
-                       
+                           . $dh->get_vm_run_dir($vm_name) . "/mconsole " .
+                           "exec pkill getty -t $tty";
+                           #"exec kill `ps uax | grep getty | grep $tty | grep -v grep | awk '{print \$2}'` 2> /dev/null";
+            wlog (V, "command=$command");
+            system "$command";
+	        
         }
    	} elsif ($consType eq 'telnet') {
 		$command = "telnet localhost $consPar";						

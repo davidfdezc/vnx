@@ -242,7 +242,7 @@ sub main {
     GetOptions (\%opts,
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
-                'show-map', 'console:s', 'console-info', 'exe-info',
+                'show-map', 'console:s', 'console-info', 'exe-info', 'clean-host',
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'u=s', '4', '6', 'cid=s', 'D', 'no-console|n', 'st-delay|y=s',
@@ -293,7 +293,7 @@ sub main {
 
    	# To check arguments consistency
    	# 0. Check if -f is present
-   	if (!($opts{f}) && !($opts{'version'}) && !($opts{'help'}) && !($opts{D})) {
+   	if (!($opts{f}) && !($opts{'version'}) && !($opts{'help'}) && !($opts{D}) && !($opts{'clean-host'}) ) {
    	  	&usage;
       	&vnx_die ("Option -f missing\n");
    	}
@@ -322,18 +322,19 @@ sub main {
    	if (defined($opts{'console'})) { $how_many_args++; $mode = "console";      }
    	if ($opts{'console-info'})     { $how_many_args++; $mode = "console-info"; }
     if ($opts{'exe-info'})         { $how_many_args++; $mode = "exe-info";     }
+    if ($opts{'clean-host'})       { $how_many_args++; $mode = "clean-host";   }
       
    	if ($how_many_args gt 1) {
       	&usage;
       	&vnx_die ("Only one of the following options at a time:\n -t|--create, -x|--execute, -d|--shutdown, " .
       	          "-V, -P|--destroy, --define, --start,\n --undefine, --save, --restore, --suspend, " .
-      	          "--resume, --reboot, --reset, --showmap or -H");
+      	          "--resume, --reboot, --reset, --showmap, --clean-host or -H");
    	}
    	if ( ($how_many_args lt 1) && (!$opts{D}) ) {
       	&usage;
       	&vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, " . 
       	          "\n--start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, " . 
-      	          "\n--show-map, --console, --console-info, -V or -H\n");
+      	          "\n--show-map, --console, --console-info, --clean-host, -V or -H\n");
    	}
    	if (($opts{F}) && (!($opts{'shutdown'}))) { 
       	&usage; 
@@ -460,8 +461,10 @@ sub main {
    	#}
 
    	# Check input file
-   	if (! -f $input_file) {
-      	&vnx_die ("file $input_file is not valid (perhaps does not exists)\n");
+   	unless ($opts{'clean-host'}) {
+	    if (! -f $input_file ) {
+	        &vnx_die ("file $input_file is not valid (perhaps does not exists)\n");
+	    }
    	}
 
    	# 4. To check vnx_dir and tmp_dir
@@ -835,7 +838,10 @@ sub main {
    		&mode_consoleinfo;
    	}
     elsif ($mode eq 'exe-info') {
-        &mode_exeinfo;
+        mode_exeinfo();
+    }
+    elsif ($mode eq 'clean-host') {
+        mode_cleanhost();
     }
    
     else {
@@ -1391,6 +1397,69 @@ sub mode_exeinfo {
         }           
      }
 }
+
+sub mode_cleanhost {
+
+    # Clean host
+    wlog (N, "\nVNX clean-host mode:");     
+    
+    wlog (N, "\n-------------------------------------------------------------------");
+    wlog (N, "---- WARNING - WARNING - WARNING - WARNING - WARNING - WARNING ----");
+    wlog (N, "-------------------------------------------------------------------");
+    wlog (N, "---- This command will:");
+    wlog (N, "----   - destroy all virtual machines in this host (UML, libvirt and dynamips)");
+    wlog (N, "----   - delete .vnx directory");
+    wlog (N, "---- Do you want to continue (yes/no)?");
+    my $line = readline(*STDIN);
+    unless ( $line =~ /^yes/ ) {
+        wlog (N, "---- Host not restarted. Exiting");
+    } else {
+
+        wlog (N, "---- Restarting host...");
+
+        my $host_ip   = 'localhost';
+        my $vnx_dir = dh->get_vnx_dir;
+        #my $hypervisor = get_host_hypervisor ($host_id);
+             
+        wlog (N, "----   Killing ALL libvirt virtual machines...");
+        my @virsh_list;
+        my $i;
+        my $pipe = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'virsh -c $hypervisor list' |";
+        open VIRSHLIST, "$pipe";
+        while (<VIRSHLIST>) {
+            chomp; $virsh_list[$i++] = $_;
+        }
+        close VIRSHLIST;
+        # Ignore first two lines (caption)
+        for ( my $j = 2; $j < $i; $j++) {
+            $_ = $virsh_list[$j];
+            #print "-- $_\n";
+            /^\s+(\S+)\s+(\S+)\s+(\S+)/;
+            if (defined ($2)) {
+               my $res = `virsh destroy $2`;
+               wlog (N, "----     killing vm $2...");  
+               wlog (N, $res);       
+           }
+        }
+                
+        wlog (N, "----   Killing UML virtual machines...");
+        my $res = `killall linux scenarios ubd umid`;
+        wlog (N, $res);       
+            
+        wlog (N, "----   Restarting dynamips daemon...");  
+        $res = `/etc/init.d/dynamips restart`;
+        wlog (N, $res);       
+
+        wlog (N, "----   Deleting .vnx directory...");
+        if (defined($vnx_dir)) {
+            $res = `rm -rf $vnx_dir/../.vnx/*`;
+            wlog (N, $res);       
+        }
+
+    }
+}
+
+
 
 #
 # get_seq_desc
