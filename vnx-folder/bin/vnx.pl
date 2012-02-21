@@ -209,7 +209,7 @@ my $curr_uml;
 my $input_file;
 
 # Delay between virtual machines startup
-my $vmStartupDelay;
+#my $vmStartupDelay;
 
 # Just a line...
 my $hline = "----------------------------------------------------------------------------------";
@@ -368,6 +368,107 @@ sub main {
       	&vnx_die ("Option -n|--no-console only makes sense with -t|--create mode\n");
    	}
 
+    # 2. Optional arguments
+    $exemode = $EXE_NORMAL; $EXE_VERBOSITY_LEVEL=N;
+    if ($opts{v})   { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=V }
+    if ($opts{vv})  { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VV }
+    if ($opts{vvv}) { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VVV }
+    $exemode = $EXE_DEBUG if ($opts{g});
+    chomp(my $pwd = `pwd`);
+    $vnx_dir = &chompslash($opts{c}) if ($opts{c});
+    $vnx_dir = "$pwd/$vnx_dir"
+           unless (&valid_absolute_directoryname($vnx_dir));
+    $tmp_dir = &chompslash($opts{T}) if ($opts{T});
+    $tmp_dir = "$pwd/$tmp_dir"
+           unless (&valid_absolute_directoryname($tmp_dir));    
+
+
+    # DFC 21/2/2011 $uid = getpwnam($opts{u) if ($> == 0 && $opts{u);
+    $boot_timeout = $opts{w} if (defined($opts{w}));
+    unless ($boot_timeout =~ /^\d+$/) {
+        &vnx_die ("-w value ($opts{w}) is not a valid timeout (positive integer)\n");  
+    }
+
+    # FIXME: $enable_4 and $enable_6 are not necessary, use $args object
+    # instead and avoid redundance
+    my $enable_4 = 1;
+    my $enable_6 = 1;
+    $enable_4 = 0 if ($opts{6});
+    $enable_6 = 0 if ($opts{4});   
+    
+    # Delay between vm startup
+#       $vmStartupDelay = $opts{'st-delay'} if ($opts{'st-delay'});
+        
+    # 3. To extract and check input
+    $input_file = $opts{f} if ($opts{f});
+
+    # Check for file and cmd_seq, depending the mode
+    my $cmdseq = '';
+    if ($opts{'execute'}) {
+        $cmdseq = $opts{'execute'}
+    } 
+    
+    # Reserved words for cmd_seq
+    #if ($cmdseq eq "always") {
+    #   &vnuml_die ("\"always\" is a reserved word and can not be used as cmd_seq\n");
+    #}
+
+    # 4. To check vnx_dir and tmp_dir
+    # Create the working directory, if it doesn't already exist
+    if ($exemode ne $EXE_DEBUG) {
+        if (! -d $vnx_dir ) {
+            mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
+        }
+
+# DFC 21/2/2011: changed to simplify the user which executes vnx:
+#                   - option -u ignored
+#                   - no owner changes in any directory
+#                   - vnx is executed always as the user that starts it (root if the command is preceded by sudo)
+#       if ($> == 0) { # vnx executed as root
+#            my $uid_name = getpwuid($uid);
+#            system("chown $uid $vnx_dir");
+#            $> = $uid;
+             my $uid_name = getpwuid($uid);
+             &vnx_die ("vnx_dir $vnx_dir does not exist or is not readable/executable (user $uid_name)\n") unless (-r $vnx_dir && -x _);
+             &vnx_die ("vnx_dir $vnx_dir is not writeable (user $uid_name)\n") unless ( -w _);
+             &vnx_die ("vnx_dir $vnx_dir is not a valid directory\n") unless (-d _);
+#            $> = 0;
+#       }
+
+
+        if (! -d "$vnx_dir/scenarios") {
+            mkdir "$vnx_dir/scenarios" or &vnx_die("Unable to create scenarios directory $vnx_dir/scenarios: $!\n");
+        }
+        if (! -d "$vnx_dir/networks") {
+            mkdir "$vnx_dir/networks" or &vnx_die("Unable to create networks directory $vnx_dir/networks: $!\n");
+        }
+    }
+    &vnx_die ("tmp_dir $tmp_dir does not exist or is not readable/executable\n") unless (-r $tmp_dir && -x _);
+    &vnx_die ("tmp_dir $tmp_dir is not writeable\n") unless (-w _);
+    &vnx_die ("tmp_dir $tmp_dir is not a valid directory\n") unless (-d _);
+
+    # 5. To build the VNX::BinariesData object
+    $bd = new VNX::BinariesData($exemode);
+
+    # 6a. To check mandatory binaries # [JSF] to be updated with new ones
+    if ($bd->check_binaries_mandatory != 0) {
+      &vnx_die ("some required binary files are missing\n");
+    }
+
+    # Interactive execution (press a key after each command)
+    my $exeinteractive = ($opts{v} || $opts{vv} || $opts{vvv}) && $opts{i};
+
+    # Build the VNX::Execution object
+    $execution = new VNX::Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
+
+    # Initialize vmAPI modules
+    VNX::vmAPI_uml->init;
+    VNX::vmAPI_libvirt->init;
+    VNX::vmAPI_dynamips->init;
+
+    #
+    # Process pseudomodes (modes that do not need a scenario file)
+    # 
    	# Version pseudomode
    	if ($opts{'version'}) {
    		if ($opts{b}) { 
@@ -397,30 +498,22 @@ sub main {
 	        print "                   Version: $version" . "$branch (built on $release)\n";
 	        print "\n";
 	        exit(0);
-   		}
-   		
+   		}   		
    	}
 
-   	# Help pseudomode
-   	if ($opts{'help'}) {
-      	&usage;
-      	exit(0);
-   	}
+    # Help pseudomode
+    if ($opts{'help'}) {
+        &usage;
+        exit(0);
+    }
 
-   	# 2. Optional arguments
-   	$exemode = $EXE_NORMAL; $EXE_VERBOSITY_LEVEL=N;
-   	if ($opts{v})   { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=V }
-   	if ($opts{vv})  { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VV }
-   	if ($opts{vvv}) { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=VVV }
-   	$exemode = $EXE_DEBUG if ($opts{g});
-   	chomp(my $pwd = `pwd`);
-   	$vnx_dir = &chompslash($opts{c}) if ($opts{c});
-   	$vnx_dir = "$pwd/$vnx_dir"
-		   unless (&valid_absolute_directoryname($vnx_dir));
-   	$tmp_dir = &chompslash($opts{T}) if ($opts{T});
-   	$tmp_dir = "$pwd/$tmp_dir"
-		   unless (&valid_absolute_directoryname($tmp_dir));	
-
+    # Clean host pseudomode
+    if ($opts{'clean-host'}) {
+        mode_cleanhost($vnx_dir);
+        exit(0);
+    }
+   	
+   	
    	# Delete LOCK file if -D option included
    	if ($opts{D}) {
    	  	print "Deleting ". $vnx_dir . "/LOCK file\n";
@@ -430,84 +523,13 @@ sub main {
 	  	}  
    	}	
 
-   	# DFC 21/2/2011 $uid = getpwnam($opts{u) if ($> == 0 && $opts{u);
-   	$boot_timeout = $opts{w} if (defined($opts{w}));
-   	unless ($boot_timeout =~ /^\d+$/) {
-      	&vnx_die ("-w value ($opts{w}) is not a valid timeout (positive integer)\n");  
-   	}
 
-   	# FIXME: $enable_4 and $enable_6 are not necessary, use $args object
-   	# instead and avoid redundance
-   	my $enable_4 = 1;
-   	my $enable_6 = 1;
-   	$enable_4 = 0 if ($opts{6});
-   	$enable_6 = 0 if ($opts{4});   
-   	
-   	# Delay between vm startup
-   	$vmStartupDelay = $opts{'st-delay'} if ($opts{'st-delay'});
-   	   	
-   	# 3. To extract and check input
-   	$input_file = $opts{f} if ($opts{f});
-
-   	# Check for file and cmd_seq, depending the mode
-   	my $cmdseq = '';
-   	if ($opts{'execute'}) {
-      	$cmdseq = $opts{'execute'}
-   	} 
-    
-   	# Reserved words for cmd_seq
-   	#if ($cmdseq eq "always") {
-   	#   &vnuml_die ("\"always\" is a reserved word and can not be used as cmd_seq\n");
-   	#}
-
-   	# Check input file
-   	unless ($opts{'clean-host'}) {
-	    if (! -f $input_file ) {
-	        &vnx_die ("file $input_file is not valid (perhaps does not exists)\n");
-	    }
-   	}
-
-   	# 4. To check vnx_dir and tmp_dir
-   	# Create the working directory, if it doesn't already exist
-   	if ($exemode ne $EXE_DEBUG) {
-	   	if (! -d $vnx_dir ) {
-		   	mkdir $vnx_dir or &vnx_die("Unable to create working directory $vnx_dir: $!\n");
-	   	}
-
-# DFC 21/2/2011: changed to simplify the user which executes vnx:
-#                   - option -u ignored
-# 					- no owner changes in any directory
-#					- vnx is executed always as the user that starts it (root if the command is preceded by sudo)
-#		if ($> == 0) { # vnx executed as root
-#			 my $uid_name = getpwuid($uid);
-#			 system("chown $uid $vnx_dir");
-#			 $> = $uid;
-			 my $uid_name = getpwuid($uid);
-			 &vnx_die ("vnx_dir $vnx_dir does not exist or is not readable/executable (user $uid_name)\n") unless (-r $vnx_dir && -x _);
-			 &vnx_die ("vnx_dir $vnx_dir is not writeable (user $uid_name)\n") unless ( -w _);
-			 &vnx_die ("vnx_dir $vnx_dir is not a valid directory\n") unless (-d _);
-#			 $> = 0;
-#		}
-
-
-	   	if (! -d "$vnx_dir/scenarios") {
-		   	mkdir "$vnx_dir/scenarios" or &vnx_die("Unable to create scenarios directory $vnx_dir/scenarios: $!\n");
-	   	}
-	   	if (! -d "$vnx_dir/networks") {
-		   	mkdir "$vnx_dir/networks" or &vnx_die("Unable to create networks directory $vnx_dir/networks: $!\n");
-	   	}
-   	}
-   	&vnx_die ("tmp_dir $tmp_dir does not exist or is not readable/executable\n") unless (-r $tmp_dir && -x _);
-   	&vnx_die ("tmp_dir $tmp_dir is not writeable\n") unless (-w _);
-   	&vnx_die ("tmp_dir $tmp_dir is not a valid directory\n") unless (-d _);
-
-   	# 5. To build the VNX::BinariesData object
-   	$bd = new VNX::BinariesData($exemode);
-
-   	# 6a. To check mandatory binaries # [JSF] to be updated with new ones
-   	if ($bd->check_binaries_mandatory != 0) {
-      &vnx_die ("some required binary files are missing\n");
-   	}
+    # Check input file
+    unless ($opts{'clean-host'}) {
+        if (! -f $input_file ) {
+            &vnx_die ("file $input_file is not valid (perhaps does not exists)\n");
+        }
+    }
 
    	# 7. To check version number
 	# Load XML file content
@@ -542,12 +564,6 @@ sub main {
 	#my $parser = XML::LibXML->new();
     my $doc = $parser->parsefile($input_file);
        	       	
-   	# Interactive execution (press a key after each command)
-   	my $exeinteractive = ($opts{v} || $opts{vv} || $opts{vvv}) && $opts{i};
-
-   	# Build the VNX::Execution object
-   	$execution = new VNX::Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
-
    	# Calculate the directory where the input_file lives
    	my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
@@ -632,13 +648,7 @@ sub main {
    
    # Read global variables from vnx.conf file
    #&get_vnx_config;
-  
-   # Initialize vmAPI modules
-   VNX::vmAPI_uml->init;
-   VNX::vmAPI_libvirt->init;
-   VNX::vmAPI_dynamips->init;
-  
-   
+     
    	###########################################################
    	# Initialize plugins
  
@@ -702,7 +712,6 @@ sub main {
    	}
 
    	# Mode selection
-
    	if ($mode eq 'create') {
 	   	if ($exemode != $EXE_DEBUG && !$opts{M} && !$opts{'start'}) {
          	$execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
@@ -725,9 +734,7 @@ sub main {
            		unless &scenario_exists($dh->get_scename);
       	}
       	&mode_shutdown;
-#      my $do_not_build_topology = 1;
-
-      
+#      my $do_not_build_topology = 1; 
    	}
    	elsif ($mode eq 'destroy') {  # elsif ($opts{P) { [JSF]
       	if ($exemode != $EXE_DEBUG) {
@@ -839,9 +846,6 @@ sub main {
    	}
     elsif ($mode eq 'exe-info') {
         mode_exeinfo();
-    }
-    elsif ($mode eq 'clean-host') {
-        mode_cleanhost();
     }
    
     else {
@@ -1101,9 +1105,9 @@ sub start_VMs {
         undef($curr_uml);
         &change_vm_status($vm_name,"running");
           
-        if ( (defined $vmStartupDelay)    # delay has been specified in command line and... 
+        if ( (defined $opts{'st-delay'})    # delay has been specified in command line and... 
             && ( $i < @vm_ordered-2 ) ) { # ...it is not the last virtual machine to start...
-            for ( my $count = $vmStartupDelay; $count > 0; --$count ) {
+            for ( my $count = $opts{'st-delay'}; $count > 0; --$count ) {
                 printf "** Waiting $count seconds...\n";
                 sleep 1;
                 print "\e[A";
@@ -1400,6 +1404,8 @@ sub mode_exeinfo {
 
 sub mode_cleanhost {
 
+    my $vnx_dir = shift;
+    
     # Clean host
     wlog (N, "\nVNX clean-host mode:");     
     
@@ -1418,8 +1424,6 @@ sub mode_cleanhost {
         wlog (N, "---- Restarting host...");
 
         my $host_ip   = 'localhost';
-        my $vnx_dir = dh->get_vnx_dir;
-        #my $hypervisor = get_host_hypervisor ($host_id);
              
         wlog (N, "----   Killing ALL libvirt virtual machines...");
         my @virsh_list;
@@ -1441,10 +1445,15 @@ sub mode_cleanhost {
                wlog (N, $res);       
            }
         }
-                
+            
+        my $res;    
         wlog (N, "----   Killing UML virtual machines...");
-        my $res = `killall linux scenarios ubd umid`;
-        wlog (N, $res);       
+        my $pids = `ps uax | grep linux | grep ubd | grep scenarios | grep umid | grep -v grep | awk '{print \$2}'`;
+        $pids =~ s/\R/ /g;
+        if ($pids) {
+            $res = `echo $pids | xargs kill`;
+            wlog (N, $res);       
+        }
             
         wlog (N, "----   Restarting dynamips daemon...");  
         $res = `/etc/init.d/dynamips restart`;
