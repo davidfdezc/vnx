@@ -44,6 +44,8 @@ print "\nCluster config:\n";
 print "    Default seg alg="     . $cluster->{def_seg_alg} . "\n";
 print "    Management Net="      . $cluster->{mgmt_network} . "\n";
 print "    Management Net mask=" . $cluster->{mgmt_network_mask} . "\n";
+print "    Cluster controller Linux id=" . $cluster->{controller_id} . "\n";
+
 
 # Access to each hosts data
 foreach $host (keys %{ $cluster->{hosts} }) {

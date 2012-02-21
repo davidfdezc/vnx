@@ -61,6 +61,8 @@ use VNX::DataHandler;
 use VNX::vmAPI_dynamips;
 use VNX::ClusterMgmt;
 use VNX::Execution;
+use VNX::DocumentChecks;
+
 
 
 ###########################################################
@@ -534,7 +536,7 @@ sub mode_create {
 	            
         # Create a ssh tunnel to access remote VMs
         wlog (N, "\n\n  **** Creating tunnels to access VM ****\n");
-        &tunnelize;
+        tunnelize();
         
     } elsif ( ( $opts{M} || $opts{H} ) && defined($db_resp[0]->[0])) {
 
@@ -637,7 +639,7 @@ sub mode_shutdown {
     send_conf_files();
         
     # Clear ssh tunnels to access remote VMs
-    &untunnelize;
+    untunnelize();
         
     # Purge the scenario
     &shutdown_scenario;
@@ -683,7 +685,7 @@ sub mode_destroy {
     send_conf_files();
         
     # Clear ssh tunnels to access remote VMs
-    &untunnelize;
+    untunnelize();
         
     # Purge the scenario
     &purge_scenario;
@@ -1002,8 +1004,8 @@ sub mode_updatehosts {
     	ediv_die ("Cannot update VNX in cluster hosts. $VNX_TARFILE file not found.")
     } 
 
-    my $controller_id = `hostid`; chomp ($controller_id);
-    wlog (V, "----   Controller id = $controller_id", "");
+    #my $controller_id = `hostid`; chomp ($controller_id);
+    wlog (V, "----   Controller id = " . $cluster->{controller_id}, "");
 
     foreach my $host_id (@cluster_active_hosts){
 
@@ -1019,7 +1021,7 @@ sub mode_updatehosts {
         my $hypervisor = get_host_hypervisor ($host_id);
         my $server_id = get_host_serverid ($host_id);
 
-        if ($server_id eq $controller_id) {
+        if ($server_id eq $cluster->{controller_id}) {
         	# The cluster controller is also a cluster host. Do not update it!!
             wlog (N, "----   Host $host_id ($server_id): skipped (it is the controller)");
             next;        	 
@@ -1649,7 +1651,7 @@ sub checkFinish {
 		push (@output1, "\nDate: " . color ('bold') . "$date" . color('reset') . "\n");
         #push (@output1, sprintf (" %-24s%-24s%-20s%-40s\n", "VM name", "Host", "Status", "Status file"));           
         #push (@output1, sprintf ("---------------------------------------------------------------------------------------------------------------\n"));         
-        push (@output1, sprintf (" %-24s%-24s%-20s%-40s\n", "VM name", "Host", "Status"));           
+        push (@output1, sprintf (" %-24s%-24s%-20s\n", "VM name", "Host", "Status"));           
         push (@output1, sprintf ("----------------------------------------------------------------------\n"));         
 
 		foreach my $host_id (@cluster_active_hosts){
@@ -1667,7 +1669,7 @@ sub checkFinish {
                     wlog (VVV, "** Executing: status=$status");
                     if (!$status) { $status = "undefined" }
                     #push (@output2, color ('bold'). sprintf (" %-24s%-24s%-20s%-40s\n", $vm_name, $host_id, $status, $statusFile) . color('reset'));
-                    push (@output2, color ('bold'). sprintf (" %-24s%-24s%-20s%-40s\n", $vm_name, $host_id, $status) . color('reset'));
+                    push (@output2, color ('bold'). sprintf (" %-24s%-24s%-20s\n", $vm_name, $host_id, $status) . color('reset'));
                     if (!($status eq "running")) {
                         $notAllRunning = "yes";
                     } else {
@@ -2257,40 +2259,46 @@ sub tunnelize {
 	my $error;
 	my @db_resp;
 
-	foreach my $vm_name (keys (%allocation)) {
-		
-		my $host_id = $allocation{$vm_name};
+    wlog (VVV, "--  tunnelize: called");  
 
-		# continue only if type of vm is "uml"
-        $error = query_db ("SELECT `type` FROM vms WHERE name='$vm_name'", \@db_resp);
-        if ($error) { ediv_die ("$error") };
-        my $vm_type;
-        if (defined($db_resp[0]->[0])) {
-           $vm_type = $db_resp[0]->[0];  
-        }
-        wlog (VVV, "** $host_id, $vm_name, $vm_type");
-		unless($vm_type eq "uml"){
-			next;
-		}	
+    # Are management network interfaces created for the scenario? 
+    if ( $dh->get_vmmgmt_type ne 'none' ) {
+    	
+        wlog (VVV, "--  tunnelize: management net ifs defined");  
+        my @vms = ediv_get_vm_to_use_ordered(); # List of VMs involved (taking into account -M and -H options)
+        for ( my $i = 0; $i < @vms; $i++) {
+
+            my $vm = $vms[$i];
+            my $vm_name = $vm->getAttribute("name");
+
+	        my $mng_if_value = mng_if_value( $vm );
+	        if ( $mng_if_value ne "no" ) {
+	        	
+	            # Create tunnel to remotely access the VM
+                my $host_id = $allocation{$vm_name};
+                my $vm_type = $vm->getAttribute("type");
+                wlog (VVV, "-- $host_id, $vm_name, $vm_type");
+
+                # Get a free localport
+		        while (1){
+		            $error = query_db ("SELECT `ssh_port` FROM vms WHERE ssh_port='$localport'", \@db_resp);
+		            if ($error) { ediv_die ("$error") };
+		            unless (defined($db_resp[0]->[0])) {
+		               last;  
+		            }
+		            $localport++;
+		        }
+		        system("ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:$vm_name:22 $host_id");
 		
-		while (1){
-	        $error = query_db ("SELECT `ssh_port` FROM vms WHERE ssh_port='$localport'", \@db_resp);
-	        if ($error) { ediv_die ("$error") };
-	        unless (defined($db_resp[0]->[0])) {
-	           last;  
+		        $error = query_db ("UPDATE vms SET ssh_port = '$localport' WHERE name='$vm_name'");
+		        if ($error) { ediv_die ("$error") };
+		        
+		        if ($localport > 65535) {
+		            ediv_die ("Not enough ports available but the scenario is running... you can't access to VMs using tunnels.");
+		        }   
 	        }
-			$localport++;
-			
-		}
-		system("ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:$vm_name:22 $host_id");
-
-        $error = query_db ("UPDATE vms SET ssh_port = '$localport' WHERE name='$vm_name'");
-        if ($error) { ediv_die ("$error") };
-		
-		if ($localport > 65535) {
-			ediv_die ("Not enough ports available but the scenario is running... you can't access to VMs using tunnels.");
-		}	
-	}
+        }
+    }
 	
     $error = query_db ("SELECT `name`,`host`,`ssh_port` FROM vms WHERE scenario = '$scenario_name' ORDER BY `name`", \@db_resp);
     if ($error) { ediv_die ("$error") };

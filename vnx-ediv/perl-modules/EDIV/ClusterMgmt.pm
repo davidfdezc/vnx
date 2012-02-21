@@ -94,7 +94,7 @@ our $cluster = {
     def_seg_alg   => undef,         # Default segmentation algorithm configured for the cluster 
     mgmt_net      => undef,         # Prefix for the management interfaces
     mgmt_net_mask => undef,         # Prefix mask for the management interfaces
-    
+    controller_id => undef,         # Cluster controller Linux host identifier (hostid command)
 };
 
 #
@@ -281,6 +281,10 @@ sub read_cluster_config {
     $cluster->{def_seg_alg} = $cluster_config->get("cluster_default_segmentation");
     $cluster->{mgmt_network} = $cluster_config->get("cluster_mgmt_network");
     $cluster->{mgmt_network_mask} = $cluster_config->get("cluster_mgmt_network_mask");
+    my $controller_id = `hostid`;
+    chomp ($controller_id);
+    $cluster->{controller_id} = $controller_id; 
+
 
     return; 
 }
@@ -556,7 +560,7 @@ sub query_db {
 #
 # get_vm_host
 #
-# Returns the host assigned to a 
+# Returns the host assigned to a VM
 # 
 sub get_vm_host {
 
