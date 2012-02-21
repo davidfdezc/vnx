@@ -928,13 +928,22 @@ sub mode_cleancluster {
 
         wlog (N, "---- Restarting cluster...");
         foreach my $host_id (@cluster_active_hosts){
+
+	        if ($opts{H}) { 
+	            my $host_list = $opts{H};
+	            unless ($host_list =~ /^$host_id,|,$host_id,|,$host_id$|^$host_id$/) {
+	                wlog (N, "----   Host $host_id skipped (not listed in -H option)");
+	                next;
+	            }
+	        }                    
+
             my $host_ip   = get_host_ipaddr ($host_id);
             my $vnx_dir = get_host_vnxdir ($host_id);
             my $hypervisor = get_host_hypervisor ($host_id);
              
             wlog (N, "---- Host $host_id:");
 
-            wlog (N, "----   Killing libvirt virtual machines...");
+            wlog (N, "----   Killing ALL libvirt virtual machines...");
             my @virsh_list;
             my $i;
             my $pipe = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'virsh -c $hypervisor list' |";
@@ -955,7 +964,11 @@ sub mode_cleancluster {
                 }
             }
                 
-            wlog (N, "----   Killing uml virtual machines...(not implemented yet)");
+            wlog (N, "----   Killing UML virtual machines...");
+            my $kill_command = 'killall linux scenarios ubd umid';
+            my $kill = `ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip $kill_command`;
+            system ($kill);
+            
             wlog (N, "----   Restarting dynamips daemon at host $host_id");  
             my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip '/etc/init.d/dynamips restart'";
             &daemonize($ssh_command, "$host_id".".log");       
