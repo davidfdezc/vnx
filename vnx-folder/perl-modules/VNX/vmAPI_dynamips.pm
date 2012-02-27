@@ -1063,9 +1063,11 @@ sub executeCMD{
 						if ($res eq 'timeout') {
 							$execution->smartdie("ERROR: timeout connecting to ${vm_name}'s console at port $port.\n" .
 							                     "       Please, release the router console and try again.\n"); 
-						} elsif ($res eq 'invalidlogin') { 
-							$execution->smartdie("ERROR: invalid login connecting to ${vm_name}'s console at port $port\n") 
-						}
+                        } elsif ($res eq 'invalid_login') { 
+                            $execution->smartdie("ERROR: invalid login connecting to ${vm_name}'s console at port $port\n") 
+                        } elsif ($res eq 'bad_enable_passwd') { 
+                            $execution->smartdie("ERROR: invalid enable password connecting to ${vm_name}'s console at port $port\n") 
+                        }
 					    if ($ostype eq 'set') {	my @output = $sess->exeCmd ('configure terminal'); }
 						# execute the command
 						my @output = $sess->exeCmd ($command_tag);
