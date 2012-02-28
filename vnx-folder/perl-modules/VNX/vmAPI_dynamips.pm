@@ -68,7 +68,7 @@ use VNX::NetChecks;
 use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
-use VNX::CiscoExeCmd;
+use VNX::CiscoConsMgmt;
 use VNX::vmAPICommon;
 use Net::Telnet;
 use NetAddr::IP;
