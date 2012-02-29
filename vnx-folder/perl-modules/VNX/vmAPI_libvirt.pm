@@ -815,20 +815,27 @@ sub defineVM {
 			    $mac =~ s/,//;
 			    $mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
 			}else{
-				$interface_tag->addChild(
-				$init_xml->createAttribute( type => 'bridge' ) );
-				$interface_tag->addChild(
-				$init_xml->createAttribute( name => "eth" . $id ) );
-				$interface_tag->addChild(
-			 	$init_xml->createAttribute( onboot => "yes" ) );
+                # <interface type='bridge' name='eth1' onboot='yes'>
+				$interface_tag->addChild( $init_xml->createAttribute( type => 'bridge' ) );
+				$interface_tag->addChild( $init_xml->createAttribute( name => "eth" . $id ) );
+				$interface_tag->addChild( $init_xml->createAttribute( onboot => "yes" ) );
+
+			 	# <source bridge="Net0"/>
 			    my $source_tag = $init_xml->createElement('source');
 			    $interface_tag->addChild($source_tag);
-			    $source_tag->addChild(
-				$init_xml->createAttribute( bridge => $net ) );
+			    $source_tag->addChild( $init_xml->createAttribute( bridge => $net ) );
+
+				# <mac address="02:fd:00:04:01:00"/>
 				my $mac_tag = $init_xml->createElement('mac');
 			    $interface_tag->addChild($mac_tag);
 			    $mac =~ s/,//;
 			    $mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+
+                # <model type='e1000'/>
+                my $model_tag = $init_xml->createElement('model');
+                $interface_tag->addChild($model_tag);
+                $model_tag->addChild( $init_xml->createAttribute( type => 'e1000' ) );
+			    
 			}			
 
 			# DFC: set interface model to 'i82559er' in olive router interfaces.
