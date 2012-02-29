@@ -1052,29 +1052,35 @@ sub executeCMD{
 						my $pass=$login_user->[1];
 						# Get enable password
  						my $enablepass = get_enable_pass($extConfFile, $vm_name);
-						# create CiscoExeCmd object to connect to router console
-						my $sess = new VNX::CiscoExeCmd ('localhost', $port, $user, $pass, $enablepass);
+						# create CiscoConsMgmt object to connect to router console
+						my $sess = new VNX::CiscoConsMgmt ('localhost', $port, $user, $pass, $enablepass);
 						# Connect to console
 						my $res = $sess->open;
 						if (!$res) { $execution->smartdie("ERROR: cannot connect to ${vm_name}'s console at port $port.\n" .
 							                              "       Please, release the router console and try again.\n"); }
 						# Put router in priviledged mode
-						$res = $sess->goToEnableMode;
+						if ($exemode == $EXE_VERBOSE) {
+                            $res = $sess->goto_state ('enable', 'debug') ;
+						} else {
+							$res = $sess->goto_state ('enable') ;
+						}
 						if ($res eq 'timeout') {
 							$execution->smartdie("ERROR: timeout connecting to ${vm_name}'s console at port $port.\n" .
 							                     "       Please, release the router console and try again.\n"); 
+                        } elsif ($res eq 'user_login_needed') { 
+                            $execution->smartdie("ERROR: invalid login connecting to ${vm_name}'s console at port $port\n") 
                         } elsif ($res eq 'invalid_login') { 
                             $execution->smartdie("ERROR: invalid login connecting to ${vm_name}'s console at port $port\n") 
                         } elsif ($res eq 'bad_enable_passwd') { 
                             $execution->smartdie("ERROR: invalid enable password connecting to ${vm_name}'s console at port $port\n") 
                         }
-					    if ($ostype eq 'set') {	my @output = $sess->exeCmd ('configure terminal'); }
+					    if ($ostype eq 'set') {	my @output = $sess->exe_cmd ('configure terminal'); }
 						# execute the command
-						my @output = $sess->exeCmd ($command_tag);
+						my @output = $sess->exe_cmd ($command_tag);
 						print "\ncmd '$command_tag' result: \n\n@output\n";
-					    if ($ostype eq 'set') {	my @output = $sess->exeCmd ('end'); }
-						$sess->exeCmd ("disable");
-						$sess->exeCmd ("exit");
+					    if ($ostype eq 'set') {	my @output = $sess->exe_cmd ('end'); }
+						$sess->exe_cmd ("disable");
+						$sess->exe_cmd ("exit");
 						$sess->close;
 
 					} if ($ostype eq 'load') {
@@ -1139,27 +1145,35 @@ sub executeCMD{
 						my $pass=$login_user->[1];
 						# Get enable password
 						my $enablepass = get_enable_pass($extConfFile, $vm_name);
-						# create CiscoExeCmd object to connect to router console
-						my $sess = new VNX::CiscoExeCmd ('localhost', $port, $user, $pass, $enablepass);
+						# create CiscoConsMgmt object to connect to router console
+						my $sess = new VNX::CiscoConsMgmt ('localhost', $port, $user, $pass, $enablepass);
 						# Connect to console
 						my $res = $sess->open;
 						if (!$res) { $execution->smartdie("ERROR: cannot connect to ${vm_name}'s console at port $port.\n" .
 							                              "       Please, release the router console and try again.\n"); }
 						# Put router in priviledged mode
-						$res = $sess->goToEnableMode;
-						if ($res eq 'timeout') {
-							$execution->smartdie("ERROR: timeout connecting to ${vm_name}'s console at port $port.\n" .
-							                     "       Please, release the router console and try again.\n"); 
-						} elsif ($res eq 'invalidlogin') { 
-							$execution->smartdie("ERROR: invalid login connecting to ${vm_name}'s console at port $port\n") 
-						}
-						if ($ostype eq 'set') {	my @output = $sess->exeCmd ('configure terminal'); }
+                        if ($exemode == $EXE_VERBOSE) {
+                            $res = $sess->goto_state ('enable', 'debug') ;
+                        } else {
+                            $res = $sess->goto_state ('enable') ;
+                        }
+                        if ($res eq 'timeout') {
+                            $execution->smartdie("ERROR: timeout connecting to ${vm_name}'s console at port $port.\n" .
+                                                 "       Please, release the router console and try again.\n"); 
+                        } elsif ($res eq 'user_login_needed') { 
+                            $execution->smartdie("ERROR: invalid login connecting to ${vm_name}'s console at port $port\n") 
+                        } elsif ($res eq 'invalid_login') { 
+                            $execution->smartdie("ERROR: invalid login connecting to ${vm_name}'s console at port $port\n") 
+                        } elsif ($res eq 'bad_enable_passwd') { 
+                            $execution->smartdie("ERROR: invalid enable password connecting to ${vm_name}'s console at port $port\n") 
+                        }
+						if ($ostype eq 'set') {	my @output = $sess->exe_cmd ('configure terminal'); }
 						# execute the file with commands 
-						@output = $sess->exeCmdFile ("$include_file");
+						@output = $sess->exe_cmd_file ("$include_file");
 						print "-- cmd result: \n\n@output\n";
-						if ($ostype eq 'set') {	my @output = $sess->exeCmd ('end'); }
-						$sess->exeCmd ("disable");
-						$sess->exeCmd ("exit");
+						if ($ostype eq 'set') {	my @output = $sess->exe_cmd ('end'); }
+						$sess->exe_cmd ("disable");
+						$sess->exe_cmd ("exit");
 						$sess->close;
 					} elsif ($ostype eq 'load')  { # should never occur when checnked in CheckSemantics
 							$execution->smartdie("ERROR: ostype='load' not allowed with <exec> tags of mode='file'\n") 

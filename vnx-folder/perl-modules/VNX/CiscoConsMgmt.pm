@@ -24,7 +24,7 @@
 #
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 
-# CiscoExeCmd module provides auxiliar routines to execute commands over Cisco routers. 
+# CiscoConsMgmt module provides auxiliar routines to execute commands over Cisco routers. 
 
 package VNX::CiscoConsMgmt;
 
@@ -354,340 +354,17 @@ sub goto_state {
         }
 
     }
-    return;
+    return '';
 
 }
 
-sub goto_initial_state {
-
-    my $self = shift;
-    my $debug = shift;
-
-    return $self->goto_state ('initial', $debug);
-
-
-    unless (defined $debug) { $debug='' }
-        
-    my $session = $self->{session};
-
-    my $prematch;
-    my $match;
-    my $state;
-
-    print "-- go_to_initial_state: called\n" if $debug;
-    #$session->print("q\n");
-    ##$session->print("q");
-    $session->print("");
-    Time::HiRes::sleep(0.3);
-    $session->print("");
-    print "-- go_to_initial_state: called\n" if $debug;
-    do {
-        my $i=2;
-        do {
-            print "-- go_to_initial_state: try $i\n" if $debug;
-            ($prematch, $match) = $session->waitfor( "/$user_prompt|$priv_prompt|$username_prompt|$passwd_prompt|$config_prompt|$invalidlogin_prompt|$more_prompt|$bad_passwds/" );
-            print "-- go_to_initial_state: match=$match\n" if $debug;
-            $i--;
-        } until ( !($session->timed_out) || $i == "0" ); 
- 
-        if ($session->timed_out) { print "ERROR: Timeout waiting for prompt, exiting!\n"; return "timeout"}
-
-        if ($match =~ m/$username_prompt/) {
-            # Username
-            unless ( defined $self->{'login'} && $self->{'login'} ne '' ) {
-            return 'user_login_needed'; 
-            }
-            print "-- go_to_initial_state: 'Username:' prompt detected, providing username ($self->{login})\n" if $debug;
-            $session->print($self->{login});
-            $session->waitfor("/$passwd_prompt/");
-            if ($session->timed_out) { print "timeout\n"; return "timeout" }
-            print "-- go_to_initial_state: 'Password:' detected, providing password\n" if $debug;
-            $session->print($self->{passwd});
-            $state = 'user_auth_info_sent';
-        } 
-        elsif ($match =~ m/$passwd_prompt/) {
-            # Password
-            print "-- go_to_initial_state: 'Password:' detected, providing password ($self->{enable_passwd})\n" if $debug;
-            $session->print($self->{enable_passwd});
-            $state = 'user_auth_info_sent';
-        } 
-        elsif ($match =~ m/$config_prompt/) {
-            # Config mode
-            print "-- go_to_initial_state: Router in Config mode\n" if $debug;
-            $session->print("\cZ");
-            $state = 'config';
-        }
-        elsif ($match =~ m/$user_prompt/) {
-            # Non priviledged mode
-            print "-- go_to_initial_state: Router in User mode; sending exit\n" if $debug;
-            $session->print('exit');
-            #$session->waitfor("/$passwd_prompt|$priv_prompt/");
-            #if ($session->timed_out) { print "timeout\n"; return "timeout" }
-            #print "-- 'Password:' detected, providing enable password\n";
-            #$session->print($self->{enable_passwd});
-            $state = 'exitSent';
-        }
-        elsif ($match =~ m/$priv_prompt/) {
-            # Priviledged mode
-            print "-- go_to_initial_state: Router in Priviledged mode; sending exit\n" if $debug;
-            $session->buffer_empty;
-            $session->print('exit');
-            $state = 'exitSent';
-        }
-        elsif ($match =~ m/$invalidlogin_prompt/) {
-            return 'invalid_login';
-        } 
-        elsif ($match =~ m/$more_prompt/) {
-            # More mode
-            print "-- go_to_initial_state: Router in More mode\n" if $debug;
-            $session->print("q");
-            $state = 'more';
-        }
-        elsif ($match =~ m/$bad_passwds/) {
-            print "-- go_to_initial_state: Bad enable password\n" if $debug;
-            return 'bad_enable_passwd';
-        }
-        else {
-            $state = 'unknown';
-        }
-        print "-- go_to_initial_state: state = $state\n" if $debug;
-
-    } until ( ($session->timed_out) || $state eq "exitSent" );
-
-    if ($session->timed_out) { 
-        return 'timeout'
-    } elsif ($state eq "exitSent") { 
-
-    }
-
-}
-
-sub goto_enable_mode {
-
-    my $self = shift;
-    my $debug = shift;
-
-    return $self->goto_state ('enable', $debug);
-
-    unless (defined $debug) { $debug='' }
-        
-    my $session = $self->{session};
-
-    my $prematch;
-    my $match;
-    my $state;
-
-    print "-- goto_enable_mode: called\n" if $debug;
-    #$session->print("q\n");
-    ##$session->print("q");
-    $session->print("");
-    Time::HiRes::sleep(0.3);
-    $session->print("");
-    print "-- goto_enable_mode: called\n" if $debug;
-    do {
-        my $i=2;
-        do {
-            print "-- goto_enable_mode: try $i\n" if $debug;
-            ($prematch, $match) = $session->waitfor( "/$user_prompt|$priv_prompt|$username_prompt|$passwd_prompt|$config_prompt|$invalidlogin_prompt|$more_prompt|$bad_passwds/" );
-            print "-- goto_enable_mode: match=$match\n" if $debug;
-            $i--;
-        } until ( !($session->timed_out) || $i == "0" ); 
- 
-        if ($session->timed_out) { print "ERROR: Timeout waiting for prompt, exiting!\n"; return "timeout"}
-
-        if ($match =~ m/$username_prompt/) {
-            # Username
-            unless ( defined $self->{'login'} && $self->{'login'} ne '' ) {
-            return 'user_login_needed'; 
-            }
-            print "-- goto_enable_mode: 'Username:' prompt detected, providing username ($self->{login})\n" if $debug;
-            $session->print($self->{login});
-            $session->waitfor("/$passwd_prompt/");
-            if ($session->timed_out) { print "timeout\n"; return "timeout" }
-            print "-- goto_enable_mode: 'Password:' detected, providing password\n" if $debug;
-            $session->print($self->{passwd});
-            $state = 'user_auth_info_sent';
-        } 
-        elsif ($match =~ m/$passwd_prompt/) {
-            # Password
-            print "-- goto_enable_mode: 'Password:' detected, providing password ($self->{enable_passwd})\n" if $debug;
-            $session->print($self->{enable_passwd});
-            $state = 'user_auth_info_sent';
-        } 
-        elsif ($match =~ m/$config_prompt/) {
-            # Config mode
-            print "-- goto_enable_mode: Router in Config mode\n" if $debug;
-            $session->print("\cZ");
-            $state = 'config';
-        }
-        elsif ($match =~ m/$user_prompt/) {
-            # Non priviledged mode
-            print "-- goto_enable_mode: Router in User mode; changing to priviledged mode (enable command)\n" if $debug;
-            $session->print('enable');
-            #$session->waitfor("/$passwd_prompt|$priv_prompt/");
-            #if ($session->timed_out) { print "timeout\n"; return "timeout" }
-            #print "-- 'Password:' detected, providing enable password\n";
-            #$session->print($self->{enable_passwd});
-            $state = 'enable_sent';
-        }
-        elsif ($match =~ m/$priv_prompt/) {
-            # Priviledged mode
-            print "-- goto_enable_mode: Router in Priviledged mode\n" if $debug;
-            $session->buffer_empty;
-            $state = 'priviledged';
-        }
-        elsif ($match =~ m/$invalidlogin_prompt/) {
-            return 'invalid_login';
-        } 
-        elsif ($match =~ m/$more_prompt/) {
-            # More mode
-            print "-- goto_enable_mode: Router in More mode\n" if $debug;
-            $session->print("q");
-            $state = 'more';
-        }
-        elsif ($match =~ m/$bad_passwds/) {
-            print "-- goto_enable_mode: Bad enable password\n" if $debug;
-            return 'bad_enable_passwd';
-        }
-        else {
-            $state = 'unknown';
-        }
-        print "-- goto_enable_mode: state = $state\n" if $debug;
-
-    } until ( ($session->timed_out) || $state eq "priviledged" );
-
-    if ($session->timed_out) { 
-        return 'timeout'
-    } elsif ($state eq "priviledged") { 
-        print("-- goto_enable_mode: sending 'terminal length 0' command\n") if $debug;
-        my @cmdoutput = $session->cmd(String => "terminal length 0", Prompt  => "/$priv_prompt/");
-        #$session->print("terminal length 0");
-        #($prematch, $match) = $session->waitfor("/$priv_prompt/");
-        print "-- goto_enable_mode: prematch = $prematch\n" if $debug; 
-        print "-- goto_enable_mode: match = $match\n" if $debug;
-        if ($session->timed_out) { return 'timeout' } else { return 'priviledged' }
-    }
-
-}
-
-sub goto_user_mode {
-
-    my $self = shift;
-    my $debug = shift;
-
-    return $self->goto_state ('user', $debug);
-
-
-
-    unless (defined $debug) { $debug='' }
-
-    
-
-        
-    my $session = $self->{session};
-
-    my $prematch;
-    my $match;
-    my $state;
-
-    print "-- goto_user_mode: called\n" if $debug;
-    #$session->print("q\n");
-    ##$session->print("q");
-    $session->print("");
-    Time::HiRes::sleep(0.3);
-    $session->print("");
-    print "-- goto_user_mode: called\n" if $debug;
-    do {
-        my $i=2;
-        do {
-            print "-- goto_user_mode: try $i\n" if $debug;
-            ($prematch, $match) = $session->waitfor( "/$user_prompt|$priv_prompt|$username_prompt|$passwd_prompt|" . 
-                                                     "$config_prompt|$invalidlogin_prompt|$more_prompt|$bad_passwds/" );
-            print "-- goto_user_mode: match=$match\n" if $debug;
-            $i--;
-        } until ( !($session->timed_out) || $i == "0" ); 
- 
-        if ($session->timed_out) { print "ERROR: Timeout waiting for prompt, exiting!\n"; return "timeout"}
-
-        if ($match =~ m/$username_prompt/) {
-            # Username
-            unless ( defined $self->{'login'} && $self->{'login'} ne '' ) {
-            return 'user_login_needed'; 
-            }
-            print "-- goto_user_mode: 'Username:' prompt detected, providing username ($self->{login})\n" if $debug;
-            $session->print($self->{login});
-            $state ='login_sent';
-        } 
-        elsif ($match =~ m/$passwd_prompt/) {
-            # Password
-        if ( $state eq 'login_sent' ) {
-                print "-- goto_user_mode: 'Password:' detected, providing password ($self->{passwd})\n" if $debug;
-                $session->print($self->{passwd});
-                $state = 'user_auth_info_sent';
-            } elsif ( $state eq 'login_sent' ) {
-                print "-- goto_user_mode: 'Password:' detected, providing enable password ($self->{enable_passwd})\n" if $debug;
-                $session->print($self->{enable_passwd});
-                $state = 'user_auth_info_sent';
-            }
-        } 
-        elsif ($match =~ m/$config_prompt/) {
-            # Config mode
-            print "-- goto_user_mode: Router in Config mode\n" if $debug;
-            $session->print("\cZ");
-            $state = 'config';
-        }
-        elsif ($match =~ m/$user_prompt/) {
-            # Non priviledged mode
-            print "-- goto_user_mode: Router in User mode; changing to priviledged mode (enable command)\n" if $debug;
-            $session->buffer_empty;
-            $state = 'user';
-        }
-        elsif ($match =~ m/$priv_prompt/) {
-            # Priviledged mode
-            print "-- goto_user_mode: Router in Priviledged mode\n" if $debug;
-            print "-- goto_user_mode: Router in priviledged mode; changing to user mode (disable command)\n" if $debug;
-            $session->print('disable');
-            $state = 'disable_sent';
-        }
-        elsif ($match =~ m/$invalidlogin_prompt/) {
-            return 'invalid_login';
-        } 
-        elsif ($match =~ m/$more_prompt/) {
-            # More mode
-            print "-- goto_user_mode: Router in More mode\n" if $debug;
-            $session->print("q");
-            $state = 'more';
-        }
-        elsif ($match =~ m/$bad_passwds/) {
-            print "-- goto_user_mode: Bad enable password\n" if $debug;
-            return 'bad_enable_passwd';
-        }
-        else {
-            $state = 'unknown';
-        }
-        print "-- goto_user_mode: state = $state\n" if $debug;
-
-    } until ( ($session->timed_out) || $state eq "user" );
-
-    if ($session->timed_out) { 
-        return 'timeout'
-    } elsif ($state eq "user") { 
-        print("-- goto_user_mode: sending 'terminal length 0' command\n") if $debug;
-        my @cmdoutput = $session->cmd(String => "terminal length 0", Prompt  => "/$user_prompt/");
-        if ($session->timed_out) { return 'timeout' } else { return 'user' }
-    }
-
-
-}
-
-
-sub exeCmd {
+sub exe_cmd {
 
     my $self = shift;
     my $cmd = shift;
     my $session = $self->{session};
 
-    #print("-- exeCmd: $cmd\n");
+    #print("-- exe_cmd: $cmd\n");
     my @cmdoutput = $session->cmd(Timeout => 15, String => "$cmd", Prompt  => "/$user_prompt|$priv_prompt|$config_prompt|$initial_prompt/");
     return @cmdoutput;
 
@@ -698,7 +375,7 @@ sub exeCmd {
 
 }
 
-sub exeCmdFile {
+sub exe_cmd_file {
 
     my $self = shift;
     my $cmdFile = shift;
@@ -714,7 +391,7 @@ sub exeCmdFile {
     $command_tag = $_;
     #print "-- cmdFile: $command_tag\n";
     # Execute command
-        @cmdoutput = $self->exeCmd ("$command_tag");
+        @cmdoutput = $self->exe_cmd ("$command_tag");
     # Add command output to @cmdfileoutput
         @cmdfileoutput = (@cmdfileoutput, "$command_tag\n", @cmdoutput);
     }
