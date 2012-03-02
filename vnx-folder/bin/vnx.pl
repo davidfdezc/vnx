@@ -238,27 +238,27 @@ sub main {
 
    	###########################################################
    	# To get the invocation arguments
-    Getopt::Long::Configure ( qw{no_auto_abbrev no_ignore_case} ); # case sensitive single-character options
+    Getopt::Long::Configure ( qw{no_auto_abbrev no_ignore_case } ); # case sensitive single-character options
     GetOptions (\%opts,
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
                 'show-map', 'console:s', 'console-info', 'exe-info', 'clean-host',
+                'modify-rootfs=s',
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
-                'u=s', '4', '6', 'cid=s', 'D', 'no-console|n', 'st-delay|y=s',
-                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b'
-    );
-
+                'u=s', '4', '6', 'D', 'no-console|n', 'st-delay|y=s',
+                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b',
+                # deprecated
+                'cid=s'
+    ) or vnx_die("Incorrect usage. Type 'vnx -h' for help"); 
+    
    	# FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
    	# it by default
     #$args->set('Z',1);
     $opts{Z} = '1';
 
     unless ($opts{b}) {
-	    print $hline . "\n";
-	    print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es\n";
-	    print "Version: $version" . "$branch (built on $release)\n";
-	    print $hline . "\n";
+    	print_header();
     }
 
    	# Set configuration file 
@@ -293,7 +293,8 @@ sub main {
 
    	# To check arguments consistency
    	# 0. Check if -f is present
-   	if (!($opts{f}) && !($opts{'version'}) && !($opts{'help'}) && !($opts{D}) && !($opts{'clean-host'}) ) {
+   	if (!($opts{f}) && !($opts{'version'}) && !($opts{'help'}) && !($opts{D}) 
+   	                && !($opts{'clean-host'}) && !($opts{'modify-rootfs'}) ) {
    	  	&usage;
       	&vnx_die ("Option -f missing\n");
    	}
@@ -323,18 +324,20 @@ sub main {
    	if ($opts{'console-info'})     { $how_many_args++; $mode = "console-info"; }
     if ($opts{'exe-info'})         { $how_many_args++; $mode = "exe-info";     }
     if ($opts{'clean-host'})       { $how_many_args++; $mode = "clean-host";   }
+    if ($opts{'modify-rootfs'})    { $how_many_args++; $mode = "modify-rootfs";}
       
+    
    	if ($how_many_args gt 1) {
       	&usage;
       	&vnx_die ("Only one of the following options at a time:\n -t|--create, -x|--execute, -d|--shutdown, " .
       	          "-V, -P|--destroy, --define, --start,\n --undefine, --save, --restore, --suspend, " .
-      	          "--resume, --reboot, --reset, --showmap, --clean-host or -H");
+      	          "--resume, --reboot, --reset, --showmap, --clean-host, --modify-rootfs or -H");
    	}
    	if ( ($how_many_args lt 1) && (!$opts{D}) ) {
       	&usage;
       	&vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, " . 
       	          "\n--start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, " . 
-      	          "\n--show-map, --console, --console-info, --clean-host, -V or -H\n");
+      	          "\n--show-map, --console, --console-info, --clean-host, --modify-rootfs, -V or -H\n");
    	}
    	if (($opts{F}) && (!($opts{'shutdown'}))) { 
       	&usage; 
@@ -471,34 +474,7 @@ sub main {
     # 
    	# Version pseudomode
    	if ($opts{'version'}) {
-   		if ($opts{b}) { 
-   			# Brief format 
-   			print "$version,$release\n";
-   			exit(0);
-   		} else {
-   			# Extended format
-	        my $basename = basename $0;
-	        print "\n";
-	        print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
-	        print "                    `888.     .8'  `888b.     `8'  `8888    d8'  \n";
-	        print "                     `888.   .8'    8 `88b.    8     Y888..8P    \n";
-	        print "                      `888. .8'     8   `88b.  8      `8888'     \n";
-	        print "                       `888.8'      8     `88b.8     .8PY888.    \n";
-	        print "                        `888'       8       `888    d8'  `888b   \n";
-	        print "                         `8'       o8o        `8  o888o  o88888o \n";
-	        print "\n";
-	        print "                             Virtual Networks over LinuX\n";
-	        print "                              http://www.dit.upm.es/vnx      \n";
-	        print "                                    vnx\@dit.upm.es          \n";
-	        print "\n";
-	        print "                 Departamento de Ingeniería de Sistemas Telemáticos\n";
-	        print "                              E.T.S.I. Telecomunicación\n";
-	        print "                          Universidad Politécnica de Madrid\n";
-	        print "\n";
-	        print "                   Version: $version" . "$branch (built on $release)\n";
-	        print "\n";
-	        exit(0);
-   		}   		
+   		print_version();
    	}
 
     # Help pseudomode
@@ -512,7 +488,16 @@ sub main {
         mode_cleanhost($vnx_dir);
         exit(0);
     }
-   	
+    
+    # Modify root filesystem pseudomode
+    if ($opts{'modify-rootfs'}) {
+        unless ( -f $opts{'modify-rootfs'} ) {
+            &vnx_die ("file $opts{'modify-rootfs'} is not valid (perhaps does not exists)");
+        }
+        mode_modifyrootfs($tmp_dir);
+        exit(0);
+    }
+    
    	
    	# Delete LOCK file if -D option included
    	if ($opts{D}) {
@@ -1468,6 +1453,65 @@ sub mode_cleanhost {
     }
 }
 
+sub mode_modifyrootfs {
+	
+    my $tmp_dir = shift;
+    my $rootfs_name = basename $opts{'modify-rootfs'};
+    my $vm_xml_fname = "$tmp_dir/vnx_modify_rootfs/${rootfs_name}.xml";
+    
+    my $vm_xml = <<EOF;    
+<domain type='kvm'>
+  <name>$rootfs_name</name>
+  <memory>524288</memory>
+  <vcpu>1</vcpu>
+  <os>
+    <type arch="i686">hvm</type>
+    <boot dev='hd'/>
+    <boot dev='cdrom'/>
+  </os>
+  <features>
+     <pae/>
+     <acpi/>
+     <apic/>
+  </features>
+  <clock sync="localtime"/>
+  <devices>
+    <emulator>/usr/bin/kvm</emulator>
+    <disk type='file' device='disk'>
+      <source file='$opts{'modify-rootfs'}'/>
+      <target dev='hda'/>
+      <driver name="qemu" type="qcow2"/>
+    </disk>
+    <disk type='file' device='cdrom'>
+      <target dev='hdb'/>
+    </disk>
+    <interface type='network'>
+      <source network='default'/>
+    </interface>
+    <serial type="pty">
+      <target port="1"/>
+    </serial>
+    <console type="pty">
+      <target port="1"/>
+    </console>
+    <graphics type='vnc'/>
+  </devices>
+</domain>
+EOF
+
+    print "modify-rootfs mode:\n";
+    print "  Starting a virtual machine with root filesystem $opts{'modify-rootfs'}\n  ";
+    
+    # Create dir and write XML file
+    system "mkdir -p $tmp_dir/vnx_modify_rootfs";
+    open (XMLFILE, "> $vm_xml_fname") or vnx_die ("cannot open file $vm_xml_fname");
+    print XMLFILE "$vm_xml";
+    close (XMLFILE); 
+
+    system "virsh create $vm_xml_fname"; 
+    system "virt-viewer $rootfs_name &"; 
+    
+}
 
 
 #
@@ -5061,6 +5105,47 @@ sub print_consoles_info{
 	
 }
 
+sub print_version {
+	
+    if ($opts{b}) { 
+        # Brief format 
+        print "$version,$release\n";
+        exit(0);
+    } else {
+        # Extended format
+        my $basename = basename $0;
+        print "\n";
+        print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
+        print "                    `888.     .8'  `888b.     `8'  `8888    d8'  \n";
+        print "                     `888.   .8'    8 `88b.    8     Y888..8P    \n";
+        print "                      `888. .8'     8   `88b.  8      `8888'     \n";
+        print "                       `888.8'      8     `88b.8     .8PY888.    \n";
+        print "                        `888'       8       `888    d8'  `888b   \n";
+        print "                         `8'       o8o        `8  o888o  o88888o \n";
+        print "\n";
+        print "                             Virtual Networks over LinuX\n";
+        print "                              http://www.dit.upm.es/vnx      \n";
+        print "                                    vnx\@dit.upm.es          \n";
+        print "\n";
+        print "                 Departamento de Ingeniería de Sistemas Telemáticos\n";
+        print "                              E.T.S.I. Telecomunicación\n";
+        print "                          Universidad Politécnica de Madrid\n";
+        print "\n";
+        print "                   Version: $version" . "$branch (built on $release)\n";
+        print "\n";
+        exit(0);
+    }           
+}
+
+
+sub print_header {
+ 
+    print $hline . "\n";
+    print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es\n";
+    print "Version: $version" . "$branch (built on $release)\n";
+    print $hline . "\n";
+    
+}
 
 ####################
 # usage
@@ -5116,7 +5201,7 @@ Console management modes:
                                of all vms, or just the ones speficied if -M is used.                              
        Examples:
        		vnx -f ex1.xml --console
-       		vnx -f ex1.xml --console --cid con0 -M A --> open console 0 of vm A of scenario ex1.xml
+       		vnx -f ex1.xml --console con0 -M A --> open console 0 of vm A of scenario ex1.xml
 
 Other modes:
        --show-map    -> shows a map of the network scenarios build using graphviz.
@@ -5144,7 +5229,7 @@ Options:
        -M vm_list      -> start/stop/restart scenario in vm_list (a list of names separated by ,)
        -C|--config cfgfile -> use cfgfile as configuration file instead of default one (/etc/vnx.conf)
        -D              -> delete LOCK file
-       -n|--noconsole -> do not display the console of any vm. To be used with -t|--create options
+       -n|--no-console -> do not display the console of any vm. To be used with -t|--create options
        -y|--st-delay num -> wait num secs. between virtual machines startup (0 by default)
 
 EOF
@@ -5169,6 +5254,8 @@ Usage: vnx -f VNX_file [-t|--create] [-o prefix] [-c vnx_dir] [-u user]
        vnx -f VNX_file [--show-map] 
        vnx -h
        vnx -V
+       vnx --clean-host
+       vnx --modify-rootfs ROOTFS_file
 
 Main modes:
        -t|--create   -> build topology, or create virtual machine (if -M), using VNX_file as source.
@@ -5195,11 +5282,13 @@ Console management modes:
                                of all vms, or just the ones speficied if -M is used.                              
        Examples:
        		vnx -f ex1.xml --console
-       		vnx -f ex1.xml --console --cid con0 -M A --> open console 0 of vm A of scenario ex1.xml
+       		vnx -f ex1.xml --console con0 -M A --> open console 0 of vm A of scenario ex1.xml
 
 Other modes:
-       --show-map    -> shows a map of the network scenarios build using graphviz.
-       --exe-info    -> show information about the commands available
+       --show-map      -> shows a map of the network scenarios build using graphviz.
+       --exe-info      -> show information about the commands available
+       --clean-host    -> restart the host (WARNING: it kills all virtual machines)
+       --modify-rootfs -> starts a virtual machine running the rootfs specified to modify it
 
 Pseudomodes:
        -V, show program version and exit.
@@ -5219,7 +5308,7 @@ Options:
        -M vm_list      -> start/stop/restart scenario in vm_list (a list of names separated by ,)
        -C|--config cfgfile -> use cfgfile as configuration file instead of default one (/etc/vnx.conf)
        -D              -> delete LOCK file
-       -n|--noconsole -> do not display the console of any vm. To be used with -t|--create options
+       -n|--no-console -> do not display the console of any vm. To be used with -t|--create options
        -y|--st-delay num -> wait num secs. between virtual machines startup (0 by default)
 
 EOF
