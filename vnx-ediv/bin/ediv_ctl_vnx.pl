@@ -140,7 +140,7 @@ sub main {
                 'help|h', 'seg-info', 'seg-alg-info', 'clean-cluster', 'update-hosts',
                 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'C=s', 'a=s', 'r=s', 'M=s', 'H=s', 'n|no-console'
-               );
+    ) or ediv_die("Incorrect usage. Type 'ediv -h' for help"); ;
 	
 	my $how_many_args = 0;
 	if ($opts{'create'}) {
