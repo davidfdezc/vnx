@@ -303,41 +303,44 @@ sub main {
    	# --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --console, --console-info at the same time
    
    	my $how_many_args = 0;
+   	my $mode_args = '';
    	my $mode;
-   	if ($opts{'create'})           { $how_many_args++; $mode = "create";       }
-   	if ($opts{'execute'})          { $how_many_args++; $mode = "execute";	   }
-   	if ($opts{'shutdown'})         { $how_many_args++; $mode = "shutdown";     }
-   	if ($opts{'destroy'})          { $how_many_args++; $mode = "destroy";	   }
-   	if ($opts{'version'})          { $how_many_args++; $mode = "version";      }
-   	if ($opts{'help'})             { $how_many_args++; $mode = "help";         }
-   	if ($opts{'define'})           { $how_many_args++; $mode = "define";       }
-   	if ($opts{'start'})            { $how_many_args++; $mode = "start";        }
-   	if ($opts{'undefine'})         { $how_many_args++; $mode = "undefine";     }
-   	if ($opts{'save'})             { $how_many_args++; $mode = "save";         }
-   	if ($opts{'restore'})          { $how_many_args++; $mode = "restore";      }
-   	if ($opts{'suspend'})          { $how_many_args++; $mode = "suspend";      }
-   	if ($opts{'resume'})           { $how_many_args++; $mode = "resume";       }
-   	if ($opts{'reboot'})           { $how_many_args++; $mode = "reboot";       }
-   	if ($opts{'reset'})            { $how_many_args++; $mode = "reset";        }
-   	if ($opts{'show-map'})         { $how_many_args++; $mode = "show-map";     }
-   	if (defined($opts{'console'})) { $how_many_args++; $mode = "console";      }
-   	if ($opts{'console-info'})     { $how_many_args++; $mode = "console-info"; }
-    if ($opts{'exe-info'})         { $how_many_args++; $mode = "exe-info";     }
-    if ($opts{'clean-host'})       { $how_many_args++; $mode = "clean-host";   }
-    if ($opts{'modify-rootfs'})    { $how_many_args++; $mode = "modify-rootfs";}
-      
+   	if ($opts{'create'})           { $how_many_args++; $mode_args .= 'create|t ';      $mode = "create";       }
+   	if ($opts{'execute'})          { $how_many_args++; $mode_args .= 'execute|x ';     $mode = "execute";	   }
+   	if ($opts{'shutdown'})         { $how_many_args++; $mode_args .= 'shutdown|d ';    $mode = "shutdown";     }
+   	if ($opts{'destroy'})          { $how_many_args++; $mode_args .= 'destroy|P ';     $mode = "destroy";	   }
+   	if ($opts{'version'})          { $how_many_args++; $mode_args .= 'version|V ';     $mode = "version";      }
+   	if ($opts{'help'})             { $how_many_args++; $mode_args .= 'help|h ';        $mode = "help";         }
+   	if ($opts{'define'})           { $how_many_args++; $mode_args .= 'define ';        $mode = "define";       }
+   	if ($opts{'start'})            { $how_many_args++; $mode_args .= 'start ';         $mode = "start";        }
+   	if ($opts{'undefine'})         { $how_many_args++; $mode_args .= 'undefine ';      $mode = "undefine";     }
+   	if ($opts{'save'})             { $how_many_args++; $mode_args .= 'save ';          $mode = "save";         }
+   	if ($opts{'restore'})          { $how_many_args++; $mode_args .= 'restore ';       $mode = "restore";      }
+   	if ($opts{'suspend'})          { $how_many_args++; $mode_args .= 'suspend ';       $mode = "suspend";      }
+   	if ($opts{'resume'})           { $how_many_args++; $mode_args .= 'resume ';        $mode = "resume";       }
+   	if ($opts{'reboot'})           { $how_many_args++; $mode_args .= 'reboot ';        $mode = "reboot";       }
+   	if ($opts{'reset'})            { $how_many_args++; $mode_args .= 'reset ';         $mode = "reset";        }
+   	if ($opts{'show-map'})         { $how_many_args++; $mode_args .= 'show-map ';      $mode = "show-map";     }
+   	if (defined($opts{'console'})) { $how_many_args++; $mode_args .= 'console ';       $mode = "console";      }
+   	if ($opts{'console-info'})     { $how_many_args++; $mode_args .= 'console-info ';  $mode = "console-info"; }
+    if ($opts{'exe-info'})         { $how_many_args++; $mode_args .= 'exe-info ';      $mode = "exe-info";     }
+    if ($opts{'clean-host'})       { $how_many_args++; $mode_args .= 'clean-host ';    $mode = "clean-host";   }
+    if ($opts{'modify-rootfs'})    { $how_many_args++; $mode_args .= 'modify-rootfs '; $mode = "modify-rootfs";}
+    chop ($mode_args);
     
    	if ($how_many_args gt 1) {
       	&usage;
-      	&vnx_die ("Only one of the following options at a time:\n -t|--create, -x|--execute, -d|--shutdown, " .
-      	          "-V, -P|--destroy, --define, --start,\n --undefine, --save, --restore, --suspend, " .
-      	          "--resume, --reboot, --reset, --showmap, --clean-host, --modify-rootfs or -H");
+        &vnx_die ("Only one of the following options can be specified at a time: '$mode_args'");
+        #&vnx_die ("Only one of the following options at a time:\n -t|--create, -x|--execute, -d|--shutdown, " .
+      	#          "-V, -P|--destroy, --define, --start,\n --undefine, --save, --restore, --suspend, " .
+      	#          "--resume, --reboot, --reset, --showmap, --clean-host, --modify-rootfs or -H");
    	}
    	if ( ($how_many_args lt 1) && (!$opts{D}) ) {
       	&usage;
-      	&vnx_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, " . 
-      	          "\n--start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, " . 
-      	          "\n--show-map, --console, --console-info, --clean-host, --modify-rootfs, -V or -H\n");
+      	&vnx_die ("missing main mode option. Specify one of the following options: \n" . 
+      	          "  -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, \n" . 
+      	          "  --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, \n" . 
+      	          "  --show-map, --console, --console-info, --clean-host, --modify-rootfs, -V or -H\n");
    	}
    	if (($opts{F}) && (!($opts{'shutdown'}))) { 
       	&usage; 
@@ -1457,6 +1460,8 @@ sub mode_modifyrootfs {
 	
     my $tmp_dir = shift;
     my $rootfs_name = basename $opts{'modify-rootfs'};
+    $rootfs_name .= "-" . int(rand(10000));
+    my $rootfs_abs_fname = `readlink -f $opts{'modify-rootfs'}`; chomp ($rootfs_abs_fname);
     my $vm_xml_fname = "$tmp_dir/vnx_modify_rootfs/${rootfs_name}.xml";
     
     my $vm_xml = <<EOF;    
@@ -1478,7 +1483,7 @@ sub mode_modifyrootfs {
   <devices>
     <emulator>/usr/bin/kvm</emulator>
     <disk type='file' device='disk'>
-      <source file='$opts{'modify-rootfs'}'/>
+      <source file='$rootfs_abs_fname'/>
       <target dev='hda'/>
       <driver name="qemu" type="qcow2"/>
     </disk>
