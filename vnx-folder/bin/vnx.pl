@@ -125,7 +125,7 @@
 ###########################################################
 # Use clauses
 
-# Explicit declaration of pathname for VNUML modules
+# Explicit declaration of pathname for VNX modules
 
 #use lib "@PERL_MODULES_INSTALLROOT@";[JSF]
 use lib "/usr/share/perl5";
@@ -231,7 +231,25 @@ sub main {
    	$ENV{'PATH'} .= ':/bin:/usr/bin/:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin';
 
    	# DFC 21/2/2011 my $uid = $> == 0 ? getpwnam("vnx") : $>; # uid=vnx if executed as root; userid if executed as user
-   	my $uid = $>;
+   	#my $uid = $>;
+    if ($> ne 0) {
+        my $uname = getpwuid($>);
+        vnx_die ("ERROR: VNX needs to be executed as root or, better, sudoed root (current user=$uname,$>)");
+        exit (1);
+    }
+    $uid=$ENV{'SUDO_UID'};
+    $uid_name=$ENV{'SUDO_USER'};
+    my $uid_msg;
+   
+    if (defined $uid) {
+        $uid_msg = "  VNX executed as root by sudoing from user $uid_name ($uid)\n";
+        $> = $uid;  # Change to user. We only change to root when needed
+    } else {
+        $uid_msg = "  VNX executed as root from a root shell\n";
+        $uid = 0;
+        $uid_name = 'root';     
+    }
+   	
    	my $boot_timeout = 60; # by default, 60 seconds for boot timeout 
    	my $start_time;                   # the moment when the parsers start operation
 
@@ -259,6 +277,7 @@ sub main {
 
     unless ($opts{b}) {
     	print_header();
+    	print $uid_msg; 
     }
 
    	# Set configuration file 
@@ -267,7 +286,7 @@ sub main {
    	} else {
    		$vnxConfigFile = $DEFAULT_CONF_FILE;
    	}
-   	print "Using configuration file: $vnxConfigFile\n" if (!$opts{b});
+   	print "  Configuration file=$vnxConfigFile\n" if (!$opts{b});
    
    	# Check the existance of the VNX configuration file 
    	unless ( (-e $vnxConfigFile) or ($opts{'version'}) or ($opts{'help'}) ) {
@@ -561,9 +580,9 @@ sub main {
    	$dh->enable_ipv4($enable_4);   
 
    	# User check
-   	if (my $err_msg = &check_user) {
-      	&vnx_die("$err_msg\n");
-   	}
+#   	if (my $err_msg = &check_user) {
+#      	&vnx_die("$err_msg\n");
+#   	}
 
    	# Deprecation warnings
    	&check_deprecated;
@@ -1413,7 +1432,8 @@ sub mode_cleanhost {
         wlog (N, "----   Killing ALL libvirt virtual machines...");
         my @virsh_list;
         my $i;
-        my $pipe = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'virsh -c $hypervisor list' |";
+        change_to_root();
+        my $pipe = "virsh -c $hypervisor list |";
         open VIRSHLIST, "$pipe";
         while (<VIRSHLIST>) {
             chomp; $virsh_list[$i++] = $_;
@@ -1443,6 +1463,8 @@ sub mode_cleanhost {
         wlog (N, "----   Restarting dynamips daemon...");  
         $res = `/etc/init.d/dynamips restart`;
         wlog (N, $res);       
+
+        back_to_user();
 
         wlog (N, "----   Deleting .vnx directory...");
         if (defined($vnx_dir)) {
@@ -1730,7 +1752,7 @@ sub configure_virtual_bridged_networks {
       
       if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
          my $tun_if = $vm_name . "-e0";
-         $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
+         $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
       }
 
       # To get UML's interfaces list
@@ -1752,11 +1774,11 @@ sub configure_virtual_bridged_networks {
 	        my $tun_if = $vm_name . "-e" . $id;
 
             # To create TUN device
-	        $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
+	        $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
 
             # To set up device
             #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if 0.0.0.0 " . $dh->get_promisc . " up");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set dev $tun_if up");
+            $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " link set dev $tun_if up");
                         
 	     }
       }
@@ -1780,16 +1802,16 @@ sub configure_virtual_bridged_networks {
 
          # If bridged does not exists, we create and set up it
          unless (&vnet_exists_br($net_name)) {
-            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addbr $net_name");
+            $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " addbr $net_name");
 	        if ($dh->get_stp) {
-               $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " stp $net_name on");
+               $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " stp $net_name on");
 	        }
 	        else {
-               $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
+               $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
 	        }
 	        sleep 1;    # needed in SuSE 8.2
             #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");	        
+            $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");	        
          }
 
          # Is there an external interface associated with the network?
@@ -1798,14 +1820,13 @@ sub configure_virtual_bridged_networks {
 	        unless ($vlan =~ /^$/ ) {
 	           # If there is not any configured VLAN at this interface, we have to enable it
 	           unless (&check_vlan($external_if,"*")) {
-                  #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
-                  $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
+                  $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
 	           }
 	           # If VLAN is already configured at this interface, we haven't to configure it
 	           unless (&check_vlan($external_if,$vlan)) {
-	              $execution->execute($bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
-	              $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " set_name_type DEV_PLUS_VID_NO_PAD");
-	              $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
+	              $execution->execute_root($bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
+	              $execution->execute_root($bd->get_binaries_path_ref->{"vconfig"} . " set_name_type DEV_PLUS_VID_NO_PAD");
+	              $execution->execute_root($bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
 	           }
 	           $external_if .= ".$vlan";
 	        }
@@ -1815,9 +1836,8 @@ sub configure_virtual_bridged_networks {
 	        wlog (VVV, "vnet_ifs returns @if_list");
 	        $_ = "@if_list";
 	        unless (/\b($external_if)\b/) {
-               $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
-               #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
-	           $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $external_if");
+               $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
+	           $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $external_if");
 	        }
 	        # We increase interface use counter
 	        &inc_cter($external_if);
@@ -1858,7 +1878,7 @@ sub tun_connect {
 	        my $net_if = $vm_name . "-e" . $id;
 
             # We link TUN/TAP device 
-	        $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
+	        $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
 	     }
 
       }
@@ -1891,7 +1911,7 @@ sub host_config {
 	  	
 		if ($net_mode eq 'uml_switch') {
 			# Create TUN device
-            $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -t $net -u " . $execution->get_uid . " -f " . $dh->get_tun_device);
+            $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -t $net -u " . $execution->get_uid . " -f " . $dh->get_tun_device);
         }
         hostif_addr_conf ($if, $net, 'add');
     }
@@ -1907,29 +1927,23 @@ sub host_config {
         if ($route_type eq "ipv4") {
             if ($dh->is_ipv4_enabled) {
                 if ($route_dest eq "default") {
-                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add default gw $route_gw");
-                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $route_gw");
+                    $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $route_gw");
                 } elsif ($route_dest =~ /\/32$/) {
                     # Special case: X.X.X.X/32 destinations are not actually nets, but host. The syntax of
                     # route command changes a bit in this case
-                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -host $route_dest gw $route_gw");
-                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add $route_dest via $route_gw");
+                    $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " -4 route add $route_dest via $route_gw");
                 } else {
-                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -net $route_dest gw $route_gw");
-                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add $route_dest via $route_gw");
+                    $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " -4 route add $route_dest via $route_gw");
                 }
-                #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add $route_dest gw $route_gw");
             }
         }
         # Routes for IPv6
         else {
             if ($dh->is_ipv6_enabled) {
                 if ($route_dest eq "default") {
-                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $route_gw");
-                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $route_gw");
+                    $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $route_gw");
                 } else {
-                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add $route_dest gw $route_gw");
-                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route add $route_dest via $route_gw");
+                    $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " -6 route add $route_dest via $route_gw");
                 }
             }
         }
@@ -1942,10 +1956,10 @@ sub host_config {
         $f_type = "ip" if ($f_type =~ /^$/);
         # TODO: change this. When not in VERBOSE mode, echos are redirected to null and do not work... 
         if ($dh->is_ipv4_enabled) {
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv4/ip_forward") if ($f_type eq "ip" or $f_type eq "ipv4");
+            $execution->execute_root($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv4/ip_forward") if ($f_type eq "ip" or $f_type eq "ipv4");
         }
         if ($dh->is_ipv6_enabled) {
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv6/conf/all/forwarding") if ($f_type eq "ip" or $f_type eq "ipv6");
+            $execution->execute_root($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv6/conf/all/forwarding") if ($f_type eq "ip" or $f_type eq "ipv6");
         }
     }
 
@@ -1993,9 +2007,9 @@ sub hostif_addr_conf {
             if ( ($ext_if) && ($cmd eq 'add') ) {
             	# Delete the address from the external interface before configuring it in the network bridge.
             	# If not done, connectivity problems will arise... 
-                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr del " . $ip_addr->cidr() . " dev $ext_if");
+                $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " addr del " . $ip_addr->cidr() . " dev $ext_if");
             }
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr $cmd " . $ip_addr->cidr() . " dev $net");
+            $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " addr $cmd " . $ip_addr->cidr() . " dev $net");
          }
     }
 
@@ -2007,7 +2021,7 @@ sub hostif_addr_conf {
             my $ip = &text_tag($ipv6_list->item($j));
             if (&valid_ipv6_with_mask($ip)) {
                 # Implicit slashed mask in the address
-                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr $cmd $ip dev $net");
+                $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " addr $cmd $ip dev $net");
             } else {
                 # Check the value of the mask attribute
                 my $ipv6_effective_mask = "/64"; # Default mask value          
@@ -2019,10 +2033,9 @@ sub hostif_addr_conf {
 	            if ( ($ext_if) && ($cmd eq 'add') ) {
 	                # Delete the address from the external interface before configuring it in the network bridge.
 	                # If not done, connectivity problems will arise... 
-	                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr del $ip$ipv6_effective_mask dev $ext_if");
+	                $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " addr del $ip$ipv6_effective_mask dev $ext_if");
 	            }
-                #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip$ipv6_effective_mask");
-                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr $cmd $ip$ipv6_effective_mask dev $net");
+                $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " addr $cmd $ip$ipv6_effective_mask dev $net");
             }
         }
     }
@@ -2734,32 +2747,14 @@ sub host_unconfig {
        # Routes for IPv4
        if ($route_type eq "ipv4") {
           if ($dh->is_ipv4_enabled) {
-                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route del $route_dest via $route_gw");
-=BEGIN    	
-             if ($route_dest eq "default") {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del $route_dest gw $route_gw");
-             } elsif ($route_dest =~ /\/32$/) {
-	            # Special case: X.X.X.X/32 destinations are not actually nets, but host. The syntax of
-		        # route command changes a bit in this case
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del -host $route_dest gw $route_gw");
-	         } else {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del -net $route_dest gw $route_gw");
-             }
-             #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del $route_dest gw $route_gw");
-=END
-=cut
+                $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " -4 route del $route_dest via $route_gw");
           }
 
        }
        # Routes for IPv6
         else {
             if ($dh->is_ipv6_enabled) {
-                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route del $route_dest via $route_gw");
-                #if ($route_dest eq "default") {
-                #    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 del 2000::/3 gw $route_gw");
-                #} else {
-                #    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 del $route_dest gw $route_gw");
-                #}
+                $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " -6 route del $route_dest via $route_gw");
             }
        }
    }
@@ -2775,29 +2770,13 @@ sub host_unconfig {
 	   	my $net = $if->getAttribute("net");
         my $net_mode = $dh->get_net_mode ($net);
 
-=BEGIN
-	  	# To get list of defined <net>
-   	  	my $net_list = $doc->getElementsByTagName("net");
-   	  	for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
-      		my $neti = $net_list->item($i);
-      		# To get name attribute
-		    my $net_name = $neti->getAttribute("name");
-		    if ($net_name eq $net) {
-		    	$net_mode = $neti->getAttribute("mode");
-		    	#print "**** hostif:   $net_name, $net_mode\n"
-		    }
-   	  	}
-=END
-=cut
-
         # Delete host if addresses
         hostif_addr_conf ($if, $net, 'del');
 
 	   	# Destroy the tun device
 		if ($net_mode eq 'uml_switch') {
-	   		#$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net down");
-	   		$execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net down");           
-			$execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $net -f " . $dh->get_tun_device);
+	   		$execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " link set $net down");           
+			$execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -d $net -f " . $dh->get_tun_device);
 		}
    }
 
@@ -2835,11 +2814,10 @@ sub external_if_remove {
 
         # To clean up not in use physical interfaces
         if (&get_cter($external_if) == 0) {
-            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");         
-            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delif $net_name $external_if");
+            $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");         
+            $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " delif $net_name $external_if");
             unless ($vlan =~ /^$/) {
-                $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " rem $external_if");
+                $execution->execute_root($bd->get_binaries_path_ref->{"vconfig"} . " rem $external_if");
             } else { # No vlan associated to external if
                 # Note that now the interface has no IP address nor mask assigned, it is
                 # unconfigured! Tag <physicalif> is checked to try restore the interface
@@ -2860,7 +2838,7 @@ sub tun_destroy_switched {
    # Remove the symbolic link to the management switch socket
    if ($dh->get_vmmgmt_type eq 'net') {
 		my $socket_file = $dh->get_networks_dir . "/" . $dh->get_vmmgmt_netname . ".ctl";
-		$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
+		$execution->execute_root($bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
 	}
 
    my $net_list = $doc->getElementsByTagName("net");
@@ -2889,7 +2867,7 @@ sub tun_destroy_switched {
 			if ($sock eq '' && -S $socket_file) {
 				$cmd = $bd->get_binaries_path_ref->{"kill"} . " `" .
 					$bd->get_binaries_path_ref->{"lsof"} . " -t $socket_file`";
-				$execution->execute($cmd);
+				$execution->execute_root($cmd);
 				sleep 1;
 			}
 	        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
@@ -2918,8 +2896,8 @@ sub tun_destroy {
       if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
          my $tun_if = $vm_name . "-e0";
          #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
-         $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
-         $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
+         $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
+         $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
       }
 
       # To get UML's interfaces list
@@ -2940,12 +2918,10 @@ sub tun_destroy {
             my $tun_if = $vm_name . "-e" . $id;
 
             # To throw away TUN device
-            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
+            $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
 
             # To remove TUN device
-            #print "*** tun_destroy\n";
-            $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
+            $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
 
          }
 
@@ -2978,8 +2954,8 @@ sub bridges_destroy {
          # Set bridge down and remove it only in the case there isn't any associated interface 
          if (&vnet_ifs($net_name) == 0) {
             #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name down");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net_name down");
-            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delbr $net_name");
+            $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " link set $net_name down");
+            $execution->execute_root($bd->get_binaries_path_ref->{"brctl"} . " delbr $net_name");
          }
       }
    }
@@ -3039,12 +3015,13 @@ sub mode_destroy {
 
 # Additional functions
 
+=BEGIN
 # check_user
 #
 # Check if the user that runs the script will have suitables privileges
 # 
 # - root users always can run vnumlparser.pl
-# - no-root users can run vnumlparser.pl if:
+# - non-root users can run vnumlparser.pl if:
 #      + using only uml_switch networks
 #      + not using <vm_mgmt type="private">
 #      + not using <host>
@@ -3096,6 +3073,8 @@ sub check_user {
 	return 0;
 
 }
+=END
+=cut
 
 # check_deprecated
 #
@@ -3153,9 +3132,9 @@ sub get_kernel_pids {
 #    - Second: scenario name
 #    - Third: name file (usually /etc/hosts)
 # 
-# A VNUML sections is inserted in the /etc/hosts file with the following structure:
+# A VNX sections is inserted in the /etc/hosts file with the following structure:
 # 
-# VNUML BEGIN -- DO NO EDIT!!!
+# VNX BEGIN -- DO NO EDIT!!!
 #
 # BEGIN: sim_name_1
 # (names)
@@ -3167,7 +3146,7 @@ sub get_kernel_pids {
 #
 # (...)
 #
-# VNUML END
+# VNX END
 #
 # The function is not much smart. I would like to hear suggestions about... :)
 #
@@ -3193,11 +3172,11 @@ sub host_mapping_patch {
 
    # Status list:
    # 
-   # 0 -> before VNUML section
-   # 1 -> inside VNUML section, before scenario subsection
+   # 0 -> before VNX section
+   # 1 -> inside VNX section, before scenario subsection
    # 2 -> inside simultaion subsection
-   # 3 -> after scenario subsection, inside VNUML section
-   # 4 -> after VNUML section
+   # 3 -> after scenario subsection, inside VNX section
+   # 4 -> after VNX section
    my $status = 0;
 
    while (<HOST_FILE>) {
@@ -3237,14 +3216,14 @@ sub host_mapping_patch {
 
    # Check the final status when the hosts file has ended
    if ($status == 0) {
-      # No VNUML section found
+      # No VNX section found
       print FIRST "\# VNX BEGIN -- DO NOT EDIT!!!\n";
       print FIRST "\n";
       print THIRD "\n";
       print THIRD "\# VNX END\n";
    }
    elsif ($status == 1) {
-     # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
+     # Found VNX BEGIN but not found VNX END. Buggy situation? Trying to do the best
      print THIRD "\n";
      print THIRD "\# VNX END\n";
    }
@@ -3254,7 +3233,7 @@ sub host_mapping_patch {
      print THIRD "\# VNX END\n";
    }
    elsif ($status == 3) {
-     # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
+     # Found VNX BEGIN but not found VNX END. Buggy situation? Trying to do the best
      print THIRD "\n";
      print THIRD "\# VNX END\n";
    }
@@ -3282,9 +3261,11 @@ sub host_mapping_patch {
    my $basename = basename $file_name;
    my $file_bk = "$dir_name/$basename.vnx.old";
    $execution->execute($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
-   $execution->execute($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
+   $execution->execute_root($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . 
+                             $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
 
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
+   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . 
+                       $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
 
 }
 
@@ -3317,11 +3298,11 @@ sub host_mapping_unpatch {
 
    # Status list:
    # 
-   # 0 -> before VNUML section
-   # 1 -> inside VNUML section, before scenario subsection
+   # 0 -> before VNX section
+   # 1 -> inside VNX section, before scenario subsection
    # 2 -> inside simultaion subsection
-   # 3 -> after scenario subsection, inside VNUML section
-   # 4 -> after VNUML section
+   # 3 -> after scenario subsection, inside VNX section
+   # 4 -> after VNX section
    my $status = 0;
 
    while (<HOST_FILE>) {
@@ -3361,14 +3342,14 @@ sub host_mapping_unpatch {
 
    # Check the final status when the hosts file has ended
    if ($status == 0) {
-      # No VNUML section found
+      # No VNX section found
       print FIRST "\# VNX BEGIN -- DO NOT EDIT!!!\n";
       print FIRST "\n";
       print THIRD "\n";
       print THIRD "\# VNX END\n";
    }
    elsif ($status == 1) {
-     # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
+     # Found VNX BEGIN but not found VNX END. Buggy situation? Trying to do the best
      print THIRD "\n";
      print THIRD "\# VNX END\n";
    }
@@ -3378,7 +3359,7 @@ sub host_mapping_unpatch {
      print THIRD "\# VNX END\n";
    }
    elsif ($status == 3) {
-     # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
+     # Found VNX BEGIN but not found VNX END. Buggy situation? Trying to do the best
      print THIRD "\n";
      print THIRD "\# VNX END\n";
    }
@@ -3402,9 +3383,11 @@ sub host_mapping_unpatch {
    my $dir_name = dirname $file_name;
    my $basename = basename $file_name;
    my $file_bk = "$dir_name/$basename.vnx.old";
-   $execution->execute($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
-   $execution->execute($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
+   $execution->execute_root($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
+   $execution->execute_root($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . 
+                       $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
+   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . 
+                       $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
 
 }
 
@@ -3747,11 +3730,9 @@ sub physicalif_config {
       	 	#IPv6 configuration
       	 	my $ip = $phyif->getAttribute("ip");
       	 	my $gw = $phyif->getAttribute("gw");
-            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $interface add $ip");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr add $ip dev $interface");
+            $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " addr add $ip dev $interface");
       	 	unless ($gw =~ /^$/ ) {
-               #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $gw");            
-               $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $gw");            
+               $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $gw");            
       	 	}
       	 }
       	 else {
@@ -3761,11 +3742,9 @@ sub physicalif_config {
    	        my $mask = $phyif->getAttribute("mask");
             $mask="255.255.255.0" if ($mask =~ /^$/);
             my $ip_addr = NetAddr::IP->new($ip,$mask);
-            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $interface $ip netmask $mask");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $interface");
+            $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $interface");
        	 	unless ($gw =~ /^$/ ) {
-               #$execution->execute($bd->get_binaries_path_ref->{"route"} . " add default gw $gw");
-               $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $gw");
+               $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $gw");
        	 	}
       	 }
       }
@@ -4108,16 +4087,14 @@ sub mgmt_sock_create {
       $effective_mask = &slashed_to_dotted_mask($mask);
    }
 
-   $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u $user -t $tap");
+   $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -u $user -t $tap");
 
-   #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tap $hostip netmask $effective_mask up");
    my $ip_addr = NetAddr::IP->new($hostip,$effective_mask);
-   $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set dev $tap up");
-   $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $tap");
-   #$execution->execute_bg($bd->get_binaries_path_ref->{"su"} . " -pc '".$bd->get_binaries_path_ref->{"uml_switch"}." -tap $tap -unix $socket < /dev/null > /dev/null &' $user");
-   $execution->execute_bg($bd->get_binaries_path_ref->{"uml_switch"}." -tap $tap -unix $socket",'/dev/null');
+   $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " link set dev $tap up");
+   $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $tap");
+   $execution->execute_bg_root($bd->get_binaries_path_ref->{"uml_switch"}." -tap $tap -unix $socket",'/dev/null');
    sleep 1;
-   $execution->execute($bd->get_binaries_path_ref->{"chmod"} . " g+rw $socket");
+   $execution->execute_root($bd->get_binaries_path_ref->{"chmod"} . " g+rw $socket");
 }
 
 # mgmt_sock_destroy
@@ -4132,11 +4109,10 @@ sub mgmt_sock_destroy {
    my $socket = shift;
    my $tap = shift;
    
-   $execution->execute($bd->get_binaries_path_ref->{"kill"} . " `".$bd->get_binaries_path_ref->{"lsof"}." -t $socket`");
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " $socket");
-   #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tap down");
-   $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set dev $tap down");
-   $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tap");
+   $execution->execute_root($bd->get_binaries_path_ref->{"kill"} . " `".$bd->get_binaries_path_ref->{"lsof"}." -t $socket`");
+   $execution->execute_root($bd->get_binaries_path_ref->{"rm"} . " $socket");
+   $execution->execute_root($bd->get_binaries_path_ref->{"ip"} . " link set dev $tap down");
+   $execution->execute_root($bd->get_binaries_path_ref->{"tunctl"} . " -d $tap");
 }
 
 
@@ -4223,7 +4199,7 @@ sub build_topology{
             #if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
             if (&tundevice_needed($dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
                 if (! -e "/dev/net/tun") {
-                    !$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
+                    !$execution->execute_root ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
                 }
             }
 

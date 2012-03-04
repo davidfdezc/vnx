@@ -38,7 +38,7 @@ use POSIX qw(setsid setuid setgid);	# Needed in deamonize subrutine
 use Term::ReadKey;
 
 our @ISA    = qw(Exporter);
-our @EXPORT = qw( wlog press_any_key pak );
+our @EXPORT = qw( wlog press_any_key pak change_to_root back_to_user);
 
 
 
@@ -177,6 +177,7 @@ sub execute {
         }
         elsif ($exe_mode == $EXE_VERBOSE) {
             print $verb_prompt . "$command\n";
+    print "---- user= $> \n";
             system $command;
             $retval = $?;
             if ($exe_interactive) {
@@ -209,6 +210,28 @@ sub execute {
 
     return $retval;
 
+}
+
+sub change_to_root {
+    $>=0;    wlog (VVV, "-------------------- Changed to ROOT --------------------", "");
+}
+
+sub back_to_user {
+    $>=$uid; wlog (VVV, "-------------------- Back to user $uid_name -------------", "");
+}
+
+sub execute_root {
+    my $self = shift;
+    change_to_root();
+    execute ($self, @_);
+    back_to_user();
+}
+
+sub execute_bg_root {
+    my $self = shift;
+    change_to_root();
+    execute_bg ($self, @_);
+    back_to_user();
 }
 
 # execute_bg

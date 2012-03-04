@@ -102,7 +102,9 @@ sub valid_absolute_filename {
 #
 
 sub do_path_expansion {
-	my @list = bsd_glob(shift, GLOB_TILDE | GLOB_NOCHECK | GLOB_ERR );
+    my $fname = shift;
+    $fname =~ s#~/#~$uid_name/#;
+    my @list = bsd_glob($fname, GLOB_TILDE | GLOB_NOCHECK | GLOB_ERR );
 	return $list[0];
 }
 

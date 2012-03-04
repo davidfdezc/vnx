@@ -188,7 +188,7 @@ sub open_console {
 		$execution->smartdie ("unknown value ($console_term) of console_term parameter in $vnxConfigFile");
 	}
 	unless (defined $getLineOnly) {
-		$execution->execute($exeLine .  ">/dev/null 2>&1 &");
+		$execution->execute_root($exeLine .  ">/dev/null 2>&1 &");
 	}
 	return $exeLine;
 }
