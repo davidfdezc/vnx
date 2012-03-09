@@ -1459,19 +1459,23 @@ sub netTreatment {
 						my $currentNetName = $currentNet->getAttribute("name");
 						if ($net_name eq $currentNetName) {
 							my $treated_net = $currentNet->cloneNode("true");
-							$treated_net->setAttribute("external", "$external.$net_vlan");
+                            $treated_net->setAttribute("external", "$external.$net_vlan");
+                            #$treated_net->setAttribute("external", "$external:$net_vlan");
 							$treated_net->setAttribute("mode", "virtual_bridge");
 							$treated_net->setOwnerDocument($host_subdoc);
 							$host_subdoc->getElementsByTagName("vnx")->item(0)->replaceChild($treated_net, $currentNet);
 							
 							# Adding external interface to virtual net
-				            $error = query_db ("UPDATE nets SET external = '$external.$net_vlan' WHERE name='$currentNetName'");
+                            $error = query_db ("UPDATE nets SET external = '$external.$net_vlan' WHERE name='$currentNetName'");
+                            #$error = query_db ("UPDATE nets SET external = '$external:$net_vlan' WHERE name='$currentNetName'");
 				            if ($error) { ediv_die ("$error") };
 							
                             $error = query_db ("INSERT INTO vlans (number,scenario,host,external_if) VALUES ('$net_vlan','$scenario_name','$host_id','$external')");
                             if ($error) { ediv_die ("$error") };
 		
-							my $vlan_command = "vconfig add $external $net_vlan\nifconfig $external.$net_vlan 0.0.0.0 up\n";
+                            #my $vlan_command = "vconfig add $external $net_vlan\nifconfig $external.$net_vlan 0.0.0.0 up\n";
+                            my $vlan_command = "vconfig add $external $net_vlan\n" .
+                                               "ip link set $external.$net_vlan up\n";
 							$commands{$host_id} = defined ($commands{$host_id}) ? $commands{$host_id}."$vlan_command" 
 							                                                    : "$vlan_command";						
 						}
@@ -1907,7 +1911,8 @@ sub shutdown_scenario {
 	        $error = query_db ("SELECT `number`, `external_if` FROM vlans WHERE host = '$host_id' AND scenario = '$scenario_name'", \@db_resp);
 	        if ($error) { ediv_die ("$error") };
 			foreach my $vlans (@db_resp) {
-			     $vlan_command = $vlan_command . "vconfig rem $$vlans[1].$$vlans[0]\n";
+                 $vlan_command = $vlan_command . "vconfig rem $$vlans[1].$$vlans[0]\n";
+                 #$vlan_command = $vlan_command . "vconfig rem $$vlans[1]:$$vlans[0]\n";
 			}
 			$vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
 			&daemonize($vlan_command, "$host_id".".log");
@@ -2032,10 +2037,11 @@ sub send_conf_files {
 		foreach my $host_id (@cluster_active_hosts) {	
 	        my $host_ip   = get_host_ipaddr ($host_id);
             my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
-			my $tgz_name = $dh->get_sim_tmp_dir . "/conf.tgz";
-			my $scp_command = "scp -2 $tgz_name root\@$host_ip:$host_tmpdir";	
+            my $local_tgz_name = $dh->get_sim_tmp_dir . "/conf.tgz";
+            my $remote_tgz_name = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/conf.tgz";
+			my $scp_command = "scp -2 $local_tgz_name root\@$host_ip:$host_tmpdir";	
 			system($scp_command);
-			my $tgz_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'tar xzf $tgz_name -C $host_tmpdir'";
+			my $tgz_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'tar xzf $remote_tgz_name -C $host_tmpdir'";
 			&daemonize($tgz_command, "$host_id".".log");
 		}
 	}

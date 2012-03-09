@@ -1812,7 +1812,8 @@ sub configure_virtual_bridged_networks {
 	              $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " set_name_type DEV_PLUS_VID_NO_PAD");
 	              $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
 	           }
-	           $external_if .= ".$vlan";
+               $external_if .= ".$vlan";
+               #$external_if .= ":$vlan";
 	        }
 	     
 	        # If the interface is already added to the bridge, we haven't to add it
@@ -2281,7 +2282,9 @@ sub mode_shutdown {
                 wlog (N, "VNX::vmAPI_${vm_type}->shutdownVM returns " . $error);
             }
     	}
-
+    	
+    	Time::HiRes::sleep(0.2); # Sometimes libvirt 0.9.3 gives an error when shutdown VMs too fast...
+    	
    	}
    
 #   unless ($opts{M}){
@@ -2834,6 +2837,7 @@ sub external_if_remove {
         # To check if VLAN is being used
         my $vlan = $net->getAttribute("vlan");
         $external_if .= ".$vlan" unless ($vlan =~ /^$/);
+        #$external_if .= ":$vlan" unless ($vlan =~ /^$/);
 
         # To decrease use counter
         &dec_cter($external_if);
