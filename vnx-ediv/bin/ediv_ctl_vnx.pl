@@ -107,8 +107,8 @@ my $conf_plugin_file;					# Configuration plugin file
 my $vnx_dir;
 my $tmp_dir;
 
-	# Path for dynamips config file
-my $dynamips_ext_path;
+# Path for dynamips config file
+#my $dynamips_ext_path;
 
 my $version = "2.0";
 my $release = "DD/MM/YYYY";
@@ -1186,17 +1186,15 @@ sub create_subscenario_docs {
         # Set host subscenario name: original scenario name + _ + host_id
 	    $doc->getElementsByTagName("scenario_name")->item(0)->getFirstChild->setData($subscenario_name);
 		
-		#if dynamips_ext tag is present, update path
+		# Check wheter <dynamips_ext> tag is present
 	    my $dynamips_extTagList=$doc->getElementsByTagName("dynamips_ext");
         my $numdynamips_ext = $dynamips_extTagList->getLength;
 
-        # TODO: check in CheckSemantics that dynamips_ext only appears once
-    	if ($numdynamips_ext == 1) {	
+    	if ($numdynamips_ext == 1) { # Can't be > 1 (previously checked on CheckSemantics)	
 
 	   		my $virtualmList=$globalNode->getElementsByTagName("vm");
-			my $vmListLength = $virtualmList->getLength;
 			my $keep_dynamips_in_scenario = 0;
-			for (my $m=0; $m<$vmListLength; $m++){
+			for (my $m=0; $m<$virtualmList->getLength; $m++){
 				my $vm=$virtualmList->item($m);
 				my $vm_name = $vm->getAttribute("name");
 				my $vm_host_id = $allocation{$vm_name};
@@ -1213,9 +1211,12 @@ sub create_subscenario_docs {
 	   			#print "current_host_dynamips_path=$current_host_dynamips_path\n";<STDIN>;
 	   			# las tres lineas de arriba no funcionan, ya que no puedo meter el xml en los
 	   			# directorios del escenario antes de crearlo, hay que usar un /tmp:
-	   			my $current_host_dynamips_path = $host_tmpdir . "/dynamips-dn.xml";
-	   			$dynamips_extTagList->item(0)->getFirstChild->setData($current_host_dynamips_path);
-	   			print $dynamips_extTagList->item(0)->getFirstChild->getData . "\n";
+
+	   			#my $current_host_dynamips_path = $host_tmpdir . "/dynamips-dn.xml";
+	   			my $host_dyn_name = basename ($dynamips_extTagList->item(0)->getFirstChild->getData);
+	   			
+	   			$dynamips_extTagList->item(0)->getFirstChild->setData($host_dyn_name);
+	   			wlog (V, "-- host_dyn_name = " . $dynamips_extTagList->item(0)->getFirstChild->getData . "\n");
 	   		}else{
 	#  			my $dynamips_extTag = $dynamips_extTagList->item(0);
 	#    		$parentnode = $dynamips_extTag->parentNode;
@@ -1973,6 +1974,7 @@ sub build_scenario_conf {
             
         my $vm = $vms[$i];
         my $vm_name=$vm->getAttribute("name");	
+        my $vm_type=$vm->getAttribute("type");  
 
         # <filetree> tags
         my $filetree_list = $vm->getElementsByTagName("filetree");
@@ -1985,9 +1987,18 @@ sub build_scenario_conf {
         # <exec> tags
         my $exec_list = $vm->getElementsByTagName("exec");
         for (my $m=0; $m<$exec_list->getLength; $m++){
-            my $exec = $exec_list->item($m)->getFirstChild->getData;
-            wlog (VVV, "-- build_scenario_conf: added $exec");
-            push(@execs, $exec);
+
+            my $exec_ostype=$exec_list->item($m)->getAttribute("ostype");  
+            wlog (VVV, "-- build_scenario_conf: exec_ostype=$exec_ostype");
+            
+            # Get dynamips config files
+            if ($vm_type eq "dynamips" && $exec_ostype eq 'load') {
+	            my $exec = $exec_list->item($m)->getFirstChild->getData;
+	            $exec =~ s/merge //;
+	            wlog (VVV, "-- build_scenario_conf: added $exec");
+	            push(@execs, $exec);
+            } 
+        
         }
 	}
 	
@@ -2010,10 +2021,16 @@ sub build_scenario_conf {
 	unless ($basedir eq "") {
 		chdir $basedir;
 	}
+    if (@filetrees or @execs){
+        my $tgz_name = $dh->get_sim_tmp_dir . "/conf.tgz"; 
+        my $tgz_command = "tar czfv $tgz_name @filetrees @execs";
+        system ($tgz_command);
+    }
+
 	if (@filetrees){
-		my $tgz_name = $dh->get_sim_tmp_dir . "/conf.tgz"; 
-		my $tgz_command = "tar czfv $tgz_name @filetrees";
-		system ($tgz_command);
+		#my $tgz_name = $dh->get_sim_tmp_dir . "/conf.tgz"; 
+		#my $tgz_command = "tar czfv $tgz_name @filetrees";
+		#system ($tgz_command);
 		$configuration = 1;	
 	}
 	#JSF añadido para tags <exec>
@@ -2032,6 +2049,7 @@ sub build_scenario_conf {
 # Subroutine to copy VMs execution mode configuration to cluster machines
 #
 sub send_conf_files {
+
 	if ($configuration == 1){
 		print "\n\n  **** Sending configuration to cluster hosts ****\n\n";
 		foreach my $host_id (@cluster_active_hosts) {	
@@ -2052,17 +2070,21 @@ sub send_conf_files {
 		$conf_plugin = $globalNode->getElementsByTagName("global")->item(0)->getElementsByTagName("extension")->item(0)->getAttribute("conf");
 	};
 	
-	# código de sendDynConfiguration
-	if ($dynamips_ext_path ne ""){
-		print "\n\n  **** Sending dynamips configuration file to cluster hosts ****\n\n";
+	# Send dynamips extended configuration file if it exists
+
+	if (defined $dh->get_doc->getElementsByTagName("dynamips_ext") && 
+	    $dh->get_doc->getElementsByTagName("dynamips_ext")->getLength == 1) { # Can't be > 1 (previously checked on CheckSemantics)  
+#	if ($dynamips_ext_path ne ""){
         foreach my $host_id (@cluster_active_hosts) {  
-	        my $host_ip   = get_host_ipaddr ($host_id);         
-            my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
-            #my $dynamips_user_path = &get_abs_path ( $doc->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
-            my $dynamips_user_path = &get_abs_path ( $dh->get_doc->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
-			print "** dynamips_user_path=$dynamips_user_path\n";
-			#my $scp_command = "scp -2 $dynamips_user_path root\@$host_ip:$dynamips_ext_path".$filename."/dynamips-dn.xml";
-			my $scp_command = "scp -2 $dynamips_user_path root\@$host_ip:$host_tmpdir/dynamips-dn.xml";
+            wlog (V, "\n---- Sending dynamips configuration file to host $host_id\n");
+	        my $host_ip  = get_host_ipaddr ($host_id);         
+            my $host_dir = get_host_vnxdir ($host_id) . "/scenarios/${scenario_name}/tmp/";
+            my $dyn_ext_conf_path = &get_abs_path ( $dh->get_doc->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
+            my $dyn_ext_conf_name = basename ($dyn_ext_conf_path);
+            wlog (V, "-- host_dir=$host_dir");
+            wlog (V, "-- dyn_ext_conf_path=$dyn_ext_conf_path");
+            wlog (V, "-- dyn_ext_conf_name=$dyn_ext_conf_name");
+			my $scp_command = "scp -2 $dyn_ext_conf_path root\@$host_ip:$host_dir/$dyn_ext_conf_name";
 			system($scp_command);
 		}
 	}
@@ -2489,15 +2511,16 @@ sub initialize_and_check_scenario {
 
    	# Validate extended XML configuration files
 	# Dynamips
-	my $dmipsConfFile = $dh->get_default_dynamips();
-	if ($dmipsConfFile ne "0"){
-		$dmipsConfFile = get_abs_path ($dmipsConfFile);
-		my $error = validate_xml ($dmipsConfFile);
+	my $dyn_conf_file = $dh->get_default_dynamips();
+	if ($dyn_conf_file ne "0"){
+		$dyn_conf_file = get_abs_path ($dyn_conf_file);
+		my $error = validate_xml ($dyn_conf_file);
 		if ( $error ) {
-	        &ediv_die ("Dynamips XML configuration file ($dmipsConfFile) validation failed:\n$error\n");
+	        &ediv_die ("Dynamips XML configuration file ($dyn_conf_file) validation failed:\n$error\n");
 		}
 	}
 	
+=BEGIN	
     # if dynamips_ext node is present, update path
     $dynamips_ext_path = "";
     #my $dynamips_extTagList=$doc->getElementsByTagName("dynamips_ext");
@@ -2507,6 +2530,8 @@ sub initialize_and_check_scenario {
         my $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
         $dynamips_ext_path = "$vnx_dir/scenarios/";
     }
+=END
+=cut    
 
     # Create the scenario working directory, if it doesn't already exist
     if (! -d "$vnx_dir/scenarios/$scenario_name" ) {
@@ -2518,15 +2543,17 @@ sub initialize_and_check_scenario {
            or ediv_die("Unable to create scenario $scenario_name tmp directory $vnx_dir/$scenario_name/tmp: $!\n");
     }
     
-    # Create the main scenario directory in every active cluster host
+    # Create scenario directories in every active cluster host
     foreach my $host_id (@cluster_active_hosts){
         my $host_ip = get_host_ipaddr ($host_id);
         my $host_vnxdir = get_host_vnxdir ($host_id);
 
-        # Create directory $vnx_dir/$scenario_name
-        my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip 'mkdir -p $host_vnxdir/scenarios/$scenario_name/tmp'";
+        # Create directory $vnx_dir/$scenario_name and $vnx_dir/$scenario_name_$host_id 
+        my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip " . 
+                          "'mkdir -p $host_vnxdir/scenarios/${scenario_name}/tmp $host_vnxdir/scenarios/${scenario_name}_${host_id}'";
         wlog (V, "----   Creating scenario directories in active hosts");  
         &daemonize($ssh_command, "$host_id".".log");       
+
     }
 }
 
