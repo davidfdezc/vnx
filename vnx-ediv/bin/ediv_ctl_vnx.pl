@@ -465,7 +465,6 @@ sub mode_create {
 	    # Segmentation processing
 	    if (defined($restriction_file)){
 	        wlog (VV, "\n  -- Processing segmentation restriction file $restriction_file... ****\n");
-            #my $restriction = static->new($restriction_file, $doc, @cluster_active_hosts); 
             my $restriction = static->new($restriction_file, $dh->get_doc, @cluster_active_hosts); 
 	        %static_assignment = $restriction->assign();
 	        if ($static_assignment{"error"} eq "error"){
@@ -495,7 +494,6 @@ sub mode_create {
 	        ediv_die("ERROR: segmentator module $partition_mode not found");
 	    }
 	        
-        #%allocation = $segmentation_module->split(\$doc, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
         my $doc = $dh->get_doc;
         %allocation = $segmentation_module->split(\$doc, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
 
@@ -1152,7 +1150,7 @@ sub create_subscenario_docs {
 	
 	my $change_db = shift; # if not defined, the database is not changed 
 
-    wlog (VVV, "create_subscenario_docs: $change_db");
+    wlog (VVV, "create_subscenario_docs called");
     #print $dh->get_doc->toString;
 	
 	# Create a new template document by cloning the scenario tree

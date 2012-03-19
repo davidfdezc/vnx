@@ -387,9 +387,9 @@ sub wlog {
 	my $exe_mode = $execution->get_exe_mode();
 	#print "~~ wlog: msg_level=$msg_level, exe_mode=$exe_mode, EXE_VERBOSITY_LEVEL=$EXE_VERBOSITY_LEVEL\n";		
     if ($msg_level == N) {
-        printf "$msg\n";      
+        print "$msg\n";      
     } elsif ( ($exe_mode == $EXE_DEBUG) || ( ($exe_mode == $EXE_VERBOSE) && ( $msg_level <= $EXE_VERBOSITY_LEVEL ) ) ) { 
-		printf "$prompt$msg\n";		
+		print "$prompt$msg\n";		
 	}  
 }
 

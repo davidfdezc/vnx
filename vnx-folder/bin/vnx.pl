@@ -3859,7 +3859,7 @@ sub check_vlan {
    # To get `cat /proc/net/vlan/config`
    my @catconfig;
    my $line = 0;
-   my $pipe = $bd->get_binaries_path_ref->{"cat"} . " /proc/net/vlan/config |";
+   my $pipe = $bd->get_binaries_path_ref->{"cat"} . " /proc/net/vlan/config | grep -v Name-Type |";
    open CATCONFIG, "$pipe";
    while (<CATCONFIG>) {
       chomp;
@@ -3868,7 +3868,7 @@ sub check_vlan {
    close CATCONFIG;
 
    # To get pair interfaz-vlan
-   # Note that we skip the first line, due to this is the hader of the config file
+   # Note that we skip the first line, due to this is the header of the config file
    for ( my $i = 1; $i < $line; $i++) {
       $_ = $catconfig[$i];
 

@@ -213,12 +213,14 @@ sub read_cluster_config {
         $cluster_host->max_vms("$max_vms");
         $cluster_host->if_name("$ifname");
 
+        print "-- Checking $current_host_id availability...";
         # Check whether the host is active or not
 		my $not_active = system ("ssh -2 -o 'StrictHostKeyChecking no' -X root\@$ip uptime > /dev/null 2>&1 ");
 		if ($not_active) {
             print "WARNING: cannot connect to host $current_host_id ($res). Marked as inactive.\n";
             $cluster_host->status("inactive");
 		} else {
+            print "$current_host_id is active\n";
             $cluster_host->status("active");
 	        my $cpu_dynamic_command = 'cat /proc/loadavg | awk \'{print $1}\'';
 	        my $cpu_dynamic = `ssh -2 -o 'StrictHostKeyChecking no' -X root\@$ip $cpu_dynamic_command`;
