@@ -37,13 +37,18 @@ cat << EOF > $XMLFILE
 	<interface type='network'>
 	  <source network='default'/>
 	</interface>
-	<serial type="pty">
-	  <target port="1"/>
-	</serial>
-	<console type="pty">
-	  <target port="1"/>
-	</console>
 	<graphics type='vnc'/>
+    <serial type="pty">
+      <target port="0"/>
+     </serial>
+     <console type="pty">
+      <target port="0"/>
+     </console>
+     <serial type="unix">
+      <source mode="bind" path="/tmp/${ROOTFSNAME}_socket"/>
+      <target port="1"/>
+     </serial>
+	
   </devices>
 </domain>
 EOF

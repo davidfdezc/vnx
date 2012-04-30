@@ -738,6 +738,34 @@ sub get_automac_offset {
    return $self->{'global_data'}->{'automac_offset'};
 } 
 
+# get_vm_byname
+#
+# Returns a VM knowing its name 
+#
+sub get_vm_byname {
+    my $self = shift;
+    my $vm_name = shift;
+
+    wlog (VVV, "---- looking for " . $vm_name);
+
+    my $global_doc = $dh->get_doc;
+    my @vm_ordered = $dh->get_vm_ordered;
+	
+    for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+        my $vm = $vm_ordered[$i];
+        # We get name attribute
+        my $name = $vm->getAttribute("name");
+        wlog (VVV, "----" . $name);
+        unless ( $name eq $vm_name ) {
+            next;
+        }
+        wlog (VVV, "return $name");
+        return $vm;
+    }
+    return "";
+}
+
+
 # get_vm_ordered
 #
 # Returns a list of vm nodes, ordered based on "order" number
