@@ -1,0 +1,13 @@
+[localhost]
+workingdir = /tmp
+
+[[7200]]
+        image = /usr/share/vnx/filesystems/c7200
+        npe = npe-400
+        ram = 160
+    
+[[ROUTER R7200]]
+        model = 7200
+        console = 901
+        aux = 902
+        

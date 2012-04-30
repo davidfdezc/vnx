@@ -34,12 +34,13 @@ use Sys::Syslog;
 #use XML::DOM;
 use Cwd qw(cwd getcwd abs_path);
 use File::Basename;
+use IO::Socket::UNIX qw( SOCK_STREAM );
    
 
-my $vmName = shift;
+my $vm_name = shift;
 my $aceTarFile = shift;
 
-if ($vmName eq ""){
+if ($vm_name eq ""){
    print " Usage (as root): vnx_update_aced <vm_name> [<aced_tar_file>]\n";
    exit(1);
 }
@@ -90,7 +91,7 @@ if ($aceTarFile eq ""){
 
 print "-- ACE tar file=$aceTarFile\n";
 
-print "\n-- Updating VNX daemon in virtual machine '$vmName'...\n\n";
+print "\n-- Updating VNX daemon in virtual machine '$vm_name'...\n\n";
 
 my $tmpdir = `mktemp -td vnx_update_daemon.XXXXXX`;
 chomp ($tmpdir);
@@ -100,7 +101,7 @@ system "mkdir $tmpdir/iso-content";
 my $tmpisodir="$tmpdir/iso-content";
 print "-- Creating iso-content temp directory ($tmpisodir)...\n";
 
-my $fileid = $vmName . "-" . &generate_random_string(6);
+my $fileid = $vm_name . "-" . &generate_random_string(6);
 
 my $line = "<vnx_update><id>$fileid</id></vnx_update>";
 my $command = "echo \'" . $line . "\' > $tmpisodir/vnx_update.xml";
@@ -125,12 +126,17 @@ system "$make_iso_cmd -nobak -follow-links -max-iso9660-filename -allow-leading-
 #print "--   rm -rf $tmpisodir\n";
 system "rm -rf $tmpisodir";
 
-print "-- Attaching cdrom to $vmName virtual machine...\n";
+print "-- Attaching cdrom to $vm_name virtual machine...\n";
 # DFC 12/7/2011: option "--driver file" eliminated to make it work with libvirt 0.9.3
-print "--   virsh -c qemu:///system 'attach-disk \"$vmName\" $tmpdir/vnx_update.iso" .
+print "--   virsh -c qemu:///system 'attach-disk \"$vm_name\" $tmpdir/vnx_update.iso" .
       "  hdb --mode readonly --type cdrom'\n";
-system "virsh -c qemu:///system 'attach-disk \"$vmName\" $tmpdir/vnx_update.iso " . 
+system "virsh -c qemu:///system 'attach-disk \"$vm_name\" $tmpdir/vnx_update.iso " . 
       "hdb --mode readonly --type cdrom'";
+
+# Send the exeCommand order to the virtual machine using the socket
+my $socket_fh = '/tmp/' . $vm_name . '_socket';
+my $vmsocket = IO::Socket::UNIX->new( Type => SOCK_STREAM, Peer => $socket_fh, ) or die("Can't connect to server: $!\n");
+print $vmsocket "exeCommand cdrom\n";     
 
 print "\n...done\n\n";
 exit(0);

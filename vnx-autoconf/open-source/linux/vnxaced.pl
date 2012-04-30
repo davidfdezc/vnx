@@ -57,8 +57,10 @@ use constant LINUX_CD_DIR   => '/media/cdrom';
 use constant INIT_DELAY   => '10';
 
 my @platform;
-my $mountCmd;
-my $umountCmd; 
+my $mount_cdrom_cmd;
+my $umount_cdrom_cmd; 
+my $mount_sdisk_cmd;
+my $umount_sdisk_cmd; 
 
 my $DEBUG;
 my $VERBOSE;
@@ -83,9 +85,13 @@ Version: $VNXACED_VER ($VNXACED_BUILT)
 EOF
 
 
+my $vm_tty; # vm tty connected with the host 
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #~~~~~~~~~~           main code         ~~~~~~~~~~~~~~~
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 # Set INT signal handler
 # Commented...seems it provokes problems with upstart...
@@ -126,21 +132,30 @@ if ($VERBOSE) { print "VERBOSE mode\n"; }
 @platform = split(/,/, &get_os_distro);
 	
 if ($platform[0] eq 'Linux'){
+	
+    $vm_tty = LINUX_TTY;
 	if ($platform[1] eq 'Ubuntu')    { 
-		$mountCmd = 'mount /media/cdrom';
-		$umountCmd = 'umount /media/cdrom';
+		$mount_cdrom_cmd  = 'mount /media/cdrom';
+		$umount_cdrom_cmd = 'eject; umount /media/cdrom';
 	}			
 	elsif ($platform[1] eq 'Fedora') { 
-		$mountCmd = 'udisks --mount /dev/sr0';
-		$umountCmd = 'udisks --unmount /dev/sr0';			
+		$mount_cdrom_cmd = 'udisks --mount /dev/sr0';
+		$umount_cdrom_cmd = 'udisks --unmount /dev/sr0';			
 	}
 	elsif ($platform[1] eq 'CentOS') { 
-		$mountCmd = 'mount /dev/cdrom /media/cdrom';
-		$umountCmd = 'eject; umount /media/cdrom';			
+		$mount_cdrom_cmd = 'mount /dev/cdrom /media/cdrom';
+		$umount_cdrom_cmd = 'eject; umount /media/cdrom';			
 	}
+    $mount_sdisk_cmd  = 'mount /dev/sdb /mnt/sdisk';
+    $umount_sdisk_cmd = 'umount /mnt/sdisk';
+    system "mkdir -p /mnt/sdisk";
+
 } elsif ($platform[0] eq 'FreeBSD'){
-	$mountCmd = 'mount /cdrom';
-	$umountCmd = 'umount -f /cdrom';
+
+    $vm_tty = FREEBSD_TTY;
+	$mount_cdrom_cmd = 'mount /cdrom';
+	$umount_cdrom_cmd = 'umount -f /cdrom';
+
 } else {
 	write_log ("ERROR: unknown platform ($platform[0]). Only Linux and FreeBSD supported.");
 	exit (1);
@@ -272,91 +287,120 @@ sub listen {
 	system "mkdir -p /root/.vnx";
 	my @files;
 	my $cd_dir;
+	my $files_dir;
 	if ($platform[0] eq 'Linux'){
-		#@files = </media/*>;
 		$cd_dir = LINUX_CD_DIR;
 	} elsif ($platform[0] eq 'FreeBSD'){
-		#@files = </*>;
 		$cd_dir = FREEBSD_CD_DIR;
 	}
+    #my $lscmd = "ls -l $cd_dir";
 	my $commands_file;
 	
 	# JSF: comentado porque al rearrancar el servicio a mano pinta error por pantalla si
 	# no esta montado el CD-ROM. Si no da errores de otro tipo se podra quitar del todo.
 	#system "umount -f /cdrom";
-	sleep 5;
-	exe_mount_cmd ($mountCmd);
-    if ($VERBOSE) {
-		my $lscmd;
-		if    ($platform[0] eq 'Linux')   { $lscmd = 'ls -l ' . LINUX_CD_DIR }
-		elsif ($platform[0] eq 'FreeBSD') { $lscmd = 'ls -l ' . FREEBSD_CD_DIR }
-		my $res=`$lscmd`; write_log ("\n~~ cdrom content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
-	}
-	while (1){
 
-		my @files = <$cd_dir/*>;
+	#sleep 5;
+	#exe_mount_cmd ($mount_cdrom_cmd);
 
-		foreach my $file (@files){
+    # Open the TTY for reading commands
+    open (VMTTY, "< $vm_tty") or vnxaced_die ("Couldn't open $vm_tty for reading");
+
+    while ( chomp( my $line = <VMTTY> ) ) {
+
+        write_log ("Command received: $line");
+		
+        my @cmd = split(/ /, $line);
+
+        if ($cmd[0] eq "exeCommand") {
+
+            if ( ($cmd[1] eq "cdrom") || ($cmd[1] eq "sdisk") ) {
+
+                if ( $cmd[1] eq "cdrom" ) {
+                    exe_mount_cmd ($mount_cdrom_cmd);
+                    $files_dir = $cd_dir;
+                } else { # sdisk 
+                    exe_mount_cmd ($mount_sdisk_cmd);
+                    $files_dir = '/mnt/sdisk';
+                }
+
+			    if ($VERBOSE) {
+			        my $res=`ls -l $files_dir`; write_log ("\n~~ $cmd[1] content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
+			    }
+
+		        my @files = <$files_dir/*>;
+		
+		        foreach my $file (@files){
+		            
+		            my $fname = basename ($file);
+		            if ($fname eq "command.xml"){
+		                unless (&is_new_file($file)){
+		                    next;               
+		                }
+		                if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+		                chomp (my $now = `date`);                       
+		                write_log ("~~ $now:");
+		                write_log ("     command received in $file");
+		                &execute_filetree($file);
+		                &execute_commands($file);
+		                write_log ("     sending 'done' signal to host...\n");
+		                system "echo OK > $vm_tty";
+		            
+		            }elsif ( ($fname eq "vnxboot") || ($fname eq "vnxboot.xml") ) {
+		                unless (&is_new_file($file)){
+		                    
+		                    # Autoconfiguration is done and the system has restarted 
+		                    # Check whether the <exec> commands with seq="on_boot" have been executed
+		                    my $on_boot_cmd_exec = get_conf_value (VNXACED_CID, 'on_boot_cmds_executed');
+		                    unless ($on_boot_cmd_exec eq 'yes') {
+		                        write_log ("executing <filetree> and <exec> commands after restart");
+		                        # Execute all <filetree> and <exec> commands in vnxboot file            
+		                        # Execute <filetree> commands
+		                        &execute_filetree($file);
+		                        # Execute <exec> commands 
+		                        &execute_commands($file);
+		                        # Commands executed, change config
+		                        set_conf_value (VNXACED_CID, 'on_boot_cmds_executed', 'yes')
+		                    }
+		                    next;               
+		                }
+		                if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+		                chomp (my $now = `date`);                       
+		                write_log ("~~ $now:");
+		                write_log ("     configuration file received in $file");
+		                &autoconfigure($file);
+		
+		            }elsif ($fname eq "vnx_update.xml"){
+		                unless (&is_new_file($file) eq '1'){
+		                    next;               
+		                }
+		                if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+		                chomp (my $now = `date`);                       
+		                write_log ("~~ $now:");
+		                write_log ("     update files received in $file");
+		                &autoupdate;
+		
+		            }else {
+		                # unknown file, do nothing
+		            }
+		        }
+		        
+                if ( $cmd[1] eq "cdrom" ) {
+                    exe_mount_cmd ($umount_cdrom_cmd);
+                } else { # sdisk 
+                    exe_mount_cmd ($umount_sdisk_cmd);
+                }
+            	
+            } elsif ($cmd[0] eq "nop") { # do nothing
+                write_log ("nop command received")
+            } else {
+            	write_log ("ERROR: exec_mode $cmd[1] not supported")
+            }
 			
-			my $fname = basename ($file);
-			if ($fname eq "command.xml"){
-				unless (&is_new_file($file)){
-					next;				
-				}
-				if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
-				chomp (my $now = `date`);						
-				write_log ("~~ $now:");
-				write_log ("     command received in $file");
-				&execute_filetree($file);
-				&execute_commands($file);
-				write_log ("     sending 'done' signal to host...\n");
-				if ($platform[0] eq 'Linux'){
-					system "echo finished! > " . LINUX_TTY;
-				} elsif ($platform[0] eq 'FreeBSD'){
-					system "echo finished! > " . FREEBSD_TTY;
-				}
-			
-			}elsif ( ($fname eq "vnxboot") || ($fname eq "vnxboot.xml") ) {
-				unless (&is_new_file($file)){
-					
-					# Autoconfiguration is done and the system has restarted 
-					# Check whether the <exec> commands with seq="on_boot" have been executed
-					my $on_boot_cmd_exec = get_conf_value (VNXACED_CID, 'on_boot_cmds_executed');
-					unless ($on_boot_cmd_exec eq 'yes') {
-						write_log ("executing <filetree> and <exec> commands after restart");
-						# Execute all <filetree> and <exec> commands in vnxboot file			
-						# Execute <filetree> commands
-						&execute_filetree($file);
-						# Execute <exec> commands 
-						&execute_commands($file);
-						# Commands executed, change config
-						set_conf_value (VNXACED_CID, 'on_boot_cmds_executed', 'yes')
-					}
-					next;				
-				}
-				if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
-				chomp (my $now = `date`);						
-				write_log ("~~ $now:");
-				write_log ("     configuration file received in $file");
-				&autoconfigure($file);
-
-			}elsif ($fname eq "vnx_update.xml"){
-				unless (&is_new_file($file) eq '1'){
-					next;				
-				}
-				if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
-				chomp (my $now = `date`);						
-				write_log ("~~ $now:");
-				write_log ("     update files received in $file");
-				&autoupdate;
-
-			}else {
-				# unknown file, do nothing
-			}
+		} else {
+			write_log ("ERROR: unknown command ($cmd[0])");
 		}
-		exe_mount_cmd ($umountCmd);
-		sleep 5;
-		exe_mount_cmd ($mountCmd);
+		
 	}
 }
 
@@ -1475,5 +1519,12 @@ sub set_conf_value {
     return $new_value;
 }
 
+sub vnxaced_die {
+    my $err_msg = shift;
+
+    write_log ($err_msg); 
+    die "$err_msg\n";
+
+}
 
 1;

@@ -5,7 +5,7 @@ workingdir = /tmp
         image = /usr/share/vnx/filesystems/c3640
         ram = 96
     
-[[ROUTER R]]
+[[ROUTER R3640]]
         model = 3640
         slot0 = NM-4E
         slot1 = NM-4T

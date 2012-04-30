@@ -125,6 +125,7 @@ sub defineVM {
 	my $filesystem;
 	my $con;
 
+=BEGIN
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 
 		my $vm = $vm_ordered[$i];
@@ -135,37 +136,51 @@ sub defineVM {
 		unless ( $name eq $vm_name ) {
 			next;
 		}
+=END
+=cut
 
-        if ($type ne "libvirt-kvm-olive") {
-	        # Create a temporary directory to store vnxboot file and filetree files
-			if ( $execution->get_exe_mode() ne $EXE_DEBUG ) {
-				my $command =
-				    $bd->get_binaries_path_ref->{"mktemp"}
-				  . " -d -p "
-				  . $dh->get_vm_tmp_dir($vm_name)
-				  . " vnx_opt_fs.XXXXXX";
-				chomp( $sdisk_content = `$command` );
-	            $execution->execute("mkdir " . $sdisk_content . "/filetree");
-			}
-			else {
-				$sdisk_content = $dh->get_tmp_dir . "/vnx_opt_fs.XXXXXX";
-			}
-			$sdisk_content .= "/";
-        } else { # olive
-            # Create the shared filesystem 
-            $sdisk_fname = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
-            # qemu-img create jconfig.img 12M
-            # TODO: change the fixed 50M to something configurable
-            $execution->execute( $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
-            # mkfs.msdos jconfig.img
-            $execution->execute( $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
-            # Mount the shared disk to copy filetree files
-            $sdisk_content = $dh->get_vm_hostfs_dir($vm_name) . "/";
-            $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
-            # Create filetree and config dirs in the shared disk
-            $execution->execute( "mkdir -p $sdisk_content/filetree");
-            $execution->execute( "mkdir -p $sdisk_content/config");        	
-        }		
+    my $vm = $dh->get_vm_byname ($vm_name);
+    wlog (VVV, "---- " . $vm->getAttribute("name"));
+
+    my $exec_mode   = $dh->get_vm_exec_mode($vm);
+    wlog (VVV, "---- vm_exec_mode = $exec_mode");
+
+    if ( ($exec_mode ne "cdrom") && ($exec_mode ne "sdisk") ) {
+        $execution->smartdie( "execution mode $exec_mode not supported for VM of type $type" );
+    }       
+
+    if ($exec_mode eq "cdrom") {
+    #if ($type ne "libvirt-kvm-olive") {
+        # Create a temporary directory to store vnxboot file and filetree files
+        if ( $execution->get_exe_mode() ne $EXE_DEBUG ) {
+            my $command =
+                $bd->get_binaries_path_ref->{"mktemp"}
+                . " -d -p "
+                . $dh->get_vm_tmp_dir($vm_name)
+                . " vnx_opt_fs.XXXXXX";
+            chomp( $sdisk_content = `$command` );
+            $execution->execute("mkdir " . $sdisk_content . "/filetree");
+        }
+        else {
+            $sdisk_content = $dh->get_tmp_dir . "/vnx_opt_fs.XXXXXX";
+        }
+        $sdisk_content .= "/";
+
+    } elsif ($exec_mode eq "sdisk") {
+        # Create the shared filesystem 
+        $sdisk_fname = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
+        # qemu-img create jconfig.img 12M
+        # TODO: change the fixed 50M to something configurable
+        $execution->execute( $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
+        # mkfs.msdos jconfig.img
+        $execution->execute( $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
+        # Mount the shared disk to copy filetree files
+        $sdisk_content = $dh->get_vm_hostfs_dir($vm_name) . "/";
+        $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
+        # Create filetree and config dirs in the shared disk
+        $execution->execute( "mkdir -p $sdisk_content/filetree");
+        $execution->execute( "mkdir -p $sdisk_content/config");        	
+    }		
 
 #		$filesystem = $dh->get_vm_fs_dir($name) . "/opt_fs";
 
@@ -216,7 +231,7 @@ sub defineVM {
 =END
 =cut
 
-	}
+#	}
 	
 	#
 	# Read extended configuration files
@@ -726,7 +741,8 @@ sub defineVM {
 	        my $res=`tree $sdisk_content`; wlog (VVV, "vm $vm_name 'on_boot' shared disk content:\n $res");
         }
     
-        if ($type ne "libvirt-kvm-olive") {
+        if ($exec_mode eq "cdrom") {
+        #if ($type ne "libvirt-kvm-olive") {
 
 			# Create the iso filesystem for the cdrom
 			my $filesystem_small = $dh->get_vm_fs_dir($vm_name) . "/opt_fs.iso";
@@ -748,7 +764,8 @@ sub defineVM {
 			$disk2_tag->addChild($target2_tag);
 			$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
         
-        } else {   # For olive VMs we use a shared disk 
+        } elsif ($exec_mode eq "sdisk") {
+        #} else {   # For olive VMs we use a shared disk 
 
 			# Copy autoconfiguration (vnxboot.xml) file to shared disk
 			#$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $sdisk_content/vnxboot $sdisk_content/vnxboot.xml" );
@@ -1282,6 +1299,23 @@ sub startVM {
 			if ( $dom_name eq $vm_name ) {
 				$listDom->create();
 				print "Domain started\n" if ($exemode == $EXE_VERBOSE);
+
+		        # Send the exeCommand order to the virtual machine using the socket
+                my $vm = $dh->get_vm_byname ($vm_name);
+                my $exec_mode   = $dh->get_vm_exec_mode($vm);
+                wlog (VVV, "---- vm_exec_mode = $exec_mode");
+		        my $socket_fh = $dh->get_vm_dir($vm_name). '/' . $vm_name . '_socket';
+		        my $vmsocket = IO::Socket::UNIX->new(
+		           Type => SOCK_STREAM,
+		           Peer => $socket_fh,
+		        ) or die("Can't connect to server: $!\n");
+		        #sleep 30;
+                # We send some nop (no operation) commands before sending the real command
+                # This is to avoid the loose of the first characters sent through the serial line
+                print $vmsocket "nop\n";
+                print $vmsocket "nop\n";     
+                # Now we send the real command
+                print $vmsocket "exeCommand $exec_mode\n";     
 
 				# save pid in run dir
 				my $uuid = $listDom->get_uuid_string();
@@ -1847,7 +1881,7 @@ sub executeCMD {
 		############ FILETREE ##############
 		my @filetree_list = $dh->merge_filetree($vm);
 		my $user   = &get_user_in_seq( $vm, $seq );
-		my $mode   = $dh->get_vm_exec_mode($vm);
+		my $exec_mode   = $dh->get_vm_exec_mode($vm);
 		my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_vm_hostfs_dir($vm_name)  . " filetree.XXXXXX";
 # AHORA SE LLAMARA COMMAND.XML Y LO PONGO EN OTRO DIR
 #		open COMMAND_FILE, ">" . $dh->get_vm_hostfs_dir($vm_name) . "/filetree.xml" or $execution->smartdie("can not open " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree.xml $!" ) unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
@@ -2154,6 +2188,7 @@ sub executeCMD {
 	          ($merged_type eq "libvirt-kvm-freebsd") || 
 	          ($merged_type eq "libvirt-kvm-olive") )    {
 		
+		
 		# Calculate the efective basedir
       	#my $basedir = $dh->get_default_basedir;
       	#my $basedir_list = $vm->getElementsByTagName("basedir");
@@ -2164,17 +2199,28 @@ sub executeCMD {
         my $sdisk_content;
         my $sdisk_fname;
         
-        if ($merged_type ne "libvirt-kvm-olive") {
+        my $user   = &get_user_in_seq( $vm, $seq );
+        my $exec_mode   = $dh->get_vm_exec_mode($vm);
+        wlog (VVV, "---- vm_exec_mode = $exec_mode");
+
+        if ( ($exec_mode ne "cdrom") && ($exec_mode ne "sdisk") ) {
+            $execution->smartdie( "execution mode $exec_mode not supported for VM of type $merged_type" );
+        }       
+
+        #if ($merged_type ne "libvirt-kvm-olive") {
+        if ($exec_mode eq "cdrom") {
             # Create a temporary directory to store command.xml file and filetree files
 	        my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_vm_tmp_dir($vm_name)  . " filetree.XXXXXX";
 	        chomp( $sdisk_content = `$command` );
 	        $sdisk_content =~ /filetree\.(\w+)$/;
 	        # create filetree dir
 	        $execution->execute("mkdir " . $sdisk_content ."/filetree");
-        } else { # Olive
+
+        } elsif ($exec_mode eq "sdisk") {
 	        # Mount the shared disk to copy command.xml and filetree files
 	        $sdisk_fname  = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
 	        $sdisk_content = $dh->get_vm_hostfs_dir($vm_name);
+            $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
             $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
 	        # Delete the previous content of the shared disk (although it is done at 
 	        # the end of this sub, we do it again here just in case...) 
@@ -2186,11 +2232,7 @@ sub executeCMD {
             $execution->execute( "mkdir -p $sdisk_content/config");
         }
         
-
-		# We create the command.xml file to be passed to the vm				
-		my $user   = &get_user_in_seq( $vm, $seq );
-		my $mode   = $dh->get_vm_exec_mode($vm);
-        #open COMMAND_FILE, ">" . $dh->get_vm_tmp_dir($vm_name) . "/command.xml" 
+        # We create the command.xml file to be passed to the vm             
         open COMMAND_FILE, "> $sdisk_content/command.xml" 
 		   or $execution->smartdie("cannot open " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml $!" ) 
 		   unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
@@ -2314,7 +2356,8 @@ sub executeCMD {
 
 #pak "pak3";
 
-        if ($merged_type ne "libvirt-kvm-olive") {
+        if ($exec_mode eq "cdrom") {
+        #if ($merged_type ne "libvirt-kvm-olive") {
 
 	        # Create the shared cdrom and offer it to the VM 
 	        my $iso_disk = $dh->get_vm_tmp_dir($vm_name) . "/disk.$random_id.iso";
@@ -2325,6 +2368,14 @@ sub executeCMD {
 			$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" $iso_disk hdb --mode readonly --type cdrom'");
 			wlog (V,"Sending command to client, through socket: \n" . $dh->get_vm_dir($vm_name). '/'.$vm_name.'_socket'."... ");
 	
+            # Send the exeCommand order to the virtual machine using the socket
+            my $socket_fh = $dh->get_vm_dir($vm_name). '/' . $vm_name . '_socket';
+            my $vmsocket = IO::Socket::UNIX->new(
+               Type => SOCK_STREAM,
+               Peer => $socket_fh,
+            ) or die("Can't connect to server: $!\n");
+            print $vmsocket "exeCommand cdrom\n";     
+
 	        # Wait for confirmation from the vm		
 			waitfiletree($dh->get_vm_dir($vm_name) .'/'.$vm_name.'_socket');
 			# mount empty iso, while waiting for new command	
@@ -2332,13 +2383,13 @@ sub executeCMD {
 			$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" $empty_iso_disk hdb --mode readonly --type cdrom'");
 			sleep 1;
 #pak "pak4";
-	
+
 		   	# Cleaning
 	        $execution->execute("rm $iso_disk $empty_iso_disk");
 	        $execution->execute("rm -rf $sdisk_content");
 	        $execution->execute("rm -rf " . $dh->get_vm_tmp_dir($vm_name) . "/$seq");
 
-	    } else { # Olive 
+        } elsif ($exec_mode eq "sdisk") {
             $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
 	        # Send the exeCommand order to the virtual machine using the socket
 	        my $socket_fh = $dh->get_vm_dir($vm_name). '/' . $vm_name . '_socket';
@@ -2346,7 +2397,7 @@ sub executeCMD {
 	           Type => SOCK_STREAM,
 	           Peer => $socket_fh,
 	        ) or die("Can't connect to server: $!\n");
-	        print $vmsocket "exeCommand\n";     
+	        print $vmsocket "exeCommand sdisk\n";     
 	        readSocketResponse ($vmsocket);
 #pak "pak4";
             # Cleaning
@@ -2358,179 +2409,8 @@ sub executeCMD {
 	    }
 
 #pak "pak5";
-	
-		
-	###########################################
-	#   executeCMD for OLIVE                  #
-	###########################################
-
 	} 
-=BEGIN Old code...delete	
-	
-	elsif ( ($merged_type eq "libvirt-kvm-oliveNO") ) {
-		          	          	
-      	# Calculate the efective basedir
-      	my $basedir = $dh->get_default_basedir;
-      	my $basedir_list = $vm->getElementsByTagName("basedir");
-      	if ($basedir_list->getLength == 1) {
-		        $basedir = &text_tag($basedir_list->item(0));
-		}
 
-		# We create the command.xml file to be passed to the vm		
-		my $user   = &get_user_in_seq( $vm, $seq );
-		my $mode   = $dh->get_vm_exec_mode($vm);
-		open COMMAND_FILE, ">" . $dh->get_vm_tmp_dir($vm_name) . "/command.xml" 
-		   or $execution->smartdie("can not open " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml $!" ) 
-		   unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		   
-		$execution->set_verb_prompt("$vm_name> ");
-		
-		#my $shell      = $dh->get_default_shell;
-		#my $shell_list = $vm->getElementsByTagName("shell");
-		#if ( $shell_list->getLength == 1 ) {
-		#	$shell = &text_tag( $shell_list->item(0) );
-		#}
-		
-		$execution->execute( "<command>", *COMMAND_FILE );
-		# Insert random id number for the command file
-		my $fileid = $vm_name . "-" . &generate_random_string(6);
-		$execution->execute(  "<id>" . $fileid ."</id>", *COMMAND_FILE );
-		my $dst_num = 0;
-		
-		#######################
-		
-		my @filetree_list = $dh->merge_filetree($vm);
-		
-
-		# Mount the shared disk to copy filetree files
-		my $sdisk_fname = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
-		my $vmmnt_dir = $dh->get_vm_mnt_dir($vm_name);
-		$execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $vmmnt_dir );
-		# Delete the previous content of the shared disk
-		$execution->execute( "rm -rf $vmmnt_dir/filetree/*");
-		$execution->execute( "rm -rf $vmmnt_dir/command.xml");
-		$execution->execute( "rm -rf $vmmnt_dir/vnxboot.xml");
-		$execution->execute("mkdir -p $vmmnt_dir/filetree");
-		
-
-
-		foreach my $filetree (@filetree_list) {
-			# To get momment
-			my $filetree_seq_string = $filetree->getAttribute("seq");
-	
-			# JSF 01/12/10: we accept several commands in the same seq tag,
-			# separated by spaces
-			my @filetree_seqs = split(' ',$filetree_seq_string);
-			foreach my $filetree_seq (@filetree_seqs) {
-			
-				# To install subtree (only in the right momment)
-				# FIXME: think again the "always issue"; by the moment deactivated
-				if ( $filetree_seq eq $seq ) {
-					$dst_num++;
-					my $src;
-					my $filetree_value = &text_tag($filetree);
-					$src = &get_abs_path ($filetree_value);
-					$src = &chompslash($src);
-					$execution->execute("mkdir $vmmnt_dir/filetree/".  $dst_num);
-					$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $vmmnt_dir/filetree/" . $dst_num );
-					my %file_perms = &save_dir_permissions($vmmnt_dir);
-					my $dest = $filetree->getAttribute("root");
-					my $filetreetxt = $filetree->toString(1);
-					$execution->execute( "$filetreetxt", *COMMAND_FILE );
-				}
-			}
-		}
-		$execution->set_verb_prompt("$vm_name> ");
-		my $command = $bd->get_binaries_path_ref->{"date"};
-		chomp( my $now = `$command` );
- 
-		# We process exec tags matching the commands sequence string ($sec)
-		my $command_list = $vm->getElementsByTagName("exec");
-		my $countcommand = 0;
-		for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
-			my $command = $command_list->item($j);
-
-			# To get attributes
-			my $cmd_seq_string = $command->getAttribute("seq");
-			my $type    = $command->getAttribute("type");
-
-			# JSF 01/12/10: we accept several commands in the same seq tag,
-			# separated by spaces
-			#print "cmd_seq_string=$cmd_seq_string\n";		
-			my @cmd_seqs = split(' ',$cmd_seq_string);
-			foreach my $cmd_seq (@cmd_seqs) {
-			#print "cmd_seq=$cmd_seq\n";
-				if ( $cmd_seq eq $seq ) {
-
-					# Case 1. Verbatim type
-					if ( $type eq "verbatim" ) {
-						# Including command "as is"
-						my $comando = $command->toString(1);
-						$execution->execute( $comando, *COMMAND_FILE );
-						$countcommand = $countcommand + 1;
-						my $ostype = $command->getAttribute("ostype");
-						if ( $ostype eq "load" ) {
-							# We have to copy the configuration file to the shared disk
-							my @aux = split(' ', &text_tag($command));
-							print "config file = $aux[1]\n" if ($exemode == $EXE_VERBOSE);
-							# TODO: relative pathname
-							my $src = &get_abs_path ($aux[1]);
-							$src = &chompslash($src);
-							$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $src $vmmnt_dir");													
-						}			
-						
-					}
-
-					# Case 2. File type
-					elsif ( $type eq "file" ) {
-						# We open the file and write commands line by line
-						my $include_file = &do_path_expansion( &text_tag($command) );
-						open INCLUDE_FILE, "$include_file" or $execution->smartdie("can not open $include_file: $!");
-						while (<INCLUDE_FILE>) {
-							chomp;
-							$execution->execute(
-								#"<exec seq=\"file\" type=\"file\">" 
-								  #. $_
-								  #. "</exec>",
-								  $_,
-								*COMMAND_FILE
-							);
-							$countcommand = $countcommand + 1;
-						}
-						close INCLUDE_FILE;
-					}
-			 # Other case. Don't do anything (it would be and error in the XML!)
-				}
-			}
-		}
-		$execution->execute( "</command>", *COMMAND_FILE );
-		# We close file and mark it executable
-		close COMMAND_FILE
-		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		$execution->pop_verb_prompt();
-
-
-		# Copy command.xml file to shared disk
-		$execution->execute( "cp " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml $vmmnt_dir" );
-		# Dismount shared disk
-		$execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $dh->get_vm_mnt_dir($vm_name) );
-
-        # Save a copy of the last command.xml 
-        $execution->execute( "cp " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml " . $dh->get_vm_dir($vm_name) . "/${vm_name}_command.xml" );
-
- 		# Send the exeCommand order to the virtual machine using the socket
-		my $socket_fh = $dh->get_vm_dir($vm_name). '/' . $vm_name . '_socket';
-		my $vmsocket = IO::Socket::UNIX->new(
-		   Type => SOCK_STREAM,
-		   Peer => $socket_fh,
-		) or die("Can't connect to server: $!\n");
-		print $vmsocket "exeCommand\n";		
-		readSocketResponse ($vmsocket);
-
-    }
-=END
-=cut
-		
     ################## EXEC_COMMAND_HOST ########################3
 
     my $doc = $dh->get_doc;
