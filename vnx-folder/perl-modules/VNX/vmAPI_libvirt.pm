@@ -2171,8 +2171,18 @@ sub executeCMD {
 			$execution->execute("virsh -c qemu:///system 'attach-device \"$vm_name\" ". $dh->get_vm_hostfs_dir($vm_name) . "/command_libvirt.xml'");
 			#$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 			print "Sending command to client... \n" if ($exemode == $EXE_VERBOSE);
-						
-			waitexecute($dh->get_vm_dir($vm_name).'/'.$vm_name.'_socket');
+
+            my $socket_path = $dh->get_vm_dir($vm_name).'/'.$vm_name.'_socket';
+            my $vmsocket = IO::Socket::UNIX->new(
+                Type => SOCK_STREAM,
+                Peer => $socket_path,
+                Timeout => 10
+            ) or die("Can't connect to server: $!\n");
+
+            wait_sock_answer ($vmsocket);
+            sleep(2);
+            $vmsocket->close();         
+			
 			$execution->execute("rm /tmp/diskc.$seq.$random_id.iso");
 			$execution->execute("rm -r /tmp/diskc.$seq.$random_id");
 			$execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$vm_name.$seq.$random_id" );
@@ -2232,10 +2242,20 @@ sub executeCMD {
             $execution->execute( "mkdir -p $sdisk_content/config");
         }
         
-        # We create the command.xml file to be passed to the vm             
-        open COMMAND_FILE, "> $sdisk_content/command.xml" 
-		   or $execution->smartdie("cannot open " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml $!" ) 
-		   unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+        # We create the command.xml file to be passed to the vm
+        wlog (VVV, "opening file $sdisk_content/command.xml...");
+        my $retry = 3;
+        while ( ! open COMMAND_FILE, "> $sdisk_content/command.xml" ) {
+        	# Sometimes this open fails with a read-only filesystem error message (??)...
+        	# ...retrying inmediately seems to solve the problem...
+            $retry--; wlog (VVV, "open failed for file $sdisk_content/command.xml...retrying");
+            $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
+            $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
+            if ( $retry ==  0 ) {
+                $execution->smartdie("cannot open " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml $!" ) 
+                unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+            }
+		} 
 		   
 		$execution->set_verb_prompt("$vm_name> ");
 		
@@ -2366,18 +2386,23 @@ sub executeCMD {
 			                    "-pad -quiet -allow-lowercase -allow-multidot " . 
 			                    "-o $iso_disk $sdisk_content");
 			$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" $iso_disk hdb --mode readonly --type cdrom'");
-			wlog (V,"Sending command to client, through socket: \n" . $dh->get_vm_dir($vm_name). '/'.$vm_name.'_socket'."... ");
+			wlog (V,"Sending command to client, through socket: " . $dh->get_vm_dir($vm_name). '/'.$vm_name.'_socket'."... ");
 	
             # Send the exeCommand order to the virtual machine using the socket
             my $socket_fh = $dh->get_vm_dir($vm_name). '/' . $vm_name . '_socket';
+            wlog (VVV, "socket_fh = $socket_fh ");
             my $vmsocket = IO::Socket::UNIX->new(
                Type => SOCK_STREAM,
                Peer => $socket_fh,
+               Timeout => 10
             ) or die("Can't connect to server: $!\n");
             print $vmsocket "exeCommand cdrom\n";     
-
-	        # Wait for confirmation from the vm		
-			waitfiletree($dh->get_vm_dir($vm_name) .'/'.$vm_name.'_socket');
+            
+	        # Wait for confirmation from the VM		
+            wait_sock_answer ($vmsocket);
+            $vmsocket->close();
+            
+            #waitfiletree($dh->get_vm_dir($vm_name) .'/'.$vm_name.'_socket');
 			# mount empty iso, while waiting for new command	
 			$execution->execute("touch $empty_iso_disk");
 			$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" $empty_iso_disk hdb --mode readonly --type cdrom'");
@@ -2391,14 +2416,20 @@ sub executeCMD {
 
         } elsif ($exec_mode eq "sdisk") {
             $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
+	        
 	        # Send the exeCommand order to the virtual machine using the socket
 	        my $socket_fh = $dh->get_vm_dir($vm_name). '/' . $vm_name . '_socket';
 	        my $vmsocket = IO::Socket::UNIX->new(
 	           Type => SOCK_STREAM,
 	           Peer => $socket_fh,
+	           Timeout => 10
 	        ) or die("Can't connect to server: $!\n");
-	        print $vmsocket "exeCommand sdisk\n";     
-	        readSocketResponse ($vmsocket);
+	        print $vmsocket "exeCommand sdisk\n";  
+            
+            # Wait for confirmation from the VM     
+            wait_sock_answer ($vmsocket);
+            $vmsocket->close();	        
+	        #readSocketResponse ($vmsocket);
 #pak "pak4";
             # Cleaning
             $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
@@ -2693,43 +2724,39 @@ sub get_ip_hostname {
 
 ###################################################################
 #
-sub waitfiletree {
+sub wait_sock_answer {
 
-	my $socket_path = shift;
-	
-	my $socket = IO::Socket::UNIX->new(
-	   Type => SOCK_STREAM,
-	   Peer => $socket_path,
-	)
-	   or die("Can't connect to server: $!\n");
-	
-	chomp( my $line = <$socket> );
-	print qq{Done. \n};
-	sleep(2);
-	$socket->close();
+	my $socket = shift;
+    my $timeout = 30;
+
+    wlog (VVV, "wait_sock_answer called... $socket");
+
+    eval {
+        local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
+        alarm $timeout;
+
+        while (1) {
+            my $line = <$socket>;
+            print "** $line"; # if ($exemode == $EXE_VERBOSE);
+            last if ( ( $line =~ /^OK/) || ( $line =~ /^NOTOK/) 
+                      || ( $line =~ /^finished/)  # for old linux daemons (deprecated)  
+                      || ( $line =~ /^1$/));      # for windows ace (deprecated)
+        }
+        alarm 0;
+    };
+    if ($@) {
+        die unless $@ eq "alarm\n";   # propagate unexpected errors
+        # timed out
+        wlog (N, "ERROR: timeout waiting for response on VM socket");
+    }
+    else {
+        # didn't
+    }
 
 }
-
-
 
 ###################################################################
 #
-sub waitexecute {
-
-	my $socket_path = shift;
-	my $numprocess = shift;
-	my $i;
-	my $socket = IO::Socket::UNIX->new(
-		   Type => SOCK_STREAM,
-		   Peer => $socket_path,
-			)
-   			or die("Can't connect to server: $!\n");
-	chomp( my $line = <$socket> );
-	print qq{Done. \n};
-	sleep(2);
-	$socket->close();
-
-}
 
 
 

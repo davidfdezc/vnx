@@ -129,14 +129,19 @@ for (my $i=0; $i <= $#ARGV; $i++) {
 if ($DEBUG) { print "DEBUG mode\n"; }
 if ($VERBOSE) { print "VERBOSE mode\n"; }
 
-@platform = split(/,/, &get_os_distro);
+my $os_distro = get_os_distro();
+@platform = split(/,/, $os_distro);
 	
 if ($platform[0] eq 'Linux'){
 	
     $vm_tty = LINUX_TTY;
 	if ($platform[1] eq 'Ubuntu')    { 
 		$mount_cdrom_cmd  = 'mount /media/cdrom';
-		$umount_cdrom_cmd = 'eject; umount /media/cdrom';
+        if ($platform[2] eq '12.04') {
+            $umount_cdrom_cmd = 'eject; umount /media/cdrom';
+        } else {
+            $umount_cdrom_cmd = 'umount /media/cdrom';
+        }
 	}			
 	elsif ($platform[1] eq 'Fedora') { 
 		$mount_cdrom_cmd = 'udisks --mount /dev/sr0';
@@ -170,6 +175,7 @@ chomp (my $now = `date`);
 write_log ("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 write_log ("~~ vnxaced version $VNXACED_VER (built on $VNXACED_BUILT)");
 write_log ("~~   started at $now");
+write_log ("~~   OS: $os_distro");
 write_log ("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
 #if (-f VNXACED_PID){
