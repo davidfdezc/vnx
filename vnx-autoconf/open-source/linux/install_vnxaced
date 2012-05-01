@@ -52,12 +52,18 @@ if ($platform[0] eq 'Linux'){
          ($platform[1] eq 'Fedora') ) { 
 
         # Use VNXACED based on upstart
+        if ($platform[1] eq 'Ubuntu' && $platform[2] =~ /^8.04/ ){
+            ln -s /etc/event.d /etc/init
+        }
 		system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
 		system "chown root:root /usr/local/bin/vnxaced";
 		system "chmod 755 /usr/local/bin/vnxaced";
 		system "cp -v linux/upstart/vnxace.conf /etc/init/";
 		system "chown root:root /etc/init/vnxace.conf";
 		system "chmod 644 /etc/init/vnxace.conf";
+        if ($platform[1] eq 'Ubuntu' && $platform[2] =~ /^8.04/ ){
+            mv /etc/init/vnxace.conf /etc/init/vnxace
+        }	
 		system "cp -v linux/bin/xsu /usr/local/bin";
 		system "chown root:root /usr/local/bin/xsu";
 		system "chmod 755 /usr/local/bin/xsu";

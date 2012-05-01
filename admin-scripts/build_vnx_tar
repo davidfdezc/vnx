@@ -68,8 +68,10 @@ echo "** "
 #
 # Other versions and tar file name
 #
-ACED_OLIVE_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
-ACED_LF_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
+#ACED_OLIVE_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
+ACED_OLIVE_VERSION=$VNX_VERSION
+#ACED_LF_VERSION="0.1b"  # -`date +%Y%m%d%H%M`"
+ACED_LF_VERSION=$VNX_VERSION
 ACED_WIN_VERSION="0.1b"
 #ROOTFS_VERSION="es-v023b"
 FNAME=vnx-${VNX_VERSION_DATE}
