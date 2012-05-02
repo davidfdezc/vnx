@@ -48,22 +48,31 @@ if ($platform[0] eq 'Linux'){
 	#  Update for Linux       
 	# ~~~~~~~~~~~~~~~~~~
 	print "-- Linux platform detected ($platform[1])\n";
-	if ( ($platform[1] eq 'Ubuntu') or   
-         ($platform[1] eq 'Fedora') ) { 
+    if ($platform[1] eq 'Ubuntu' && $platform[2] =~ /^8.04/ ){
+
+        # Particular case for Ubuntu 8.04: use VNXACED based on init.d
+        system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
+        system "chown root:root /usr/local/bin/vnxaced";
+        system "chmod 755 /usr/local/bin/vnxaced";
+        
+        system "cp -v linux/init.d/vnxace-ubuntu-8.04 /etc/init.d/vnxace";
+        system "chown root:root /etc/init.d/vnxace";
+        system "chmod 755 /etc/init.d/vnxace";
+        system "update-rc.d vnxace defaults";
+        system "cp -v linux/bin/xsu /usr/local/bin";
+        system "chown root:root /usr/local/bin/xsu";
+        system "chmod 755 /usr/local/bin/xsu";
+
+	} elsif ( ($platform[1] eq 'Ubuntu') or   
+            ($platform[1] eq 'Fedora') ) { 
 
         # Use VNXACED based on upstart
-        if ($platform[1] eq 'Ubuntu' && $platform[2] =~ /^8.04/ ){
-            ln -s /etc/event.d /etc/init
-        }
 		system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
 		system "chown root:root /usr/local/bin/vnxaced";
 		system "chmod 755 /usr/local/bin/vnxaced";
 		system "cp -v linux/upstart/vnxace.conf /etc/init/";
 		system "chown root:root /etc/init/vnxace.conf";
 		system "chmod 644 /etc/init/vnxace.conf";
-        if ($platform[1] eq 'Ubuntu' && $platform[2] =~ /^8.04/ ){
-            mv /etc/init/vnxace.conf /etc/init/vnxace
-        }	
 		system "cp -v linux/bin/xsu /usr/local/bin";
 		system "chown root:root /usr/local/bin/xsu";
 		system "chmod 755 /usr/local/bin/xsu";
