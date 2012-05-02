@@ -1300,6 +1300,7 @@ sub startVM {
 				$listDom->create();
 				print "Domain started\n" if ($exemode == $EXE_VERBOSE);
 
+                sleep (2);
 		        # Send the exeCommand order to the virtual machine using the socket
                 my $vm = $dh->get_vm_byname ($vm_name);
                 my $exec_mode   = $dh->get_vm_exec_mode($vm);
@@ -1312,7 +1313,9 @@ sub startVM {
 		        #sleep 30;
                 # We send some nop (no operation) commands before sending the real command
                 # This is to avoid the loose of the first characters sent through the serial line
-                print $vmsocket "nop\n";
+                sleep (1);
+                print $vmsocket "nop\n";     
+                print $vmsocket "nop\n";     
                 print $vmsocket "nop\n";     
                 # Now we send the real command
                 print $vmsocket "exeCommand $exec_mode\n";     
@@ -1858,6 +1861,8 @@ sub executeCMD {
     my $ftree_list_ref        = shift;
     my $exec_list_ref         = shift;
 
+    my $error = 0;
+
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)");
 
 #pak ("press any key to continue");
@@ -2214,7 +2219,7 @@ sub executeCMD {
         wlog (VVV, "---- vm_exec_mode = $exec_mode");
 
         if ( ($exec_mode ne "cdrom") && ($exec_mode ne "sdisk") ) {
-            $execution->smartdie( "execution mode $exec_mode not supported for VM of type $merged_type" );
+            return "execution mode $exec_mode not supported for VM of type $merged_type";
         }       
 
         #if ($merged_type ne "libvirt-kvm-olive") {
@@ -2396,6 +2401,8 @@ sub executeCMD {
                Peer => $socket_fh,
                Timeout => 10
             ) or die("Can't connect to server: $!\n");
+
+            $vmsocket->flush; # delete socket buffers, just in case...  
             print $vmsocket "exeCommand cdrom\n";     
             
 	        # Wait for confirmation from the VM		
@@ -2424,7 +2431,9 @@ sub executeCMD {
 	           Peer => $socket_fh,
 	           Timeout => 10
 	        ) or die("Can't connect to server: $!\n");
-	        print $vmsocket "exeCommand sdisk\n";  
+	        
+	        $vmsocket->flush; # delete socket buffers, just in case...  
+            print $vmsocket "exeCommand sdisk\n";  
             
             # Wait for confirmation from the VM     
             wait_sock_answer ($vmsocket);
@@ -2489,8 +2498,10 @@ sub executeCMD {
             # Other case. Don't do anything (it would be an error in the XML!)
         }
     }
+    return $error;
 }
 
+=BEGIN
 sub readSocketResponse 
 {
 	my $socket = shift;
@@ -2505,12 +2516,13 @@ sub readSocketResponse
 	print "----------------------------\n" if ($exemode == $EXE_VERBOSE);
 
 }
+=END
+=cut
 
 ###################################################################
 #                                                                 
 sub change_vm_status {
 
-#	my $dh     = shift;
 	my $vm     = shift;
 	my $status = shift;
 
