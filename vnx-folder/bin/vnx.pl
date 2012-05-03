@@ -1721,8 +1721,9 @@ sub configure_virtual_bridged_networks {
    for ( my $i = 0; $i < @vm_ordered; $i++) {
       my $vm = $vm_ordered[$i];
 
-      # We get name attribute
+      # We get name and type attribute
       my $vm_name = $vm->getAttribute("name");
+      my $vm_type = $vm->getAttribute("type");
 
       # Only one modprobe tun in the same execution: after checking tun_device_needed. See mode_t subroutine
       # -----------------------
@@ -1750,8 +1751,9 @@ sub configure_virtual_bridged_networks {
 	     my $net = $if->getAttribute("net");
 
          # Only TUN/TAP for interfaces attached to bridged networks
+         # We do not create tap interfaces for libvirt VMs. It is done by libvirt 
    	     #if (&check_net_br($net)) {
-	     if (&get_net_by_mode($net,"virtual_bridge") != 0) {
+	     if ( ($vm_type ne 'libvirt') && ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
 
 	        # We build TUN device name
 	        my $tun_if = $vm_name . "-e" . $id;
@@ -1843,6 +1845,7 @@ sub tun_connect {
 
       # We get name attribute
       my $vm_name = $vm->getAttribute("name");
+      my $vm_type = $vm->getAttribute("type");
 
       # To get UML's interfaces list
       my $if_list = $vm->getElementsByTagName("if");
@@ -1858,8 +1861,9 @@ sub tun_connect {
          my $net = $if->getAttribute("net");
 	 
          # Only TUN/TAP for interfaces attached to bridged networks
+         # We do not add tap interfaces for libvirt VMs. It is done by libvirt 
          #if (&check_net_br($net)) {
-         if (&get_net_by_mode($net,"virtual_bridge") != 0) {
+         if (($vm_type ne 'libvirt') && ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
 	 
 	        my $net_if = $vm_name . "-e" . $id;
 
@@ -3674,6 +3678,7 @@ sub automac {
       # tun/tap (ver https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/579892)
       # Una solución temporal es cambiar las direcciones a un número más bajo: fe:fd -> 02:fd
       # return ",fe:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
+      #my $mac = "fe:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
       my $mac = "02:fd:$upper_offset:$lower_offset:$ante_lower:$lower";
       # expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
       $mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
