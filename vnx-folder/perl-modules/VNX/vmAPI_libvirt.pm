@@ -811,27 +811,31 @@ sub defineVM {
 			# should not be treated by libvirt)
 			if ($net eq "lo") { next}
 			 
-			my $interface_tag = $init_xml->createElement('interface');
-			$devices_tag->addChild($interface_tag);
+			my $interface_tag;
 			if ($id eq 0){
+				# Commented on 3/5/2012. Now mgmt interfaces are defined in <qemu:commandline> section
 				$mng_if_exists = 1;
 				$mac =~ s/,//;
 				$mng_if_mac = $mac;		
-				$interface_tag->addChild(
-				$init_xml->createAttribute( type => 'network' ) );
-				$interface_tag->addChild(
-				$init_xml->createAttribute( name => "eth" . $id ) );
-				$interface_tag->addChild(
-				$init_xml->createAttribute( onboot => "yes" ) );
-			    my $source_tag = $init_xml->createElement('source');
-			    $interface_tag->addChild($source_tag);
-			    $source_tag->addChild(
-				$init_xml->createAttribute( network => 'default') );
-				my $mac_tag = $init_xml->createElement('mac');
-			    $interface_tag->addChild($mac_tag);
-			    $mac =~ s/,//;
-			    $mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+				#$interface_tag->addChild(
+				#$init_xml->createAttribute( type => 'network' ) );
+				#$interface_tag->addChild(
+				#$init_xml->createAttribute( name => "eth" . $id ) );
+				#$interface_tag->addChild(
+				#$init_xml->createAttribute( onboot => "yes" ) );
+			    #my $source_tag = $init_xml->createElement('source');
+			    #$interface_tag->addChild($source_tag);
+			    #$source_tag->addChild(
+				#$init_xml->createAttribute( network => 'default') );
+				#my $mac_tag = $init_xml->createElement('mac');
+			    #$interface_tag->addChild($mac_tag);
+			    #$mac =~ s/,//;
+			    #$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
 			}else{
+				
+				$interface_tag = $init_xml->createElement('interface');
+                $devices_tag->addChild($interface_tag);
+				
                 # <interface type='bridge' name='eth1' onboot='yes'>
 				$interface_tag->addChild( $init_xml->createAttribute( type => 'bridge' ) );
 				$interface_tag->addChild( $init_xml->createAttribute( name => "eth" . $id ) );
@@ -841,6 +845,11 @@ sub defineVM {
 			    my $source_tag = $init_xml->createElement('source');
 			    $interface_tag->addChild($source_tag);
 			    $source_tag->addChild( $init_xml->createAttribute( bridge => $net ) );
+
+                # <target dev="vm1-e1"/>
+                my $target_tag = $init_xml->createElement('target');
+                $interface_tag->addChild($target_tag);
+                $target_tag->addChild( $init_xml->createAttribute( dev => "$vm_name-e$id" ) );
 
 				# <mac address="02:fd:00:04:01:00"/>
 				my $mac_tag = $init_xml->createElement('mac');
@@ -1062,8 +1071,10 @@ sub defineVM {
 		
 		if ($mng_if_exists){		
 		
-				my $qemucommandline_tag = $init_xml->createElement('qemu:commandline');
-				$domain_tag->addChild($qemucommandline_tag);
+            # -device rtl8139,netdev=lan1 -netdev tap,id=lan1,ifname=ubuntu-e0,script=no,downscript=no
+		
+            my $qemucommandline_tag = $init_xml->createElement('qemu:commandline');
+            $domain_tag->addChild($qemucommandline_tag);
 				
 				my $qemuarg_tag = $init_xml->createElement('qemu:arg');
 				$qemucommandline_tag->addChild($qemuarg_tag);
@@ -1072,15 +1083,15 @@ sub defineVM {
 				$mng_if_mac =~ s/,//;
 				my $qemuarg_tag2 = $init_xml->createElement('qemu:arg');
 				$qemucommandline_tag->addChild($qemuarg_tag2);
-				$qemuarg_tag2->addChild( $init_xml->createAttribute( value => "rtl8139,vlan=0,mac=$mng_if_mac" ) );
+				$qemuarg_tag2->addChild( $init_xml->createAttribute( value => "rtl8139,netdev=mgmtif0,mac=$mng_if_mac" ) );
 				
 				my $qemuarg_tag3 = $init_xml->createElement('qemu:arg');
 				$qemucommandline_tag->addChild($qemuarg_tag3);
-				$qemuarg_tag3->addChild( $init_xml->createAttribute( value => "-net" ) );
+				$qemuarg_tag3->addChild( $init_xml->createAttribute( value => "-netdev" ) );
 				
 				my $qemuarg_tag4 = $init_xml->createElement('qemu:arg');
 				$qemucommandline_tag->addChild($qemuarg_tag4);
-				$qemuarg_tag4->addChild( $init_xml->createAttribute( value => "tap,vlan=0,ifname=$vm_name-e0,script=no" ) );
+				$qemuarg_tag4->addChild( $init_xml->createAttribute( value => "tap,id=mgmtif0,ifname=$vm_name-e0,script=no" ) );
 				
 		}
 		     
