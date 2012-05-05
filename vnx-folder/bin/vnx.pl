@@ -1753,7 +1753,8 @@ sub configure_virtual_bridged_networks {
          # Only TUN/TAP for interfaces attached to bridged networks
          # We do not create tap interfaces for libvirt VMs. It is done by libvirt 
    	     #if (&check_net_br($net)) {
-	     if ( ($vm_type ne 'libvirt') && ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
+         if ( ($vm_type ne 'libvirt') && ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
+         #if ( ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
 
 	        # We build TUN device name
 	        my $tun_if = $vm_name . "-e" . $id;
@@ -1795,6 +1796,26 @@ sub configure_virtual_bridged_networks {
                $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
 	        }
 	        sleep 1;    # needed in SuSE 8.2
+            
+            #
+            # Create a tap interface with a "low" mac address and join it to the bridge to 
+            # obligue the bridge to use that mac address.
+            # See http://backreference.org/2010/07/28/linux-bridge-mac-addresses-and-dynamic-ports/
+            #
+            # Generate a random mac address under prefix 02:00:00 
+            my @chars = ( "a" .. "f", "0" .. "9");
+            my $brtap_mac = "020000" . join("", @chars[ map { rand @chars } ( 1 .. 6 ) ]);
+            $brtap_mac =~ s/(..)/$1:/g;
+            chop $brtap_mac;                       
+            # Create tap interface
+            my $brtap_name = "$net_name-e00";
+            $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $brtap_name -f " . $dh->get_tun_device);
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name address $brtap_mac");                       
+            # Join the tap interface to bridge
+            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $brtap_name");
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name up");                       
+            
+            # Bring the bridge up
             #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
             $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");	        
          }
@@ -1864,6 +1885,7 @@ sub tun_connect {
          # We do not add tap interfaces for libvirt VMs. It is done by libvirt 
          #if (&check_net_br($net)) {
          if (($vm_type ne 'libvirt') && ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
+         #if ( ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
 	 
 	        my $net_if = $vm_name . "-e" . $id;
 
@@ -2975,6 +2997,7 @@ sub bridges_destroy {
 
    my $doc = $dh->get_doc;
 
+   wlog (VVV, "-- bridges_destroy called", "");
    # To get list of defined <net>
    my $net_list = $doc->getElementsByTagName("net");
 
@@ -2989,7 +3012,14 @@ sub bridges_destroy {
       if ($mode ne "uml_switch") {
 
          # Set bridge down and remove it only in the case there isn't any associated interface 
-         if (&vnet_ifs($net_name) == 0) {
+         my @br_ifs =&vnet_ifs($net_name);   
+         if ( (@br_ifs == 1) && ( $br_ifs[0] eq "${net_name}-e00" ) ) {
+         	
+         	# Destroy the tap associated with the bridge
+            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set ${net_name}-e00 down");
+            $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d ${net_name}-e00");
+            
+            # Destroy the bridge
             #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name down");
             $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net_name down");
             $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delbr $net_name");
