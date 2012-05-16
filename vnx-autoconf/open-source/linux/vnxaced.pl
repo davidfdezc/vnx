@@ -114,7 +114,7 @@ for (my $i=0; $i <= $#ARGV; $i++) {
         } elsif ( ($ARGV[$i] eq "-h") or ($ARGV[$i] eq "--help") ) {
                 print "$version\n";
                 print "$usage\n";
-                exit (1);
+                exit (0);
         } elsif ( ($ARGV[$i] eq "-m") or ($ARGV[$i] eq "--monitor") ) {
                 my $res=`ps uaxw | grep '/usr/local/bin/vnxaced' | grep -v watch | grep -v grep | grep -v ' -m'`;
                 print "$res\n";
@@ -142,10 +142,11 @@ if ($platform[0] eq 'Linux'){
 	
     $vm_tty = LINUX_TTY;
 	if ($platform[1] eq 'Ubuntu')    { 
-		$mount_cdrom_cmd  = 'mount /media/cdrom';
         if ($platform[2] eq '12.04') {
-            $umount_cdrom_cmd = 'eject; umount /media/cdrom';
+            $mount_cdrom_cmd = 'mount /dev/sr0 /media/cdrom';
+            $umount_cdrom_cmd = 'eject /media/cdrom; umount /media/cdrom';              	
         } else {
+            $mount_cdrom_cmd  = 'mount /media/cdrom';
             $umount_cdrom_cmd = 'umount /media/cdrom';
         }
 	}			
@@ -166,6 +167,9 @@ if ($platform[0] eq 'Linux'){
     $vm_tty = FREEBSD_TTY;
 	$mount_cdrom_cmd = 'mount /cdrom';
 	$umount_cdrom_cmd = 'umount -f /cdrom';
+    $mount_sdisk_cmd  = 'mount -t msdosfs /dev/ad1 /mnt/sdisk';
+    $umount_sdisk_cmd = 'umount /mnt/sdisk';
+    system "mkdir -p /mnt/sdisk";
 
 } else {
 	write_log ("ERROR: unknown platform ($platform[0]). Only Linux and FreeBSD supported.");
@@ -364,7 +368,7 @@ sub process_cmd {
                     write_log ("     sending 'done' signal to host...\n");
                     system "echo OK > $vm_tty";
                     
-                }elsif ( ($fname eq "vnxboot") || ($fname eq "vnxboot.xml") ) {
+                } elsif ( ($fname eq "vnxboot") || ($fname eq "vnxboot.xml") ) {
 
                     unless (&is_new_file($file)){
                             
@@ -392,7 +396,7 @@ sub process_cmd {
                     set_conf_value (VNXACED_CID, 'exec_mode', $cmd[1]);
                     &autoconfigure($file);
     
-                }elsif ($fname eq "vnx_update.xml"){
+                } elsif ($fname eq "vnx_update.xml"){
                     unless (&is_new_file($file) eq '1'){
                         next;               
                     }
@@ -400,9 +404,9 @@ sub process_cmd {
                     chomp (my $now = `date`);                       
                     write_log ("~~ $now:");
                     write_log ("     update files received in $file");
-                    &autoupdate;
+                    autoupdate ($files_dir);
      
-                }else {
+                } else {
                     # unknown file, do nothing
                 }
             }
@@ -418,7 +422,53 @@ sub process_cmd {
         }
             
     } elsif ($cmd[0] eq "nop") { # do nothing
+
         write_log ("nop command received. Nothing to do.")
+
+    } elsif ($cmd[0] eq "hello") { 
+
+        write_log ("hello command received. Sending OK...");
+        system "echo OK > $vm_tty";
+
+    } elsif ($cmd[0] eq "halt") { 
+
+        write_log ("halt command received. Sending OK and halting...");
+        system "echo OK > $vm_tty";
+        system "halt -p";
+
+    } elsif ($cmd[0] eq "reboot") { 
+
+        write_log ("reboot command received. Sending OK and rebooting...");
+        system "echo OK > $vm_tty";
+        system "reboot";
+
+    } elsif ($cmd[0] eq "vnxaced_update") { 
+
+        write_log ("vnxaced_update command received. Updating and sending OK...");
+        
+        if ( ($cmd[1] eq "cdrom") || ($cmd[1] eq "sdisk") ) {
+
+            if ( $cmd[1] eq "cdrom" ) {
+                exe_mount_cmd ($mount_cdrom_cmd);
+                $files_dir = $cd_dir;
+            } else { # sdisk 
+                exe_mount_cmd ($mount_sdisk_cmd);
+                $files_dir = '/mnt/sdisk';
+            }
+
+            if ($VERBOSE) {
+                my $res=`ls -l $files_dir`; write_log ("\n~~ $cmd[1] content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
+            }
+            
+            system "echo OK > $vm_tty";
+            autoupdate ($files_dir);             
+        	
+        } else {
+            write_log ("ERROR: exec_mode $cmd[1] not supported");
+            my $msg = "NOTOK exec_mode $cmd[1] not supported";
+            system "echo $msg > $vm_tty";
+        }
+        
     } else {
         write_log ("ERROR: unknown command ($cmd[0])");
     }	
@@ -429,13 +479,22 @@ sub process_cmd {
 
 sub autoupdate {
 	
+    my $files_dir = shift;	
+	
 	#############################
 	# update for Linux          #
 	#############################
 	if ($platform[0] eq 'Linux'){
 		write_log ("     updating vnxaced for Linux...");
-		system "perl /media/cdrom/uninstall_vnxaced -n";
-		system "perl /media/cdrom/install_vnxaced";
+
+        if (-e "$files_dir/install_vnxaced") {
+            system "perl $files_dir/uninstall_vnxaced -n";
+            system "perl $files_dir/install_vnxaced";
+        } elsif (-e "$files_dir/vnxaced-lf/install_vnxaced") {
+            system "perl $files_dir/vnxaced-lf/uninstall_vnxaced -n";
+            system "perl $files_dir/vnxaced-lf/install_vnxaced";
+        }
+
 		#if ( ($platform[1] eq 'Ubuntu') or   
         # 	 ($platform[1] eq 'Fedora') ) { 
         #	# Use VNXACED based on upstart
@@ -452,8 +511,14 @@ sub autoupdate {
 	#############################
 	elsif ($platform[0] eq 'FreeBSD'){
 		write_log ("     updating vnxdaemon for FreeBSD...");
-		system "/cdrom/uninstall_vnxaced -n";
-		system "/cdrom/install_vnxaced";
+
+        if (-e "$files_dir/install_vnxaced") {
+	        system "$files_dir/uninstall_vnxaced -n";
+	        system "$files_dir/install_vnxaced";
+        } elsif (-e "$files_dir/vnxaced-lf/install_vnxaced") {
+	        system "$files_dir/vnxaced-lf/uninstall_vnxaced -n";
+	        system "$files_dir/vnxaced-lf/install_vnxaced";
+        }
 		#system "cp /cdrom/vnxaced.pl /usr/local/bin/vnxaced";
 		#system "cp /cdrom/freebsd/vnxace /etc/rc.d/vnxace";
 	}

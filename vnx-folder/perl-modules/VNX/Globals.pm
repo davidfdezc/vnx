@@ -50,6 +50,7 @@ our @EXPORT = qw(
 	$hypervisor
 	$vnxConfigFile
 
+    $VNX_INSTALL_DIR
 	$DEFAULT_TMP_DIR
 	$DEFAULT_VNX_DIR
 	$DEFAULT_CONF_FILE
@@ -116,12 +117,18 @@ our $vnxConfigFile; # VNX Configuration file
 
 
 # Configuration files and directories
+Readonly::Scalar our $VNX_INSTALL_DIR => '/usr/share/vnx';
 Readonly::Scalar our $DEFAULT_TMP_DIR => '/tmp';
 Readonly::Scalar our $DEFAULT_CONF_FILE => '/etc/vnx.conf';
 Readonly::Scalar our $DEFAULT_VNX_DIR => '~/.vnx';
 Readonly::Scalar our $DEFAULT_CLUSTER_CONF_FILE => '/etc/ediv/cluster.conf';
 Readonly::Scalar our $EDIV_SEG_ALGORITHMS_DIR => '/usr/share/vnx/lib/seg-alg';
 Readonly::Scalar our $EDIV_LOGS_DIR => '/var/log/vnx';
+
+# Host to virtual machines communication channel
+Readonly::Scalar our $H2VM_BASE_PORT => '13000';  # Initial TCP port for host to virtual machines channels 
+                                                  # (used when USE_UNIX_SOCKETS=0 in vmAPI_libvirt)
+our $H2VM_PORT = $H2VM_BASE_PORT;                 # Points to the next TCP port to be used for H2VM channels
 
 # Console Management
 Readonly::Scalar our $CONS_DISPLAY_DEFAULT => 'yes';    # By default consoles are displayed at startup

@@ -73,6 +73,9 @@ use XML::DOM;
 use IO::Socket::UNIX qw( SOCK_STREAM );
 
 
+use constant USE_UNIX_SOCKETS => 0;  # Use unix sockets (1) or TCP (0) to communicate with virtual machine 
+
+
 #
 # Module vmAPI_libvirt initialization code
 #
@@ -498,18 +501,44 @@ sub defineVM {
 		#print "$consFile: con0=$cons0Display,vnc_display,UNK_VNC_DISPLAY\n" if ($exemode == $EXE_VERBOSE);
 		close (CONS_FILE); 
 
-        # <serial> tag --> autoconfiguration control socket       
+        # <serial> tag --> host to VM (H2VM) communications channel       
 		my $serial_tag = $init_xml->createElement('serial');
-		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
+        if (USE_UNIX_SOCKETS == 1) { # Use a UNIX socket
+		    $serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
+        } else { # Use TCP
+            $serial_tag->addChild( $init_xml->createAttribute( type => 'tcp' ) );
+        }		    
 		$devices_tag->addChild($serial_tag);
 
 		my $source3_tag = $init_xml->createElement('source');
 		$serial_tag->addChild($source3_tag);
 		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_socket' ) );
-		my $target_tag = $init_xml->createElement('target');
-		$serial_tag->addChild($target_tag);
-		$target_tag->addChild( $init_xml->createAttribute( port => '1' ) );
+        
+        if (USE_UNIX_SOCKETS == 1) { # Use a UNIX socket
+
+	        #my $sock_dir = "/var/run/libvirt/vnx/" . $dh->get_scename . "/";
+	        #my $sock_dir = $dh->get_tmp_dir . "/.vnx/" . $dh->get_scename . "/";
+	        #system "mkdir -p $sock_dir";
+	        #$source3_tag->addChild( $init_xml->createAttribute( path => $sock_dir . $vm_name . '_socket' ) );
+	        $source3_tag->addChild( $init_xml->createAttribute( path => $dh->get_vm_dir($vm_name) . '/run/' . $vm_name . '_socket' ) );
+
+        } else {  # Use TCP
+        	
+            $source3_tag->addChild( $init_xml->createAttribute( host => '0.0.0.0' ) );
+            my $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);
+            $source3_tag->addChild( $init_xml->createAttribute( service => $h2vm_port ) );
+            # Add it to h2vm_port file
+            my $h2vm_fname = $dh->get_vm_dir . "/$vm_name/run/h2vm_port";
+            open H2VMFILE, "> $h2vm_fname"
+                or $execution->smartdie("can not open $h2vm_fname\n")
+                unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+            print H2VMFILE "$h2vm_port";
+            close H2VMFILE;
+            wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+        }
+        my $target_tag = $init_xml->createElement('target');
+        $serial_tag->addChild($target_tag);
+        $target_tag->addChild( $init_xml->createAttribute( port => '1' ) );         
 
 
 		if ($mng_if_exists){		
@@ -581,7 +610,7 @@ sub defineVM {
 	        ($type eq "libvirt-kvm-olive") ) {
 
 		#print "*** $sdisk_content\n" if ($exemode == $EXE_VERBOSE); 
-		open CONFILE, ">$sdisk_content" . "vnxboot.xml"
+		open CONFILE, "> $sdisk_content" . "vnxboot.xml"
 		  or $execution->smartdie("can not open ${sdisk_content}vnxboot: $!")
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 		#$execution->execute($vm_doc ,*CONFILE);
@@ -765,12 +794,11 @@ sub defineVM {
 			$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
         
         } elsif ($exec_mode eq "sdisk") {
-        #} else {   # For olive VMs we use a shared disk 
 
 			# Copy autoconfiguration (vnxboot.xml) file to shared disk
 			#$execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $sdisk_content/vnxboot $sdisk_content/vnxboot.xml" );
 			# Copy initial router configuration if defined 
-			print "****    confFile = $confFile\n";
+			#print "****    confFile = $confFile\n";
 			if ($confFile ne '') {
                 #$execution->execute( "mkdir $sdisk_content/config" );
                 $execution->execute( $bd->get_binaries_path_ref->{"cp"} . " $confFile $sdisk_content/config" );
@@ -1031,16 +1059,42 @@ sub defineVM {
         }
 		close (CONS_FILE); 
 
-        # <serial> tag --> autoconfiguration control socket       
-		my $serial_tag = $init_xml->createElement('serial');
-		$serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
-		$devices_tag->addChild($serial_tag);
+        # <serial> tag --> host to VM (H2VM) communications channel       
+        my $serial_tag = $init_xml->createElement('serial');
+        if (USE_UNIX_SOCKETS == 1) { # Use a UNIX socket
+            $serial_tag->addChild( $init_xml->createAttribute( type => 'unix' ) );
+        } else { # Use TCP
+            $serial_tag->addChild( $init_xml->createAttribute( type => 'tcp' ) );
+        }           
+        $devices_tag->addChild($serial_tag);
 
-		# $devices_tag->addChild($disk2_tag);
 		my $source3_tag = $init_xml->createElement('source');
 		$serial_tag->addChild($source3_tag);
 		$source3_tag->addChild( $init_xml->createAttribute( mode => 'bind' ) );
-		$source3_tag->addChild(	$init_xml->createAttribute( path => $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_socket' ) );
+		
+        if (USE_UNIX_SOCKETS == 1) { # Use a UNIX socket
+
+            #my $sock_dir = "/var/run/libvirt/vnx/" . $dh->get_scename . "/";
+            #my $sock_dir = $dh->get_tmp_dir . "/.vnx/" . $dh->get_scename . "/";
+            #system "mkdir -p $sock_dir";
+            #$source3_tag->addChild( $init_xml->createAttribute( path => $sock_dir . $vm_name . '_socket' ) );
+            $source3_tag->addChild(    $init_xml->createAttribute( path => $dh->get_vm_dir($vm_name) . '/run/' . $vm_name . '_socket' ) );
+
+        } else {  # Use TCP
+            
+            $source3_tag->addChild( $init_xml->createAttribute( host => '0.0.0.0' ) );
+            my $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);
+            $source3_tag->addChild( $init_xml->createAttribute( service => $h2vm_port ) );
+            # Add it to h2vm_port file
+            my $h2vm_fname = $dh->get_vm_dir . "/$vm_name/run/h2vm_port";
+            open H2VMFILE, "> $h2vm_fname"
+                or $execution->smartdie("can not open $h2vm_fname\n")
+                unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+            print H2VMFILE "$h2vm_port";
+            close H2VMFILE;
+            wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+        }
+
 		my $target_tag = $init_xml->createElement('target');
 		$serial_tag->addChild($target_tag);
            if ($type eq "libvirt-kvm-olive") {
@@ -1150,8 +1204,6 @@ sub defineVM {
 		return $error;
 	}
 }
-
-
 
 
 ###################################################################
@@ -1316,12 +1368,39 @@ sub startVM {
                 my $vm = $dh->get_vm_byname ($vm_name);
                 my $exec_mode   = $dh->get_vm_exec_mode($vm);
                 wlog (VVV, "---- vm_exec_mode = $exec_mode");
-		        my $socket_fh = $dh->get_vm_dir($vm_name). '/' . $vm_name . '_socket';
-		        my $vmsocket = IO::Socket::UNIX->new(
-		           Type => SOCK_STREAM,
-		           Peer => $socket_fh,
-		        ) or die("Can't connect to server: $!\n");
-		        #sleep 30;
+                
+                my $vmsocket;
+                if (USE_UNIX_SOCKETS == 1) { # Use a UNIX socket
+
+	                #my $socket_fh = "/var/run/libvirt/vnx/" . $dh->get_scename . "/${vm_name}_socket";
+	                #my $socket_fh = $dh->get_tmp_dir . "/.vnx/" . $dh->get_scename . "/${vm_name}_socket";
+	                my $socket_fh = $dh->get_vm_dir($vm_name). '/run/' . $vm_name . '_socket';
+	
+	                $vmsocket = IO::Socket::UNIX->new(
+	                   Type => SOCK_STREAM,
+	                   Peer => $socket_fh,
+	                ) or $execution->smartdie("Can't connect to server: $!\n");
+
+                } else {  # Use TCP
+
+		            # Add it to h2vm_port file
+                    my $h2vm_fname = $dh->get_vm_dir . "/$vm_name/run/h2vm_port";
+		            open H2VMFILE, "< $h2vm_fname"
+		                or $execution->smartdie("can not open $h2vm_fname\n")
+		                unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+		            my $h2vm_port = <H2VMFILE>;
+
+                    wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+
+                    $vmsocket = IO::Socket::INET->new(
+                        Proto    => "tcp",
+                        PeerAddr => "localhost",
+                        PeerPort => "$h2vm_port",
+                    ) or $execution->smartdie("Can't connect to $vm_name H2VM port: $!\n");
+
+                }
+                
+                #sleep 30;
                 # We send some nop (no operation) commands before sending the real command
                 # This is to avoid the loose of the first characters sent through the serial line
                 sleep (1);
@@ -2188,12 +2267,36 @@ sub executeCMD {
 			#$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" /tmp/diskc.$seq.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
 			print "Sending command to client... \n" if ($exemode == $EXE_VERBOSE);
 
-            my $socket_path = $dh->get_vm_dir($vm_name).'/'.$vm_name.'_socket';
-            my $vmsocket = IO::Socket::UNIX->new(
-                Type => SOCK_STREAM,
-                Peer => $socket_path,
-                Timeout => 10
-            ) or die("Can't connect to server: $!\n");
+            my $vmsocket;
+            if (USE_UNIX_SOCKETS == 1) { # Use a UNIX socket
+
+	            #my $socket_fh = "/var/run/libvirt/vnx/" . $dh->get_scename . "/${vm_name}_socket";
+	            #my $socket_fh = $dh->get_tmp_dir . "/.vnx/" . $dh->get_scename . "/${vm_name}_socket";
+	            my $socket_fh = $dh->get_vm_dir($vm_name).'/run/'.$vm_name.'_socket';
+	            $vmsocket = IO::Socket::UNIX->new(
+	                Type => SOCK_STREAM,
+	                Peer => $socket_fh,
+	                Timeout => 10
+	            ) or $execution->smartdie("Can't connect to server: $!\n");
+
+            } else {  # Use TCP
+
+                # Add it to h2vm_port file
+                my $h2vm_fname = $dh->get_vm_dir . "/$vm_name/run/h2vm_port";
+                open H2VMFILE, "< $h2vm_fname"
+                    or $execution->smartdie("can not open $h2vm_fname\n")
+                    unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+                my $h2vm_port = <H2VMFILE>;
+
+                wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+
+                $vmsocket = IO::Socket::INET->new(
+                    Proto    => "tcp",
+                    PeerAddr => "localhost",
+                    PeerPort => "$h2vm_port",
+                ) or $execution->smartdie("Can't connect to $vm_name H2VM port: $!\n");
+
+            }
 
             wait_sock_answer ($vmsocket);
             sleep(2);
@@ -2402,16 +2505,39 @@ sub executeCMD {
 			                    "-pad -quiet -allow-lowercase -allow-multidot " . 
 			                    "-o $iso_disk $sdisk_content");
 			$execution->execute("virsh -c qemu:///system 'attach-disk \"$vm_name\" $iso_disk hdb --mode readonly --type cdrom'");
-			wlog (V,"Sending command to client, through socket: " . $dh->get_vm_dir($vm_name). '/'.$vm_name.'_socket'."... ");
-	
+
             # Send the exeCommand order to the virtual machine using the socket
-            my $socket_fh = $dh->get_vm_dir($vm_name). '/' . $vm_name . '_socket';
-            wlog (VVV, "socket_fh = $socket_fh ");
-            my $vmsocket = IO::Socket::UNIX->new(
-               Type => SOCK_STREAM,
-               Peer => $socket_fh,
-               Timeout => 10
-            ) or die("Can't connect to server: $!\n");
+
+            my $vmsocket;
+            if (USE_UNIX_SOCKETS == 1) { # Use a UNIX socket
+
+                #my $socket_fh = "/var/run/libvirt/vnx/" . $dh->get_scename . "/${vm_name}_socket";
+                #my $socket_fh = $dh->get_tmp_dir . "/.vnx/" . $dh->get_scename . "/${vm_name}_socket";
+                my $socket_fh = $dh->get_vm_dir($vm_name).'/run/'.$vm_name.'_socket';
+                $vmsocket = IO::Socket::UNIX->new(
+                    Type => SOCK_STREAM,
+                    Peer => $socket_fh,
+                    Timeout => 10
+                ) or $execution->smartdie("Can't connect to server: $!\n");
+
+            } else {  # Use TCP
+
+                # Add it to h2vm_port file
+                my $h2vm_fname = $dh->get_vm_dir . "/$vm_name/run/h2vm_port";
+                open H2VMFILE, "< $h2vm_fname"
+                    or $execution->smartdie("can not open $h2vm_fname\n")
+                    unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+                my $h2vm_port = <H2VMFILE>;
+
+                wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+
+                $vmsocket = IO::Socket::INET->new(
+                    Proto    => "tcp",
+                    PeerAddr => "localhost",
+                    PeerPort => "$h2vm_port",
+                ) or $execution->smartdie("Can't connect to $vm_name H2VM port: $!\n");
+
+            }
 
             $vmsocket->flush; # delete socket buffers, just in case...  
             print $vmsocket "exeCommand cdrom\n";     
@@ -2433,15 +2559,40 @@ sub executeCMD {
 	        $execution->execute("rm -rf " . $dh->get_vm_tmp_dir($vm_name) . "/$seq");
 
         } elsif ($exec_mode eq "sdisk") {
+
             $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
 	        
 	        # Send the exeCommand order to the virtual machine using the socket
-	        my $socket_fh = $dh->get_vm_dir($vm_name). '/' . $vm_name . '_socket';
-	        my $vmsocket = IO::Socket::UNIX->new(
-	           Type => SOCK_STREAM,
-	           Peer => $socket_fh,
-	           Timeout => 10
-	        ) or die("Can't connect to server: $!\n");
+            my $vmsocket;
+            if (USE_UNIX_SOCKETS == 1) { # Use a UNIX socket
+
+                #my $socket_fh = "/var/run/libvirt/vnx/" . $dh->get_scename . "/${vm_name}_socket";
+                #my $socket_fh = $dh->get_tmp_dir . "/.vnx/" . $dh->get_scename . "/${vm_name}_socket";
+                my $socket_fh = $dh->get_vm_dir($vm_name).'/run/'.$vm_name.'_socket';
+                $vmsocket = IO::Socket::UNIX->new(
+                    Type => SOCK_STREAM,
+                    Peer => $socket_fh,
+                    Timeout => 10
+                ) or $execution->smartdie("Can't connect to server: $!\n");
+
+            } else {  # Use TCP
+
+                # Add it to h2vm_port file
+                my $h2vm_fname = $dh->get_vm_dir . "/$vm_name/run/h2vm_port";
+                open H2VMFILE, "< $h2vm_fname"
+                    or $execution->smartdie("can not open $h2vm_fname\n")
+                    unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+                my $h2vm_port = <H2VMFILE>;
+
+                wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+
+                $vmsocket = IO::Socket::INET->new(
+                    Proto    => "tcp",
+                    PeerAddr => "localhost",
+                    PeerPort => "$h2vm_port",
+                ) or $execution->smartdie("Can't connect to $vm_name H2VM port: $!\n");
+
+            }
 	        
 	        $vmsocket->flush; # delete socket buffers, just in case...  
             print $vmsocket "exeCommand sdisk\n";  
@@ -2742,45 +2893,6 @@ sub get_ip_hostname {
 	# No valid IPv4 found
 	return 0;
 }
-
-
-
-###################################################################
-#
-sub wait_sock_answer {
-
-	my $socket = shift;
-    my $timeout = 30;
-
-    wlog (VVV, "wait_sock_answer called... $socket");
-
-    eval {
-        local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
-        alarm $timeout;
-
-        while (1) {
-            my $line = <$socket>;
-            print "** $line"; # if ($exemode == $EXE_VERBOSE);
-            last if ( ( $line =~ /^OK/) || ( $line =~ /^NOTOK/) 
-                      || ( $line =~ /^finished/)  # for old linux daemons (deprecated)  
-                      || ( $line =~ /^1$/));      # for windows ace (deprecated)
-        }
-        alarm 0;
-    };
-    if ($@) {
-        die unless $@ eq "alarm\n";   # propagate unexpected errors
-        # timed out
-        wlog (N, "ERROR: timeout waiting for response on VM socket");
-    }
-    else {
-        # didn't
-    }
-
-}
-
-###################################################################
-#
-
 
 
 ###################################################################

@@ -38,11 +38,15 @@ our @EXPORT = qw(
     check_net_host_conn 
     vnet_exists_br
     vnet_exists_sw
-    vnet_ifs    
+    vnet_ifs
+    get_next_free_port 
+    wait_sock_answer
+    recv_sock   
 );
 
 use VNX::Globals;
 use VNX::DocumentChecks;
+use VNX::Execution;
 
 # tundevice_needed
 #
@@ -165,6 +169,7 @@ sub vnet_exists_sw {
    
 }
 
+#
 # vnet_ifs
 #
 # Returns a list in which each element is one of the interfaces (TUN/TAP devices
@@ -222,5 +227,83 @@ sub vnet_ifs {
    return @if_list;
 
 }
+
+sub get_next_free_port {
+
+    my $port_ref = shift;   
+    my $port;
+    while ( !system("fuser -s -v -n tcp $$port_ref") ) {
+        #wlog (VV, "get_next_free_port: port " . $$port_ref . " used, trying next...");
+        $$port_ref++;
+    }
+    $port = $$port_ref;
+    $$port_ref++;
+    #wlog (VV, "get_next_free_port: using port $$port_ref");
+    return $port;
+}
+
+#
+# wait_sock_answer
+#
+sub wait_sock_answer {
+
+    my $socket = shift;
+    my $timeout = 30;
+
+    wlog (VVV, "wait_sock_answer called... $socket");
+
+    eval {
+        local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
+        alarm $timeout;
+
+        while (1) {
+            my $line = <$socket>;
+            wlog (VVV, "** $line", ""); # if ($exemode == $EXE_VERBOSE)
+            last if ( ( $line =~ /^OK/) || ( $line =~ /^NOTOK/) 
+                      || ( $line =~ /^finished/)  # for old linux daemons (deprecated)  
+                      || ( $line =~ /^1$/));      # for windows ace (deprecated)
+        }
+        alarm 0;
+    };
+    if ($@) {
+        die unless $@ eq "alarm\n";   # propagate unexpected errors
+        # timed out
+        wlog (N, "ERROR: timeout waiting for response on VM socket");
+    }
+    else {
+        # didn't
+    }
+
+}
+
+#
+# recv_sock
+#
+sub recv_sock {
+
+    my $socket = shift;
+    my $timeout = 30;
+    my $line;
+    
+    wlog (VVV, "recv_sock called... $socket");
+
+    eval {
+        local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
+        alarm $timeout;
+        $line = <$socket>;
+        wlog (VVV, "line=$line", "");
+        alarm 0;
+    };
+    if ($@) {
+        die unless $@ eq "alarm\n";   # propagate unexpected errors
+        # timed out
+        wlog (N, "ERROR: timeout waiting for response on VM socket");
+        return '';
+    }
+    else {
+        return "$line";
+    }
+}
+
 
 1;
