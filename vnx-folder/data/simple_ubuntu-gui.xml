@@ -39,7 +39,7 @@ SPAIN
   <net name="Net0" mode="virtual_bridge" />
   
   <!-- NODES -->
-  <vm name="ubuntu-gui" type="libvirt" subtype="kvm" os="linux">
+  <vm name="ubuntu-gui" type="libvirt" subtype="kvm" os="linux" exec_mode="sdisk">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu-gui</filesystem>
     <mem>512M</mem>
     <if id="1" net="Net0">

@@ -243,10 +243,10 @@ sub main {
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
                 'show-map', 'console:s', 'console-info', 'exe-info', 'clean-host',
-                'modify-rootfs=s',
+                'modify-rootfs=s', 'update-aced:s', 'mem=s', 'yes|y',
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
-                'u=s', '4', '6', 'D', 'no-console|n', 'st-delay|y=s',
+                'u=s', '4', '6', 'D', 'no-console|n', 'st-delay=s',
                 'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b',
                 # deprecated
                 'cid=s'
@@ -271,8 +271,7 @@ sub main {
    
    	# Check the existance of the VNX configuration file 
    	unless ( (-e $vnxConfigFile) or ($opts{'version'}) or ($opts{'help'}) ) {
-   	 	print "\nERROR: VNX configuration file $vnxConfigFile not found\n\n";
-   	 	exit(1);   	 
+        vnx_die ("ERROR: VNX configuration file $vnxConfigFile not found");
    	}
    
    	# Set VNX and TMP directories
@@ -287,9 +286,11 @@ sub main {
    	} else {
    		$vnx_dir = &do_path_expansion($vnx_dir);
    	}
+   	unless (valid_absolute_directoryname($vnx_dir) ) {
+        vnx_die ("ERROR: $vnx_dir is not an absolute directory name");
+   	}
    	print "  VNX dir=$vnx_dir\n" if (!$opts{b});
     print $hline . "\n"  if (!$opts{b});
-   	
 
    	# To check arguments consistency
    	# 0. Check if -f is present
@@ -497,7 +498,7 @@ sub main {
         unless ( -f $opts{'modify-rootfs'} ) {
             &vnx_die ("file $opts{'modify-rootfs'} is not valid (perhaps does not exists)");
         }
-        mode_modifyrootfs($tmp_dir);
+        mode_modifyrootfs($tmp_dir, $vnx_dir);
         exit(0);
     }
     
@@ -1459,15 +1460,207 @@ sub mode_cleanhost {
 sub mode_modifyrootfs {
 	
     my $tmp_dir = shift;
+    my $vnx_dir = shift;
+
+    my $sdisk_fname; # shared disk complete file name 
+    my $h2vm_port;   # host tcp port used to access the the host-to-VM comms channel 
+    my $vm_libirt_xml_hdb;
+    my $mem;         # Memory assigned to the virtual machine
+    my $default_mem = "512M";
+ 
+    use constant USE_CDROM_FORMAT => 0;  # 
+ 
+    
+    # Set memory value
+    if ($opts{'mem'}) {
+        $mem = $opts{'mem'}
+    } else {
+        $mem = $default_mem;
+    }
+    # Convert <mem> tag value to Kilobytes (only "M" and "G" letters are allowed) 
+    if ((($mem =~ /M$/))) {
+        $mem =~ s/M//;
+        $mem = $mem * 1024;
+    } elsif ((($mem =~ /G$/))) {
+        $mem =~ s/G//;
+        $mem = $mem * 1024 * 1024;
+    } else {
+    	vnx_die ("Incorrect memory specification ($mem). Use 'M' or 'G' to specify Mbytes or Gbytes. Ej: 512M, 1G ");
+    }
+    
     my $rootfs_name = basename $opts{'modify-rootfs'};
     $rootfs_name .= "-" . int(rand(10000));
-    my $rootfs_abs_fname = `readlink -f $opts{'modify-rootfs'}`; chomp ($rootfs_abs_fname);
-    my $vm_xml_fname = "$tmp_dir/vnx_modify_rootfs/${rootfs_name}.xml";
-    
-    my $vm_xml = <<EOF;    
+
+    # Create a temp directory to store everything
+    my $base_dir = `mktemp --tmpdir=$tmp_dir -td vnx_modify_rootfs.XXXXXX`;
+    chomp ($base_dir);
+    my $rootfs_fname = `readlink -f $opts{'modify-rootfs'}`; chomp ($rootfs_fname);
+    my $vm_xml_fname = "$base_dir/${rootfs_name}.xml";
+
+    if ( defined($opts{'update-aced'}) ) {
+
+        wlog (N, "mode_modifyrootfs: update-aced option selected ($opts{'update-aced'})", "");
+  	    #
+	    # Create shared disk with latest versions of VNXACE daemon
+	    #
+        my $content_dir;
+        my $make_iso_cmd;
+        my $sdisk_mount;
+        
+if (USE_CDROM_FORMAT) {
+
+        # Check mkisofs or genisoimage binary is available
+        $make_iso_cmd = 'mkisofs';
+        my $fail = system ("which $make_iso_cmd > /dev/null");
+        if ($fail) { # Try genisoimage 
+            print "-- mkisofs not found; trying genisoimage\n";
+            $make_iso_cmd = 'genisoimage';
+            $fail = system("which $make_iso_cmd > /dev/null");
+            if ($fail) { 
+               vnx_die ("ERROR: neither mkisofs nor genisoimage binaries found\n"); 
+            }
+        } 
+        my $where = `which $make_iso_cmd`;
+        chomp($where);
+        $make_iso_cmd = $where;
+        wlog (VVV, "make_iso_cmd=$make_iso_cmd", "");
+
+        # Create temp directory to store VNXACED
+        my $content_dir="$base_dir/iso-content";
+        wlog (N, "-- Creating iso-content temp directory ($content_dir)...", "");
+        system "mkdir $content_dir";
+	
+} else {
+
+        # Create the shared filesystem 
+        $sdisk_fname = $base_dir . "/sdisk.img";
+        # TODO: change the fixed 50M to something configurable
+        $execution->execute( $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
+        # format shared disk as msdos partition
+        $execution->execute( $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
+        # Create mount directory
+        $sdisk_mount = "$base_dir/mnt/";
+        $execution->execute( "mkdir -p $sdisk_mount");
+        # Mount the shared disk to copy filetree files
+        $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_mount );
+
+        # Set content directory
+        $content_dir="$sdisk_mount";
+	
+}	    
+  
+	    # Calculate VNX aced dir
+	    my $vnxaced_dir = $VNX_INSTALL_DIR . "/aced"; 
+	    wlog (VVV, "-- VNX aced dir=$vnxaced_dir", "");
+
+	    my $aced_tar_file;
+	    if ($opts{'update-aced'} eq '') {
+	        # ACED tar file not specified: we copy all the latest versions found in vnx/aced directory
+	        my $aced_dir = abs_path( "${vnxaced_dir}" );
+            my $found = 0;
+            
+            # Linux/FreeBSD
+	        my @files = <${aced_dir}/vnx-aced-lf-*>; 
+	        @files = reverse sort @files;
+	        $aced_tar_file = $files[0];
+	        if (defined($aced_tar_file) && $aced_tar_file ne ''){
+	            system "mkdir $content_dir/vnxaced-lf";
+	            system "tar xfz $aced_tar_file -C $content_dir/vnxaced-lf --strip-components=1";
+                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-lf)...", "");
+	            $found = 1;
+	        }
+            # Olive
+            @files = <${aced_dir}/vnx-aced-olive-*>; 
+            @files = reverse sort @files;
+            $aced_tar_file = $files[0];
+            if (defined($aced_tar_file) && $aced_tar_file ne ''){
+                system "mkdir $content_dir/vnxaced-olive";
+                system "tar xfz $aced_tar_file -C $content_dir/vnxaced-olive --strip-components=1";
+                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-olive)...", "");
+                $found = 1;
+            }
+            # Windows
+            @files = <${aced_dir}/vnx-aced-win-*>; 
+            @files = reverse sort @files;
+            $aced_tar_file = $files[0];
+            if (defined($aced_tar_file) && $aced_tar_file ne ''){
+                system "mkdir $content_dir/vnxaced-win";
+                system "cp $aced_tar_file $content_dir/vnxaced-win";
+                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-win)...", "");
+                $found = 1;
+            }
+            if (!$found) {
+                vmx_die ("No VNXACED file specified and no VNXACE tar files found in $aced_dir\n");
+            }
+	        
+	    } else {
+	        my $aced_tar_file = abs_path($opts{'update-aced'});
+	        if (! -e $aced_tar_file) {
+	            vnx_die ("VNXACE tar file ($aced_tar_file) not found");
+	            exit (1);
+	        }
+            if ($aced_tar_file =~ /vnx-aced-lf/) {         # Linux/FreeBSD
+                system "mkdir $content_dir/vnxaced-lf";
+                system "tar xfz $aced_tar_file -C $content_dir/vnxaced-lf --strip-components=1";
+            } elsif ($aced_tar_file =~ /vnx-aced-olive/) { # Olive
+                system "mkdir $content_dir/vnxaced-olive";
+                system "tar xfz $aced_tar_file -C $content_dir/vnxaced-olive --strip-components=1";
+            } elsif ($aced_tar_file =~ /vnx-aced-win/) {   # Windows
+                system "mkdir $content_dir/vnxaced-win";
+                system "cp $aced_tar_file $content_dir/vnxaced-win";
+            } else {
+                system "cp $aced_tar_file $content_dir";            	
+            }
+	    }
+
+if (USE_CDROM_FORMAT) {
+
+        wlog (N, "-- Creating iso filesystem...", "");
+        wlog (VVV, "--    $make_iso_cmd -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
+              " -allow-lowercase -allow-multidot -d -o $base_dir/vnx_update.iso $content_dir", "");
+        system "$make_iso_cmd -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
+              " -allow-lowercase -allow-multidot -d -o $base_dir/vnx_update.iso $content_dir";
+        #print "--   rm -rf $content_dir\n";
+        system "rm -rf $content_dir";
+        
+        $sdisk_fname = "$base_dir/vnx_update.iso";
+
+} else {
+
+        # Unmount shared disk
+        $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_mount );
+        # sdisk_fname already set
+
+}
+
+	    $vm_libirt_xml_hdb = <<EOF;
+<disk type="file" device="disk">
+    <source file="$sdisk_fname"/>
+    <target dev="hdb"/>
+</disk>
+EOF
+
+    } else {
+    	$vm_libirt_xml_hdb = "";
+    }
+
+    # Get a free port for h2vm channel
+    $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);    
+
+    # Create the VM libvirt XML
+    #
+    # Variables:
+    #  $rootfs_name, rootfs file name
+    #  $rootfs_fname, rootfs complete file name (with path)
+    #  $sdisk_fname; # shared disk complete file name 
+    #  $h2vm_port;   # host tcp port used to access the the host-to-VM comms channel 
+    #  $vm_libirt_xml_hdb;
+
+    my $vm_libirt_xml = <<EOF;
+
 <domain type='kvm'>
   <name>$rootfs_name</name>
-  <memory>524288</memory>
+  <memory>$mem</memory>
   <vcpu>1</vcpu>
   <os>
     <type arch="i686">hvm</type>
@@ -1483,39 +1676,85 @@ sub mode_modifyrootfs {
   <devices>
     <emulator>/usr/bin/kvm</emulator>
     <disk type='file' device='disk'>
-      <source file='$rootfs_abs_fname'/>
+      <source file='$rootfs_fname'/>
       <target dev='hda'/>
       <driver name="qemu" type="qcow2"/>
     </disk>
-    <disk type='file' device='cdrom'>
-      <target dev='hdb'/>
-    </disk>
+    $vm_libirt_xml_hdb
     <interface type='network'>
       <source network='default'/>
     </interface>
-    <serial type="pty">
-      <target port="1"/>
-    </serial>
-    <console type="pty">
-      <target port="1"/>
-    </console>
     <graphics type='vnc'/>
+    <serial type="pty">
+      <target port="0"/>
+     </serial>
+     <console type="pty">
+      <target port="0"/>
+     </console>
+     <serial type="tcp">
+         <source mode="bind" host="0.0.0.0" service="$h2vm_port"/>
+         <protocol type="raw"/>
+         <target port="1"/>
+     </serial>
   </devices>
 </domain>
+
 EOF
 
-    print "modify-rootfs mode:\n";
-    print "  Starting a virtual machine with root filesystem $opts{'modify-rootfs'}\n  ";
     
-    # Create dir and write XML file
-    system "mkdir -p $tmp_dir/vnx_modify_rootfs";
+    # Create XML file
     open (XMLFILE, "> $vm_xml_fname") or vnx_die ("cannot open file $vm_xml_fname");
-    print XMLFILE "$vm_xml";
+    print XMLFILE "$vm_libirt_xml";
     close (XMLFILE); 
 
+    wlog (N, "-- Starting a virtual machine with root filesystem $opts{'modify-rootfs'}", "");
     system "virsh create $vm_xml_fname"; 
     system "virt-viewer $rootfs_name &"; 
     
+    # Wait till the VM has started
+    my $vmsocket = IO::Socket::INET->new(
+                    Proto    => "tcp",
+                    PeerAddr => "localhost",
+                    PeerPort => "$h2vm_port",
+                ) or vnx_die ("Can't connect to virtual machine H2VM port: $!\n");
+
+    $vmsocket->flush; # delete socket buffers, just in case...  
+    print $vmsocket "hello\n";
+    wlog (N, "-- Waiting for virtual machine to start...");
+    
+    #print $vmsocket "nop\n";
+
+    my $t = time();
+    my $timeout = 120; # secs
+
+    while (1) {
+    	
+        $vmsocket->flush;
+        print $vmsocket "hello\n";
+    	my $res = recv_sock ($vmsocket);
+    	wlog (VVV, "    res=$res", "");
+    	last if ( $res =~ /^OK/);
+    	if ( time() - $t > $timeout) {
+    		vnx_die ("Timeout waiting for virtual machine to start.")
+    	}
+    }     
+    wlog (N, "-- Virtual machine started OK.", "");
+    
+    # Update VNXACED if requested
+    if ( defined($opts{'update-aced'}) ) {
+    
+        if (!$opts{yes}) {
+            wlog (N, "-- Do you want to update VNXACED in virtual machine (y/n)?", "");
+            my $line = readline(*STDIN);
+            unless ( $line =~ /^[yY]/ ) {
+                wlog (N, "-- VNXACED not updated");
+                exit (0);
+            } 
+        }    
+        wlog (N, "-- Updating VNXACED...VM should now be updated and halted. If not, update VNXACED manually.");
+        print $vmsocket "vnxaced_update sdisk\n";
+    
+    }    
 }
 
 
@@ -3062,6 +3301,9 @@ sub mode_destroy {
 	#    ...but only if -M option is not active (DFC 27/01/2010)
 
         $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_sim_dir . "/*");
+
+        #$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . "/var/run/libvirt/vnx/" . $dh->get_scename);
+        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_tmp_dir . "/.vnx/" . $dh->get_scename);
 
         # Delete network/$net.ports files of ppp networks
         my $doc = $dh->get_doc;
@@ -5274,7 +5516,7 @@ Options:
        -C|--config cfgfile -> use cfgfile as configuration file instead of default one (/etc/vnx.conf)
        -D              -> delete LOCK file
        -n|--no-console -> do not display the console of any vm. To be used with -t|--create options
-       -y|--st-delay num -> wait num secs. between virtual machines startup (0 by default)
+       --st-delay num -> wait num secs. between virtual machines startup (0 by default)
 
 EOF
 
