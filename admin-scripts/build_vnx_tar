@@ -132,6 +132,7 @@ cp -r vnx-autoconf/open-source/freebsd \
       vnx-autoconf/open-source/linux/vnxaced.pl \
       vnx-autoconf/open-source/linux/install_vnxaced \
       vnx-autoconf/open-source/linux/uninstall_vnxaced \
+      vnx-autoconf/open-source/linux/vnx_halt \
       tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
 # Update version in vnxaced
 sed --in-place -e "s%DD/MM/YYYY%$RELDATE%"     tmp/aced/vnx-aced-lf-$ACED_LF_VERSION/vnxaced.pl

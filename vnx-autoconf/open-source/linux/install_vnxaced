@@ -54,11 +54,16 @@ if ($platform[0] eq 'Linux'){
         system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
         system "chown root:root /usr/local/bin/vnxaced";
         system "chmod 755 /usr/local/bin/vnxaced";
+
+        system "cp -v vnx_halt /usr/local/bin/";
+        system "chown root:root /usr/local/bin/vnx_halt";
+        system "chmod 755 /usr/local/bin/vnx_halt";
         
         system "cp -v linux/init.d/vnxace-ubuntu-8.04 /etc/init.d/vnxace";
         system "chown root:root /etc/init.d/vnxace";
         system "chmod 755 /etc/init.d/vnxace";
         system "update-rc.d vnxace defaults";
+
         system "cp -v linux/bin/xsu /usr/local/bin";
         system "chown root:root /usr/local/bin/xsu";
         system "chmod 755 /usr/local/bin/xsu";
@@ -70,9 +75,15 @@ if ($platform[0] eq 'Linux'){
 		system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
 		system "chown root:root /usr/local/bin/vnxaced";
 		system "chmod 755 /usr/local/bin/vnxaced";
+
+        system "cp -v vnx_halt /usr/local/bin/";
+        system "chown root:root /usr/local/bin/vnx_halt";
+        system "chmod 755 /usr/local/bin/vnx_halt";
+
 		system "cp -v linux/upstart/vnxace.conf /etc/init/";
 		system "chown root:root /etc/init/vnxace.conf";
 		system "chmod 644 /etc/init/vnxace.conf";
+
 		system "cp -v linux/bin/xsu /usr/local/bin";
 		system "chown root:root /usr/local/bin/xsu";
 		system "chmod 755 /usr/local/bin/xsu";
@@ -83,10 +94,16 @@ if ($platform[0] eq 'Linux'){
 		system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
 		system "chown root:root /usr/local/bin/vnxaced";
 		system "chmod 755 /usr/local/bin/vnxaced";
+
+        system "cp -v vnx_halt /usr/local/bin/";
+        system "chown root:root /usr/local/bin/vnx_halt";
+        system "chmod 755 /usr/local/bin/vnx_halt";
+        
 		system "cp -v linux/init.d/vnxace /etc/init.d/";
 		system "chown root:root /etc/init.d/vnxace";
 		system "chmod 755 /etc/init.d/vnxace";
 		system "chkconfig --add vnxace";
+
 		system "cp -v linux/bin/xsu /usr/local/bin";
 		system "chown root:root /usr/local/bin/xsu";
 		system "chmod 755 /usr/local/bin/xsu";
@@ -101,9 +118,15 @@ if ($platform[0] eq 'Linux'){
 	system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
 	system "chown root:wheel /usr/local/bin/vnxaced";
 	system "chmod 555 /usr/local/bin/vnxaced";
+
+    system "cp -v vnx_halt /usr/local/bin/";
+    system "chown root:root /usr/local/bin/vnx_halt";
+    system "chmod 755 /usr/local/bin/vnx_halt";
+
 	system "cp -v freebsd/vnxace /etc/rc.d/";
 	system "chown root:wheel /etc/rc.d/vnxace";
 	system "chmod 555 /etc/rc.d/vnxace";
+
 	system "cp -v linux/bin/xsu /usr/local/bin";
 	system "chown root:wheel /usr/local/bin/xsu";
 	system "chmod 755 /usr/local/bin/xsu";

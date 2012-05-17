@@ -986,7 +986,7 @@ sub mode_start {
 #        &chown_working_dir;
 #        &xauth_add;
 
-        &start_VMs();
+        start_VMs();
          
         # If <host_mapping> is in use and not in debug mode, process /etc/hosts
         my $lines = join "\n", @host_lines;
@@ -1030,7 +1030,6 @@ sub start_VMs {
 
     my @vm_ordered = $dh->get_vm_ordered;
     my %vm_hash = $dh->get_vm_to_use;
-#    my $opts{M} = $opts{M};
  
     # If defined screen configuration file, open it
     if (($opts{e}) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
@@ -1095,7 +1094,7 @@ sub start_VMs {
         &change_vm_status($vm_name,"running");
           
         if ( (defined $opts{'st-delay'})    # delay has been specified in command line and... 
-            && ( $i < @vm_ordered-2 ) ) { # ...it is not the last virtual machine to start...
+            && ( $i < @vm_ordered-2 ) ) { # ...it is not the last virtual machine started...
             for ( my $count = $opts{'st-delay'}; $count > 0; --$count ) {
                 printf "** Waiting $count seconds...\n";
                 sleep 1;

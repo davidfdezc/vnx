@@ -1363,6 +1363,7 @@ sub startVM {
 				$listDom->create();
 				print "Domain started\n" if ($exemode == $EXE_VERBOSE);
 
+=BEGIN
                 sleep (2);
 		        # Send the exeCommand order to the virtual machine using the socket
                 my $vm = $dh->get_vm_byname ($vm_name);
@@ -1417,6 +1418,8 @@ sub startVM {
 					  . " | grep -v grep | awk '{print \$2}' > "
 					  . $dh->get_vm_run_dir($vm_name)
 					  . "/pid" );
+=END
+=cut
 				
 				#		
 			    # Console management
@@ -2407,7 +2410,7 @@ sub executeCMD {
 	        # $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num" directory. 
 	        # We move those files to the shared disk
 	        my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
-	        $execution->execute( $bd->get_binaries_path_ref->{"mv"} . " -v $files_dir/filetree/$dst_num $sdisk_content/filetree" );
+	        $execution->execute( $bd->get_binaries_path_ref->{"mv"} . " $files_dir/filetree/$dst_num $sdisk_content/filetree" );
 	        $execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
 			wlog (VVV, "executeCMD: adding plugin filetree \"$filetree_txt\" to command.xml");
 			$dst_num++;			 
@@ -2424,7 +2427,7 @@ sub executeCMD {
             # $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num" directory. 
             # We move those files to the shared disk
             my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
-            $execution->execute( $bd->get_binaries_path_ref->{"mv"} . " -v $files_dir/filetree/$dst_num $sdisk_content/filetree" );
+            $execution->execute( $bd->get_binaries_path_ref->{"mv"} . " $files_dir/filetree/$dst_num $sdisk_content/filetree" );
             $execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
             wlog (VVV, "executeCMD: adding user defined filetree \"$filetree_txt\" to command.xml");
             $dst_num++;            
@@ -2541,7 +2544,7 @@ sub executeCMD {
 
             $vmsocket->flush; # delete socket buffers, just in case...  
             print $vmsocket "exeCommand cdrom\n";     
-            
+            wlog (N, "exeCommand sent to VM $vm_name");            
 	        # Wait for confirmation from the VM		
             wait_sock_answer ($vmsocket);
             $vmsocket->close();
@@ -2596,6 +2599,7 @@ sub executeCMD {
 	        
 	        $vmsocket->flush; # delete socket buffers, just in case...  
             print $vmsocket "exeCommand sdisk\n";  
+            wlog (N, "exeCommand sent to VM $vm_name");            
             
             # Wait for confirmation from the VM     
             wait_sock_answer ($vmsocket);
