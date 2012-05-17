@@ -2444,7 +2444,9 @@ sub mode_execute {
     wlog (VVV, "Total number of commands executed for seq $seq:");
     wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs, user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs");
 	if ($num_plugin_ftrees + $num_plugin_execs + $num_ftrees + $num_execs == 0) {
-		wlog(V, "Nothing to execute for sequence $seq");
+        wlog(N, "--", "");
+		wlog(N, "-- ERROR: no commands found for tag '$seq'", "");
+        wlog(N, "--", "");
 	}
 
 	exec_command_host($seq);
