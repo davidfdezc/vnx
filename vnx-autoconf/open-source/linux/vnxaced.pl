@@ -61,6 +61,8 @@ my $mount_cdrom_cmd;
 my $umount_cdrom_cmd; 
 my $mount_sdisk_cmd;
 my $umount_sdisk_cmd; 
+my $console_ttys;
+
 
 my $DEBUG;
 my $VERBOSE;
@@ -161,6 +163,7 @@ if ($platform[0] eq 'Linux'){
     $mount_sdisk_cmd  = 'mount /dev/sdb /mnt/sdisk';
     $umount_sdisk_cmd = 'umount /mnt/sdisk';
     system "mkdir -p /mnt/sdisk";
+    $console_ttys = "/dev/ttyS0 /dev/tty1";
 
 } elsif ($platform[0] eq 'FreeBSD'){
 
@@ -170,6 +173,7 @@ if ($platform[0] eq 'Linux'){
     $mount_sdisk_cmd  = 'mount -t msdosfs /dev/ad1 /mnt/sdisk';
     $umount_sdisk_cmd = 'umount /mnt/sdisk';
     system "mkdir -p /mnt/sdisk";
+    $console_ttys = "/dev/ttyv0";
 
 } else {
 	write_log ("ERROR: unknown platform ($platform[0]). Only Linux and FreeBSD supported.");
@@ -248,6 +252,15 @@ sub write_log {
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+sub write_console {
+
+    my $msg = shift;
+    system "printf \"$msg\" | tee -a $console_ttys > /dev/null";
+
+}
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 #
 # exe_mount_cmd
 #
@@ -298,6 +311,9 @@ sub daemonize {
 
 sub listen {
 
+    my $cmd = "cat " . VNXACED_STATUS; my $status=`$cmd`; 
+    write_log ("-------------------------\nvnxaced.status file:"); write_log ($status); write_log ('-------------------------'); 
+    #write_console ('-------------------------'); write_console ($status); write_console ('-------------------------');
     #
     # Check if execution of commands with seq='on_boot' is pending. That means
     # that we just just started again after autoconfiguration reboot.
@@ -558,8 +574,6 @@ sub autoupdate {
 	
     my $files_dir = shift;	
     
-    my $ttys;
-	
 	#############################
 	# update for Linux          #
 	#############################
@@ -574,7 +588,6 @@ sub autoupdate {
             system "perl $files_dir/vnxaced-lf/install_vnxaced";
         }
         
-        $ttys = "/dev/ttyS0 /dev/tty1";
 		#if ( ($platform[1] eq 'Ubuntu') or   
         # 	 ($platform[1] eq 'Fedora') ) { 
         #	# Use VNXACED based on upstart
@@ -601,7 +614,6 @@ sub autoupdate {
         }
 		#system "cp /cdrom/vnxaced.pl /usr/local/bin/vnxaced";
 		#system "cp /cdrom/freebsd/vnxace /etc/rc.d/vnxace";
-        $ttys = "/dev/ttyv0";
 	}
     # Write trace messages to /etc/vnx_rootfs_version, log file and console
     my $vnxaced_vers = `/usr/local/bin/vnxaced -V | grep Version | awk '{printf "%s %s",\$2,\$3}'`;
@@ -614,21 +626,33 @@ sub autoupdate {
 
     # Console messages
     
-    
-	system "printf \"\r\n\" | tee -a $ttys > /dev/null";
-	system "printf \"   ------------------------------------------------------------------------\r\n\" | tee -a $ttys > /dev/null";
-	system "printf \"         vnxaced updated to vers $vnxaced_vers \r\n\" | tee -a $ttys > /dev/null";
-	system "printf \"   ------------------------------------------------------------------------\r\n\" | tee -a $ttys > /dev/null";
-	my $delay=5;
-	system "printf \"\n         halting system in $delay seconds\" | tee -a $ttys > /dev/null";
-		for (my $count = $delay-1; $count >= 0; $count--) {
-		sleep 1;
-		system "printf \"\b\b\b\b\b\b\b\b\b$count seconds\" | tee -a $ttys > /dev/null";
+    write_console ( "\r\n" );
+    write_console ( "   ------------------------------------------------------------------------\r\n" );
+    write_console ( "         vnxaced updated to vers $vnxaced_vers \r\n" );
+    write_console ( "   ------------------------------------------------------------------------\r\n" );
+    my $delay=5;
+    write_console ( "\n         halting system in $delay seconds" );
+        for (my $count = $delay-1; $count >= 0; $count--) {
+        sleep 1;
+        write_console ( "\b\b\b\b\b\b\b\b\b$count seconds" );
     }
-    system "printf \"\r\n\r\n\r\n\" | tee -a $ttys > /dev/null";
-
-	# Delete VNXACE log
-    system "rm -f /var/log/vnxaced.log";
+    write_console ( "\r\n\r\n\r\n" );
+    
+    # Stop VNXACED 
+    #if ($platform[0] eq 'Linux'){
+    #    if ( ($platform[1] eq 'Ubuntu') or ($platform[1] eq 'Fedora') ) { 
+    #        system "service vnxace stop";
+    #    } elsif ($platform[1] eq 'CentOS') { 
+    #        system "/etc/init.d/vnxace stop";
+    #    }
+    #} elsif ($platform[0] eq 'FreeBSD'){
+    #    system "/etc/rc.d/vnxace stop";
+    #}    
+	# Delete VNXACE log and .vnx dir
+    system "rm -f " . VNXACED_LOG;
+    system "touch " . VNXACED_LOG;
+    system "rm -f /root/.vnx/*";
+    
     # Shutdown system
     # system "vnx_halt -y > /dev/null 2>&1 < /dev/null";  # Does not work....why?
     system "halt -p";
@@ -654,6 +678,8 @@ sub is_new_file {
 	#chomp (my $old_cid = `$command`);
 	
 	my $old_cid = get_conf_value (VNXACED_STATUS, 'cmd_id');
+	write_console ("-- old_cid = '$old_cid'\r\n");
+    write_console ("-- new_cid = '$new_cid'\r\n");
 	
 	#write_log ("comparing -$old_cid- and -$new_cid-");
 	
@@ -670,6 +696,10 @@ sub is_new_file {
 	write_log ("Error writing the new comand id value to " . VNXACED_STATUS . " file") 
 	    if ($res eq 'ERROR'); 
 	
+	# check it is written correctly
+    $new_cid = get_conf_value (VNXACED_STATUS, 'cmd_id');
+    write_console ("-- cid saved to disk = '$new_cid'\r\n");
+
 	return "1";
 }
 
@@ -815,17 +845,37 @@ sub autoconfigure {
 
 	my $vnxboot_file = shift;
 
-	# autoconfigure for Linux             #
+    my $warn_msg =  <<EOF;
+    
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ~~~~~                   WARNING!                   ~~~~~
+    ~~~~~     VNX Autoconfiguration in progress...     ~~~~~
+    ~~~~~    Wait until the virtual machine reboots    ~~~~~
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+EOF
+
+	# autoconfigure for Linux
 	if ($platform[0] eq 'Linux'){
 		# Send a message to consoles
 		#system "shutdown -k now 'VNX system autoconfiguration in progress...wait until the system reboots...'";
+
+		write_console ("$warn_msg\n");
+        my $cmd = "cat " . VNXACED_STATUS; my $status=`$cmd`; 
+		write_console ("-------------------------\r\nvnxaced.status file:\r\n");
+		write_console ("$status\r\n"); 
+		write_console ("-------------------------\r\n"); 
 		
-		if ($platform[1] eq 'Ubuntu')    { &autoconfigure_ubuntu ($vnxboot_file)}			
-		elsif ( ($platform[1] eq 'Fedora') or ($platform[1] eq 'CentOS') ) { &autoconfigure_fedora ($vnxboot_file)}
+		if ($platform[1] eq 'Ubuntu') { 
+			&autoconfigure_ubuntu ($vnxboot_file)
+		
+		} elsif ( ($platform[1] eq 'Fedora') or ($platform[1] eq 'CentOS') ) { 
+			&autoconfigure_fedora ($vnxboot_file)
+		}
 	}
-	# autoconfigure for FreeBSD           #
-	elsif ($platform[0] eq 'FreeBSD'){
-		write_log ("calling autoconfigure_freebsd");
+	# autoconfigure for FreeBSD
+	elsif ($platform[0] eq 'FreeBSD') {
+		#write_log ("calling autoconfigure_freebsd");
+        write_console ("$warn_msg\n");
 		&autoconfigure_freebsd ($vnxboot_file)
 	}
 	
@@ -845,6 +895,215 @@ sub autoconfigure {
 # autoconfigure for Ubuntu             
 #
 sub autoconfigure_ubuntu {
+    
+    my $vnxboot_file = shift;
+
+    my $parser       = new XML::DOM::Parser;
+    my $dom          = $parser->parsefile($vnxboot_file);
+    my $global_node   = $dom->getElementsByTagName("create_conf")->item(0);
+    my $virtualmTagList = $global_node->getElementsByTagName("vm");
+    my $virtualmTag     = $virtualmTagList->item(0);
+    my $vm_name       = $virtualmTag->getAttribute("name");
+
+    my $hostname_vm = `hostname`;
+    $hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
+    $vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
+
+    # Files modified
+    # Files modified
+    my $interfaces_file = "/etc/network/interfaces";
+    my $sysctl_file     = "/etc/sysctl.conf";
+    my $hosts_file      = "/etc/hosts";
+    my $hostname_file   = "/etc/hostname";
+    my $resolv_file     = "/etc/resolv.conf";
+    my $rules_file      = "/etc/udev/rules.d/70-persistent-net.rules";
+    
+# Not needed anymore. Check is done in 'is_new_file'
+    # If the vm doesn't have the correct name,
+    # start autoconfiguration process
+#   if (!($hostname_vm eq $vm_name)){
+#       write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
+
+        my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
+
+        # Backup and delete /etc/resolv.conf file
+        system "cp $resolv_file ${resolv_file}.bak";
+        system "rm -f $resolv_file";
+        
+        # before the loop, backup /etc/udev/...70
+        # and /etc/network/interfaces
+        # and erase their contents
+        write_log ("   configuring $rules_file and $interfaces_file...");
+        system "cp $rules_file $rules_file.backup";
+        system "echo \"\" > $rules_file";
+        open RULES, ">" . $rules_file or print "error opening $rules_file";
+        system "cp $interfaces_file $interfaces_file.backup";
+        system "echo \"\" > $interfaces_file";
+        open INTERFACES, ">" . $interfaces_file or print "error opening $interfaces_file";
+
+        print INTERFACES "\n";
+        print INTERFACES "auto lo\n";
+        print INTERFACES "iface lo inet loopback\n";
+
+        # Network routes configuration: <route> tags
+        my @ip_routes;   # Stores the route configuration lines
+
+        my $routeTaglist = $virtualmTag->getElementsByTagName("route");
+        my $numRoutes    = $routeTaglist->getLength;
+        for (my $j = 0 ; $j < $numRoutes ; $j++){
+            my $routeTag = $routeTaglist->item($j);
+            my $routeType = $routeTag->getAttribute("type");
+            my $routeGw   = $routeTag->getAttribute("gw");
+            my $route     = $routeTag->getFirstChild->getData;
+            if ($routeType eq 'ipv4') {
+                if ($route eq 'default') {
+                    push (@ip_routes, "   up route add -net default gw " . $routeGw . "\n");
+                    #print INTERFACES "   up route add -net default gw " . $routeGw . "\n";
+                } else {
+                    push (@ip_routes, "   up route add -net $route gw " . $routeGw . "\n");
+                    #print INTERFACES "   up route add -net $route gw " . $routeGw . "\n";
+                }
+            } elsif ($routeType eq 'ipv6') {
+                if ($route eq 'default') {
+                    push (@ip_routes, "   up route -A inet6 add default gw " . $routeGw . "\n");
+                    #print INTERFACES "   up route -A inet6 add default gw " . $routeGw . "\n";
+                } else {
+                    push (@ip_routes, "   up route -A inet6 add $route gw " . $routeGw . "\n");
+                    #print INTERFACES "   up route -A inet6 add $route gw " . $routeGw . "\n";
+                }
+            }
+        }   
+
+        # Network interfaces configuration: <if> tags
+        my $numif        = $ifTaglist->getLength;
+        for (my $j = 0 ; $j < $numif ; $j++){
+            my $ifTag = $ifTaglist->item($j);
+            my $id    = $ifTag->getAttribute("id");
+            my $net   = $ifTag->getAttribute("net");
+            my $mac   = $ifTag->getAttribute("mac");
+            $mac =~ s/,//g;
+
+            my $ifName;
+            # Special case: loopback interface
+            if ( $net eq "lo" ) {
+                $ifName = "lo:" . $id;
+            } else {
+                $ifName = "eth" . $id;
+            }
+
+            print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac .  "\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
+            #print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
+            print INTERFACES "auto " . $ifName . "\n";
+
+            my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
+            my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
+
+            if ( ($ipv4Taglist->getLength == 0 ) && ( $ipv6Taglist->getLength == 0 ) ) {
+                # No addresses configured for the interface. We include the following commands to 
+                # have the interface active on start
+                print INTERFACES "iface " . $ifName . " inet manual\n";
+                print INTERFACES "  up ifconfig " . $ifName . " 0.0.0.0 up\n";
+            } else {
+                # Config IPv4 addresses
+                for ( my $j = 0 ; $j < $ipv4Taglist->getLength ; $j++ ) {
+
+                    my $ipv4Tag = $ipv4Taglist->item($j);
+                    my $mask    = $ipv4Tag->getAttribute("mask");
+                    my $ip      = $ipv4Tag->getFirstChild->getData;
+
+                    if ($j == 0) {
+                        print INTERFACES "iface " . $ifName . " inet static\n";
+                        print INTERFACES "   address " . $ip . "\n";
+                        print INTERFACES "   netmask " . $mask . "\n";
+                    } else {
+                        print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet add " . $ip . " netmask " . $mask . "\n";
+                    }
+                }
+                # Config IPv6 addresses
+                for ( my $j = 0 ; $j < $ipv6Taglist->getLength ; $j++ ) {
+
+                    my $ipv6Tag = $ipv6Taglist->item($j);
+                    my $ip    = $ipv6Tag->getFirstChild->getData;
+                    my $mask = $ip;
+                    $mask =~ s/.*\///;
+                    $ip =~ s/\/.*//;
+
+                    if ($j == 0) {
+                        print INTERFACES "iface " . $ifName . " inet6 static\n";
+                        print INTERFACES "   address " . $ip . "\n";
+                        print INTERFACES "   netmask " . $mask . "\n\n";
+                    } else {
+                        print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet6 add " . $ip . "/" . $mask . "\n";
+                    }
+                }
+                # TODO: To simplify and avoid the problems related with some routes not being installed 
+                                # due to the interfaces start order, we add all routes to all interfaces. This should be 
+                                # refined to add only the routes going to each interface
+                print INTERFACES @ip_routes;
+
+            }
+        }
+        
+        close RULES;
+        close INTERFACES;
+        
+        # Packet forwarding: <forwarding> tag
+        my $ipv4Forwarding = 0;
+        my $ipv6Forwarding = 0;
+        my $forwardingTaglist = $virtualmTag->getElementsByTagName("forwarding");
+        my $numforwarding = $forwardingTaglist->getLength;
+        for (my $j = 0 ; $j < $numforwarding ; $j++){
+            my $forwardingTag   = $forwardingTaglist->item($j);
+            my $forwarding_type = $forwardingTag->getAttribute("type");
+            if ($forwarding_type eq "ip"){
+                $ipv4Forwarding = 1;
+                $ipv6Forwarding = 1;
+            } elsif ($forwarding_type eq "ipv4"){
+                $ipv4Forwarding = 1;
+            } elsif ($forwarding_type eq "ipv6"){
+                $ipv6Forwarding = 1;
+            }
+        }
+        write_log ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in $sysctl_file...");
+        system "echo >> $sysctl_file ";
+        system "echo '# Configured by VNXACED' >> $sysctl_file ";
+        system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> $sysctl_file ";
+        system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> $sysctl_file ";
+
+        # Configuring /etc/hosts and /etc/hostname
+        write_log ("   configuring $hosts_file and /etc/hostname...");
+        system "cp $hosts_file $hosts_file.backup";
+
+        #/etc/hosts: insert the new first line
+        system "sed '1i\ 127.0.0.1  $vm_name    localhost.localdomain   localhost' $hosts_file > /tmp/hosts.tmp";
+        system "mv /tmp/hosts.tmp $hosts_file";
+
+        #/etc/hosts: and delete the second line (former first line)
+        system "sed '2 d' $hosts_file > /tmp/hosts.tmp";
+        system "mv /tmp/hosts.tmp $hosts_file";
+
+        #/etc/hosts: insert the new second line
+        system "sed '2i\ 127.0.1.1  $vm_name' $hosts_file > /tmp/hosts.tmp";
+        system "mv /tmp/hosts.tmp $hosts_file";
+
+        #/etc/hosts: and delete the third line (former second line)
+        system "sed '3 d' $hosts_file > /tmp/hosts.tmp";
+        system "mv /tmp/hosts.tmp $hosts_file";
+
+        #/etc/hostname: insert the new first line
+        system "sed '1i\ $vm_name' $hostname_file > /tmp/hostname.tpm";
+        system "mv /tmp/hostname.tpm $hostname_file";
+
+        #/etc/hostname: and delete the second line (former first line)
+        system "sed '2 d' $hostname_file > /tmp/hostname.tpm";
+        system "mv /tmp/hostname.tpm $hostname_file";
+
+        system "hostname $vm_name";
+#   }
+    
+}
+
+sub autoconfigure_ubuntu_old {
 	
 	my $vnxboot_file = shift;
 
@@ -859,6 +1118,13 @@ sub autoconfigure_ubuntu {
 	$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 	$vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 
+    # Files modified
+    my $interfaces_file = "/etc/network/interfaces";
+    my $sysctl_file = "/etc/sysctl.conf";
+    my $hosts_file = "/etc/hosts";
+    my $hostname_file = "/etc/hostname";
+    my $resolv_file = "/etc/resolv.conf";
+    
 # Not needed anymore. Check is done in 'is_new_file'
 	# If the vm doesn't have the correct name,
 	# start autoconfiguration process
@@ -868,7 +1134,8 @@ sub autoconfigure_ubuntu {
 		my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
         # Delete /etc/resolv.conf file
-        system "rm -f /etc/resolv.conf";
+        system "cp $resolv_file ${resolv_file}.bak";
+        system "rm -f $resolv_file";
         
 		# before the loop, backup /etc/udev/...70
 		# and /etc/network/interfaces
@@ -878,7 +1145,6 @@ sub autoconfigure_ubuntu {
 		system "cp $rules_file $rules_file.backup";
 		system "echo \"\" > $rules_file";
 		open RULES, ">" . $rules_file or print "error opening $rules_file";
-		my $interfaces_file = "/etc/network/interfaces";
 		system "cp $interfaces_file $interfaces_file.backup";
 		system "echo \"\" > $interfaces_file";
 		open INTERFACES, ">" . $interfaces_file or print "error opening $interfaces_file";
@@ -995,16 +1261,14 @@ sub autoconfigure_ubuntu {
 				$ipv6Forwarding = 1;
 			}
 		}
-		write_log ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in /etc/sysctl.conf...");
-		system "echo >> /etc/sysctl.conf ";
-		system "echo '#### vnxdaemon ####' >> /etc/sysctl.conf ";
-		system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> /etc/sysctl.conf ";
-		system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> /etc/sysctl.conf ";
+		write_log ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in $sysctl_file...");
+		system "echo >> $sysctl_file ";
+		system "echo '# Configured by VNXACED' >> $sysctl_file ";
+		system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> $sysctl_file ";
+		system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> $sysctl_file ";
 
 		# Configuring /etc/hosts and /etc/hostname
-		write_log ("   configuring /etc/hosts and /etc/hostname...");
-		my $hosts_file = "/etc/hosts";
-		my $hostname_file = "/etc/hostname";
+		write_log ("   configuring $hosts_file and $hostname_file...");
 		system "cp $hosts_file $hosts_file.backup";
 
 		#/etc/hosts: insert the new first line
@@ -1054,6 +1318,13 @@ sub autoconfigure_fedora {
 	$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 	$vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 
+    # Files modified
+    my $interfaces_file = "/etc/network/interfaces";
+    my $sysctl_file = "/etc/sysctl.conf";
+    my $hosts_file = "/etc/hosts";
+    my $hostname_file = "/etc/hostname";
+    my $resolv_file = "/etc/resolv.conf";
+
 # Not needed anymore. Check is done in 'is_new_file'
 	# If the vm doesn't have the correct name,
 	# start autoconfiguration process
@@ -1062,6 +1333,9 @@ sub autoconfigure_fedora {
 
 		my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
+        # Delete /etc/resolv.conf file
+        system "cp $resolv_file ${resolv_file}.bak";
+        system "rm -f $resolv_file";
 
 		system "mv /etc/sysconfig/network /etc/sysconfig/network.bak";
 		system "cat /etc/sysconfig/network.bak | grep -v 'NETWORKING=' | grep -v 'NETWORKING_IPv6=' > /etc/sysconfig/network";
@@ -1240,16 +1514,14 @@ sub autoconfigure_fedora {
 				$ipv6Forwarding = 1;
 			}
 		}
-		write_log ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in /etc/sysctl.conf...");
-		system "echo >> /etc/sysctl.conf ";
-		system "echo '#### vnxdaemon ####' >> /etc/sysctl.conf ";
-		system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> /etc/sysctl.conf ";
-		system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> /etc/sysctl.conf ";
+		write_log ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in $sysctl_file...");
+		system "echo >> $sysctl_file ";
+		system "echo '#### vnxdaemon ####' >> $sysctl_file ";
+		system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> $sysctl_file ";
+		system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> $sysctl_file ";
 
 		# Configuring /etc/hosts and /etc/hostname
 		write_log ("   configuring /etc/hosts and /etc/hostname...");
-		my $hosts_file = "/etc/hosts";
-		my $hostname_file = "/etc/hostname";
 		system "cp $hosts_file $hosts_file.backup";
 
 		#/etc/hosts: insert the new first line
@@ -1304,6 +1576,11 @@ sub autoconfigure_freebsd {
 	$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 	$vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 
+    # Files modified
+    my $hosts_file = "/etc/hosts";
+    my $hostname_file = "/etc/hostname";
+    my $rc_file = "/etc/rc.conf";
+
 # Not needed anymore. Check is done in 'is_new_file'
 	# If the vm doesn't have the correct name,
 	# start autoconfiguration process
@@ -1314,7 +1591,6 @@ sub autoconfigure_freebsd {
 		# before the loop, backup /etc/rc.conf
 		my $command;
 		write_log ("   configuring /etc/rc.conf...");
-		my $rc_file = "/etc/rc.conf";
 		$command = "cp $rc_file $rc_file.backup";
 		system $command;
 
@@ -1323,9 +1599,9 @@ sub autoconfigure_freebsd {
 		chomp (my $now = `date`);
 
 		print RC "\n";
-		print RC "##############################################################\n";
-		print RC "## vnx autoconfiguration ($now)     ##\n";
-		print RC "##############################################################\n";
+		print RC "#\n";
+		print RC "# VNX Autoconfiguration commands ($now)\n";
+		print RC "#\n";
 		print RC "\n";
 
 		print RC "hostname=\"$vm_name\"\n";
@@ -1455,13 +1731,12 @@ sub autoconfigure_freebsd {
 		}
 		
 		# Configuring /etc/hosts and /etc/hostname
-		write_log ("   configuring /etc/hosts");
-		my $hosts_file = "/etc/hosts";
+		write_log ("   configuring $hosts_file");
 		$command = "cp $hosts_file $hosts_file.backup";
 		system $command;
 
-		system "echo '127.0.0.1	$vm_name	localhost.localdomain	localhost' > /etc/hosts";
-		system "echo '127.0.1.1	$vm_name' >> /etc/hosts";
+		system "echo '127.0.0.1	$vm_name	localhost.localdomain	localhost' > $hosts_file";
+		system "echo '127.0.1.1	$vm_name' >> $hosts_file";
 
 		#/etc/hosts: insert the new first line
 #		system "sed '1i\ 127.0.0.1	$vm_name	localhost.localdomain	localhost' $hosts_file > /tmp/hosts.tmp";
