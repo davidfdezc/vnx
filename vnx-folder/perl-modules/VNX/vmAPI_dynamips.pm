@@ -1037,6 +1037,7 @@ sub executeCMD{
 			if ( $cmd_seq eq $seq ) {
 				my $type = $command->getAttribute("type");
 				my $ostype = $command->getAttribute("ostype");
+				wlog (VVV, "-- ostype = $ostype");
 				# Case 1. Verbatim type
 				if ( $type eq "verbatim" ) { # <exec> tag specifies a single command
 				

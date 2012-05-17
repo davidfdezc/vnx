@@ -1154,7 +1154,7 @@ sub check_doc {
                $vm->setAttribute( 'exec_mode', "$EXEC_MODES_LIBVIRT_KVM_OLIVE[0]" );
            } elsif ( "@EXEC_MODES_LIBVIRT_KVM_OLIVE" !~ $exec_mode )  {
                return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
-        } elsif ( ($merged_type eq 'dynamips-c3600') or ($merged_type eq 'dynamips-c7200') )  {
+        } elsif ( ($merged_type eq 'dynamips-3600') or ($merged_type eq 'dynamips-7200') )  {
            if ($exec_mode eq '') { # Set default value 
                $vm->setAttribute( 'exec_mode', "$EXEC_MODES_DYNAMIPS[0]" );
            } elsif ( "@EXEC_MODES_DYNAMIPS" !~ $exec_mode )  {
@@ -1164,9 +1164,9 @@ sub check_doc {
         # For each <exec> in the vm
         for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
         	my $cmd = $exec_list->item($j);
-            # my $cmdMode = $cmd->getAttribute("mode"); # mode attribute eliminated from <exec>
+            my $cmdMode = $cmd->getAttribute("mode"); # mode attribute eliminated from <exec>
             my $cmdOSType = $cmd->getAttribute("ostype");
-            #print ("****** vm=$vmName,type=$merged_type, exec_mode=$cmdMode, exec_ostype=$cmdOSType\n");
+            #wlog (VVV, "-- vm=$vmName,type=$merged_type, exec_mode=$cmdMode, exec_ostype=$cmdOSType\n");
 
             if ($merged_type eq 'uml') {
 #            	if ($cmdMode eq '') { # Set default value 
@@ -1208,13 +1208,14 @@ sub check_doc {
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_OLIVE" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
 
-            } elsif ( ($merged_type eq 'dynamips-c3600') or ($merged_type eq 'dynamips-c7200') )  {
+            } elsif ( ($merged_type eq 'dynamips-3600') or ($merged_type eq 'dynamips-7200') )  {
 #            	if ($cmdMode eq '') { # Set default value 
 #            		$cmd->setAttribute( 'mode', "$EXEC_MODES_DYNAMIPS[0]" );
 #            	} elsif ( "@EXEC_MODES_DYNAMIPS" !~ $cmdMode )  {
 #       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
             	if ($cmdOSType eq '') { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_DYNAMIPS[0]" );
+            		#wlog (VVV, "-- ostype set to $EXEC_OSTYPE_DYNAMIPS[0]")
             	} elsif ( "@EXEC_OSTYPE_DYNAMIPS" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
 
