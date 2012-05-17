@@ -1,0 +1,45 @@
+!/bin/bash
+
+if [ "$1" == '-y' ]; then
+    NOINTMODE='yes'
+fi
+
+# Clean apt cache
+apt-get clean
+apt-get -y autoremove
+
+# Delete /etc/resolv.conf
+rm -f /etc/resolv.conf
+
+# Clean command history
+rm -f /root/.bash_history
+
+# Delete udev net rules files:
+rm -f /etc/udev/rules.d/70-persistent-net.rules
+
+# Delete VNXACE log
+rm -f /var/log/vnxaced.log
+
+if [ ! $NOINTMODE ]; then
+    while true; do
+        # Ask for a message to save in /etc/vnx_rootfs_version file
+        echo    "** Save a log message in /etc/vnx_rootfs_version file "
+        echo -n "** describing the modifications done? "
+        read -n 1 -p "[y/n] " answer
+        echo ""
+        case $answer in
+            [Yy]* )
+                    echo "** Log message (1 line maximum):"
+                    read logmsg
+                    DATE=`date`
+                    echo "MODDATE=$DATE" >> /etc/vnx_rootfs_version
+                    echo "MODDESC=$logmsg" >> /etc/vnx_rootfs_version
+                    break;;
+            [Nn]* ) break;;
+            * )     echo "** Error: please answer 'y' or 'n'.";;
+        esac
+    done
+fi
+
+# Halt the system
+halt -p

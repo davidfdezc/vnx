@@ -49,7 +49,7 @@ use constant FREEBSD_TTY => '/dev/cuau1';
 
 use constant VNXACED_PID => '/var/run/vnxaced.pid';
 use constant VNXACED_LOG => '/var/log/vnxaced.log';
-use constant VNXACED_CID => '/root/.vnx/vnxaced.cid';
+use constant VNXACED_STATUS => '/root/.vnx/vnxaced.status';
 
 use constant FREEBSD_CD_DIR => '/cdrom';
 use constant LINUX_CD_DIR   => '/media/cdrom';
@@ -129,7 +129,7 @@ for (my $i=0; $i <= $#ARGV; $i++) {
 system "mkdir -p /root/.vnx";
 #unless ( -e VNXACED_LOG ) { system "touch " . VNXACED_LOG }
 
-my $verbose_cfg = get_conf_value (VNXACED_CID, 'verbose');
+my $verbose_cfg = get_conf_value (VNXACED_STATUS, 'verbose');
 if ($verbose_cfg eq 'yes') { $VERBOSE = 'true' }
 
 if ($DEBUG) { print "DEBUG mode\n"; }
@@ -207,8 +207,8 @@ while (<$pids>) {
 # store process pid
 system "echo $$ > " . VNXACED_PID;
 
-write_log ("~~ Waiting initial delay of " . INIT_DELAY . " seconds...");
-sleep INIT_DELAY;
+#write_log ("~~ Waiting initial delay of " . INIT_DELAY . " seconds...");
+#sleep INIT_DELAY;
 
 if (! $DEBUG) { 
 	&daemonize;
@@ -298,12 +298,89 @@ sub daemonize {
 
 sub listen {
 
-    # Check if execution of commands with seq='on_boot' is pending
-    my $on_boot_cmds_pending = get_conf_value (VNXACED_CID, 'on_boot_cmds_pending');
+    #
+    # Check if execution of commands with seq='on_boot' is pending. That means
+    # that we just just started again after autoconfiguration reboot.
+    #
+    my $on_boot_cmds_pending = get_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending');
     if ($on_boot_cmds_pending eq 'yes') {
-    	# It's pending, generate an 'exeCommand' to 
-        my $exec_mode = get_conf_value (VNXACED_CID, 'exec_mode');
-    	process_cmd ( "exeCommand $exec_mode");
+ 
+        write_log ("~~ Executing on_boot commands if specified");
+        # It's pending, generate an 'exeCommand' to 
+        my $exec_mode = get_conf_value (VNXACED_STATUS, 'exec_mode');
+        process_cmd ( "exeCommand $exec_mode");
+ 
+    } else {
+
+        write_log ("~~ Starting...looking for vnxboot autoconfiguration files...");
+
+	    #
+	    # We have just initiated. We check during INIT_DELAY secs whether an
+	    # SDISK or CDROM with a vnxboot autoconfiguration file is available:
+	    #  - if yes -> do autoconfiguration
+	    #  - if not -> wait for commands sent from the host  
+	    #
+	    my $start_time = time();
+	    while ( time()-$start_time < INIT_DELAY ) {
+	        
+	        # Check if a sdisk is available
+	        exe_mount_cmd ($mount_sdisk_cmd);
+	        my $files_dir = '/mnt/sdisk';
+	
+	        if ($VERBOSE) {
+	            my $res=`ls -l $files_dir`; write_log ("\n~~ $files_dir content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
+	        }
+	        
+	        my @files = <$files_dir/*>;
+	        foreach my $file (@files){
+	        	
+	        	my $fname = basename ($file);
+	            if ( ($fname eq "vnxboot") || ($fname eq "vnxboot.xml") && is_new_file($file) ) {
+
+                    write_log ("~~ vnxboot file found...autoconfiguration in progress");
+
+                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+                    chomp (my $now = `date`);                       
+                    write_log ("~~ $now:");
+                    write_log ("     configuration file received in $file");
+                    set_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending', 'yes');
+                    set_conf_value (VNXACED_STATUS, 'exec_mode', 'sdisk');
+                    autoconfigure($file);
+	                          
+	            }
+	        }
+	        exe_mount_cmd ($umount_sdisk_cmd);
+	        
+	        # Check if a cdrom is available
+            exe_mount_cmd ($mount_cdrom_cmd);
+            $files_dir = '/media/cdrom';
+    
+            if ($VERBOSE) {
+                my $res=`ls -l $files_dir`; write_log ("\n~~ $files_dir content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
+            }
+            
+            @files = <$files_dir/*>;
+            foreach my $file (@files){
+                
+                my $fname = basename ($file);
+                if ( ($fname eq "vnxboot") || ($fname eq "vnxboot.xml") && is_new_file($file) ) {
+
+                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+                    chomp (my $now = `date`);                       
+                    write_log ("~~ $now:");
+                    write_log ("     configuration file received in $file");
+                    set_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending', 'yes');
+                    set_conf_value (VNXACED_STATUS, 'exec_mode', 'cdrom');
+                    autoconfigure($file);
+                              
+                }
+            }
+            exe_mount_cmd ($umount_cdrom_cmd);
+	        
+	        sleep (2);
+	    }
+	    write_log ("~~ No vnxboot autoconfiguration files found...");
+	    
     }
 
     #
@@ -374,7 +451,7 @@ sub process_cmd {
                             
                         # Autoconfiguration is done and the system has restarted 
                         # Check if commands with seq="on_boot" have been executed
-                        my $on_boot_cmds_pending = get_conf_value (VNXACED_CID, 'on_boot_cmds_pending');
+                        my $on_boot_cmds_pending = get_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending');
                         if ($on_boot_cmds_pending eq 'yes') {
                             write_log ("~~   executing <filetree> and <exec> commands with seq='on_boot' after restart");
                             # Execute all <filetree> and <exec> commands in vnxboot file            
@@ -383,7 +460,7 @@ sub process_cmd {
                             # Execute <exec> commands 
                             &execute_commands($file);
                             # Commands executed, change config
-                            set_conf_value (VNXACED_CID, 'on_boot_cmds_pending', 'no')
+                            set_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending', 'no')
                         }
                         next;               
                     }
@@ -392,8 +469,8 @@ sub process_cmd {
                     chomp (my $now = `date`);                       
                     write_log ("~~ $now:");
                     write_log ("     configuration file received in $file");
-                    set_conf_value (VNXACED_CID, 'on_boot_cmds_pending', 'yes');
-                    set_conf_value (VNXACED_CID, 'exec_mode', $cmd[1]);
+                    set_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending', 'yes');
+                    set_conf_value (VNXACED_STATUS, 'exec_mode', $cmd[1]);
                     &autoconfigure($file);
     
                 } elsif ($fname eq "vnx_update.xml"){
@@ -480,6 +557,8 @@ sub process_cmd {
 sub autoupdate {
 	
     my $files_dir = shift;	
+    
+    my $ttys;
 	
 	#############################
 	# update for Linux          #
@@ -494,7 +573,8 @@ sub autoupdate {
             system "perl $files_dir/vnxaced-lf/uninstall_vnxaced -n";
             system "perl $files_dir/vnxaced-lf/install_vnxaced";
         }
-
+        
+        $ttys = "/dev/ttyS0 /dev/tty1";
 		#if ( ($platform[1] eq 'Ubuntu') or   
         # 	 ($platform[1] eq 'Fedora') ) { 
         #	# Use VNXACED based on upstart
@@ -521,6 +601,7 @@ sub autoupdate {
         }
 		#system "cp /cdrom/vnxaced.pl /usr/local/bin/vnxaced";
 		#system "cp /cdrom/freebsd/vnxace /etc/rc.d/vnxace";
+        $ttys = "/dev/ttyv0";
 	}
     # Write trace messages to /etc/vnx_rootfs_version, log file and console
     my $vnxaced_vers = `/usr/local/bin/vnxaced -V | grep Version | awk '{printf "%s %s",\$2,\$3}'`;
@@ -530,21 +611,27 @@ sub autoupdate {
     system "printf \"MODDESC=vnxaced updated to vers $vnxaced_vers\n\" >> /etc/vnx_rootfs_version";
     # vnxaced log file
     write_log ("     vnxaced updated to vers $vnxaced_vers");
-    # Console
-	system "printf \"\r\n\" >> /dev/console";
-	system "printf \"   ------------------------------------------------------------------------\r\n\" >> /dev/console";
-	system "printf \"         vnxaced updated to vers $vnxaced_vers \r\n\" >> /dev/console";
-	system "printf \"   ------------------------------------------------------------------------\r\n\" >> /dev/console";
+
+    # Console messages
+    
+    
+	system "printf \"\r\n\" | tee -a $ttys > /dev/null";
+	system "printf \"   ------------------------------------------------------------------------\r\n\" | tee -a $ttys > /dev/null";
+	system "printf \"         vnxaced updated to vers $vnxaced_vers \r\n\" | tee -a $ttys > /dev/null";
+	system "printf \"   ------------------------------------------------------------------------\r\n\" | tee -a $ttys > /dev/null";
 	my $delay=5;
-	system "printf \"\n         halting system in $delay seconds\" >> /dev/console";
+	system "printf \"\n         halting system in $delay seconds\" | tee -a $ttys > /dev/null";
 		for (my $count = $delay-1; $count >= 0; $count--) {
 		sleep 1;
-		system "printf \"\b\b\b\b\b\b\b\b\b$count seconds\" >> /dev/console";
+		system "printf \"\b\b\b\b\b\b\b\b\b$count seconds\" | tee -a $ttys > /dev/null";
     }
-    system "printf \"\r\n\r\n\r\n\" >> /dev/console";
+    system "printf \"\r\n\r\n\r\n\" | tee -a $ttys > /dev/null";
 
+	# Delete VNXACE log
+    system "rm -f /var/log/vnxaced.log";
     # Shutdown system
-	system "halt -p";
+    # system "vnx_halt -y > /dev/null 2>&1 < /dev/null";  # Does not work....why?
+    system "halt -p";
 	return;
 }
 
@@ -566,7 +653,7 @@ sub is_new_file {
 	#my $command = "cat /root/.vnx/command_id";
 	#chomp (my $old_cid = `$command`);
 	
-	my $old_cid = get_conf_value (VNXACED_CID, 'cmd_id');
+	my $old_cid = get_conf_value (VNXACED_STATUS, 'cmd_id');
 	
 	#write_log ("comparing -$old_cid- and -$new_cid-");
 	
@@ -579,8 +666,8 @@ sub is_new_file {
 	#file is new
 	#write_log ("file is new");
 	#system "echo '$new_cid' > /root/.vnx/command_id";
-	my $res = set_conf_value (VNXACED_CID, 'cmd_id', $new_cid);
-	write_log ("Error writing the new comand id value to " . VNXACED_CID . " file") 
+	my $res = set_conf_value (VNXACED_STATUS, 'cmd_id', $new_cid);
+	write_log ("Error writing the new comand id value to " . VNXACED_STATUS . " file") 
 	    if ($res eq 'ERROR'); 
 	
 	return "1";
@@ -771,10 +858,12 @@ sub autoconfigure_ubuntu {
 	my $hostname_vm = `hostname`;
 	$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 	$vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
+
+# Not needed anymore. Check is done in 'is_new_file'
 	# If the vm doesn't have the correct name,
 	# start autoconfiguration process
-	if (!($hostname_vm eq $vm_name)){
-		write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
+#	if (!($hostname_vm eq $vm_name)){
+#		write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
 
 		my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
@@ -943,7 +1032,7 @@ sub autoconfigure_ubuntu {
 		system "mv /tmp/hostname.tpm $hostname_file";
 
 		system "hostname $vm_name";
-	}
+#	}
 	
 }
 
@@ -964,10 +1053,12 @@ sub autoconfigure_fedora {
 	my $hostname_vm = `hostname`;
 	$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 	$vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
+
+# Not needed anymore. Check is done in 'is_new_file'
 	# If the vm doesn't have the correct name,
 	# start autoconfiguration process
-	if (!($hostname_vm eq $vm_name)){
-		write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
+#	if (!($hostname_vm eq $vm_name)){
+#		write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
 
 		my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
@@ -1189,7 +1280,7 @@ sub autoconfigure_fedora {
 		system "mv /etc/sysconfig/network /etc/sysconfig/network.bak";
 		system "cat /etc/sysconfig/network.bak | grep -v HOSTNAME > /etc/sysconfig/network";
 		system "echo HOSTNAME=$vm_name >> /etc/sysconfig/network";
-	}
+#	}
 	
 }
 
@@ -1212,10 +1303,12 @@ sub autoconfigure_freebsd {
 	my $hostname_vm = `hostname -s`;
 	$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 	$vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
+
+# Not needed anymore. Check is done in 'is_new_file'
 	# If the vm doesn't have the correct name,
 	# start autoconfiguration process
-	if (!($hostname_vm eq $vm_name)){
-		write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
+#	if (!($hostname_vm eq $vm_name)){
+#		write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
 		my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
 		# before the loop, backup /etc/rc.conf
@@ -1385,7 +1478,7 @@ sub autoconfigure_freebsd {
 #		#/etc/hosts: and delete the third line (former second line)
 #		system "sed '3 d' $hosts_file > /tmp/hosts.tmp";
 #		system "mv /tmp/hosts.tmp $hosts_file";
-	}
+#	}
 	
 }
 

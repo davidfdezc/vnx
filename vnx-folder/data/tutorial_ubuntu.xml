@@ -48,7 +48,7 @@ SPAIN
     </if>
     <route type="ipv4" gw="10.0.0.1">default</route>
     
-    <filetree seq="vnxtxt" root="/tmp">conf/txtfile</filetree>
+    <filetree seq="vnxtxt" root="/tmp/">conf/txtfile</filetree>
 
     <!-- Start xeyes application -->
     <exec seq="xeyes"     type="verbatim" ostype="xexec">xeyes</exec>

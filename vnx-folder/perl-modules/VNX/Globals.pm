@@ -162,7 +162,7 @@ use constant VVV => 3;
 # Allowed and default modes in <exec> and <filetree> tags for each virtual machine type
 # Default mode is always the first value in array
 our @EXEC_MODES_UML                 = qw( mconsole net);
-our @EXEC_MODES_LIBVIRT_KVM_LINUX   = qw( cdrom net sdisk );
+our @EXEC_MODES_LIBVIRT_KVM_LINUX   = qw( sdisk cdrom net );
 our @EXEC_MODES_LIBVIRT_KVM_WINDOWS = qw( cdrom sdisk );
 our @EXEC_MODES_LIBVIRT_KVM_OLIVE   = qw( sdisk net );
 our @EXEC_MODES_DYNAMIPS            = qw( telnet );

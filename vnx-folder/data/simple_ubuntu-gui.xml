@@ -45,8 +45,8 @@ SPAIN
     <if id="1" net="Net0">
       <ipv4>10.0.0.5/24</ipv4>
     </if>
-    <filetree seq="vnxtxt" root="/tmp">conf/txtfile</filetree>
-    <filetree seq="vnxwww" root="/tmp">conf/txtfile</filetree>
+    <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
+    <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
 
     <!-- Start xeyes application -->
@@ -56,13 +56,11 @@ SPAIN
     <exec seq="xeyes2"    type="verbatim" ostype="xsystem">xeyes</exec>
 
     <!-- Start gedit, maximize the window and show a text file -->
-    <exec seq="vnxtxt"    type="verbatim" ostype="system">chmod 666 /tmp/vnx.txt</exec>
     <exec seq="vnxtxt"    type="verbatim" ostype="xexec">gedit /tmp/vnx.txt</exec>
     <exec seq="vnxtxt"    type="verbatim" ostype="xexec">sleep 3; wmctrl -r vnx.txt -b add,maximized_vert,maximized_horz</exec>
     <exec seq="vnxtxtoff" type="verbatim" ostype="system">pkill gedit; rm /tmp/vnx.*</exec>
 
     <!-- Start firefox and load vnx.html, copied by means of a <filetree> -->
-    <exec seq="vnxwww"    type="verbatim" ostype="system">chmod 666 /tmp/vnx.html</exec>
     <exec seq="vnxwww"    type="verbatim" ostype="xexec">firefox /tmp/vnx.html</exec>
     <exec seq="vnxwwwoff" type="verbatim" ostype="system">pkill firefox; rm /tmp/vnx.*</exec>
 
