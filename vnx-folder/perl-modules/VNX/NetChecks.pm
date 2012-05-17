@@ -258,7 +258,8 @@ sub wait_sock_answer {
 
         while (1) {
             my $line = <$socket>;
-            wlog (VVV, "** $line", ""); # if ($exemode == $EXE_VERBOSE)
+            chomp ($line);
+            wlog (N, "** $line", ""); # if ($exemode == $EXE_VERBOSE)
             last if ( ( $line =~ /^OK/) || ( $line =~ /^NOTOK/) 
                       || ( $line =~ /^finished/)  # for old linux daemons (deprecated)  
                       || ( $line =~ /^1$/));      # for windows ace (deprecated)

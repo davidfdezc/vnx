@@ -2598,7 +2598,12 @@ sub executeCMD {
             }
 	        
 	        $vmsocket->flush; # delete socket buffers, just in case...  
-            print $vmsocket "exeCommand sdisk\n";  
+            if ( $merged_type eq "libvirt-kvm-olive" ) {
+                print $vmsocket "exeCommand\n";
+            } else {
+                print $vmsocket "exeCommand sdisk\n";  
+            }  
+
             wlog (N, "exeCommand sent to VM $vm_name");            
             
             # Wait for confirmation from the VM     
