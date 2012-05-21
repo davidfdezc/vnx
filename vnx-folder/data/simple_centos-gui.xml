@@ -47,8 +47,8 @@ SPAIN
       <ipv4>10.0.0.16/24</ipv4>
     </if>
     
-    <filetree seq="vnxtxt" root="/tmp">conf/txtfile</filetree>
-    <filetree seq="vnxwww" root="/tmp">conf/txtfile</filetree>
+    <filetree seq="vnxtxt" root="/tmp/">conf/txtfile</filetree>
+    <filetree seq="vnxwww" root="/tmp/">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www/html">conf/txtfile</filetree>
 
     <!-- Start xeyes application -->

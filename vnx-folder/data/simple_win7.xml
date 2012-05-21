@@ -30,7 +30,7 @@ SPAIN
     <scenario_name>simple_w7</scenario_name>
     <automac offset="8"/>
     <vm_mgmt type="none" />
-    <vm_defaults exec_mode="mconsole">
+    <vm_defaults>
     </vm_defaults>
   </global>
     
@@ -45,9 +45,9 @@ SPAIN
     </if>
     <filetree seq="vnxtxt" root="c:\temp">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="c:\temp">conf/txtfile</filetree>
-    <exec seq="vnxtxt" type="verbatim" mode="system">start /max notepad c:\temp\vnx.txt</exec>
-    <exec seq="vnxwww" type="verbatim" mode="system">start /max c:\temp\vnx.html</exec>
-    <exec seq="calc" type="verbatim" mode="system">calc.exe</exec>
+    <exec seq="vnxtxt" type="verbatim" ostype="system">start /max notepad c:\temp\vnx.txt</exec>
+    <exec seq="vnxwww" type="verbatim" ostype="system">start /max c:\temp\vnx.html</exec>
+    <exec seq="calc" type="verbatim" ostype="system">calc.exe</exec>
   </vm>
 
   <host>

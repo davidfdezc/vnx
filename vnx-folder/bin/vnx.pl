@@ -243,7 +243,7 @@ sub main {
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
                 'show-map', 'console:s', 'console-info', 'exe-info', 'clean-host',
-                'modify-rootfs=s', 'update-aced:s', 'mem=s', 'yes|y',
+                'create-rootfs=s', 'modify-rootfs=s', 'install-cdrom=s', 'update-aced:s', 'mem=s', 'yes|y',
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'u=s', '4', '6', 'D', 'no-console|n', 'st-delay=s',
@@ -294,8 +294,9 @@ sub main {
 
    	# To check arguments consistency
    	# 0. Check if -f is present
-   	if (!($opts{f}) && !($opts{'version'}) && !($opts{'help'}) && !($opts{D}) 
-   	                && !($opts{'clean-host'}) && !($opts{'modify-rootfs'}) ) {
+   	if ( !($opts{f}) && !($opts{'version'}) && !($opts{'help'}) && !($opts{D}) 
+   	                 && !($opts{'clean-host'}) && !($opts{'create-rootfs'}) 
+   	                 && !($opts{'modify-rootfs'}) ) {
    	  	&usage;
       	&vnx_die ("Option -f missing\n");
    	}
@@ -326,6 +327,7 @@ sub main {
    	if ($opts{'console-info'})     { $how_many_args++; $mode_args .= 'console-info ';  $mode = "console-info"; }
     if ($opts{'exe-info'})         { $how_many_args++; $mode_args .= 'exe-info ';      $mode = "exe-info";     }
     if ($opts{'clean-host'})       { $how_many_args++; $mode_args .= 'clean-host ';    $mode = "clean-host";   }
+    if ($opts{'create-rootfs'})    { $how_many_args++; $mode_args .= 'create-rootfs '; $mode = "create-rootfs";}
     if ($opts{'modify-rootfs'})    { $how_many_args++; $mode_args .= 'modify-rootfs '; $mode = "modify-rootfs";}
     chop ($mode_args);
     
@@ -334,14 +336,14 @@ sub main {
         &vnx_die ("Only one of the following options can be specified at a time: '$mode_args'");
         #&vnx_die ("Only one of the following options at a time:\n -t|--create, -x|--execute, -d|--shutdown, " .
       	#          "-V, -P|--destroy, --define, --start,\n --undefine, --save, --restore, --suspend, " .
-      	#          "--resume, --reboot, --reset, --showmap, --clean-host, --modify-rootfs or -H");
+      	#          "--resume, --reboot, --reset, --showmap, --clean-host, --create-rootfs, --modify-rootfs or -H");
    	}
    	if ( ($how_many_args lt 1) && (!$opts{D}) ) {
       	&usage;
       	&vnx_die ("missing main mode option. Specify one of the following options: \n" . 
       	          "  -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, \n" . 
       	          "  --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, \n" . 
-      	          "  --show-map, --console, --console-info, --clean-host, --modify-rootfs, -V or -H\n");
+      	          "  --show-map, --console, --console-info, --clean-host, --create-rootfs, --modify-rootfs, -V or -H\n");
    	}
    	if (($opts{F}) && (!($opts{'shutdown'}))) { 
       	&usage; 
@@ -493,10 +495,26 @@ sub main {
         exit(0);
     }
     
+    # Create root filesystem pseudomode
+    if ($opts{'create-rootfs'}) {
+        unless ( -f $opts{'create-rootfs'} ) {
+            vnx_die ("file $opts{'create-rootfs'} is not valid (perhaps does not exists)");
+        }
+        wlog (VVV, "install-cdrom = $opts{'install-cdrom'}");
+        unless ( $opts{'install-cdrom'} ) {
+            vnx_die ("option 'install-cdrom' not defined");
+        }
+        unless ( $opts{'install-cdrom'} && -f $opts{'install-cdrom'} ) {
+            vnx_die ("file $opts{'install-cdrom'} is not valid (perhaps does not exists)");
+        }
+        mode_createrootfs($tmp_dir, $vnx_dir);
+        exit(0);
+    }
+
     # Modify root filesystem pseudomode
     if ($opts{'modify-rootfs'}) {
         unless ( -f $opts{'modify-rootfs'} ) {
-            &vnx_die ("file $opts{'modify-rootfs'} is not valid (perhaps does not exists)");
+            vnx_die ("file $opts{'modify-rootfs'} is not valid (perhaps does not exists)");
         }
         mode_modifyrootfs($tmp_dir, $vnx_dir);
         exit(0);
@@ -676,7 +694,6 @@ sub main {
 =END
 =cut	
       	
-      	      
       	if (my $err_msg = $plugin->initPlugin($mode,$plugin_conf)) {
          	&vnx_die ("plugin $plugin reports error: $err_msg\n");
       	}
@@ -1456,6 +1473,117 @@ sub mode_cleanhost {
     }
 }
 
+sub mode_createrootfs {
+
+    my $tmp_dir = shift;
+    my $vnx_dir = shift;
+
+    my $sdisk_fname; # shared disk complete file name 
+    my $h2vm_port;   # host tcp port used to access the the host-to-VM comms channel 
+    my $vm_libirt_xml_hdb;
+    my $mem;         # Memory assigned to the virtual machine
+    my $default_mem = "512M";
+ 
+    my $instal_cdrom = $opts{'install-cdrom'};
+    if (! -e $instal_cdrom) {
+    	vnx_die ("installation cdrom image ($instal_cdrom) not found");
+    }
+ 
+    # Set memory value
+    if ($opts{'mem'}) {
+        $mem = $opts{'mem'}
+    } else {
+        $mem = $default_mem;
+    }
+    # Convert <mem> tag value to Kilobytes (only "M" and "G" letters are allowed) 
+    if ((($mem =~ /M$/))) {
+        $mem =~ s/M//;
+        $mem = $mem * 1024;
+    } elsif ((($mem =~ /G$/))) {
+        $mem =~ s/G//;
+        $mem = $mem * 1024 * 1024;
+    } else {
+        vnx_die ("Incorrect memory specification ($mem). Use 'M' or 'G' to specify Mbytes or Gbytes. Ej: 512M, 1G ");
+    }
+    
+    my $rootfs_name = basename $opts{'create-rootfs'};
+    $rootfs_name .= "-" . int(rand(10000));
+
+    # Create a temp directory to store everything
+    my $base_dir = `mktemp --tmpdir=$tmp_dir -td vnx_create_rootfs.XXXXXX`;
+    chomp ($base_dir);
+    my $rootfs_fname = `readlink -f $opts{'create-rootfs'}`; chomp ($rootfs_fname);
+    my $cdrom_fname  = `readlink -f $opts{'install-cdrom'}`; chomp ($cdrom_fname);
+    my $vm_xml_fname = "$base_dir/${rootfs_name}.xml";
+
+    $vm_libirt_xml_hdb =  <<EOF;
+<disk type='file' device='cdrom'>
+    <source file='$cdrom_fname'/>
+    <target dev='hdb'/>
+</disk>
+EOF
+
+    # Get a free port for h2vm channel
+    $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);    
+
+    # Create the VM libvirt XML
+    #
+    # Variables:
+    #  $rootfs_name, rootfs file name
+    #  $rootfs_fname, rootfs complete file name (with path)
+    #  $vm_libirt_xml_hdb;
+
+    my $vm_libirt_xml = <<EOF;
+
+<domain type='kvm'>
+  <name>$rootfs_name</name>
+  <memory>$mem</memory>
+  <vcpu>1</vcpu>
+  <os>
+    <type arch="i686">hvm</type>
+    <boot dev='cdrom'/>
+    <boot dev='hd'/>
+  </os>
+  <features>
+     <pae/>
+     <acpi/>
+     <apic/>
+  </features>
+  <clock sync="localtime"/>
+  <devices>
+    <emulator>/usr/bin/kvm</emulator>
+    <disk type='file' device='disk'>
+      <source file='$rootfs_fname'/>
+      <target dev='hda'/>
+      <driver name="qemu" type="qcow2"/>
+    </disk>
+    $vm_libirt_xml_hdb
+    <interface type='network'>
+      <source network='default'/>
+    </interface>
+    <graphics type='vnc'/>
+    <serial type="pty">
+      <target port="0"/>
+     </serial>
+     <console type="pty">
+      <target port="0"/>
+     </console>
+  </devices>
+</domain>
+
+EOF
+    
+    # Create XML file
+    open (XMLFILE, "> $vm_xml_fname") or vnx_die ("cannot open file $vm_xml_fname");
+    print XMLFILE "$vm_libirt_xml";
+    close (XMLFILE); 
+
+    wlog (N, "-- Starting a virtual machine with root filesystem $opts{'modify-rootfs'}", "");
+    system "virsh create $vm_xml_fname"; 
+    system "virt-viewer $rootfs_name &"; 
+
+}
+
 sub mode_modifyrootfs {
 	
     my $tmp_dir = shift;
@@ -1468,7 +1596,6 @@ sub mode_modifyrootfs {
     my $default_mem = "512M";
  
     use constant USE_CDROM_FORMAT => 0;  # 
- 
     
     # Set memory value
     if ($opts{'mem'}) {

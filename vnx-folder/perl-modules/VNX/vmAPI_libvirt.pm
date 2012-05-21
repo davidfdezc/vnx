@@ -1093,6 +1093,12 @@ sub defineVM {
             print H2VMFILE "$h2vm_port";
             close H2VMFILE;
             wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+
+            # <protocol type="raw"/>
+            my $protocol_tag = $init_xml->createElement('protocol');
+            $serial_tag->addChild($protocol_tag);
+            #$protocol_tag->addChild( $init_xml->createAttribute( type => 'raw' ) );
+            $protocol_tag->addChild( $init_xml->createAttribute( type => 'telnet' ) );
         }
 
 		my $target_tag = $init_xml->createElement('target');
