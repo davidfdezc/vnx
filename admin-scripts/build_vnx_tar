@@ -105,6 +105,7 @@ rm -rf tmp/aced/*
 #
 # Olive
 #
+echo "**   Creating vnx-aced-olive-${ACED_OLIVE_VERSION}.tgz file... "
 mkdir -p tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION
 cp vnx-autoconf/open-source/olive/*  tmp/aced/vnx-aced-olive-$ACED_OLIVE_VERSION
 # Update version numbers in olived
@@ -126,6 +127,7 @@ cp vnx-autoconf/windows/vnx-aced-win-${ACED_WIN_VERSION}.exe tmp/aced
 #
 # Linux & Freebsd
 #
+echo "**   Creating vnx-aced-lf-${ACED_LF_VERSION}.tgz file... "
 mkdir -p tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
 cp -r vnx-autoconf/open-source/freebsd \
       vnx-autoconf/open-source/linux \
@@ -150,6 +152,7 @@ cd ../..
 #
 # Copy all the files to tmp/${FNAME} directory to build the tar file from there 
 #
+echo "**   Copying files... "
 cp -r vnx-folder/doc  \
       vnx-folder/etc  \
       vnx-folder/bin  \
@@ -162,24 +165,34 @@ cp -r vnx-folder/doc  \
       vnx-ediv/perl-modules \
       tmp/${FNAME}
 
+# Update versions
+echo "**   Updating version numbers... "
+sed --in-place -e "s%DD/MM/YYYY%$RELDATE%"     tmp/${FNAME}/bin/vnx_download_rootfs.sh
+sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/${FNAME}/bin/vnx_download_rootfs.sh
+
+
 # 
 # Plugins
 #
+echo "**   Copying plugins... "
 mkdir -p tmp/${FNAME}/plugins
 rm -rf tmp/${FNAME}/plugins/*
 mkdir -p tmp/${FNAME}/plugins/examples
+if [ $VERBOSE ]; then
+    OPTV="-v"
+fi
 # For each plugin
 for p in `ls vnx-plugins`
 do 
     if [ -f vnx-plugins/$p/$p.pm ]; then
-	   cp $VERBOSE vnx-plugins/$p/$p.pm  tmp/${FNAME}/plugins
+	   cp $OPTV vnx-plugins/$p/$p.pm  tmp/${FNAME}/plugins
 	fi 
 #    cp $VERBOSE vnx-plugins/$p/$p.dtd tmp/${FNAME}/plugins 
     if [ -f vnx-plugins/$p/$p.xsd ]; then
-        cp $VERBOSE vnx-plugins/$p/$p.xsd tmp/${FNAME}/plugins
+        cp $OPTV vnx-plugins/$p/$p.xsd tmp/${FNAME}/plugins
     fi 
     if [ "$( ls -A vnx-plugins/$p/examples/ )" ]; then
-        cp $VERBOSE -r vnx-plugins/$p/examples/* tmp/${FNAME}/plugins/examples
+        cp $OPTV -r vnx-plugins/$p/examples/* tmp/${FNAME}/plugins/examples
     fi 
 done
 

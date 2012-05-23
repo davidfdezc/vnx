@@ -37,7 +37,7 @@ SPAIN
   <net name="Net0" mode="virtual_bridge" />
   
   <!-- NODES -->
-  <vm name="win7" type="libvirt" subtype="kvm" os="windows">
+  <vm name="win7" type="libvirt" subtype="kvm" os="windows" arch="x86_64">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_win7</filesystem>
     <mem>1G</mem>
     <if id="1" net="Net0">

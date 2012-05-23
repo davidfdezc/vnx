@@ -135,11 +135,16 @@ chmod +x /usr/share/vnx/examples/conf
 # Copy other utils
 #
 cp $VERBOSE bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
-cp $VERBOSE bin/vnx_modify_rootfs.sh /usr/share/vnx/bin/vnx_modify_rootfs
+
+# Delete vnx_modify_rootfs* -> obsoleted by vnx --modify-rootfs option
+rm -f $VERBOSE /usr/share/vnx/bin/vnx_modify_rootfs*
+#cp $VERBOSE bin/vnx_modify_rootfs.sh /usr/share/vnx/bin/vnx_modify_rootfs
 #cp $VERBOSE bin/vnx_modify_rootfs2.sh /usr/share/vnx/bin/vnx_modify_rootfs2
+
 cp $VERBOSE bin/vnx_update.sh /usr/share/vnx/bin/vnx_update
 cp $VERBOSE bin/vnx_update_host.sh /usr/share/vnx/bin/vnx_update_host
 cp $VERBOSE bin/vnx_set_def_rootfs.pl /usr/share/vnx/bin/vnx_set_def_rootfs
+cp $VERBOSE bin/vnx_download_rootfs.sh /usr/share/vnx/bin/vnx_download_rootfs
 chmod 755 /usr/share/vnx/bin/*
 
 #

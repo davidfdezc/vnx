@@ -81,13 +81,15 @@ our @EXPORT = qw(
 	VVV
 	
 	@EXEC_MODES_UML
-	@EXEC_MODES_LIBVIRT_KVM_LINUX
+    @EXEC_MODES_LIBVIRT_KVM_LINUX
+    @EXEC_MODES_LIBVIRT_KVM_FREEBSD
 	@EXEC_MODES_LIBVIRT_KVM_WINDOWS
 	@EXEC_MODES_LIBVIRT_KVM_OLIVE
 	@EXEC_MODES_DYNAMIPS
 
 	@EXEC_OSTYPE_UML
-	@EXEC_OSTYPE_LIBVIRT_KVM_LINUX
+    @EXEC_OSTYPE_LIBVIRT_KVM_LINUX  
+    @EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD
 	@EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS
 	@EXEC_OSTYPE_LIBVIRT_KVM_OLIVE
 	@EXEC_OSTYPE_DYNAMIPS
@@ -163,6 +165,7 @@ use constant VVV => 3;
 # Default mode is always the first value in array
 our @EXEC_MODES_UML                 = qw( mconsole net);
 our @EXEC_MODES_LIBVIRT_KVM_LINUX   = qw( sdisk cdrom net );
+our @EXEC_MODES_LIBVIRT_KVM_FREEBSD = qw( sdisk cdrom net );
 our @EXEC_MODES_LIBVIRT_KVM_WINDOWS = qw( cdrom sdisk );
 our @EXEC_MODES_LIBVIRT_KVM_OLIVE   = qw( sdisk net );
 our @EXEC_MODES_DYNAMIPS            = qw( telnet );
@@ -171,6 +174,7 @@ our @EXEC_MODES_DYNAMIPS            = qw( telnet );
 # Default mode is always the first value in array
 our @EXEC_OSTYPE_UML                 = qw( system );
 our @EXEC_OSTYPE_LIBVIRT_KVM_LINUX   = qw( system exec xsystem xexec );
+our @EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD = qw( system exec xsystem xexec );
 our @EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS = qw( cmd system exec );
 our @EXEC_OSTYPE_LIBVIRT_KVM_OLIVE   = qw( show set load system );
 our @EXEC_OSTYPE_DYNAMIPS            = qw( show set load );

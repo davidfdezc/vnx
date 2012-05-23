@@ -3,7 +3,7 @@
 # Script to update the VNX version from idefix.dit.upm.es 
 
 REMOTETMPDIR=vnx-update
-VNXLATESTURL='http://idefix.dit.upm.es/download/vnx/vnx-latest.tgz'
+VNXLATESTURL='http://vnx.dit.upm.es/vnx/vnx-latest.tgz'
 
 # Create tmpdir and delete content if already created
 mkdir -vp /tmp/$REMOTETMPDIR
