@@ -525,7 +525,7 @@ sub defineVM {
 
         } else {  # Use TCP
         	
-            $source3_tag->addChild( $init_xml->createAttribute( host => '0.0.0.0' ) );
+            $source3_tag->addChild( $init_xml->createAttribute( host => 'localhost' ) );
             my $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);
             $source3_tag->addChild( $init_xml->createAttribute( service => $h2vm_port ) );
             # Add it to h2vm_port file
@@ -1083,7 +1083,7 @@ sub defineVM {
 
         } else {  # Use TCP
             
-            $source3_tag->addChild( $init_xml->createAttribute( host => '0.0.0.0' ) );
+            $source3_tag->addChild( $init_xml->createAttribute( host => 'localhost' ) );
             my $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);
             $source3_tag->addChild( $init_xml->createAttribute( service => $h2vm_port ) );
             # Add it to h2vm_port file
