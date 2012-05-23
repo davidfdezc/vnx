@@ -431,6 +431,7 @@ e-mail: vnx@dit.upm.es
       <xs:attribute name="type" type="xs:string" use="required"/>
       <xs:attribute name="subtype" type="xs:string" use="optional"/>
       <xs:attribute name="os" type="xs:string" use="optional"/>
+      <xs:attribute name="arch" type="xs:string" use="optional"/>
       <xs:attribute name="order" type="xs:string" use="optional"/>
       <xs:attribute name="exec_mode" type="xs:string" use="optional"/>
      </xs:complexType>

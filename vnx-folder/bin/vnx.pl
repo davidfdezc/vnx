@@ -243,7 +243,7 @@ sub main {
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
                 'show-map', 'console:s', 'console-info', 'exe-info', 'clean-host',
-                'create-rootfs=s', 'modify-rootfs=s', 'install-cdrom=s', 'update-aced:s', 'mem=s', 'yes|y',
+                'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y',
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'u=s', '4', '6', 'D', 'no-console|n', 'st-delay=s',
@@ -500,12 +500,12 @@ sub main {
         unless ( -f $opts{'create-rootfs'} ) {
             vnx_die ("file $opts{'create-rootfs'} is not valid (perhaps does not exists)");
         }
-        wlog (VVV, "install-cdrom = $opts{'install-cdrom'}");
-        unless ( $opts{'install-cdrom'} ) {
-            vnx_die ("option 'install-cdrom' not defined");
+        wlog (VVV, "install-media = $opts{'install-media'}");
+        unless ( $opts{'install-media'} ) {
+            vnx_die ("option 'install-media' not defined");
         }
-        unless ( $opts{'install-cdrom'} && -f $opts{'install-cdrom'} ) {
-            vnx_die ("file $opts{'install-cdrom'} is not valid (perhaps does not exists)");
+        unless ( $opts{'install-media'} && -f $opts{'install-media'} ) {
+            vnx_die ("file $opts{'install-media'} is not valid (perhaps does not exists)");
         }
         mode_createrootfs($tmp_dir, $vnx_dir);
         exit(0);
@@ -1484,7 +1484,7 @@ sub mode_createrootfs {
     my $mem;         # Memory assigned to the virtual machine
     my $default_mem = "512M";
  
-    my $instal_cdrom = $opts{'install-cdrom'};
+    my $instal_cdrom = $opts{'install-media'};
     if (! -e $instal_cdrom) {
     	vnx_die ("installation cdrom image ($instal_cdrom) not found");
     }
@@ -1513,7 +1513,7 @@ sub mode_createrootfs {
     my $base_dir = `mktemp --tmpdir=$tmp_dir -td vnx_create_rootfs.XXXXXX`;
     chomp ($base_dir);
     my $rootfs_fname = `readlink -f $opts{'create-rootfs'}`; chomp ($rootfs_fname);
-    my $cdrom_fname  = `readlink -f $opts{'install-cdrom'}`; chomp ($cdrom_fname);
+    my $cdrom_fname  = `readlink -f $opts{'install-media'}`; chomp ($cdrom_fname);
     my $vm_xml_fname = "$base_dir/${rootfs_name}.xml";
 
     $vm_libirt_xml_hdb =  <<EOF;
@@ -1578,7 +1578,7 @@ EOF
     print XMLFILE "$vm_libirt_xml";
     close (XMLFILE); 
 
-    wlog (N, "-- Starting a virtual machine with root filesystem $opts{'modify-rootfs'}", "");
+    wlog (N, "-- Starting a virtual machine with root filesystem $opts{'create-rootfs'}", "");
     system "virsh create $vm_xml_fname"; 
     system "virt-viewer $rootfs_name &"; 
 

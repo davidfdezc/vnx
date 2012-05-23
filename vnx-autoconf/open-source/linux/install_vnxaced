@@ -47,7 +47,7 @@ if ($platform[0] eq 'Linux'){
 	# ~~~~~~~~~~~~~~~~~~
 	#  Update for Linux       
 	# ~~~~~~~~~~~~~~~~~~
-	print "-- Linux platform detected ($platform[1])\n";
+	print "-- Linux platform detected ($platform[1]-$platform[2])\n";
     if ($platform[1] eq 'Ubuntu' && $platform[2] =~ /^8.04/ ){
 
         # Particular case for Ubuntu 8.04: use VNXACED based on init.d
@@ -69,7 +69,7 @@ if ($platform[0] eq 'Linux'){
         system "chmod 755 /usr/local/bin/xsu";
 
 	} elsif ( ($platform[1] eq 'Ubuntu') or   
-            ($platform[1] eq 'Fedora') ) { 
+            ($platform[1] eq 'Fedora' && $platform[2] <= 14) ) { 
 
         # Use VNXACED based on upstart
 		system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
@@ -88,6 +88,26 @@ if ($platform[0] eq 'Linux'){
 		system "chown root:root /usr/local/bin/xsu";
 		system "chmod 755 /usr/local/bin/xsu";
 
+    } elsif ( $platform[1] eq 'Fedora' && $platform[2] > 14 ) {
+    
+        # Use VNXACED based on systemd
+        system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
+        system "chown root:root /usr/local/bin/vnxaced";
+        system "chmod 755 /usr/local/bin/vnxaced";
+
+        system "cp -v vnx_halt /usr/local/bin/";
+        system "chown root:root /usr/local/bin/vnx_halt";
+        system "chmod 755 /usr/local/bin/vnx_halt";
+
+        system "cp -v linux/systemd/vnxace.service /lib/systemd/system/";
+        system "chown root:root /lib/systemd/system/vnxace.service";
+        system "chmod 644 /lib/systemd/system/vnxace.service";
+        system "systemctl enable vnxace.service";
+
+        system "cp -v linux/bin/xsu /usr/local/bin";
+        system "chown root:root /usr/local/bin/xsu";
+        system "chmod 755 /usr/local/bin/xsu";
+     
 	} elsif ($platform[1] eq 'CentOS') { 
 
 		# Use VNXACED based on init.d
@@ -119,8 +139,8 @@ if ($platform[0] eq 'Linux'){
 	system "chown root:wheel /usr/local/bin/vnxaced";
 	system "chmod 555 /usr/local/bin/vnxaced";
 
-    system "cp -v vnx_halt /usr/local/bin/";
-    system "chown root:root /usr/local/bin/vnx_halt";
+    system "cp -v freebsd/vnx_halt /usr/local/bin/";
+    system "chown root:wheel /usr/local/bin/vnx_halt";
     system "chmod 755 /usr/local/bin/vnx_halt";
 
 	system "cp -v freebsd/vnxace /etc/rc.d/";

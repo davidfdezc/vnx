@@ -322,7 +322,8 @@ sub defineVM {
 		$domain_tag->addChild($os_tag);
 		my $type_tag = $init_xml->createElement('type');
 		$os_tag->addChild($type_tag);
-		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
+        my $vm_arch = $vm->getAttribute("arch");
+		$type_tag->addChild( $init_xml->createAttribute( arch => "$vm_arch" ) );
         # DFC 23/6/2011: Added machine attribute to avoid a problem in CentOS hosts
 		$type_tag->addChild( $init_xml->createAttribute( machine => "pc" ) );
 		$type_tag->addChild( $init_xml->createTextNode("hvm") );
