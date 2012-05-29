@@ -43,10 +43,7 @@ our @EXPORT = qw(
     @cluster_hosts
     @cluster_active_hosts
     read_cluster_config
-    query_db
-    get_vm_host
-    reset_database
-    delete_scenario_from_database
+
     get_host_status
     get_host_hostname
     get_host_ipaddr
@@ -60,6 +57,14 @@ our @EXPORT = qw(
     get_host_hypervisor
     get_host_serverid
     host_active
+
+    create_database
+    reset_database
+    delete_scenario_from_database
+    delete_database
+    query_db
+    get_vm_host
+
 );
 
 ###########################################################
@@ -72,6 +77,7 @@ our @EXPORT = qw(
 our $db = {
     name => undef,
     type => undef,
+    file => undef,
     host => undef,
     port => undef,
     user => undef,
@@ -97,6 +103,10 @@ our $cluster = {
     controller_id => undef,         # Cluster controller Linux host identifier (hostid command)
 };
 
+# Database tables
+my @tables = qw ( hosts nets scenarios vlans vms ); 
+
+
 #
 # read_cluster_config
 #
@@ -112,6 +122,7 @@ our $cluster = {
 sub read_cluster_config {
 
     my $cluster_conf_file = shift;
+    my $check_hosts = shift;
     
     unless (defined($cluster_conf_file)) { return "configuration file name not defined!"; } 
     unless (-e $cluster_conf_file) { return "configuration file '$cluster_conf_file' doesn't exist!"; } 
@@ -142,21 +153,29 @@ sub read_cluster_config {
     # TODO: check return code 
     
     # Fill database access data  
-    #$db->{name} = $cluster_config->get("db_name"); unless ($db->{name}) { return "db_name configuration parameter not found"}
-    unless ( $db->{name} = $cluster_config->get("db_name") ) 
-        { return "'name' configuration parameter not found in section [db]"}
     unless ( $db->{type} = $cluster_config->get("db_type") ) 
         { return "'type' configuration parameter not found in section [db]"}
-    unless ( $db->{host} = $cluster_config->get("db_host") ) 
-        { return "'host' configuration parameter not found in section [db]"}
-    unless ( $db->{port} = $cluster_config->get("db_port") ) 
-        { return "'port' configuration parameter not found in section [db]"}
-    unless ( $db->{user} = $cluster_config->get("db_user") ) 
-        { return "'user' configuration parameter not found in section [db]"}
-    unless ( $db->{pass} = $cluster_config->get("db_pass") ) 
-        { return "'pass' configuration parameter not found in section [db]"}
-    unless ( $db->{conn_info} = "DBI:$db->{type}:database=$db->{name};$db->{host}:$db->{port}" ) 
-        { return "'conn_info' configuration parameter not found in section [db]"}   
+    if ($db->{type} eq 'sqlite') {
+        unless ( $db->{file} = $cluster_config->get("db_file") ) 
+            { return "'file' configuration parameter not found in section [db]"}
+        unless ( $db->{conn_info} = "DBI:SQLite:$db->{file}" ) 
+            { return "'conn_info' configuration parameter not found in section [db]"} 
+        $db->{user} = '';
+        $db->{passwd} = '';
+    } else {
+        unless ( $db->{name} = $cluster_config->get("db_name") ) 
+            { return "'name' configuration parameter not found in section [db]"}
+	    unless ( $db->{host} = $cluster_config->get("db_host") ) 
+	        { return "'host' configuration parameter not found in section [db]"}
+	    unless ( $db->{port} = $cluster_config->get("db_port") ) 
+	        { return "'port' configuration parameter not found in section [db]"}
+	    unless ( $db->{user} = $cluster_config->get("db_user") ) 
+	        { return "'user' configuration parameter not found in section [db]"}
+	    unless ( $db->{pass} = $cluster_config->get("db_pass") ) 
+	        { return "'pass' configuration parameter not found in section [db]"}
+	    unless ( $db->{conn_info} = "DBI:$db->{type}:database=$db->{name};$db->{host}:$db->{port}" ) 
+	        { return "'conn_info' configuration parameter not found in section [db]"}   
+    }
 
     # Fill vlan range data 
     unless ( defined ($vlan->{first} = $cluster_config->get("vlan_first") ) )
@@ -213,64 +232,67 @@ sub read_cluster_config {
         $cluster_host->max_vms("$max_vms");
         $cluster_host->if_name("$ifname");
 
-        print "-- Checking $current_host_id availability...";
-        # Check whether the host is active or not
-		my $not_active = system ("ssh -2 -o 'StrictHostKeyChecking no' -X root\@$ip uptime > /dev/null 2>&1 ");
-		if ($not_active) {
-            print "WARNING: cannot connect to host $current_host_id ($res). Marked as inactive.\n";
-            $cluster_host->status("inactive");
-		} else {
-            print "$current_host_id is active\n";
-            $cluster_host->status("active");
-	        my $cpu_dynamic_command = 'cat /proc/loadavg | awk \'{print $1}\'';
-	        my $cpu_dynamic = `ssh -2 -o 'StrictHostKeyChecking no' -X root\@$ip $cpu_dynamic_command`;
-	        chomp $cpu_dynamic;
-	        $cluster_host->cpu_dynamic("$cpu_dynamic");
-	            
-	        # Get vnx_dir from host vnx conf file (/etc/vnx.conf) 
-	        my $vnx_dir = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^vnx_dir'`;
-	        if ($vnx_dir eq '') { 
-	            $vnx_dir = $DEFAULT_VNX_DIR
+        my $not_active;
+        unless ( defined ($check_hosts) && $check_hosts eq 'no' ) {
+	        print "-- Checking $current_host_id availability...";
+	        # Check whether the host is active or not
+	        $not_active = system ("ssh -2 -o 'StrictHostKeyChecking no' -X root\@$ip uptime > /dev/null 2>&1 ");
+	        if ($not_active) {
+	            print "WARNING: cannot connect to host $current_host_id ($res). Marked as inactive.\n";
+	            $cluster_host->status("inactive");
 	        } else {
-	            my @aux = split(/=/, $vnx_dir);
-	            chomp($aux[1]);
-	            $vnx_dir=$aux[1];
-	        }   
-	        $cluster_host->vnx_dir("$vnx_dir");
-
-            # Get VNX version from host (vnx -V -b command)
-            my $vnx_ver = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'vnx -V -b'`;
-            chomp ($vnx_ver);
-            $cluster_host->vnx_ver("$vnx_ver");
-
-            # Get tmp_dir from host vnx conf file (/etc/vnx.conf) 
-            my $tmp_dir = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^tmp_dir'`;
-            if ($tmp_dir eq '') { 
-                $tmp_dir = $DEFAULT_TMP_DIR
-            } else {
-                my @aux = split(/=/, $tmp_dir);
-                chomp($aux[1]);
-                $tmp_dir=$aux[1];
-            }   
-            $cluster_host->tmp_dir("$tmp_dir");
-
-            # Get hypervisor from host vnx conf file (/etc/vnx.conf) 
-            my $hypervisor = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^hypervisor'`;
-            if ($hypervisor eq '') { 
-                $hypervisor = $LIBVIRT_DEFAULT_HYPERVISOR
-            } else {
-                my @aux = split(/=/, $hypervisor);
-                chomp($aux[1]);
-                $hypervisor=$aux[1];
-            }   
-            $cluster_host->hypervisor("$hypervisor");
-
-             # Get Linux host identifier (hostid command)
-            my $server_id = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'hostid'`;
-            chomp ($server_id);
-            $cluster_host->server_id("$server_id");
-
-		}
+	            print "$current_host_id is active\n";
+	            $cluster_host->status("active");
+	            my $cpu_dynamic_command = 'cat /proc/loadavg | awk \'{print $1}\'';
+	            my $cpu_dynamic = `ssh -2 -o 'StrictHostKeyChecking no' -X root\@$ip $cpu_dynamic_command`;
+	            chomp $cpu_dynamic;
+	            $cluster_host->cpu_dynamic("$cpu_dynamic");
+	                
+	            # Get vnx_dir from host vnx conf file (/etc/vnx.conf) 
+	            my $vnx_dir = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^vnx_dir'`;
+	            if ($vnx_dir eq '') { 
+	                $vnx_dir = $DEFAULT_VNX_DIR
+	            } else {
+	                my @aux = split(/=/, $vnx_dir);
+	                chomp($aux[1]);
+	                $vnx_dir=$aux[1];
+	            }   
+	            $cluster_host->vnx_dir("$vnx_dir");
+	
+	            # Get VNX version from host (vnx -V -b command)
+	            my $vnx_ver = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'vnx -V -b'`;
+	            chomp ($vnx_ver);
+	            $cluster_host->vnx_ver("$vnx_ver");
+	
+	            # Get tmp_dir from host vnx conf file (/etc/vnx.conf) 
+	            my $tmp_dir = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^tmp_dir'`;
+	            if ($tmp_dir eq '') { 
+	                $tmp_dir = $DEFAULT_TMP_DIR
+	            } else {
+	                my @aux = split(/=/, $tmp_dir);
+	                chomp($aux[1]);
+	                $tmp_dir=$aux[1];
+	            }   
+	            $cluster_host->tmp_dir("$tmp_dir");
+	
+	            # Get hypervisor from host vnx conf file (/etc/vnx.conf) 
+	            my $hypervisor = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^hypervisor'`;
+	            if ($hypervisor eq '') { 
+	                $hypervisor = $LIBVIRT_DEFAULT_HYPERVISOR
+	            } else {
+	                my @aux = split(/=/, $hypervisor);
+	                chomp($aux[1]);
+	                $hypervisor=$aux[1];
+	            }   
+	            $cluster_host->hypervisor("$hypervisor");
+	
+	             # Get Linux host identifier (hostid command)
+	            my $server_id = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'hostid'`;
+	            chomp ($server_id);
+	            $cluster_host->server_id("$server_id");
+	
+	        }
+        } 
                     
         # Store the host object inside cluster arrays
         $cluster->{hosts}{$current_host_id} = $cluster_host;
@@ -418,6 +440,7 @@ sub get_host_hostname {
 
 sub get_host_ipaddr {
     my $host_id = shift;
+    wlog (VVV, "get_host_ipaddr called: host_id=$host_id");
     return $cluster->{hosts}{$host_id}->ip_address
 }
 
@@ -525,6 +548,7 @@ sub query_db {
 
     my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass}) 
        or return "DB ERROR: Cannot connect to database. " . DBI->errstr;
+       
     my $query = $dbh->prepare($query_string) 
        or return "DB ERROR: Cannot prepare query to database. " . DBI->errstr;
     $query->execute()
@@ -580,18 +604,111 @@ sub get_vm_host {
 }
 
 #
+# create_database
+#
+# Creates the database structure
+#
+sub create_database {
+    
+    my $dbh;
+    my $query_string;
+    my $query;
+
+    wlog (VVV, "db type=$db->{type},db_connection_info=$db->{conn_info}");
+    
+    if ($db->{type} eq 'sqlite') {
+
+        $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
+        
+    } else {
+        
+        #$dbh = DBI->connect($db_connection_info,$db->{user},$db->{pass});
+        my $db_conn_info = "DBI:$db->{type}:database=;$db->{host}:$db->{port}";
+        $dbh = DBI->connect($db_conn_info,$db->{user},$db->{pass});
+        $query_string = "CREATE DATABASE `$db->{name}`";
+        $query = $dbh->prepare($query_string);
+        $query->execute();
+        $query->finish();
+
+        # Disconnect and reconnect specifying the database to use 
+        $dbh->disconnect;
+        $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
+    }
+    
+    #$query_string = "SET SQL_MODE=\"NO_AUTO_VALUE_ON_ZERO\"";
+    #$query = $dbh->prepare($query_string);
+    #$query->execute();
+    #$query->finish();
+    
+    $query_string = "CREATE TABLE IF NOT EXISTS `hosts` (
+                    `scenario` TEXT,
+                    `local_scenario` TEXT,
+                    `host` TEXT,
+                    `local_specification` BLOB,
+                    `ip` TEXT,
+                    `status` TEXT    
+                    )";
+    $query = $dbh->prepare($query_string);
+    $query->execute();
+    $query->finish();
+
+    $query_string = "CREATE TABLE IF NOT EXISTS `nets` (
+                    `name` text NOT NULL,
+                    `scenario` text NOT NULL,
+                    `external` text
+                    )";
+    $query = $dbh->prepare($query_string);
+    $query->execute();
+    $query->finish();
+    
+    $query_string = "CREATE TABLE IF NOT EXISTS `scenarios` (
+                    `name` text NOT NULL,
+                    `automac_offset` int(11) default NULL,
+                    `mgnet_offset` int(11) default NULL
+                    )";
+    $query = $dbh->prepare($query_string);
+    $query->execute();
+    $query->finish();
+    
+    $query_string = "CREATE TABLE IF NOT EXISTS `vlans` (
+                    `number` int(11) NOT NULL,
+                    `scenario` text NOT NULL,
+                    `host` text  NOT NULL,
+                    `external_if` text  NOT NULL
+                    )";
+    $query = $dbh->prepare($query_string);
+    $query->execute();
+    $query->finish();
+    
+    $query_string = "CREATE TABLE IF NOT EXISTS `vms` (
+                    `name` text NOT NULL,
+                    `type` text  NOT NULL,
+                    `subtype` text  NOT NULL,
+                    `os` text  NOT NULL,
+                    `status` text  NOT NULL,
+                    `scenario` text  NOT NULL,
+                    `host` text  NOT NULL,
+                    `ssh_port` int(11) default NULL
+                    )";
+    $query = $dbh->prepare($query_string);
+    $query->execute();
+    $query->finish();
+    
+    $dbh->disconnect;    
+}
+
+#
 # reset_database
 #
 # Deletes the whole database content
 #
 sub reset_database {
         
-        my $error;
-        $error = query_db ("TRUNCATE TABLE  `hosts`");       if ($error) { die "** $error" }
-        $error = query_db ("TRUNCATE TABLE  `scenarios`"); if ($error) { die "** $error" }
-        $error = query_db ("TRUNCATE TABLE  `vms`");         if ($error) { die "** $error" }
-        $error = query_db ("TRUNCATE TABLE  `vlans`");       if ($error) { die "** $error" }
-        $error = query_db ("TRUNCATE TABLE  `nets`");        if ($error) { die "** $error" }
+    for my $table (@tables) {
+       
+        my $error = query_db ("DELETE FROM `$table`");       
+        if ($error) { wlog (V, "Can't delete table '$table' content: $error"); }
+    }
 }
 
 #
@@ -604,22 +721,58 @@ sub delete_scenario_from_database {
     my $scenario_name = shift;
     
     wlog (V, "-- delete_scenario_from_database called");
-    my $error;
-    
-    $error = query_db ("DELETE FROM hosts WHERE scenario = '$scenario_name'");
-    if ($error) { ediv_die ("$error") };
-    
-    $error = query_db ("DELETE FROM nets WHERE scenario = '$scenario_name'");
-    if ($error) { ediv_die ("$error") };
-    
-    $error = query_db ("DELETE FROM scenarios WHERE name = '$scenario_name'"); 
-    if ($error) { ediv_die ("$error") }
 
-    $error = query_db ("DELETE FROM vlans WHERE scenario = '$scenario_name'"); 
-    if ($error) { ediv_die ("$error") }
-    
-    $error = query_db ("DELETE FROM vms WHERE scenario = '$scenario_name'"); 
-    if ($error) { ediv_die ("$error") }
+    for my $table (@tables) {
+
+        if ($table eq 'scenarios') {
+            my $error = query_db ("DELETE FROM $table WHERE name = '$scenario_name'");
+	        if ($error) { 
+	            print "Can't delete '$scenario_name' entries in table '$table': $error\n";
+	        }
+        } else {
+	        my $error = query_db ("DELETE FROM $table WHERE scenario = '$scenario_name'");
+	        if ($error) { 
+	            print "Can't delete '$scenario_name' entries in table '$table': $error\n";
+	        }        	
+        }
+    }
 }
+
+#
+# delete_database
+#
+# Completely deletes database
+#
+sub delete_database {
+
+    my $query;
+    my $query_string;
+        
+    wlog (VVV, "db_connection_info=$db->{conn_info}");
+    my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
+        
+    if ($db->{type} ne 'sqlite') {
+        $query_string = "DROP DATABASE `$db->{name}`";
+        $query = $dbh->prepare($query_string);
+        $query->execute();
+        $query->finish();
+        $dbh->disconnect;
+    } else {
+        # SQlite: delete TABLES 
+        my @tables = qw ( hosts nets scenarios vlans vms ); 
+    
+        for my $table (@tables) {
+            $query_string = "DROP TABLE `$table`";
+            if ($query = $dbh->prepare($query_string) ) {
+                $query->execute();
+                $query->finish();       
+            } else {
+                print "Can't delete table '$table': $DBI::errstr\n";
+            }
+        }
+    }
+    $dbh->disconnect;
+}
+
 1;
 ###########################################################

@@ -428,7 +428,8 @@ sub check_doc {
          		last if ($machines > 3);
          	}
          }
-         return "PPP $name net is connected to just one interface: PPP networks must be connected to exactly two interfaces" if ($machines < 2);
+         # Eliminated. It caused problems when using EDIV
+         #return "PPP $name net is connected to just one interface: PPP networks must be connected to exactly two interfaces" if ($machines < 2);
          return "PPP $name net is connected to more than two interface: PPP networks must be connected to exactly two interfaces"if ($machines > 2);         
       }
       

@@ -66,7 +66,8 @@ mkdir -p $VERBOSE /usr/share/vnx/kernels
 mkdir -p $VERBOSE /usr/share/vnx/aced
 mkdir -p $VERBOSE /usr/share/vnx/plugins
 mkdir -p $VERBOSE /usr/share/vnx/src
-mkdir -p $VERBOSE /etc/ediv
+#mkdir -p $VERBOSE /etc/ediv
+mkdir -p $VERBOSE /usr/share/vnx/etc
 
 #
 # save a copy of vnx tar file to /usr/share/vnx/src directory
@@ -93,9 +94,17 @@ chmod +x /usr/bin/vnx
 #
 # Copy ediv executables
 #
-cp $VERBOSE bin/ediv_* bin/vn /usr/bin
-mv /usr/bin/ediv_ctl_vnx.pl /usr/bin/ediv
+cp $VERBOSE bin/ediv_ctl_vnx.pl /usr/bin/ediv
+cp $VERBOSE bin/vn /usr/bin
+cp $VERBOSE bin/ediv_monitor.pl /usr/bin/ediv_monitor
 chmod +x /usr/bin/ediv* /usr/bin/vn
+#
+# Delete deprecated ediv utilities
+#
+DEPRECATED_EDIV_CMDS="ediv_monitor.pl ediv_cluster_cleanup.pl ediv_ctl_vnuml.pl ediv_db_manage.pl ediv_db_reset.pl ediv_segmentation_info.pl ediv_console.pl ediv_ctl.pl"
+for f in $DEPRECATED_EDIV_CMDS; do 
+  rm -f /usr/bin/$f
+done
 
 #
 # Copy other utilities
@@ -153,14 +162,14 @@ chmod 755 /usr/share/vnx/bin/*
 #if [ -e /etc/vnx.conf ]; then
 #	mv /etc/vnx.conf /etc/vnx.conf.bak
 #fi
-cp $VERBOSE etc/vnx.conf /etc/vnx.conf.sample
-chmod 600 /etc/vnx.conf.sample
+cp $VERBOSE etc/vnx.conf /usr/share/vnx/etc/vnx.conf.sample
+chmod 600 /usr/share/vnx/etc/vnx.conf.sample
 
 #
 # Copy ediv config file
 #
-cp $VERBOSE etc/cluster.conf /etc/ediv/cluster.conf.sample
-chmod 600 /etc/ediv/cluster.conf.sample
+cp $VERBOSE etc/cluster.conf /usr/share/vnx/etc/vnx.cluster.conf.sample
+chmod 600 /usr/share/vnx/etc/vnx.cluster.conf.sample
 
 #
 # Copy ace daemons 

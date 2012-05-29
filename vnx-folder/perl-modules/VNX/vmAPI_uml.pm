@@ -27,6 +27,49 @@
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 #
 
+# Some words about UML boot process!
+#
+# The following is a comment to the -t mode.
+#
+# An auxiliary filesystem is used to configure the uml virtual machine during
+# its boot process.  The auxiliary  filesytem is of type iso9660 and is mounted
+# on /mnt/vnuml.  The root filesystem's /etc/fstab should contain an entry for this
+# auxiliary filesystem:
+# /dev/ubdb /mnt/vnuml iso9660 defaults 0 0
+#
+# In addition, the master filesystem should have a SXXumlboot symlink that
+# points to /mnt/vnuml/umlboot, the actual boot script, built by the parser in
+# certain cases.
+#
+# There are three boot modes, depending of the <filesystem> type option.
+#
+# a) type="direct"
+#    The filesystem in the <filesystem> tag is used as the root filesystem.
+#
+# b) type "cow"
+#    A copy-on-write (COW) file based on the filesystem in the <filesystem> tag
+#    is created, and this COW is used as the root filesystem.  The base filesystem
+#    from the <filesystem> tag is not modified, but its presence is necessary due
+#    to the nature of COW mode.
+#
+# c) type "hostfs"
+#    The filesystem is actually a host directory, which content is used as 
+#    root filesystem for the virtual machine.
+#
+# Execpt in the case of "cow" no more than one virtual machine must use the same
+# filesystem (otherwise, filesytem corruption would happen).
+#
+# To summarize, the master filesystem must meet the following requirements for vnuml:
+#
+# - /mnt/vnuml directory (empty)
+# - symlink at rc point (/etc/rc.d/rc3.d/S11umlboot is suggested) pointing to
+#   /mnt/vnuml/umlboot
+# - /etc/fstab with the following last line:
+#   /dev/ubdb /mnt/vnuml iso9660 defaults 0 0
+#
+# (In fact, /mnt/vnuml can be changed for other empty mount point: it is transparent
+# from the point of view of the parser operation)
+
 package VNX::vmAPI_uml;
 
 use strict;
