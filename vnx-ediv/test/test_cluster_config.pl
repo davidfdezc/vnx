@@ -20,13 +20,19 @@ $date = `date`; chomp($date); print $date . ":    ...done\n";
 
 # database config
 print "\nDatabase config:\n";
-print "    Name: " . $db->{name} . "\n";
-print "    Type: " . $db->{type} . "\n";
-print "    Host: " . $db->{host} . "\n";
-print "    Port: " . $db->{port} . "\n";
-print "    User: " . $db->{user} . "\n";
-print "    Pass: " . $db->{pass} . "\n";
-print "    Conn_info: " . $db->{conn_info} . "\n";
+if ($db->{type} eq 'sqlite') {
+    print "    Type: " . $db->{type} . "\n";
+    print "    File: " . $db->{file} . "\n";	
+    print "    Conn_info: " . $db->{conn_info} . "\n";
+} else {
+	print "    Name: " . $db->{name} . "\n";
+	print "    Type: " . $db->{type} . "\n";
+	print "    Host: " . $db->{host} . "\n";
+	print "    Port: " . $db->{port} . "\n";
+	print "    User: " . $db->{user} . "\n";
+	print "    Pass: " . $db->{pass} . "\n";
+	print "    Conn_info: " . $db->{conn_info} . "\n";
+}
 
 # vlan config
 print "\nVlan config:\n";

@@ -525,7 +525,7 @@ sub defineVM {
 
         } else {  # Use TCP
         	
-            $source3_tag->addChild( $init_xml->createAttribute( host => 'localhost' ) );
+            $source3_tag->addChild( $init_xml->createAttribute( host => "$VNX::Globals::H2VM_BIND_ADDR" ) );
             my $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);
             $source3_tag->addChild( $init_xml->createAttribute( service => $h2vm_port ) );
             # Add it to h2vm_port file
@@ -1083,7 +1083,7 @@ sub defineVM {
 
         } else {  # Use TCP
             
-            $source3_tag->addChild( $init_xml->createAttribute( host => 'localhost' ) );
+            $source3_tag->addChild( $init_xml->createAttribute( host => "$VNX::Globals::H2VM_BIND_ADDR" ) );
             my $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);
             $source3_tag->addChild( $init_xml->createAttribute( service => $h2vm_port ) );
             # Add it to h2vm_port file
@@ -2287,7 +2287,7 @@ sub executeCMD {
 	                Type => SOCK_STREAM,
 	                Peer => $socket_fh,
 	                Timeout => 10
-	            ) or $execution->smartdie("Can't connect to server: $!\n");
+	            ) or $execution->smartdie("Can't connect to server: $!");
 
             } else {  # Use TCP
 
@@ -2302,9 +2302,9 @@ sub executeCMD {
 
                 $vmsocket = IO::Socket::INET->new(
                     Proto    => "tcp",
-                    PeerAddr => "localhost",
+                    PeerAddr => "$VNX::Globals::H2VM_BIND_ADDR",
                     PeerPort => "$h2vm_port",
-                ) or $execution->smartdie("Can't connect to $vm_name H2VM port: $!\n");
+                ) or $execution->smartdie("Can't connect to $vm_name H2VM port: $!");
 
             }
 
@@ -2528,7 +2528,7 @@ sub executeCMD {
                     Type => SOCK_STREAM,
                     Peer => $socket_fh,
                     Timeout => 10
-                ) or $execution->smartdie("Can't connect to server: $!\n");
+                ) or $execution->smartdie("Can't connect to server: $!");
 
             } else {  # Use TCP
 
@@ -2543,9 +2543,9 @@ sub executeCMD {
 
                 $vmsocket = IO::Socket::INET->new(
                     Proto    => "tcp",
-                    PeerAddr => "localhost",
+                    PeerAddr => "$VNX::Globals::H2VM_BIND_ADDR",
                     PeerPort => "$h2vm_port",
-                ) or $execution->smartdie("Can't connect to $vm_name H2VM port: $!\n");
+                ) or $execution->smartdie("Can't connect to $vm_name H2VM port: $!");
 
             }
 
@@ -2583,7 +2583,7 @@ sub executeCMD {
                     Type => SOCK_STREAM,
                     Peer => $socket_fh,
                     Timeout => 10
-                ) or $execution->smartdie("Can't connect to server: $!\n");
+                ) or $execution->smartdie("Can't connect to server: $!");
 
             } else {  # Use TCP
 
@@ -2598,9 +2598,9 @@ sub executeCMD {
 
                 $vmsocket = IO::Socket::INET->new(
                     Proto    => "tcp",
-                    PeerAddr => "localhost",
+                    PeerAddr => "127.0.0.1",
                     PeerPort => "$h2vm_port",
-                ) or $execution->smartdie("Can't connect to $vm_name H2VM port: $!\n");
+                ) or $execution->smartdie("Can't connect to $vm_name H2VM port: $!");
 
             }
 	        

@@ -9,12 +9,12 @@ See the tutorial/index.html document for details
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
     <version>2.0</version>
-    <scenario_name>tutorial-r1_all</scenario_name>
+    <scenario_name>tutorial_ubuntu-dynamips</scenario_name>
     <automac/>
-    <vm_mgmt type="none"/>
-    <!--vm_mgmt type="private" network="10.250.0.0" mask="24">
+    <!--vm_mgmt type="none"/-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24">
        <host_mapping />
-    </vm_mgmt--> 
+    </vm_mgmt> 
     <vm_defaults>
     	<console id="0" display="no"/>
 	    <console id="1" display="yes"/>
@@ -23,7 +23,8 @@ See the tutorial/index.html document for details
   </global>
 
   <net name="Net0" mode="virtual_bridge" />
-  <net name="Net1" type='ppp' mode="virtual_bridge" />
+  <net name="Net1" mode="virtual_bridge" />
+  <!--net name="Net1" type='ppp' mode="virtual_bridge" /-->
   <net name="Net2" mode="virtual_bridge" />
   <net name="Net3" mode="virtual_bridge" />
 
@@ -75,7 +76,8 @@ See the tutorial/index.html document for details
     <if id="1" net="Net0" name="e0/0">
       <ipv4>10.0.0.1/24</ipv4>
     </if>
-    <if id="2" net="Net1" name="s1/0">
+    <!--if id="2" net="Net1" name="s1/0"-->
+    <if id="2" net="Net1" name="e0/2">
       <ipv4>10.0.1.1/24</ipv4>
     </if>
     <if id="3" net="Net3" name="e0/1">
@@ -90,7 +92,8 @@ See the tutorial/index.html document for details
   <vm name="r2" type="dynamips" subtype="3600" os="">
     <filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
     <mem>96M</mem>
-    <if id="1" net="Net1" name="s1/0">
+    <!--if id="1" net="Net1" name="s1/0"-->
+    <if id="1" net="Net1" name="e0/1">
       <ipv4>10.0.1.2/24</ipv4>
     </if>
     <if id="2" net="Net2" name="e0/0">
@@ -110,7 +113,7 @@ See the tutorial/index.html document for details
     </if>
     <route type="ipv4" gw="10.0.2.1">default</route>
     <!-- Copy the files under conf/tutorial_ubuntu/h3 to vm /var/www directory -->
-    <filetree seq="start-www" root="/var/www">conf/tutorial_ubuntu/h3</filetree>
+    <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h3</filetree>
     <!-- Start/stop apache www server -->
     <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
     <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
@@ -125,7 +128,7 @@ See the tutorial/index.html document for details
     </if>
     <route type="ipv4" gw="10.0.2.1">default</route> 
     <!-- Copy the files under conf/tutorial_ubuntu/h4 to vm /var/www directory -->
-    <filetree seq="start-www" root="/var/www">conf/tutorial_ubuntu/h4</filetree>
+    <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h4</filetree>
     <!-- Start/stop apache www server -->
     <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
     <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>

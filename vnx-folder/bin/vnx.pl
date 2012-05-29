@@ -3,8 +3,8 @@
 # ---------------------------------------------------------------------------------
 # VNX parser. 
 #
-# Authors:    Fermin Galan Marquez (galan@dit.upm.es), Jorge Somavilla (somavilla@dit.upm.es), 
-#             Jorge Rodriguez (jrodriguez@dit.upm.es), David Fernández (david@dit.upm.es)
+# Authors:    Fermin Galan Marquez (galan@dit.upm.es), David Fernández (david@dit.upm.es),
+#             Jorge Somavilla (somavilla@dit.upm.es), Jorge Rodriguez (jrodriguez@dit.upm.es), 
 # Coordinated by: David Fernández (david@dit.upm.es)
 # Copyright (C) 2005-2010 DIT-UPM
 #                         Departamento de Ingenieria de Sistemas Telematicos
@@ -15,8 +15,9 @@
 #
 # ----------------------------------------------------------------------------------
 #
-# VNX is the new version of VNUML tool adapated to use new virtualization platforms, mainly by means of 
-# libvirt (libvirt.org), the standard API to control virtual machines in Linux.
+# VNX is the new version of VNUML tool adapted to use new virtualization platforms, 
+# mainly by means of libvirt (libvirt.org), the standard API to control virtual 
+# machines in Linux.
 # VNUML was developed by DIT-UPM with the partial support from the European 
 # Commission in the context of the Euro6IX research project (http://www.euro6ix.org).
 #
@@ -41,104 +42,19 @@
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 # -----------------------------------------------------------------------------------
 
-# Becuase of I'm not a Perl guru (in fact, this program is my first development
-# in this language :) is possible that the code wouldn't be too tidy.
-# The careful reader will discover many bad habits due to years of C
-# programming. How many times had I reinvented the wheel in this code? ;)
-#
-# Anyway, I really apreciate any comment or suggestion about the
-# code (and about the english language :) to galan@dit.upm.es
-
-# A word about SSH!
-#
-# In order to perfom management task (copy files, execute commands, etc)
-# SSH is used from the host to the UMLs. To avoid performing interactive
-# authentication procedure (that is, write the password) in each access,
-# key configuration is desirable.
-#
-# To do so, we have to generate the pair of keys in the host. In the case
-# of using SSH v1, the command is
-#
-#    ssh-keygen -t rsa1
-#
-# This generates a pair of files (in $HOME/.ssh/ by default)
-#
-#    identity		->	in $HOME/.ssh/ in the host
-#    identity.pub	->	append it to $HOME/.ssh/authorized_keys file in the UML
-#
-# Usually $HOME will be /root
-#
-# Global tag <ssh_key> can be used pointing to the file identity.pub (absolute
-# pathname) in the host, in order to the parser perform automaticly the intallation
-# of the key in the authorized_keys of the UMLs.
-#
-# Anyway, in the first access with SSH to the UMLs, we have to confirm the
-# key that authenticates the sshd server (in the UML).
-#
-# SSHv2 works in the same way, althought it is not yet implemented. If you
-# want to considerate this possibility look at man pages of ssh-keygen(1) and
-# ssh(1).
-
-# A word about boot process!
-#
-# The following is a comment to the -t mode.
-#
-# An auxiliary filesystem is used to configure the uml virtual machine during
-# its boot process.  The auxiliary  filesytem is of type iso9660 and is mounted
-# on /mnt/vnuml.  The root filesystem's /etc/fstab should contain an entry for this
-# auxiliary filesystem:
-# /dev/ubdb /mnt/vnuml iso9660 defaults 0 0
-#
-# In addition, the master filesystem should have a SXXumlboot symlink that
-# points to /mnt/vnuml/umlboot, the actual boot script, built by the parser in
-# certain cases.
-#
-# There are three boot modes, depending of the <filesystem> type option.
-#
-# a) type="direct"
-#    The filesystem in the <filesystem> tag is used as the root filesystem.
-#
-# b) type "cow"
-#    A copy-on-write (COW) file based on the filesystem in the <filesystem> tag
-#    is created, and this COW is used as the root filesystem.  The base filesystem
-#    from the <filesystem> tag is not modified, but its presence is necessary due
-#    to the nature of COW mode.
-#
-# c) type "hostfs"
-#    The filesystem is actually a host directory, which content is used as 
-#    root filesystem for the virtual machine.
-#
-# Execpt in the case of "cow" no more than one virtual machine must use the same
-# filesystem (otherwise, filesytem corruption would happen).
-#
-# To summarize, the master filesystem must meet the following requirements for vnuml:
-#
-# - /mnt/vnuml directory (empty)
-# - symlink at rc point (/etc/rc.d/rc3.d/S11umlboot is suggested) pointing to
-#   /mnt/vnuml/umlboot
-# - /etc/fstab with the following last line:
-#	/dev/ubdb /mnt/vnuml iso9660 defaults 0 0
-#
-# (In fact, /mnt/vnuml can be changed for other empty mount point: it is transparent
-# from the point of view of the parser operation)
-
 ###########################################################
 # Use clauses
 
-# Explicit declaration of pathname for VNUML modules
-
+# Explicit declaration of pathname for VNX  modules
 #use lib "@PERL_MODULES_INSTALLROOT@";[JSF]
 use lib "/usr/share/perl5";
 
 
 use strict;
 use warnings;
-#se XML::DOM;
-#use XML::DOM::ValParser;
 use File::Basename;
 use File::Path;
 use Cwd 'abs_path';
-#use Getopt::Std;
 use Getopt::Long;
 use IO::Socket;
 #use Net::IPv6Addr;
@@ -150,6 +66,7 @@ use XML::LibXML;
 use AppConfig;         					# Config files management library
 use AppConfig qw(:expand :argcount);    # AppConfig module constants import
 
+# VNX modules
 use VNX::Globals;
 use VNX::DataHandler;
 use VNX::Execution;

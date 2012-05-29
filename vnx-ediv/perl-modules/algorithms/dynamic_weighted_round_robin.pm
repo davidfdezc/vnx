@@ -90,7 +90,7 @@ sub split {
     # Get present cpu load of each host 
     foreach my $host_id (@cluster_hosts) {
         my $cpu_dynamic = get_host_cpudynamic($host_id);
-        wlog (V, "Segmentator: CPU load of $host_id is $cpu_dynamic", "");
+        wlog (VV, "Segmentator: CPU load of $host_id is $cpu_dynamic", "");
         $host_cpu_dynamic{$host_id} = $cpu_dynamic;
         $total_cpu += $cpu_dynamic;
     }
@@ -108,7 +108,7 @@ sub split {
     }
 
     if ($low_cpu_usage) {
-        wlog (V, "Segmentator: cluster CPU load is low. Reverting to standard round robin mode");
+        wlog (VV, "Segmentator: cluster CPU load is low. Reverting to standard round robin mode");
         %allocation = round_robin->split($ref_dom_tree, $ref_cluster_hosts, $ref_cluster, $ref_vms_to_split, $ref_static_assignment);
         return %allocation;
     }
@@ -116,7 +116,7 @@ sub split {
     # Get host cpu index
     foreach my $host_id (@cluster_hosts) {
         my $cpu_index = get_host_cpu($host_id);
-        wlog (V, "Segmentator: CPU load of $host_id is $cpu_index", "");
+        wlog (VV, "Segmentator: CPU load of $host_id is $cpu_index", "");
         $host_cpu_index{$host_id} = $cpu_index;
         $total_cpu_index += $cpu_index;
     }
@@ -145,7 +145,7 @@ sub split {
         #$host_vm_percentage{$host_id} = 100 * $host_vm_percentage{$host_id} / $fake_percentage;
         $assigned_vm_number{$host_id} = round ($host_vm_percentage{$host_id} * $vm_number / 100);
         $already_assigned_vm_number += $assigned_vm_number{$host_id};
-        wlog (V, sprintf ("Segmentator: $assigned_vm_number{$host_id} VMs assigned to $host_id (%3.1f%s)", $host_vm_percentage{$host_id}, "%"), "");
+        wlog (VV, sprintf ("Segmentator: $assigned_vm_number{$host_id} VMs assigned to $host_id (%3.1f%s)", $host_vm_percentage{$host_id}, "%"), "");
         $last_host_id = $host_id;
     }
 
@@ -174,8 +174,8 @@ sub split {
 #    my $last_hostname = $cluster_info[$cluster_size-1]->{_hostname};
     if ($vm_number - $already_assigned_vm_number > 0) {
         $assigned_vm_number{$last_host_id} = $vm_number - $already_assigned_vm_number;
-        wlog (V, "Segmentator: last VM assigned to $last_host_id", "");
-        wlog (V, "Segmentator: $assigned_vm_number{$last_host_id} VMs assigned to $last_host_id", "");
+        wlog (VV, "Segmentator: last VM assigned to $last_host_id", "");
+        wlog (VV, "Segmentator: $assigned_vm_number{$last_host_id} VMs assigned to $last_host_id", "");
     }
     
 
@@ -197,7 +197,7 @@ sub split {
             for (; $i<$limit; $i++) {
                 my $vm_name = $vm_list->item($i)->getAttribute("name");
                 $allocation{$vm_name} = $host_id;
-                wlog (V, "Segmentator: vm $vm_name goes to host $host_id", "");     
+                wlog (VV, "Segmentator: vm $vm_name goes to host $host_id", "");     
                 $offset++;
             }
         }
@@ -223,12 +223,11 @@ sub split {
         $j = 0;
         while (defined(my $key = $keys[$j])) {
             if ($offset{$key}>$assigned_vm_number{$key}){
-                wlog (V, "  **** WARNING: Too many vms statically assigned to host $key ****");
+                wlog (VV, "  **** WARNING: Too many vms statically assigned to host $key ****");
                 $assigned_vm_number{$key} = 0;
             } else {
                 $assigned_vm_number{$key} = $assigned_vm_number{$key} - $offset{$key};
             }
-                    
             $j++;
         }
         
@@ -242,7 +241,7 @@ sub split {
                 if ($vms_to_split_size > 0){
                     my $vm = $vms_to_split[$j];
                     $allocation{$vm} = $host_id;
-                    print("Segmentator: Virtual machine $vm goes to physical host $host_id\n");  
+                    wlog (VV, "Segmentator: Virtual machine $vm goes to physical host $host_id");  
                     $offset++;
                     $vms_to_split_size--;
                 }
@@ -252,9 +251,9 @@ sub split {
     }
 
     #wlog (V, Dumper(%allocation)); 
-    foreach my $vm (keys(%allocation)) {
-        wlog (V, "---- $vm --> $allocation{$vm}")
-    }
+    #foreach my $vm (keys(%allocation)) {
+    #    wlog (VV, "---- $vm --> $allocation{$vm}")
+    #}
     
     return %allocation;
 

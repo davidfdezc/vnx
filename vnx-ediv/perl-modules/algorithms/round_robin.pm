@@ -34,12 +34,15 @@ use VNX::Globals;
 use VNX::Execution;
 
 
+my $seg_mod_name = "RoundRobin";
 
 #
 # Subroutine to obtain segmentation name
 #
 sub name {
-	my $name = "RoundRobin";
+
+    return $seg_mod_name;
+
 }
 
 
@@ -81,7 +84,7 @@ sub split {
 		$j++;
 	}
 	
-	wlog (VVV, "Segmentator: static_assignment_undef=$static_assignment_undef");
+	wlog (VV, "Segmentator: static_assignment_undef=$static_assignment_undef");
 		
 	if ($static_assignment_undef){ # No static assignements
 		my $VMList = $scenario->getElementsByTagName("vm");		# Scenario virtual machines node list
@@ -94,7 +97,7 @@ sub split {
             #my $assigned_host = $cluster_hosts[$assigned_host_index]->{_hostname};
             my $assigned_host = $cluster->{hosts}{$cluster_hosts[$assigned_host_index]}->host_id;
 			$allocation{$virtualm_name} = $assigned_host;
-			print("Segmentator: Virtual machine $virtualm_name to physical host $assigned_host\n"); 	
+			wlog (VV, "Segmentator: Virtual machine $virtualm_name to physical host $assigned_host"); 	
 		}
 	} else { # Some vms are statically assigned
 
@@ -126,7 +129,7 @@ sub split {
 
 			}
 			$allocation{$vm} = $selected_host;
-			print("Segmentator: Virtual machine $vm to physical host $selected_host\n");
+			wlog (VV, "Segmentator: Virtual machine $vm to physical host $selected_host");
 			$offset{$selected_host}++;
 		}
 		

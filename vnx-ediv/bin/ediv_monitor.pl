@@ -35,7 +35,7 @@ use AppConfig qw(:expand :argcount);    # AppConfig module constants import
 use EDIV::cluster_host;                 # Cluster Host class
 use Socket;								# To resolve hostnames to IPs
 use Term::ANSIColor;
-use VNX::ClusterConfig;
+use VNX::ClusterMgmt;
 
 ###########################################################
 # Global variables 
@@ -74,7 +74,7 @@ if (!($mode =~ /[0-9]+/)) {
 }
 
 # Read and parse cluster config
-if (my $res = read_cluster_config) { 
+if (my $res = read_cluster_config($cluster_conf_file)) { 
     print "ERROR: $res\n";  
     exit 1; 
 }

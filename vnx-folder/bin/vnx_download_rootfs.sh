@@ -39,7 +39,7 @@ VNXACED_BUILT='DD/MM/YYYY'
 #fsdir="/usr/share/vnx/filesystems"
 vnx_rootfs_repo="http://vnx.dit.upm.es/vnx/filesystems/"
 create_sym_link=""
-cmds_required="wget curl md5sum"
+cmds_required="wget curl md5sum w3m"
 rootfs_links_array=''
 
 USAGE="

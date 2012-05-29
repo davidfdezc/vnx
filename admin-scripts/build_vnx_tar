@@ -165,8 +165,16 @@ cp -r vnx-folder/doc  \
       vnx-ediv/perl-modules \
       tmp/${FNAME}
 
-# Update versions
+#
+# Update version numbers
+#
 echo "**   Updating version numbers... "
+echo "**   \$release=$RELDATE"
+echo "** "
+sed --in-place -e "s%DD/MM/YYYY%$RELDATE%" tmp/${FNAME}/bin/vnx.pl
+sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/${FNAME}/bin/vnx.pl
+sed --in-place -e "s%DD/MM/YYYY%$RELDATE%" tmp/${FNAME}/bin/ediv_ctl_vnx.pl
+sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/${FNAME}/bin/ediv_ctl_vnx.pl
 sed --in-place -e "s%DD/MM/YYYY%$RELDATE%"     tmp/${FNAME}/bin/vnx_download_rootfs.sh
 sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/${FNAME}/bin/vnx_download_rootfs.sh
 
@@ -197,12 +205,8 @@ do
 done
 
 #
-# Change $release variable in vnx
+# Copy install script
 #
-echo "** \$release=$RELDATE"
-echo "** "
-sed --in-place -e "s%DD/MM/YYYY%$RELDATE%" tmp/${FNAME}/bin/vnx.pl
-sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/${FNAME}/bin/vnx.pl
 cp admin-scripts/install_vnx tmp/${FNAME}
 mv tmp/${FNAME}/doc/00-readme.txt tmp/${FNAME}
 
