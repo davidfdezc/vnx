@@ -164,7 +164,7 @@ sub main {
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'u=s', '4', '6', 'D', 'no-console|n', 'st-delay=s',
-                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b',
+                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 
                 # deprecated
                 'cid=s'
     ) or vnx_die("Incorrect usage. Type 'vnx -h' for help"); 
@@ -1336,21 +1336,27 @@ sub mode_cleanhost {
     wlog (N, "-------------------------------------------------------------------");
     wlog (N, "---- This command will:");
     wlog (N, "----   - destroy all virtual machines in this host (UML, libvirt and dynamips)");
-    wlog (N, "----   - delete .vnx directory");
-    wlog (N, "---- Do you want to continue (yes/no)?");
-    my $line = readline(*STDIN);
-    unless ( $line =~ /^yes/ ) {
+    wlog (N, "----   - delete .vnx directory content");
+    wlog (N, "----   - restart libvirt daemon");
+    wlog (N, "----   - restart dynamips daemon");
+    
+    my $answer;
+    unless ($opts{'yes'}) {
+        print ("---- Do you want to continue (yes/no)? ");
+        $answer = readline(*STDIN);
+    } else {
+        $answer = 'yes'; 
+    }
+    unless ( $answer =~ /^yes/ ) {
         wlog (N, "---- Host not restarted. Exiting");
     } else {
 
         wlog (N, "---- Restarting host...");
 
-        my $host_ip   = 'localhost';
-             
         wlog (N, "----   Killing ALL libvirt virtual machines...");
         my @virsh_list;
         my $i;
-        my $pipe = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'virsh -c $hypervisor list' |";
+        my $pipe = "virsh -c $hypervisor list |";
         open VIRSHLIST, "$pipe";
         while (<VIRSHLIST>) {
             chomp; $virsh_list[$i++] = $_;
@@ -1362,10 +1368,31 @@ sub mode_cleanhost {
             #print "-- $_\n";
             /^\s+(\S+)\s+(\S+)\s+(\S+)/;
             if (defined ($2)) {
-               my $res = `virsh destroy $2`;
-               wlog (N, "----     killing vm $2...");  
-               wlog (N, $res);       
+                my $res = `virsh destroy $2`;
+                wlog (N, "----     killing vm $2...");  
+                wlog (N, $res);       
            }
+        }
+
+        # get all virtual machines in "shut off" state with "virsh list --all"
+        # kill then with "virsh undefine vmname" 
+        @virsh_list = qw ();
+        $i = 0;
+        $pipe = "virsh -c $hypervisor list --all |";
+        open VIRSHLIST, "$pipe";
+        while (<VIRSHLIST>) {
+            chomp; $virsh_list[$i++] = $_;
+        }
+        close VIRSHLIST;
+        # Ignore first two lines (caption)
+        for ( my $j = 2; $j < $i; $j++) {
+            $_ = $virsh_list[$j];
+            /^\s+(\S+)\s+(\S+)\s+(\S+)/;
+            if (defined ($2)) {
+                my $res = `virsh undefine $2`;
+                wlog (N, "----     undefining vm $2...");
+                wlog (N, $res);       
+            }
         }
             
         my $res;    
@@ -1373,10 +1400,15 @@ sub mode_cleanhost {
         my $pids = `ps uax | grep linux | grep ubd | grep scenarios | grep umid | grep -v grep | awk '{print \$2}'`;
         $pids =~ s/\R/ /g;
         if ($pids) {
+            wlog (N, "----     killing UML processes $pids...");
             $res = `echo $pids | xargs kill`;
             wlog (N, $res);       
         }
             
+        wlog (N, "----   Restarting libvirt daemon...");  
+        $res = `/etc/init.d/libvirt-bin restart`;
+        wlog (N, $res);       
+
         wlog (N, "----   Restarting dynamips daemon...");  
         $res = `/etc/init.d/dynamips restart`;
         wlog (N, $res);       
@@ -1886,7 +1918,7 @@ sub configure_switched_networks {
 				 unless (&check_net_host_conn($net_name,$dh->get_doc)) {
 					# print "VNX warning: no connection to host from virtualy switched net \"$net_name\". \n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
 					# To start virtual switch
-					my $extra;
+					my $extra ='';
 					if ($capture_file) {
 						$extra = $extra . " -f \"$capture_file\"";
 
@@ -5618,8 +5650,14 @@ Console management modes:
 Other modes:
        --show-map      -> shows a map of the network scenarios build using graphviz.
        --exe-info      -> show information about the commands available
-       --clean-host    -> restart the host (WARNING: it kills all virtual machines)
        --modify-rootfs -> starts a virtual machine running the rootfs specified to modify it
+       --clean-host    -> WARNING! WARNING! WARNING!
+                          This option completely restarts the host status.
+                          It kills (power-off) all libvirt, UML and dynamips virtual machines,
+                          even those not started with VNX. Besides, it restarts libvirt and 
+                          dynamips daemons and deletes .vnx directory. Unless '--yes|-y'
+                          option specified, it asks for confirmation.
+                          WARNING! WARNING! WARNING!
 
 Pseudomodes:
        -V, show program version and exit.

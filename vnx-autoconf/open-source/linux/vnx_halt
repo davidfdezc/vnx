@@ -41,5 +41,20 @@ if [ ! $NOINTMODE ]; then
     done
 fi
 
-# Halt the system
+# Check whether we are running chrooted or not
+if [ ! -e /proc/1/root ]; then
+  # Probably running chrooted. Do not halt!
+  echo "**"
+  echo "** Cannot read /proc. Probably running chrooted. Not halting"
+  echo "** Type 'exit' to exit from chroot"
+  exit
+elif [ ! -e /proc/1/root -o "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ]; then
+  # We are chrooted! Do not halt
+  echo "**"
+  echo "** Running chrooted. Not halting"
+  echo "** Type 'exit' to exit from chroot"
+  exit
+fi
+
+# We are NOT chrooted! We halt the virtual machine
 halt -p
