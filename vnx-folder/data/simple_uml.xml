@@ -34,7 +34,7 @@ SPAIN
        <host_mapping />
     </vm_mgmt> 
     <vm_defaults>
-        <exec_mode type="uml">net</exec_mode>
+        <exec_mode type="uml">mconsole</exec_mode>
     </vm_defaults>
   </global>
 

@@ -106,7 +106,7 @@ my $conf_plugin_file;					# Configuration plugin file
 my $vnx_dir;
 my $tmp_dir;
 
-my $log_opt;                            # Log level option (passed qhen executing vnx remotely on hosts)
+my $log_opt ='';                        # Log level option (passed qhen executing vnx remotely on hosts)
 
 # Path for dynamips config file
 #my $dynamips_ext_path;
@@ -380,9 +380,9 @@ sub main {
 	
     # Load segmentation algorithms array
     load_seg_plugins();
-    unless ( ($mode eq 'seg-alg-info') or ($mode eq 'check-cluster') or ($mode eq 'clean-cluster') 
-             or ($opts{'update-hosts'}) 
-             or ($mode eq 'create-db') or ( ($mode eq 'reset-db') && (! $opts{'f'}) ) 
+    unless ( ($mode eq 'seg-alg-info')  or ($mode eq 'check-cluster') or ($mode eq 'clean-cluster') 
+             or ($opts{'update-hosts'}) or ($opts{'show-map'})  or ($opts{'exe-info'})  
+             or ($mode eq 'create-db')  or ( ($mode eq 'reset-db') && (! $opts{'f'}) ) 
              or ($mode eq 'delete-db')  ) {
 	    # init global objects and check VNX scenario correctness 
 	    initialize_and_check_scenario ($vnx_scenario); 
@@ -396,11 +396,11 @@ sub main {
 
         my @hosts_list = split (/,/, $opts{H});
         foreach my $host (@hosts_list) {
-            print "Checking $host\n";
+            #print "Checking $host\n";
             my $host_found;
             # Check whether the host exists
             foreach my $host_id (@cluster_hosts) {
-                print "$host_id\n";
+                #print "$host_id\n";
                 if ($host eq $host_id) { $host_found = 'true'}
             }
             if (!$host_found) {
@@ -409,7 +409,7 @@ sub main {
             # Check whether the host is active
             my $active_host_found;
             foreach my $host_id (@cluster_active_hosts) {
-                print "active:$host_id\n";
+                #print "active:$host_id\n";
                 if ($host eq $host_id) { $active_host_found = 'true'}
             }
             if (!$active_host_found) {
@@ -558,10 +558,9 @@ sub mode_create {
 	      
         # Check if every VM is running and ready
         wlog (N, "\n----   Checking scenario status\n");
-        &checkFinish;
+        checkFinish();
 	            
         # Create a ssh tunnel to access remote VMs
-        wlog (N, "\n----   Creating tunnels to access VM\n");
         tunnelize();
         
     } elsif ( ( $opts{M} || $opts{H} ) && defined($db_resp[0]->[0])) {
@@ -856,6 +855,12 @@ sub mode_console {
     }
 }
 
+sub mode_consoleinfo {
+
+    wlog (N, "\n---- mode: $mode\n---- Sorry, not implemented yet...");
+
+	
+}
 
 sub mode_seginfo {
 
@@ -956,16 +961,24 @@ sub mode_cleancluster {
     wlog (N, "---- WARNING - WARNING - WARNING - WARNING - WARNING - WARNING ----");
     wlog (N, "-------------------------------------------------------------------");
     wlog (N, "---- This command will:");
-    wlog (N, "----   - destroy all virtual machines in every host in the cluster");
-    wlog (N, "----   - delete EDIV database");
-    wlog (N, "----   - delete .vnx directories");
+    wlog (N, "----   - destroy all virtual machines in hosts");
+    wlog (N, "----   - delete .vnx directories in hosts");
+    wlog (N, "----   - restart libvirt daemon");
+    wlog (N, "----   - restart dynamips daemon");    
+    wlog (N, "----   - delete EDIV database content");
+    if ($opts{H}) {    
+        wlog (N, "---- Hosts affected:  " .$opts{H});
+    } else {
+    	$" = ", ";
+        wlog (N, "---- Hosts affected:  @cluster_active_hosts");
+    }
     wlog (N, "---- Do you want to continue (yes/no)? ");
     my $line = readline(*STDIN);
     unless ( $line =~ /^yes/ ) {
-        wlog (N, "---- Cluster not restarted. Exiting");
+        wlog (N, "---- Cluster status NOT modified. Exiting");
     } else {
 
-        wlog (N, "---- Restarting cluster...");
+        wlog (N, "---- Restarting cluster status...");
         foreach my $host_id (@cluster_active_hosts){
 
 	        if ($opts{H}) { 
@@ -982,6 +995,11 @@ sub mode_cleancluster {
              
             wlog (N, "---- Host $host_id:");
 
+            my $ssh_cmd = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip 'vnx --clean-host --yes'";
+            wlog (N, "----     executing 'vnx --clean-host --yes' in $host_id");  
+            system "$ssh_cmd >> /var/log/vnx/$host_id.log 2>&1 ";
+
+=BEGIN
             wlog (N, "----   Killing ALL libvirt virtual machines...");
 
             # get all virtual machines running with "virsh list"
@@ -1006,7 +1024,6 @@ sub mode_cleancluster {
                     my $ssh_cmd = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip 'virsh destroy $fields[1]'";
                     wlog (N, "----     killing vm $fields[1] at host $host_id");  
                     system "$ssh_cmd >> /var/log/vnx/$host_id.log 2>&1 ";
-                    #&daemonize($ssh_command, "$host_id".".log");       
                 }
             }
 
@@ -1028,14 +1045,15 @@ sub mode_cleancluster {
                     my $ssh_cmd = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip 'virsh undefine $2'";
                     wlog (N, "----     undefining vm $2 at host $host_id");
                     system "$ssh_cmd >> /var/log/vnx/$host_id.log 2>&1 ";
-                    #&daemonize($ssh_command, "$host_id".".log");       
                 }
             }
                 
             wlog (N, "----   Killing UML virtual machines...");
-            my $kill_command = 'killall linux scenarios ubd umid';
-            my $kill = `ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip $kill_command`;
-            system ($kill);
+            my $pids = `ssh pasito "(ps uaxw | grep linux | grep scenarios | grep ubd | grep umid | grep -v grep) | awk '{ print \$2 }'"`;
+            print "$pids\n";
+            #my $kill_command = 'killall linux scenarios ubd umid';
+            #my $kill = `ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip $kill_command`;
+            #system ($kill);
             
             wlog (N, "----   Restarting dynamips daemon at host $host_id");  
             my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip '/etc/init.d/dynamips restart'";
@@ -1046,6 +1064,9 @@ sub mode_cleancluster {
                 my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip 'rm -rf $vnx_dir/../.vnx/*'";
                 &daemonize($ssh_command, "$host_id".".log");       
             }
+=END
+=cut
+
 
         }           
 
@@ -1131,6 +1152,14 @@ sub mode_showmap {
     wlog (N, "\n---- mode: $mode\n---- Show scenario $vnx_scenario map");
     print "vnx -f $vnx_scenario --show-map";
     system ("vnx -f $vnx_scenario --show-map > /dev/null 2>&1");	
+}
+
+sub mode_exeinfo {
+
+    wlog (N, "\n---- mode: $mode\n---- Show info about scenario commands");
+    print "vnx -f $vnx_scenario --exe-info";
+    my $res = `vnx -f $vnx_scenario --exe-info`;
+    print "$res\n";    
 }
 
 #
@@ -1881,15 +1910,15 @@ sub checkFinish {
 
             my $host_ip = get_host_ipaddr ($host_id);
             foreach my $vm_name (keys (%allocation)){
-                wlog (VVV, "** vm=$vm_name, host_id=$host_id");
+                wlog (VVV, "---- vm=$vm_name, host_id=$host_id");
                 if ($allocation{$vm_name} eq $host_id){
                     my $statusFile = get_host_vnxdir($host_id) . "/scenarios/" 
                                     . $scenario_name . "_" . $host_id . "/vms/$vm_name/status";
                     my $status_command = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat $statusFile 2> /dev/null'";
-                    wlog (VVV, "** Executing: $status_command");
+                    wlog (VVV, "---- Executing: $status_command");
                     my $status = `$status_command`;
                     chomp ($status);
-                    wlog (VVV, "** Executing: status=$status");
+                    wlog (VVV, "---- Executing: status=$status");
                     if (!$status) { $status = "undefined" }
                     #push (@output2, color ('bold'). sprintf (" %-24s%-24s%-20s%-40s\n", $vm_name, $host_id, $status, $statusFile) . color('reset'));
                     push (@output2, color ('bold'). sprintf (" %-24s%-24s%-20s\n", $vm_name, $host_id, $status) . color('reset'));
@@ -2510,8 +2539,11 @@ sub tunnelize {
     # Are management network interfaces created for the scenario? 
     if ( $dh->get_vmmgmt_type ne 'none' ) {
     	
-        wlog (N, "-- Creating tunnels for VM management interfaces");  
-        
+        wlog (N, "\n-- Creating tunnels to access VM management interfaces");  
+        wlog (N, "-- ");  
+        wlog (N, "-- " . sprintf("  %-16s %-16s  %s", "To access VM", "at Host", "use command") );  
+        wlog (N, "-- " . sprintf(" ---------------------------------------------------------------") );  
+
         my @vms = ediv_get_vm_to_use_ordered(); # List of VMs involved (taking into account -M and -H options)
         for ( my $i = 0; $i < @vms; $i++) {
 
@@ -2523,6 +2555,7 @@ sub tunnelize {
 	        	
 	            # Create tunnel to remotely access the VM
                 my $host_id = $allocation{$vm_name};
+                my $host_ip = get_host_ipaddr($host_id);
                 my $vm_type = $vm->getAttribute("type");
                 my $vm_merged_type = $dh->get_vm_merged_type($vm);
 
@@ -2543,22 +2576,26 @@ sub tunnelize {
                      ($vm_merged_type eq "libvirt-kvm-olive")   ||
                      ($vm_merged_type eq "uml") )    {
 
-	                wlog (V, "--   Executing:  ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:$vm_name:22 " . get_host_ipaddr($host_id), "" );
-	                system("ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:$vm_name:22 " . get_host_ipaddr($host_id) );
-                    wlog (N, "----    To access VM $vm_name at $host_id use:  ssh -2 root\@localhost -p $localport");
+	                wlog (VV, "--   Executing:  ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:$vm_name:22 $host_ip", "" );
+	                system("ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:$vm_name:22 $host_ip" );
+                    wlog (N, "-- " . sprintf("  %-16s %-16s  %s", $vm_name, $host_id, "ssh root\@localhost -p $localport") );  
                      	
                 } elsif ( ($vm_merged_type eq 'dynamips-3600') || ($vm_merged_type eq 'dynamips-7200') ) {
 
                     # Get con1 port
-				    my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
-				    my $conData = &get_conf_value ($consFile, '', 'con1');         
-				    $conData =~ s/con.=//;          # eliminate the "conX=" part of the line
-				    my @consField = split(/,/, $conData);
-				    my $port=$consField[2];
+                    my $cons_file = get_host_vnxdir($host_id) . "/scenarios/${scenario_name}_${host_id}/vms/$vm_name/run/console";
+                    my $cmd = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'cat $cons_file | grep con1 2> /dev/null'";
+                    wlog (VVV, "---- Executing: $cmd");
+                    my $con1_data = `$cmd`; chomp ($con1_data);
+                    wlog (VVV, "---- Executing: con1_data=$con1_data");
+				    #my $conData = &get_conf_value ($consFile, '', 'con1');         
+				    $con1_data =~ s/con.=//;          # eliminate the "conX=" part of the line
+				    my @con1_fields = split(/,/, $con1_data);
+				    my $port=$con1_fields[2];
                     
-	                wlog (V, "--   Executing:  ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:localhost:$port " . get_host_ipaddr($host_id), "" );
-	                system("ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:localhost:$port " . get_host_ipaddr($host_id) );
-                    wlog (N, "----    To access VM $vm_name at $host_id use:  telnet localhost $localport");
+	                wlog (VV, "--   Executing:  ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:localhost:$port $host_ip", "" );
+	                system("ssh -2 -q -f -N -o \"StrictHostKeyChecking no\" -L $localport:localhost:$port $host_ip" );
+                    wlog (N, "-- " . sprintf("  %-16s %-16s  %s", $vm_name, $host_id, "telnet localhost $localport") );  
                 	
                 }
 		
@@ -2571,17 +2608,17 @@ sub tunnelize {
 	        }
         }
 
-	    $error = query_db ("SELECT `name`,`host`,`ssh_port` FROM vms WHERE scenario = '$scenario_name' ORDER BY `name`", \@db_resp);
-	    if ($error) { ediv_die ("$error") };
-	    foreach my $ports (@db_resp) {
-	        if (defined($$ports[2])) {
-	            wlog (N, "----    To access VM $$ports[0] at $$ports[1] use local port $$ports[2]\n");
-	        }
-	    }
-	    print "\n\tUse command ssh -2 root\@localhost -p <port> to access VMs\n";
-	    print "\tOr ediv_console.pl console <scenario_name> <vm_name>\n";
-	    print "\tWhere <port> is a port number of the previous list\n";
-	    print "\tThe port list can be found running ediv_console.pl info\n";
+	    #$error = query_db ("SELECT `name`,`host`,`ssh_port` FROM vms WHERE scenario = '$scenario_name' ORDER BY `name`", \@db_resp);
+	    #if ($error) { ediv_die ("$error") };
+	    #foreach my $ports (@db_resp) {
+	    #    if (defined($$ports[2])) {
+	    #        wlog (N, "----    To access VM $$ports[0] at $$ports[1] use local port $$ports[2]\n");
+	    #    }
+	    #}
+	    #print "\n\tUse command ssh -2 root\@localhost -p <port> to access VMs\n";
+	    #print "\tOr ediv_console.pl console <scenario_name> <vm_name>\n";
+	    #print "\tWhere <port> is a port number of the previous list\n";
+	    #print "\tThe port list can be found running ediv_console.pl info\n";
 
     }
 	
@@ -2596,14 +2633,16 @@ sub untunnelize {
 	my $error;
 	my @db_resp;
 	
-	wlog (N, "---- Cleaning tunnels to access remote VMs");
+	wlog (N, "\n-- Cleaning tunnels to access VM management interfaces");  
 	
     $error = query_db ("SELECT `ssh_port` FROM vms WHERE scenario = '$scenario_name' ORDER BY `ssh_port`", \@db_resp);
     if ($error) { ediv_die ("$error") };
     foreach my $ports (@db_resp) {
         wlog (VVV, "ports=\n" . Dumper(@db_resp));
-        my $kill_command = "kill -9 `ps auxw | grep -i \"ssh -2 -q -f -N\" | grep -i $$ports[0] | awk '{print \$2}'`";
-        &daemonize($kill_command, "/dev/null");
+        my $pids = `ps auxw | grep -i \"ssh -2 -q -f -N -o StrictHost\" | grep -i $$ports[0] | awk '{print \$2}'`;
+        wlog (VV, "--   Executing:  kill -9 $pids", "" );
+        system ("kill -9 $pids");
+        #&daemonize($kill_command, "/dev/null");
     }
 }
 
@@ -2968,19 +3007,22 @@ Main modes:
        --reboot      -> reboot all machines, or the ones speficied (if -M), using VNX_file as source.
     
 Console management modes:
-       --console-info       -> shows information about all virtual machine consoles or the 
-                               one specified with -M option.
-       --console-info -b    -> the same but the information is provided in a compact format
-       --console            -> opens the consoles of all vms, or just the ones speficied if -M is used. 
-                               Only the consoles defined with display="yes" in VNX_file are opened.
-       --console --cid conX -> opens 'conX' console (being conX the id of a console: con0, con1, etc) 
-                               of all vms, or just the ones speficied if -M is used.                              
+       --console-info     -> shows information about all virtual machine consoles or the 
+                             one specified with -M option.
+       --console-info -b  -> the same but the information is provided in a compact format
+       --console          -> opens the consoles of all vms, or just the ones speficied if -M is used. 
+                             Only the consoles defined with display="yes" in VNX_file are opened.
+       --console conX     -> opens 'conX' console (being conX the id of a console: con0, con1, etc) 
+                             of all vms, or just the ones speficied if -M is used.                              
        Examples:
             ediv -f ex1.xml --console
             ediv -f ex1.xml --console --cid con0 -M A --> open console 0 of vm A of scenario ex1.xml
 
 Cluster management modes:
        --check-cluster -> checks the status of each host in cluster and shows VNX version installed
+       --update-host   -> updates the VNX software in the cluster hosts (install the version in the controller)
+                          By default, updates all cluster hosts. If '-H host_list' is used, only the hosts
+                          specified are updated 
        --clean-cluster -> completely resets the cluster, destroying all virtual machines in every host
                           (even those not started with VNX!), deleting EDIV database content and deleting
                           VNX working directory in every host.

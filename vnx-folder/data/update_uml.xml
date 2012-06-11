@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+Name:        update_uml
+Description: Simple scenario to start a uml virtual machine in direct mode to make modifications 
+             in a filesystem. Tha VM is connected to virbr0, the default network used by libvirt, 
+             to gain network connectivity.
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>update_uml</scenario_name>
+    <automac/>
+    <vm_mgmt type="none" />
+    <vm_defaults>
+        <exec_mode type="uml">mconsole</exec_mode>
+    </vm_defaults>
+  </global>
+
+  <net name="virbr0" mode="virtual_bridge" />
+
+  <vm name="uml" type="uml" subtype="" os="">
+    <filesystem type="direct">ROOTFS_PATHNAME</filesystem>
+    <mem>64M</mem>
+    <kernel trace="on">UML_KERNEL</kernel>
+    <console id="0" display="yes">xterm</console>
+    <if id="1" net="virbr0">
+    </if>
+    <exec seq="on_boot" type="verbatim">dhclient eth1</exec>
+  </vm>
+
+</vnx>
