@@ -91,9 +91,20 @@ sub init {
 	#   - not previously load
 	#   - the scenario contains KVM virtual machine
 	#
-	$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm");
-	$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-intel");
-	$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-amd");
+    if ( $dh->any_kvm_vm eq 'true' ) {
+
+        system("kvm-ok");
+        if ( $? == -1 ) {
+        	$execution->smartdie ("The scenario contains KVM virtual machines, but the system does not have virtualization support.")
+        } else {
+	        wlog (V, "-- Loading KVM kernel modules");
+	        $execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm");
+	        $execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-intel");
+	        $execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-amd");
+        }
+    } else {
+    	wlog (VVV, "-- No KVM virtual machines. Skipping load of KVM kernel modules");
+    }       
 
 }
 

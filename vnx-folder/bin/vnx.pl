@@ -6,7 +6,7 @@
 # Authors:    Fermin Galan Marquez (galan@dit.upm.es), David Fernández (david@dit.upm.es),
 #             Jorge Somavilla (somavilla@dit.upm.es), Jorge Rodriguez (jrodriguez@dit.upm.es), 
 # Coordinated by: David Fernández (david@dit.upm.es)
-# Copyright (C) 2005-2010 DIT-UPM
+# Copyright (C) 2005-2012 DIT-UPM
 #                         Departamento de Ingenieria de Sistemas Telematicos
 #                         Universidad Politecnica de Madrid
 #                         SPAIN
@@ -387,11 +387,6 @@ sub main {
     # Build the VNX::Execution object
     $execution = new VNX::Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
 
-    # Initialize vmAPI modules
-    VNX::vmAPI_uml->init;
-    VNX::vmAPI_libvirt->init;
-    VNX::vmAPI_dynamips->init;
-
     #
     # Process pseudomodes (modes that do not need a scenario file)
     # 
@@ -467,11 +462,11 @@ sub main {
       	$version =~ /^(\d\.\d+)/;
       	my $version_in_parser = $1;
       	unless ($version_in_file eq $version_in_parser) {
-      		&vnx_die("mayor version numbers of source file ($version_in_file) and parser ($version_in_parser) do not match");
+      		vnx_die("mayor version numbers of source file ($version_in_file) and parser ($version_in_parser) do not match");
 			exit;
       	}
    	} else {
-      	&vnx_die("can not find VNX version in $input_file");
+      	vnx_die("can not find VNX version in $input_file");
    	}
   
    	# 8. To check XML file existance and readability and
@@ -479,7 +474,7 @@ sub main {
 	my $error;
 	$error = validate_xml ($input_file);
 	if ( $error ) {
-        &vnx_die ("XML file ($input_file) validation failed:\n$error\n");
+        vnx_die ("XML file ($input_file) validation failed:\n$error\n");
 	}
 
    	# Create DOM tree
@@ -616,6 +611,11 @@ sub main {
       	}
       	push (@plugins,$plugin);
    	}
+
+    # Initialize vmAPI modules
+    VNX::vmAPI_uml->init;
+    VNX::vmAPI_libvirt->init;
+    VNX::vmAPI_dynamips->init;
 
    	###########################################################
    	# Command execution
@@ -1230,7 +1230,7 @@ sub mode_console {
 
 sub mode_consoleinfo {
 	
-	&print_consoles_info;
+	print_consoles_info();
         
 }
 
@@ -2542,6 +2542,7 @@ sub mode_execute {
 ###############################################################
 sub mode_shutdown {
 
+    my $do_not_exe_cmds = shift;   # If set, do not execute 'on_shutdown' commands
 
     my $seq = 'on_shutdown';
 
@@ -2565,7 +2566,7 @@ sub mode_shutdown {
 
         my $merged_type = $dh->get_vm_merged_type($vm);
 
-        unless ($opts{F}){
+        unless ($opts{F} || defined($do_not_exe_cmds) ){
 
             my @plugin_ftree_list = ();
 	        my @plugin_exec_list = ();
@@ -2582,7 +2583,7 @@ sub mode_shutdown {
 	        $num_ftrees += $vm_ftrees;
 	        $num_execs  += $vm_execs;
 	          
-	        if ($vm_plugin_ftrees + $vm_plugin_execs + $vm_ftrees + $vm_execs > 0) { 
+	        if ( $vm_plugin_ftrees + $vm_plugin_execs + $vm_ftrees + $vm_execs > 0) { 
 	            wlog (VVV, "Calling executeCMD for vm $vm_name with seq $seq to execute:"); 
 	            wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs");
 	            # call the corresponding vmAPI
@@ -2597,10 +2598,11 @@ sub mode_shutdown {
 	        }
 	    }
 
-	    wlog (VVV, "Total num of commands executed for seq $seq:");
-	    wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs, user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs");
 	    if ($num_plugin_ftrees + $num_plugin_execs + $num_ftrees + $num_execs == 0) {
-	        wlog(V, "Nothing to execute for sequence $seq");
+	        wlog(V, "Nothing to execute for VM $vm_name with seq=$seq");
+	    } else {
+	        wlog (VVV, "Total num of commands executed for VM $vm_name with seq=$seq:");
+	        wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs, user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs");	    	
 	    }
 
       	if ($opts{M}){
@@ -4535,13 +4537,13 @@ sub handle_sig {
 	# Reset alarm, if one has been set
 	alarm 0;
 	if ($opts{'create'}) {
-		&mode_shutdown;
+		mode_shutdown('do_not_exe_cmds');  #
 	}
 	if (defined($execution)) {
 		$execution->smartdie("Signal received. Exiting");
 	}
 	else {
-		&vnx_die("Signal received. Exiting.");
+		vnx_die("Signal received. Exiting.");
 	}
 }
 
@@ -4744,7 +4746,23 @@ sub make_vmAPI_doc {
       	my $kernel_item = $kernel_list->item(0);
       	$kernel = &do_path_expansion(&text_tag($kernel_item));         
       	# to dom tree
-      	$kernel_tag->addChild($dom->createTextNode($kernel));         
+      	$kernel_tag->addChild($dom->createTextNode($kernel));
+        # Set kernel attributes      	
+        if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
+            $kernel_tag->addChild($dom->createAttribute( initrd => $kernel_item->getAttribute("initrd")));
+        }
+        if ( $kernel_item->getAttribute("devfs") !~ /^$/ ) {
+            $kernel_tag->addChild($dom->createAttribute( devfs => $kernel_item->getAttribute("devfs")));
+        }
+        if ( $kernel_item->getAttribute("root") !~ /^$/ ) {
+            $kernel_tag->addChild($dom->createAttribute( root => $kernel_item->getAttribute("root")));
+        }
+        if ( $kernel_item->getAttribute("modules") !~ /^$/ ) {
+            $kernel_tag->addChild($dom->createAttribute( modules => $kernel_item->getAttribute("modules")));
+        }
+        if ( $kernel_item->getAttribute("trace") eq "on" ) {
+            $kernel_tag->addChild($dom->createAttribute( trace => $kernel_item->getAttribute("trace")));
+        }
    	}
    	else {    	
       	# include a 'default' in dom tree

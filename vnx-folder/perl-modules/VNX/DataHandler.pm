@@ -1692,5 +1692,29 @@ sub get_seqs {
     return %vm_seqs;
 }
 
+# any_kvm_vm
+#
+# Checks if the virtual scenario contains a KVM virtual machine
+# Used to know whether the KVM modules have to be loaded
+#
+sub any_kvm_vm {
+    my $self = shift;
+
+    my $found = 'false';
+
+    my $global_doc = $dh->get_doc;
+    my @vm_ordered = $dh->get_vm_ordered;
+    
+    for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+
+        my $vm = $vm_ordered[$i];
+        if ( ($vm->getAttribute("type")    eq 'libvirt') &&
+             ($vm->getAttribute("subtype") eq 'kvm') ) {
+            return 'true'     	
+        }
+    }
+    return $found;
+}
+
 
 1;

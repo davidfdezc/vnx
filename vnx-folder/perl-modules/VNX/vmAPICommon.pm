@@ -143,7 +143,10 @@ sub open_console {
             }
         }
    	} elsif ($consType eq 'uml_pts') {
-		$command = "screen -t $vm_name $consPar";
+        #$command = "screen -t $vm_name $consPar";
+        #$command = "microcom -p $consPar";
+        $command = "picocom --noinit $consPar";
+        #$command = "minicom -o -p $consPar"; # Console terminals do no die after VMs shutdown
         unless (defined $getLineOnly) {
 	        # Kill the console if already opened
 	        my $pids = `ps uax | grep -i '$command' | grep -v grep | awk '{ print \$2 }'`;
@@ -241,7 +244,11 @@ sub start_consoles_from_console_file {
 
 	# Then, we just read the console file and start the active consoles
 	my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
-	open (CONS_FILE, "< $consFile") || $execution->smartdie("Could not open $consFile file.");
+    #open (CONS_FILE, "< $consFile") || $execution->smartdie("Could not open $consFile file.");
+    unless ( open (CONS_FILE, "< $consFile") ) { 
+    	wlog (N, "ERROR: could not open $consFile file."); 
+    	return; 
+    };
 	foreach my $line (<CONS_FILE>) {
 	    chomp($line);               # remove the newline from $line.
 	    my $con_id = $line;
