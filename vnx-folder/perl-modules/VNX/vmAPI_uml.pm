@@ -450,9 +450,11 @@ sub startVM {
     my $kernel_item   = $kernelTagList->item(0);
     my $kernelTag     = $kernel_item->getFirstChild->getData;
 	my $kernel;
+    my $kernel_traces = "off";
 
 	if ( $kernelTag ne 'default' ) {
 		$kernel = $kernelTag;
+        wlog (VVV, "-- kernel tag=" . $kernel_item->toString);
 		if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
 			push( @params,
 				"initrd=" . $kernel_item->getAttribute("initrd") );
@@ -474,6 +476,8 @@ sub startVM {
 				"modules=" . $kernel_item->getAttribute("modules") );
 		}
 		if ( $kernel_item->getAttribute("trace") eq "on" ) {
+			wlog (VVV, "-- UML kernel traces active for VM $virtualm_name");
+			$kernel_traces = "on";
 			push( @params,       "stderr=1" );
 			push( @build_params, "stderr=1" );
 		}
@@ -496,6 +500,8 @@ sub startVM {
 			push( @build_params, "modules=" . $dh->get_default_modules );
 		}
 		if ( $dh->get_default_trace eq "on" ) {
+            wlog (V, "-- UML kernel traces active for VM $virtualm_name");
+            $kernel_traces = "on";
 			push( @params,       "stderr=1" );
 			push( @build_params, "stderr=1" );
 		}
@@ -602,34 +608,38 @@ sub startVM {
 	}
 
 	# Background UML execution without consoles by default
-	push( @params, "uml_dir=" . $dh->get_vm_dir($vm_name) . "/ umid=run con=null" );
-    #push( @params, "uml_dir=" . $dh->get_vm_dir($vm_name) . "/ umid=run con=xterm" );
+	if ( $kernel_traces eq "on" ) {
+        push( @params, "uml_dir=" . $dh->get_vm_dir($vm_name) . "/ umid=run con=null con0=xterm" );
+	} else {
+        push( @params, "uml_dir=" . $dh->get_vm_dir($vm_name) . "/ umid=run con=null" );
 
-	# Process <console> tags
-	my @console_list = $dh->merge_console($virtualm);
-
-	my $xterm_used = 0;
-	if (scalar(@console_list) == 0) {
-		# No consoles defined; use default configuration 
-        push( @params, "con0=pts" );
-#        push( @params, "con0=xterm" );
-	} else{
-		foreach my $console (@console_list) {
-			my $console_id    = $console->getAttribute("id");
-			my $console_value = &text_tag($console);
-			if ($console_value eq '') { $console_value = 'xterm' } # Default value
-			if ( $console_value eq "xterm" ) {
+		# Process <console> tags
+		my @console_list = $dh->merge_console($virtualm);
 	
-# xterms are treated like pts, to avoid unstabilities
-# (see https://lists.dit.upm.es/pipermail/vnuml-users/2007-July/000651.html for details)
-               $console_value = "pts";
-#                $console_value = "xterm";
-			}
-			if ( $console_value ne "" ) {
-				push( @params, "con$console_id=$console_value" );
+		my $xterm_used = 0;
+		if (scalar(@console_list) == 0) {
+			# No consoles defined; use default configuration 
+	        push( @params, "con0=pts" );
+	#        push( @params, "con0=xterm" );
+		} else{
+			foreach my $console (@console_list) {
+				my $console_id    = $console->getAttribute("id");
+				my $console_value = &text_tag($console);
+				if ($console_value eq '') { $console_value = 'xterm' } # Default value
+				if ( $console_value eq "xterm" ) {
+		
+	# xterms are treated like pts, to avoid unstabilities
+	# (see https://lists.dit.upm.es/pipermail/vnuml-users/2007-July/000651.html for details)
+	               $console_value = "pts";
+	#                $console_value = "xterm";
+				}
+				if ( $console_value ne "" ) {
+					push( @params, "con$console_id=$console_value" );
+				}
 			}
 		}
-	}
+
+    }
 
 	my $notify_ctl = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_socket';
 
@@ -777,6 +787,7 @@ sub startVM {
 				           . $dh->get_vm_run_dir($vm_name) . "/mconsole config con0 2> /dev/null";
 				my $mconsole_output = `$command`;
 				wlog (V, "mconsole config con0 returns $mconsole_output");
+                wlog (VVV, "-- UML kernel traces=$kernel_traces (1)");
 				if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
 					$pts = $1;
 					print "...pts is $pts\n"
@@ -785,8 +796,10 @@ sub startVM {
 						  .	 " $pts > " . $dh->get_vm_run_dir($vm_name)	. "/pts" );
 					$execution->execute( $bd->get_binaries_path_ref->{"echo"}
 						  	. " con0=no,uml_pts,$pts >> " . $consFile );
+				} elsif ( $kernel_traces eq "on" ) {
+                    wlog (VVV, "-- UML kernel traces active for VM $virtualm_name (1)");
+					$pts = "xterm (kernel_traces=on)";
 				}
-
 			}
 			
 		} else {
@@ -815,6 +828,7 @@ sub startVM {
 						  . "/mconsole config con$console_id 2> /dev/null";
 						my $mconsole_output = `$command`;
                         wlog (V, "mconsole config con0 returns $mconsole_output");
+                        wlog (VVV, "-- UML kernel traces=$kernel_traces (2)");
 						if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
 							$pts = $1;
 							print "...pts is $pts\n"
@@ -828,7 +842,10 @@ sub startVM {
 								    $bd->get_binaries_path_ref->{"echo"}
 								  . " con$console_id=$display,uml_pts,$pts >> "
 								  . $consFile );
-						}
+		                } elsif ( $kernel_traces eq "on" ) {
+                            wlog (VVV, "-- UML kernel traces active for VM $virtualm_name (2)");
+		                    $pts = "xterm (kernel_traces=on)";
+		                }
 					}
 					if ($e_flag) {
 
@@ -856,6 +873,7 @@ sub startVM {
 						  . "/mconsole config con$console_id 2> /dev/null";
 						my $mconsole_output = `$command`;
                         wlog (V, "mconsole config con0 returns $mconsole_output");
+                        wlog (VVV, "-- UML kernel traces=$kernel_traces (3)");
 						if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
 							$xterm_pts = $1;
 							print "...xterm pts is $xterm_pts\n"
@@ -871,7 +889,10 @@ sub startVM {
 								  . " con$console_id=$display,uml_pts,$xterm_pts >> "
 								  . $consFile );
 	
-						}
+                        } elsif ( $kernel_traces eq "on" ) {
+                            wlog (VVV, "-- UML kernel traces active for VM $virtualm_name (3)");
+                            $xterm_pts = "xterm (kernel_traces=on)";
+                        }
 					}
 				}
 			}
