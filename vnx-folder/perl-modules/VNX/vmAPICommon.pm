@@ -145,11 +145,13 @@ sub open_console {
    	} elsif ($consType eq 'uml_pts') {
         #$command = "screen -t $vm_name $consPar";
         #$command = "microcom -p $consPar";
-        $command = "picocom --noinit $consPar";
+        #$command = "picocom --noinit $consPar";
+        my $emulator_cmd = "picocom --noinit $consPar";
+        $command = "expect -c \"spawn $emulator_cmd; sleep 1; send \\\"\n\\\"; interact\"";
         #$command = "minicom -o -p $consPar"; # Console terminals do no die after VMs shutdown
         unless (defined $getLineOnly) {
 	        # Kill the console if already opened
-	        my $pids = `ps uax | grep -i '$command' | grep -v grep | awk '{ print \$2 }'`;
+	        my $pids = `ps uax | grep -i '$emulator_cmd' | grep -v grep | awk '{ print \$2 }'`;
 	        $pids =~ s/\R/ /g;
 	        if ($pids) {
 	            wlog (V, "---- open_console: killing consoles processes: $pids");
