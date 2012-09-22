@@ -157,7 +157,7 @@ sub defineVM {
 	my $type   = shift;
 	my $vm_doc    = shift;
 	
-	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 	
 	$curr_uml = $vm_name;
 
@@ -280,7 +280,7 @@ sub undefineVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 
@@ -307,7 +307,7 @@ sub startVM {
 	my $type    = shift;
 	my $no_consoles = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 	
 	$curr_uml = $vm_name;
 
@@ -454,7 +454,7 @@ sub startVM {
 
 	if ( $kernelTag ne 'default' ) {
 		$kernel = $kernelTag;
-        wlog (VVV, "-- kernel tag=" . $kernel_item->toString);
+        wlog (VVV, "-- kernel tag=" . $kernel_item->toString, "$vm_name> ");
 		if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
 			push( @params,
 				"initrd=" . $kernel_item->getAttribute("initrd") );
@@ -476,7 +476,7 @@ sub startVM {
 				"modules=" . $kernel_item->getAttribute("modules") );
 		}
 		if ( $kernel_item->getAttribute("trace") eq "on" ) {
-			wlog (VVV, "-- UML kernel traces active for VM $virtualm_name");
+			wlog (VVV, "-- UML kernel traces active for VM $virtualm_name", "$vm_name> ");
 			$kernel_traces = "on";
 			push( @params,       "stderr=1" );
 			push( @build_params, "stderr=1" );
@@ -500,7 +500,7 @@ sub startVM {
 			push( @build_params, "modules=" . $dh->get_default_modules );
 		}
 		if ( $dh->get_default_trace eq "on" ) {
-            wlog (V, "-- UML kernel traces active for VM $virtualm_name");
+            wlog (V, "-- UML kernel traces active for VM $virtualm_name", "$vm_name> ");
             $kernel_traces = "on";
 			push( @params,       "stderr=1" );
 			push( @build_params, "stderr=1" );
@@ -731,7 +731,7 @@ sub startVM {
 
 	if ( $execution->get_exe_mode() ne $EXE_DEBUG ) {
 
-		my $boot_status = &UML_init_wait( $sock, $dh->get_boot_timeout );
+		my $boot_status = &UML_init_wait( $vm_name, $sock, $dh->get_boot_timeout);
 
 		if ( !$boot_status ) {
 
@@ -740,7 +740,7 @@ sub startVM {
 			halt_uml( $vm_name, $F_flag );
 			$execution->smartdie("Boot timeout exceeded for vm $vm_name!");
 		}
-		elsif ( $boot_status < 0 && !&UML_init_wait( $sock, 1, 1 ) ) {
+		elsif ( $boot_status < 0 && !&UML_init_wait( $vm_name, $sock, 1, 1 ) ) {
 			&kill_curr_uml;
 		}
 	}
@@ -760,7 +760,7 @@ sub startVM {
        		my $value   = &text_tag($consTag);
 			my $id      = $consTag->getAttribute("id");
 			my $display = $consTag->getAttribute("display");
-       		wlog (VVV, "vm_name console: id=$id, display=$display, value=$value");
+       		wlog (VVV, "vm_name console: id=$id, display=$display, value=$value", "$vm_name> ");
 			if ($display ne '') {
 				if (  $id eq "0" ) {
 					$cons0Display = $display 
@@ -786,8 +786,8 @@ sub startVM {
 				my $command = $bd->get_binaries_path_ref->{"uml_mconsole"} . " " 
 				           . $dh->get_vm_run_dir($vm_name) . "/mconsole config con0 2> /dev/null";
 				my $mconsole_output = `$command`;
-				wlog (V, "mconsole config con0 returns $mconsole_output");
-                wlog (VVV, "-- UML kernel traces=$kernel_traces (1)");
+				wlog (V, "mconsole config con0 returns $mconsole_output", "$vm_name> ");
+                wlog (VVV, "-- UML kernel traces=$kernel_traces (1)", "$vm_name> ");
 				if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
 					$pts = $1;
 					print "...pts is $pts\n"
@@ -797,7 +797,7 @@ sub startVM {
 					$execution->execute( $bd->get_binaries_path_ref->{"echo"}
 						  	. " con0=no,uml_pts,$pts >> " . $consFile );
 				} elsif ( $kernel_traces eq "on" ) {
-                    wlog (VVV, "-- UML kernel traces active for VM $virtualm_name (1)");
+                    wlog (VVV, "-- UML kernel traces active for VM $virtualm_name (1)", "$vm_name> ");
 					$pts = "xterm (kernel_traces=on)";
 				}
 			}
@@ -827,8 +827,8 @@ sub startVM {
 						  . $dh->get_vm_run_dir($vm_name)
 						  . "/mconsole config con$console_id 2> /dev/null";
 						my $mconsole_output = `$command`;
-                        wlog (V, "mconsole config con0 returns $mconsole_output");
-                        wlog (VVV, "-- UML kernel traces=$kernel_traces (2)");
+                        wlog (V, "mconsole config con0 returns $mconsole_output", "$vm_name> ");
+                        wlog (VVV, "-- UML kernel traces=$kernel_traces (2)", "$vm_name> ");
 						if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
 							$pts = $1;
 							print "...pts is $pts\n"
@@ -843,7 +843,7 @@ sub startVM {
 								  . " con$console_id=$display,uml_pts,$pts >> "
 								  . $consFile );
 		                } elsif ( $kernel_traces eq "on" ) {
-                            wlog (VVV, "-- UML kernel traces active for VM $virtualm_name (2)");
+                            wlog (VVV, "-- UML kernel traces active for VM $virtualm_name (2)", "$vm_name> ");
 		                    $pts = "xterm (kernel_traces=on)";
 		                }
 					}
@@ -872,8 +872,8 @@ sub startVM {
 						  . $dh->get_vm_run_dir($vm_name)
 						  . "/mconsole config con$console_id 2> /dev/null";
 						my $mconsole_output = `$command`;
-                        wlog (V, "mconsole config con0 returns $mconsole_output");
-                        wlog (VVV, "-- UML kernel traces=$kernel_traces (3)");
+                        wlog (V, "mconsole config con0 returns $mconsole_output", "$vm_name> ");
+                        wlog (VVV, "-- UML kernel traces=$kernel_traces (3)", "$vm_name> ");
 						if ( $mconsole_output =~ /^OK pts:(.*)$/ ) {
 							$xterm_pts = $1;
 							print "...xterm pts is $xterm_pts\n"
@@ -890,7 +890,7 @@ sub startVM {
 								  . $consFile );
 	
                         } elsif ( $kernel_traces eq "on" ) {
-                            wlog (VVV, "-- UML kernel traces active for VM $virtualm_name (3)");
+                            wlog (VVV, "-- UML kernel traces active for VM $virtualm_name (3)", "$vm_name> ");
                             $xterm_pts = "xterm (kernel_traces=on)";
                         }
 					}
@@ -929,7 +929,7 @@ sub destroyVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 	
@@ -938,16 +938,16 @@ sub destroyVM {
 		return $error;
 	}
 
+=BEGIN
 	my @pids;
 
 	# DFC
-	&halt_uml( $vm_name, 1 );
+	#&halt_uml( $vm_name, 1 );
 
 	# 1. Kill all Linux processes, gracefully
 	@pids = &get_kernel_pids($vm_name);
 	wlog (VVV, "pids=" . Dumper(@pids));
 	if ( @pids != 0 ) {
-#pak "1";
 		my $pids_string = join( " ", @pids );
 		$execution->execute( $bd->get_binaries_path_ref->{"kill"}
 			  . " -SIGTERM $pids_string" );
@@ -957,21 +957,47 @@ sub destroyVM {
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 	}
 
-	# 2. Kill all remaining Linux processes, by brute force
-	@pids = &get_kernel_pids($vm_name);
+    # 2. Kill all remaining Linux processes, by brute force
+    @pids = &get_kernel_pids($vm_name);
     wlog (VVV, "pids=" . Dumper(@pids));
-#pak "2";    
-    	if ( @pids != 0 ) {
-		my $pids_string = join( " ", @pids );
-		$execution->execute( $bd->get_binaries_path_ref->{"kill"}
-			  . " -SIGKILL $pids_string" );
-		print "Waiting remaining UMLs to term forcely...\n"
-		  unless ( $execution->get_exe_mode() eq $EXE_NORMAL );
-		sleep( $dh->get_delay )
-		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-	}
+    if ( @pids != 0 ) {
+        my $pids_string = join( " ", @pids );
+        $execution->execute( $bd->get_binaries_path_ref->{"kill"}
+              . " -SIGKILL $pids_string" );
+        print "Waiting remaining UMLs to term forcely...\n"
+          unless ( $execution->get_exe_mode() eq $EXE_NORMAL );
+        #sleep( $dh->get_delay )
+        #  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+    }
+=END
+=cut
+
+    my $pid;
+    my $pids;
+    
+    # Kill all Linux processes, by brute force (why being polite if you can be rude? :-)
+    # Get pid of VM parent process (seems that /pid file only stores the pid
+    # of the parent process, we have to call 'ps --ppid ...' to get the 
+    # whole list of processes associated to a VM)
+    my $pid_file = $dh->get_vm_run_dir($vm_name) . "/pid";
+    wlog (VVV, "pid_file=$pid_file", "$vm_name> ");
+    unless ( !-f $pid_file ) {
+    	my $command = $bd->get_binaries_path_ref->{"cat"} . " $pid_file";
+        chomp( $pid = `$command` );
+        wlog (VVV, "main process pid=$pid", "$vm_name> ");
+        # Get pids of child processes
+        $command = $bd->get_binaries_path_ref->{"ps"} . " --ppid $pid | grep -v PID | awk '{ print \$1 }'"; 
+        chomp( $pids = `$command` );
+        $pids=~s/\n/ /g;
+        wlog (VVV, "child processes pids=$pids", "$vm_name> ");
+        $execution->execute( $bd->get_binaries_path_ref->{"kill"}
+              . " -SIGKILL $pid $pids" );
+        wlog (V, "UML processes killed...\n", "$vm_name> ")
+          unless ( $execution->get_exe_mode() eq $EXE_NORMAL );
+    }
 
 	# Remove vm fs directory (cow and iso filesystems)
+    sleep( 1 );
 	$execution->execute( "rm " . $dh->get_vm_fs_dir($vm_name) . "/*" );
 	return $error;
 
@@ -992,7 +1018,7 @@ sub shutdownVM {
 	my $type   = shift;
 	$F_flag    = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 
@@ -1021,7 +1047,7 @@ sub saveVM {
 	my $type     = shift;
 	my $filename = shift;
 	
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 
@@ -1051,7 +1077,7 @@ sub restoreVM {
 	my $type     = shift;
 	my $filename = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 
@@ -1080,7 +1106,7 @@ sub suspendVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 
@@ -1109,7 +1135,7 @@ sub resumeVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 
@@ -1138,7 +1164,7 @@ sub rebootVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 
@@ -1167,7 +1193,7 @@ sub resetVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error;
 
@@ -1307,7 +1333,7 @@ sub executeCMD {
     my $ftree_list_ref        = shift;
     my $exec_list_ref         = shift;	
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)", "$vm_name> ");
 
     my $error;
 
@@ -1498,11 +1524,11 @@ sub executeCMD {
 		
                 # 3c. Actively wait for the copying end
                 chomp( my $init = `$date_command` );
-                wlog (V, "Waiting filetree $src->$root filetree copy... ");
+                wlog (V, "Waiting filetree $src->$root filetree copy... ", "$vm_name> ");
                 &filetree_wait( $dh->get_vm_hostfs_dir($vm_name) . "/filetree_cp.$ftree_id.end" );
                 chomp( my $end = `$date_command` );
                 my $time = $end - $init;
-                wlog (V, "(" . $time . "s)");
+                wlog (V, "(" . $time . "s)", "$vm_name> ");
 #pak;
                 # 3d. Cleaning
                 $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree" );
@@ -1539,7 +1565,7 @@ sub executeCMD {
 	my $cmd_file_bname = "exec.$seq.$random_id";
 	my $cmd_file = $dh->get_vm_hostfs_dir($vm_name) . "/$cmd_file_bname";
 	
-	wlog(VVV, "cmd_file=$cmd_file");
+	wlog(VVV, "cmd_file=$cmd_file", "$vm_name> ");
     open COMMAND_FILE,"> $cmd_file"
 			  or $execution->smartdie("cannot open $cmd_file: $!" )
 			  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
@@ -1618,7 +1644,7 @@ sub executeCMD {
 	close COMMAND_FILE
 	  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
     my $res=`cat $cmd_file`;
-    wlog(VVV, "~~ cmd_file:\n$res\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+    wlog(VVV, "~~ cmd_file:\n$res\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~", "$vm_name> ");
 	  
 	$execution->pop_verb_prompt();
 	$execution->execute( $bd->get_binaries_path_ref->{"chmod"} . " a+x $cmd_file" );
@@ -1689,11 +1715,12 @@ sub executeCMD {
 ###################################################################
 #
 sub UML_init_wait {
-	my $sock      = shift;
+
+    my $vm_name   = shift;
+    my $sock      = shift;
 	my $timeout   = shift;
 	my $no_prompt = shift;
 	my $data;
-
 
 	my $MCONSOLE_SOCKET      = 0;
 	my $MCONSOLE_PANIC       = 1;
@@ -1730,7 +1757,7 @@ sub UML_init_wait {
 			}
 		};
 		if ($@) {
-			wlog (N, "UML_init_wait error: $@");
+			wlog (N, "UML_init_wait error: $@", "$vm_name> ");
 			if ( defined($no_prompt) ) {
 				return 0;
 			}
@@ -1799,7 +1826,8 @@ sub halt_uml {
 
 	my $vm_name     = shift;
 	my $F_flag     = shift;                 # DFC
-	
+
+    wlog (VVV, "halt_uml called (F_flag=$F_flag)", "$vm_name> ");	
 	my @vm_ordered = $dh->get_vm_ordered;
 	my %vm_hash    = $dh->get_vm_to_use;
 
@@ -1868,6 +1896,7 @@ sub halt_uml {
 #
 sub kill_curr_uml {
 
+    wlog (VVV, "kill_curr_uml called"); 
 	# Force kill the currently booting uml process, if there is one
 	if ( defined($curr_uml) ) {
 		my $mconsole_init = $curr_uml =~ s/#$//;
@@ -2019,11 +2048,11 @@ sub get_kernel_pids {
 			next;
 		}
 		my $pid_file = $dh->get_vm_run_dir($name) . "/pid";
-		wlog (VVV, "vm $vm_name pid_file=$pid_file");
+		wlog (VVV, "vm $vm_name pid_file=$pid_file", "$vm_name> ");
 		next if ( !-f $pid_file );
 		my $command = $bd->get_binaries_path_ref->{"cat"} . " $pid_file";
 		chomp( my $pid = `$command` );
-		wlog (VVV, "vm $vm_name pid$pid");
+		wlog (VVV, "vm $vm_name pid$pid", "$vm_name> ");
 		push( @pid_list, $pid );
 	}
 	return @pid_list;
@@ -2038,13 +2067,11 @@ sub create_vm_bootfile {
 
 	my $path   = shift;
 	my $vm     = shift;
-#	my $number = shift;
-
-    wlog (VVV, "vmAPI_uml->create_vm_bootfile called");
 
 	my $basename = basename $0;
 
 	my $vm_name = $vm->getAttribute("name");
+    wlog (VVV, "vmAPI_uml->create_vm_bootfile called", "$vm_name> ");
 
 	# We open boot file, taking S$boot_prio and $runlevel
 	open CONFILE, ">$path" . "umlboot"
@@ -2052,7 +2079,7 @@ sub create_vm_bootfile {
 	  #unless ( $execution->get_exe_mode() == $EXE_DEBUG );
 	  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 	
-	$execution->set_verb_prompt("$vm_name> ");
+	#$execution->set_verb_prompt("$vm_name> ");
 
 	# We begin boot script
 	my $shell      = $dh->get_default_shell;
@@ -2502,7 +2529,7 @@ sub create_vm_onboot_commands_file {
         
         $ftree_num++;
 	}
-	$execution->execute("echo 1 > $path" . "onboot_commands.end",*COMMAND_FILE);
+	$execution->execute("echo 1 > $path" . "onboot_commands.end",*CONFILE);
 	
     # <exec> tags
     my $execTagList = $vm_doc->getElementsByTagName("exec");
