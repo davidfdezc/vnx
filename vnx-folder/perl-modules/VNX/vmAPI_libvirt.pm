@@ -97,13 +97,13 @@ sub init {
         if ( $? == -1 ) {
         	$execution->smartdie ("The scenario contains KVM virtual machines, but the system does not have virtualization support.")
         } else {
-	        wlog (V, "-- Loading KVM kernel modules");
+	        wlog (V, "-- Loading KVM kernel modules", "host> ");
 	        $execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm");
 	        $execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-intel");
 	        $execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " kvm-amd");
         }
     } else {
-    	wlog (VVV, "-- No KVM virtual machines. Skipping load of KVM kernel modules");
+    	wlog (VVV, "-- No KVM virtual machines. Skipping load of KVM kernel modules", "host> ");
     }       
 
 }
@@ -125,7 +125,7 @@ sub defineVM {
 	my $type    = shift;
 	my $vm_doc  = shift;
 	
-	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 	
 	my $error = 0;
 	my $extConfFile;
@@ -154,10 +154,10 @@ sub defineVM {
 =cut
 
     my $vm = $dh->get_vm_byname ($vm_name);
-    wlog (VVV, "---- " . $vm->getAttribute("name"));
+    wlog (VVV, "---- " . $vm->getAttribute("name"), "$vm_name> ");
 
     my $exec_mode   = $dh->get_vm_exec_mode($vm);
-    wlog (VVV, "---- vm_exec_mode = $exec_mode");
+    wlog (VVV, "---- vm_exec_mode = $exec_mode", "$vm_name> ");
 
     if ( ($exec_mode ne "cdrom") && ($exec_mode ne "sdisk") ) {
         $execution->smartdie( "execution mode $exec_mode not supported for VM of type $type" );
@@ -546,7 +546,7 @@ sub defineVM {
                 unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
             print H2VMFILE "$h2vm_port";
             close H2VMFILE;
-            wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+            wlog (VV, "port $h2vm_port used for $vm_name H2VM channel", "$vm_name> ");
         }
         my $target_tag = $init_xml->createElement('target');
         $serial_tag->addChild($target_tag);
@@ -664,7 +664,7 @@ sub defineVM {
 		my $confTagList = $virtualm->getElementsByTagName("conf");
         if ($confTagList->getLength == 1) {
 			$confFile = $confTagList->item(0)->getFirstChild->getData;
-			wlog (VVV, "vm_name configuration file: $confFile");
+			wlog (VVV, "vm_name configuration file: $confFile", "$vm_name> ");
         }
 
 		# create the vm description in XML for libvirt
@@ -779,7 +779,7 @@ sub defineVM {
 	        my $onboot_files_dir = $dh->get_vm_tmp_dir($vm_name) . "/on_boot";
 	        $execution->execute( $bd->get_binaries_path_ref->{"mv"} . " -v $onboot_files_dir/filetree/* $sdisk_content/filetree/" );
 	        $execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $onboot_files_dir" );
-	        my $res=`tree $sdisk_content`; wlog (VVV, "vm $vm_name 'on_boot' shared disk content:\n $res");
+	        my $res=`tree $sdisk_content`; wlog (VVV, "vm $vm_name 'on_boot' shared disk content:\n $res", "$vm_name> ");
         }
     
         if ($exec_mode eq "cdrom") {
@@ -910,7 +910,7 @@ sub defineVM {
                 my $if_name = $ifTag->getAttribute("name");
 				my $model_tag = $init_xml->createElement('model');
 				$interface_tag->addChild($model_tag);
-				wlog (VVV, "olive: adding interface $if_name");
+				wlog (VVV, "olive: adding interface $if_name", "$vm_name> ");
 				if ($if_name =~ /^fxp/ ) {
                     # <model type='i82559er'/>
 			        $model_tag->addChild( $init_xml->createAttribute( type => 'i82559er') );
@@ -1104,7 +1104,7 @@ sub defineVM {
                 unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
             print H2VMFILE "$h2vm_port";
             close H2VMFILE;
-            wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+            wlog (VV, "port $h2vm_port used for $vm_name H2VM channel", "$vm_name> ");
 
             # <protocol type="raw"/>
             my $protocol_tag = $init_xml->createElement('protocol');
@@ -1238,7 +1238,7 @@ sub undefineVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error;
 	my $con;
@@ -1294,7 +1294,7 @@ sub destroyVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 	my $con;
@@ -1356,7 +1356,7 @@ sub startVM {
 	my $type   = shift;
 	my $no_consoles = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error;
 	my $con;
@@ -1454,7 +1454,7 @@ sub startVM {
 					my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system vncdisplay $vm_name";
 			       	my $vncDisplay=`$cmd`;
 			       	if ($vncDisplay eq '') { # wait and repeat command again
-			       		wlog (V, "Command $cmd failed. Retrying...");
+			       		wlog (V, "Command $cmd failed. Retrying...", "$vm_name> ");
 			       		sleep 2;
 			       		$vncDisplay=`$cmd`;
 			       		if ($vncDisplay eq '') {execution->smartdie ("Cannot get display for $vm_name. Error executing command: $cmd")}
@@ -1475,7 +1475,7 @@ sub startVM {
 			        		my $cmd=$bd->get_binaries_path_ref->{"virsh"} . " -c qemu:///system ttyconsole $vm_name";
 			           		my $ptsDev=`$cmd`;
 					       	if ($ptsDev eq '') { # wait and repeat command again
-					       		wlog (V, "Command $cmd failed. Retrying...");
+					       		wlog (V, "Command $cmd failed. Retrying...", "$vm_name> ");
 					       		sleep 2;
 					       		$ptsDev=`$cmd`;
 					       		if ($ptsDev eq '') {execution->smartdie ("Cannot get pts device for $vm_name. Error executing command: $cmd")}
@@ -1551,7 +1551,7 @@ sub shutdownVM {
 	my $type   = shift;
 	my $F_flag = shift; # Not used here, only in vmAPI_uml
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 	my $con;
@@ -1615,7 +1615,7 @@ sub saveVM {
 	my $type     = shift;
 	my $filename = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 	my $con;
@@ -1698,7 +1698,7 @@ sub restoreVM {
 	my $type     = shift;
 	my $filename = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 	my $con;
@@ -1747,7 +1747,7 @@ sub suspendVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 	my $con;
@@ -1800,7 +1800,7 @@ sub resumeVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 	my $con;
@@ -1856,7 +1856,7 @@ sub rebootVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error = 0;
 	my $con;
@@ -1910,7 +1910,7 @@ sub resetVM {
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $error;
 	my $con;
@@ -1974,7 +1974,7 @@ sub executeCMD {
 
     my $error = 0;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)", "$vm_name> ");
 
 #pak ("press any key to continue");
 
@@ -2309,7 +2309,7 @@ sub executeCMD {
                     unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
                 my $h2vm_port = <H2VMFILE>;
 
-                wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+                wlog (VV, "port $h2vm_port used for $vm_name H2VM channel", "$vm_name> ");
 
                 $vmsocket = IO::Socket::INET->new(
                     Proto    => "tcp",
@@ -2351,7 +2351,7 @@ sub executeCMD {
         
         my $user   = &get_user_in_seq( $vm, $seq );
         my $exec_mode   = $dh->get_vm_exec_mode($vm);
-        wlog (VVV, "---- vm_exec_mode = $exec_mode");
+        wlog (VVV, "---- vm_exec_mode = $exec_mode", "$vm_name> ");
 
         if ( ($exec_mode ne "cdrom") && ($exec_mode ne "sdisk") ) {
             return "execution mode $exec_mode not supported for VM of type $merged_type";
@@ -2383,12 +2383,12 @@ sub executeCMD {
         }
         
         # We create the command.xml file to be passed to the vm
-        wlog (VVV, "opening file $sdisk_content/command.xml...");
+        wlog (VVV, "opening file $sdisk_content/command.xml...", "$vm_name> ");
         my $retry = 3;
         while ( ! open COMMAND_FILE, "> $sdisk_content/command.xml" ) {
         	# Sometimes this open fails with a read-only filesystem error message (??)...
         	# ...retrying inmediately seems to solve the problem...
-            $retry--; wlog (VVV, "open failed for file $sdisk_content/command.xml...retrying");
+            $retry--; wlog (VVV, "open failed for file $sdisk_content/command.xml...retrying", "$vm_name> ");
             $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
             $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
             if ( $retry ==  0 ) {
@@ -2418,7 +2418,7 @@ sub executeCMD {
 		#
 		
 		# 1 - Plugins <filetree> tags
-		wlog (VVV, "executeCMD: number of plugin ftrees " . scalar(@{$plugin_ftree_list_ref}));
+		wlog (VVV, "executeCMD: number of plugin ftrees " . scalar(@{$plugin_ftree_list_ref}), "$vm_name> ");
 		
 		foreach my $filetree (@{$plugin_ftree_list_ref}) {
 			# Add the <filetree> tag to the command.xml file
@@ -2430,12 +2430,12 @@ sub executeCMD {
 	        my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
 	        $execution->execute( $bd->get_binaries_path_ref->{"mv"} . " $files_dir/filetree/$dst_num $sdisk_content/filetree" );
 	        $execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
-			wlog (VVV, "executeCMD: adding plugin filetree \"$filetree_txt\" to command.xml");
+			wlog (VVV, "executeCMD: adding plugin filetree \"$filetree_txt\" to command.xml", "$vm_name> ");
 			$dst_num++;			 
 		}
 		
 		# 2 - User defined <filetree> tags
-        wlog (VVV, "executeCMD: number of user defined ftrees " . scalar(@{$ftree_list_ref}));
+        wlog (VVV, "executeCMD: number of user defined ftrees " . scalar(@{$ftree_list_ref}), "$vm_name> ");
         
         foreach my $filetree (@{$ftree_list_ref}) {
             # Add the <filetree> tag to the command.xml file
@@ -2447,12 +2447,12 @@ sub executeCMD {
             my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
             $execution->execute( $bd->get_binaries_path_ref->{"mv"} . " $files_dir/filetree/$dst_num $sdisk_content/filetree" );
             $execution->execute( $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
-            wlog (VVV, "executeCMD: adding user defined filetree \"$filetree_txt\" to command.xml");
+            wlog (VVV, "executeCMD: adding user defined filetree \"$filetree_txt\" to command.xml", "$vm_name> ");
             $dst_num++;            
         }
         
         my $res=`tree $sdisk_content`; 
-        wlog (VVV, "executeCMD: shared disk content:\n $res");
+        wlog (VVV, "executeCMD: shared disk content:\n $res", "$vm_name> ");
 
 		$execution->set_verb_prompt("$vm_name> ");
 		my $command = $bd->get_binaries_path_ref->{"date"};
@@ -2463,23 +2463,23 @@ sub executeCMD {
 		#
 		
 		# 1 - Plugins <exec> tags
-		wlog (VVV, "executeCMD: number of plugin <exec> = " . scalar(@{$plugin_ftree_list_ref}));
+		wlog (VVV, "executeCMD: number of plugin <exec> = " . scalar(@{$plugin_ftree_list_ref}), "$vm_name> ");
 		
 		foreach my $cmd (@{$plugin_exec_list_ref}) {
 			# Add the <exec> tag to the command.xml file
 			my $cmd_txt = $cmd->toString(1);
 			$execution->execute( "$cmd_txt", *COMMAND_FILE );
-			wlog (VVV, "executeCMD: adding plugin exec \"$cmd_txt\" to command.xml");
+			wlog (VVV, "executeCMD: adding plugin exec \"$cmd_txt\" to command.xml", "$vm_name> ");
 		}
 
 		# 2 - User defined <exec> tags
-        wlog (VVV, "executeCMD: number of user-defined <exec> = " . scalar(@{$ftree_list_ref}));
+        wlog (VVV, "executeCMD: number of user-defined <exec> = " . scalar(@{$ftree_list_ref}), "$vm_name> ");
         
         foreach my $cmd (@{$exec_list_ref}) {
             # Add the <exec> tag to the command.xml file
             my $cmd_txt = $cmd->toString(1);
             $execution->execute( "$cmd_txt", *COMMAND_FILE );
-            wlog (VVV, "executeCMD: adding user defined exec \"$cmd_txt\" to command.xml");
+            wlog (VVV, "executeCMD: adding user defined exec \"$cmd_txt\" to command.xml", "$vm_name> ");
 
             # Process particular cases
             # 1 - Olive load config command
@@ -2488,7 +2488,7 @@ sub executeCMD {
                 if ( $ostype eq "load" ) {
                     # We have to copy the configuration file to the shared disk
                     my @aux = split(' ', &text_tag($cmd));
-                    wlog (VVV, "config file = $aux[1]");
+                    wlog (VVV, "config file = $aux[1]", "$vm_name> ");
                     # TODO: relative pathname
                     my $src = &get_abs_path ($aux[1]);
                     $src = &chompslash($src);
@@ -2510,7 +2510,7 @@ sub executeCMD {
 		open FILE, "< $sdisk_content/command.xml";
 		my $cmd_file = do { local $/; <FILE> };
 		close FILE;
-		wlog (VVV, "command.xml file passed to vm $vm_name: \n$cmd_file");
+		wlog (VVV, "command.xml file passed to vm $vm_name: \n$cmd_file", "$vm_name> ");
         # Save a copy of the last command.xml vm main dir 
         $execution->execute( "cp " . "$sdisk_content/command.xml " . $dh->get_vm_dir($vm_name) . "/${vm_name}_command.xml" );
 
@@ -2550,7 +2550,7 @@ sub executeCMD {
                     unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
                 my $h2vm_port = <H2VMFILE>;
 
-                wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+                wlog (VV, "port $h2vm_port used for $vm_name H2VM channel", "$vm_name> ");
 
                 $vmsocket = IO::Socket::INET->new(
                     Proto    => "tcp",
@@ -2562,7 +2562,7 @@ sub executeCMD {
 
             $vmsocket->flush; # delete socket buffers, just in case...  
             print $vmsocket "exeCommand cdrom\n";     
-            wlog (N, "exeCommand sent to VM $vm_name");            
+            wlog (N, "exeCommand sent to VM $vm_name", "$vm_name> ");            
 	        # Wait for confirmation from the VM		
             wait_sock_answer ($vmsocket);
             $vmsocket->close();
@@ -2605,7 +2605,7 @@ sub executeCMD {
                     unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
                 my $h2vm_port = <H2VMFILE>;
 
-                wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
+                wlog (VV, "port $h2vm_port used for $vm_name H2VM channel", "$vm_name> ");
 
                 $vmsocket = IO::Socket::INET->new(
                     Proto    => "tcp",
@@ -2622,7 +2622,7 @@ sub executeCMD {
                 print $vmsocket "exeCommand sdisk\n";  
             }  
 
-            wlog (N, "exeCommand sent to VM $vm_name");            
+            wlog (N, "exeCommand sent to VM $vm_name", "$vm_name> ");            
             
             # Wait for confirmation from the VM     
             wait_sock_answer ($vmsocket);

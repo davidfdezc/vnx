@@ -109,7 +109,7 @@ sub defineVM {
 	my $type   = shift;
 	my $vm_doc    = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 	
     my $extConfFile;
 	my $newRouterConfFile;
@@ -602,7 +602,7 @@ sub undefineVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -631,7 +631,7 @@ sub destroyVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	my $line;
 
@@ -702,7 +702,7 @@ sub startVM {
 	my $type    = shift;
 	my $no_consoles = shift;
 	
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
     print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Starting router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -762,7 +762,7 @@ sub shutdownVM{
 	my $type   = shift;
 	my $F_flag    = shift;
 	
-	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 	
 	# This is an ordered shutdown. We first save the configuration:
 
@@ -806,7 +806,7 @@ sub saveVM{
 	my $type     = shift;
 	my $filename = shift;
 	
-	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 		
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -835,7 +835,7 @@ sub restoreVM{
 	my $type     = shift;
 	my $filename = shift;
 	
-	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Rebooting router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -868,7 +868,7 @@ sub suspendVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -896,7 +896,7 @@ sub resumeVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -922,7 +922,7 @@ sub rebootVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -951,7 +951,7 @@ sub resetVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -984,7 +984,7 @@ sub executeCMD{
 	my $vm          = shift;
 	my $vm_name      = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type ...)");
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type ...)", "$vm_name> ");
 
 	my @output = "Nothing to show";
 	my $temp;
@@ -1037,7 +1037,7 @@ sub executeCMD{
 			if ( $cmd_seq eq $seq ) {
 				my $type = $command->getAttribute("type");
 				my $ostype = $command->getAttribute("ostype");
-				wlog (VVV, "-- ostype = $ostype");
+				wlog (VVV, "-- ostype = $ostype", "$vm_name> ");
 				# Case 1. Verbatim type
 				if ( $type eq "verbatim" ) { # <exec> tag specifies a single command
 				

@@ -194,6 +194,7 @@ sub execute {
         }
     }
     else {
+    	#wlog (VVV, "CMD_OUT=$CMD_OUT");
         # Recording mode
         if ($exe_mode == $EXE_DEBUG) {
             print "D-" . $verb_prompt . "$command\n";
@@ -265,7 +266,8 @@ sub execute_mconsole {
    my $mconsole = shift;
    my $cmd = shift;
    
-   $self->execute($self->{'mconsole_binary'} . " $mconsole 'exec $cmd' 2>/dev/null");
+   #$self->execute($self->{'mconsole_binary'} . " $mconsole 'exec $cmd' 2>/dev/null");
+   $self->execute($self->{'mconsole_binary'} . " $mconsole 'exec $cmd' >/dev/null 2>&1 ");
   
 }
 

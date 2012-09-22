@@ -3790,7 +3790,7 @@ sub VM_alive {
    }
    my $pids_string = join(" ",@pids);
    
-   my $pipe = $bd->get_binaries_path_ref->{"ps"} . " --no-headers -p $pids_string 2> /dev/null|";   ## Avoiding strange warnings in the ps list
+   my $pipe = $bd->get_binaries_path_ref->{"ps"} . " --no-headers -p $pids_string | grep -v '<defunct>' 2> /dev/null|";   ## Avoiding strange warnings in the ps list
    open my $ps_list, "$pipe";
    if (<$ps_list>) {
 	  close $ps_list;
