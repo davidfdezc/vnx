@@ -85,6 +85,9 @@ my $dynamipsPort;
 # Module vmAPI_uml initialization code
 #
 sub init {      
+	
+	my $logp = "dynamips-init> ";
+	
 	$dynamipsHost = "localhost";
 	#my $dynamipsPort=get_dynamips_port_conf();
 	$dynamipsPort = &get_conf_value ($vnxConfigFile, 'dynamips', 'port');
@@ -108,8 +111,9 @@ sub defineVM {
 	my $vm_name = shift;
 	my $type   = shift;
 	my $vm_doc    = shift;
-
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
+	
+	my $logp = "dynamips-defineVM-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 	
     my $extConfFile;
 	my $newRouterConfFile;
@@ -150,7 +154,7 @@ sub defineVM {
 			# Router config file exists: we copy the content of the conf file 
 			# provided to the new file, but deleting the "end" command 
 			# (if exists) to allow adding new configuration commands at the end
-	   	 	$execution->execute("sed '/^end/d' " . $routerConfFile . ">" . $newRouterConfFile);
+	   	 	$execution->execute( $logp, "sed '/^end/d' " . $routerConfFile . ">" . $newRouterConfFile);
 		}else{
 			# ERROR: The router config file has been defined, but it does not exists 
 			$execution->smartdie("ERROR: cannot open " . $routerConfFile );
@@ -444,7 +448,7 @@ sub defineVM {
 	   		$t->print("vm slot_add_nio_binding $vm_name $slot $dev nio_udp_$vm_name$slot$dev");
 	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 		}
-   		$execution->execute("ifconfig $vm_name-e$id 0.0.0.0");
+   		$execution->execute( $logp, "ifconfig $vm_name-e$id 0.0.0.0");
 	}
 	
 	# Set config file to router
@@ -602,7 +606,8 @@ sub undefineVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
+    my $logp = "dynamips-undefineVM-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -631,7 +636,8 @@ sub destroyVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
+    my $logp = "dynamips-destroyVM-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
 	my $line;
 
@@ -702,7 +708,8 @@ sub startVM {
 	my $type    = shift;
 	my $no_consoles = shift;
 	
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
+    my $logp = "dynamips-startVM-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
     print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Starting router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -762,7 +769,8 @@ sub shutdownVM{
 	my $type   = shift;
 	my $F_flag    = shift;
 	
-	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
+	my $logp = "dynamips-shutdownVM-$vm_name> ";
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 	
 	# This is an ordered shutdown. We first save the configuration:
 
@@ -806,7 +814,8 @@ sub saveVM{
 	my $type     = shift;
 	my $filename = shift;
 	
-	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
+	my $logp = "dynamips-saveVM-$vm_name> ";
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 		
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -835,7 +844,8 @@ sub restoreVM{
 	my $type     = shift;
 	my $filename = shift;
 	
-	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
+	my $logp = "dynamips-restoreVM-$vm_name> ";
+	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Rebooting router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -868,7 +878,8 @@ sub suspendVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
+    my $logp = "dynamips-suspendVM-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -896,7 +907,8 @@ sub resumeVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
+    my $logp = "dynamips-resumeVM-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -922,7 +934,8 @@ sub rebootVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
+    my $logp = "dynamips-rebootVM-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -951,7 +964,8 @@ sub resetVM{
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$vm_name> ");
+    my $logp = "dynamips-resetVM-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -984,7 +998,8 @@ sub executeCMD{
 	my $vm          = shift;
 	my $vm_name      = shift;
 
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type ...)", "$vm_name> ");
+    my $logp = "dynamips-executeCMD-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type ...)", "$logp");
 
 	my @output = "Nothing to show";
 	my $temp;
@@ -1097,7 +1112,7 @@ sub executeCMD{
 							my $confFile = &get_abs_path($command_tag);
 							if (-e $confFile) {
 								# Eliminate end command if it exists
-	   	 						$execution->execute("sed '/^end/d' " . $confFile . ">" . $newRouterConfFile);
+	   	 						$execution->execute( $logp, "sed '/^end/d' " . $confFile . ">" . $newRouterConfFile);
 								# Add configuration in VNX spec file to the router config file
 								my @routerConf = &create_router_conf ($vm_name, $extConfFile);
 								open (CONF, ">> $newRouterConfFile") or $execution->smartdie("ERROR: Cannot open $newRouterConfFile");
@@ -1113,7 +1128,7 @@ sub executeCMD{
 							if (-e $confFile) {
 								&reload_conf ($vm_name, $confFile, $dynamipsHost, $dynamipsPort, $consFile);
 	   	 						# Copy the file loaded config to vm directory
-	   	 						$execution->execute("cat " . $confFile . ">" . $newRouterConfFile);
+	   	 						$execution->execute( $logp, "cat " . $confFile . ">" . $newRouterConfFile);
 							} else {
 								$execution->smartdie("ERROR: configuration file $confFile not found\n") 
 							}
@@ -1577,18 +1592,18 @@ sub get_cards_conf {
 #                                                                 
 sub change_vm_status {
 
-#	my $dh     = shift;
 	my $vm     = shift;
 	my $status = shift;
 
+    my $logp = "change_vm_status> ";
 	my $status_file = $dh->get_vm_dir($vm) . "/status";
 
 	if ( $status eq "REMOVE" ) {
-		$execution->execute(
+		$execution->execute( $logp, 
 			$bd->get_binaries_path_ref->{"rm"} . " -f $status_file" );
 	}
 	else {
-		$execution->execute(
+		$execution->execute( $logp, 
 			$bd->get_binaries_path_ref->{"echo"} . " $status > $status_file" );
 	}
 }

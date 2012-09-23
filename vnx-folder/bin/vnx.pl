@@ -134,6 +134,9 @@ my $hline = "-------------------------------------------------------------------
 # Command line options hash
 my %opts = ();
 
+# host log prompt
+my $logp = "host> ";
+
 
 &main;
 exit(0);
@@ -386,6 +389,7 @@ sub main {
 
     # Build the VNX::Execution object
     $execution = new VNX::Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
+    #$execution->set_verb_prompt("host> ");
 
     #
     # Process pseudomodes (modes that do not need a scenario file)
@@ -412,7 +416,7 @@ sub main {
         unless ( -f $opts{'create-rootfs'} ) {
             vnx_die ("file $opts{'create-rootfs'} is not valid (perhaps does not exists)");
         }
-        wlog (VVV, "install-media = $opts{'install-media'}");
+        wlog (VVV, "install-media = $opts{'install-media'}", $logp);
         unless ( $opts{'install-media'} ) {
             vnx_die ("option 'install-media' not defined");
         }
@@ -586,7 +590,7 @@ sub main {
 	        }
         }
               
-      	wlog (V, "Loading pluging: $plugin...");      
+      	wlog (V, "Loading pluging: $plugin...", $logp);      
       	# Why we are not using 'use'? See the following thread: 
       	# http://www.mail-archive.com/beginners%40perl.org/msg87441.html)   
 
@@ -627,10 +631,10 @@ sub main {
    	# Lock management
    	if (-f $dh->get_vnx_dir . "/LOCK") {
       	my $basename = basename $0;
-      	&vnx_die($dh->get_vnx_dir . "/LOCK exists: another instance of $basename seems to be in execution\nIf you are sure that this can't be happening in your system, do 'rm " . $dh->get_vnx_dir . "/LOCK' and try again\n");
+      	vnx_die($dh->get_vnx_dir . "/LOCK exists: another instance of $basename seems to be in execution\nIf you are sure that this can't be happening in your system, do 'rm " . $dh->get_vnx_dir . "/LOCK' and try again\n");
    	}
    	else {
-      	$execution->execute($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_vnx_dir . "/LOCK");
+      	$execution->execute($logp, $bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_vnx_dir . "/LOCK");
       	$start_time = time();
    	}
 
@@ -640,8 +644,8 @@ sub main {
          	$execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
             	if &scenario_exists($dh->get_scename);
       	}
-      	&mode_define;
-      	&mode_start;
+      	mode_define();
+      	mode_start();
    	}
    	elsif ($mode eq 'execute') {
       	if ($exemode != $EXE_DEBUG) {
@@ -649,14 +653,14 @@ sub main {
            		unless &scenario_exists($dh->get_scename);
       	}
 
-      	&mode_execute($cmdseq);
+      	mode_execute($cmdseq);
    	}
    	elsif ($mode eq 'shutdown') {
       	if ($exemode != $EXE_DEBUG) {
          	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
            		unless &scenario_exists($dh->get_scename);
       	}
-      	&mode_shutdown;
+      	mode_shutdown();
 #      my $do_not_build_topology = 1; 
    	}
    	elsif ($mode eq 'destroy') {  # elsif ($opts{P) { [JSF]
@@ -666,8 +670,8 @@ sub main {
       	}
       	#$args->set('F',1);
       	$opts{F} = '1';
-      	&mode_shutdown;		# First, call destroy mode with force flag activated
-      	&mode_destroy;		# Second, purge other things
+        mode_shutdown('do_not_exe_cmds');  # First, call destroy mode with force flag activated
+      	mode_destroy();		# Second, purge other things
       	#&mode_undefine;
    	}
    	elsif ($mode eq 'define') {
@@ -675,21 +679,21 @@ sub main {
          	$execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
             	if &scenario_exists($dh->get_scename);
       	}
-      	&mode_define;
+      	mode_define();
    	}
    	elsif ($mode eq 'undefine') {
       	if ($exemode != $EXE_DEBUG && !$opts{M}) {
          	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
            		unless &scenario_exists($dh->get_scename);
       	}
-      	&mode_undefine;
+      	mode_undefine();
    	}
    	elsif ($mode eq 'start') {
       	if ($exemode != $EXE_DEBUG) {
          	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
            		unless &scenario_exists($dh->get_scename);
       	}
-      	&mode_start;
+      	mode_start();
    	}
    	elsif ($mode eq 'reset') {
       	if ($exemode != $EXE_DEBUG) {
@@ -698,11 +702,11 @@ sub main {
       	}
       	#$args->set('F',1);
       	$opts{F} = '1';
-      	&mode_shutdown;		# First, call destroy mode with force flag activated
-      	&mode_destroy;		# Second, purge other things
+      	mode_shutdown();		# First, call destroy mode with force flag activated
+      	mode_destroy();		# Second, purge other things
       	sleep(1);     # Let it finish
-      	&mode_define;
-      	&mode_start;
+      	mode_define();
+      	mode_start();
    	}
    
    	elsif ($mode eq 'reboot') {
@@ -710,8 +714,8 @@ sub main {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless &scenario_exists($dh->get_scename);
      	}   	
-     	&mode_shutdown;
-     	&mode_start;
+     	mode_shutdown();
+     	mode_start();
    	}
    
    	elsif ($mode eq 'save') {
@@ -719,14 +723,14 @@ sub main {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless &scenario_exists($dh->get_scename);
      	}
-     	&mode_save;
+     	mode_save();
    	}
    	elsif ($mode eq 'restore') {
      	if ($exemode != $EXE_DEBUG) {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         		unless &scenario_exists($dh->get_scename);
      	}
-     	&mode_restore;
+     	mode_restore();
    	}
    
    	elsif ($mode eq 'suspend') {
@@ -734,7 +738,7 @@ sub main {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         		unless &scenario_exists($dh->get_scename);
      	}
-     	&mode_suspend;
+     	mode_suspend();
    	}
    
    	elsif ($mode eq 'resume') {
@@ -742,7 +746,7 @@ sub main {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless &scenario_exists($dh->get_scename);
      	}
-     	&mode_resume;
+     	mode_resume();
    	}
    
    	elsif ($mode eq 'show-map') {
@@ -750,7 +754,7 @@ sub main {
 #        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
 #        	unless &scenario_exists($dh->get_scename);
 #     	}
-     	&mode_showmap;
+     	mode_showmap();
    	}
    
    	elsif ($mode eq 'console') {
@@ -758,14 +762,14 @@ sub main {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless &scenario_exists($dh->get_scename);
      	}
-		&mode_console;
+		mode_console();
    	}
    	elsif ($mode eq 'console-info') {
      	if ($exemode != $EXE_DEBUG) {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless &scenario_exists($dh->get_scename);
      	}
-   		&mode_consoleinfo;
+   		mode_consoleinfo();
    	}
     elsif ($mode eq 'exe-info') {
         mode_exeinfo();
@@ -781,9 +785,11 @@ sub main {
     }
    
     # Remove lock
-    $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vnx_dir . "/LOCK");
+    $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vnx_dir . "/LOCK");
     my $total_time = time() - $start_time;
+    wlog (N, $hline);
     wlog (N, "Total time elapsed: $total_time seconds");
+    wlog (N, $hline);
 
 }
 
@@ -1003,7 +1009,7 @@ sub start_VMs {
         my $vm_type = $vm->getAttribute("type");
         my $error = "VNX::vmAPI_$vm_type"->startVM($vm_name, $merged_type, $no_console);
         if ($error ne 0) {
-            wlog (N, "VNX::vmAPI_${vm_type}->startVM returns " . $error);
+            wlog (V, "VNX::vmAPI_${vm_type}->startVM returns " . $error, $logp);
         }
  
         my $mng_if_value = &mng_if_value( $vm );
@@ -1012,15 +1018,15 @@ sub start_VMs {
             # As the VM has necessarily been previously defined, the management ip address is already defined in file
             # (get_admin_address has been called from make_vmAPI_doc ) 
             my %net = &get_admin_address( 'file', $vm_name );
-            #$execution->execute( $bd->get_binaries_path_ref->{"ifconfig"}
+            #$execution->execute($logp,  $bd->get_binaries_path_ref->{"ifconfig"}
             #    . " $vm_name-e0 "
             #    . $net{'host'}->addr()
             #    . " netmask "
             #    . $net{'host'}->mask()
             #    . " up" );
             my $ip_addr = NetAddr::IP->new($net{'host'}->addr(),$net{'host'}->mask());
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set dev $vm_name-e0 up");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $vm_name-e0");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $vm_name-e0 up");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $vm_name-e0");
                
         }
 
@@ -1178,8 +1184,8 @@ sub mode_showmap {
    	if (! -d $dh->get_sim_dir ) {
 		mkdir $dh->get_sim_dir or $execution->smartdie ("error making directory " . $dh->get_sim_dir . ": $!");
    	}   
-	$execution->execute("vnx2dot ${input_file} > ${scedir}/${scename}.dot");
-   	$execution->execute("neato -Tpng -o${scedir}/${scename}.png ${scedir}/${scename}.dot");
+	$execution->execute($logp, "vnx2dot ${input_file} > ${scedir}/${scename}.dot");
+   	$execution->execute($logp, "neato -Tpng -o${scedir}/${scename}.png ${scedir}/${scename}.dot");
    
    
     # Read png_viewer variable from config file to see if the user has 
@@ -1191,8 +1197,8 @@ sub mode_showmap {
    		if ($gnome ne "") { $pngViewer="gnome-open" }
         	         else { $pngViewer="xdg-open" }
     }
-   	#$execution->execute("eog ${scedir}/${scename}.png");
-   	$execution->execute("$pngViewer ${scedir}/${scename}.png &");
+   	#$execution->execute($logp, "eog ${scedir}/${scename}.png");
+   	$execution->execute($logp, "$pngViewer ${scedir}/${scename}.png &");
 
 }
 
@@ -1527,7 +1533,7 @@ EOF
     print XMLFILE "$vm_libirt_xml";
     close (XMLFILE); 
 
-    wlog (N, "-- Starting a virtual machine with root filesystem $opts{'create-rootfs'}", "");
+    wlog (N, "-- Starting a virtual machine with root filesystem $opts{'create-rootfs'}");
     system "virsh create $vm_xml_fname"; 
     system "virt-viewer $rootfs_name &"; 
 
@@ -1574,7 +1580,7 @@ sub mode_modifyrootfs {
 
     if ( defined($opts{'update-aced'}) ) {
 
-        wlog (N, "mode_modifyrootfs: update-aced option selected ($opts{'update-aced'})", "");
+        wlog (N, "mode_modifyrootfs: update-aced option selected ($opts{'update-aced'})");
   	    #
 	    # Create shared disk with latest versions of VNXACE daemon
 	    #
@@ -1588,7 +1594,7 @@ if (USE_CDROM_FORMAT) {
         $make_iso_cmd = 'mkisofs';
         my $fail = system ("which $make_iso_cmd > /dev/null");
         if ($fail) { # Try genisoimage 
-            print "-- mkisofs not found; trying genisoimage\n";
+            print "mkisofs not found; trying genisoimage\n";
             $make_iso_cmd = 'genisoimage';
             $fail = system("which $make_iso_cmd > /dev/null");
             if ($fail) { 
@@ -1598,11 +1604,11 @@ if (USE_CDROM_FORMAT) {
         my $where = `which $make_iso_cmd`;
         chomp($where);
         $make_iso_cmd = $where;
-        wlog (VVV, "make_iso_cmd=$make_iso_cmd", "");
+        wlog (VVV, "make_iso_cmd=$make_iso_cmd", $logp);
 
         # Create temp directory to store VNXACED
         my $content_dir="$base_dir/iso-content";
-        wlog (N, "-- Creating iso-content temp directory ($content_dir)...", "");
+        wlog (N, "Creating iso-content temp directory ($content_dir)...");
         system "mkdir $content_dir";
 	
 } else {
@@ -1610,14 +1616,14 @@ if (USE_CDROM_FORMAT) {
         # Create the shared filesystem 
         $sdisk_fname = $base_dir . "/sdisk.img";
         # TODO: change the fixed 50M to something configurable
-        $execution->execute( $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
+        $execution->execute($logp,  $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
         # format shared disk as msdos partition
-        $execution->execute( $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
+        $execution->execute($logp,  $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
         # Create mount directory
         $sdisk_mount = "$base_dir/mnt/";
-        $execution->execute( "mkdir -p $sdisk_mount");
+        $execution->execute($logp,  "mkdir -p $sdisk_mount");
         # Mount the shared disk to copy filetree files
-        $execution->execute( $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_mount );
+        $execution->execute($logp,  $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_mount );
 
         # Set content directory
         $content_dir="$sdisk_mount";
@@ -1626,7 +1632,7 @@ if (USE_CDROM_FORMAT) {
   
 	    # Calculate VNX aced dir
 	    my $vnxaced_dir = $VNX_INSTALL_DIR . "/aced"; 
-	    wlog (VVV, "-- VNX aced dir=$vnxaced_dir", "");
+	    wlog (VVV, "VNX aced dir=$vnxaced_dir", $logp);
 
 	    my $aced_tar_file;
 	    if ($opts{'update-aced'} eq '') {
@@ -1641,7 +1647,7 @@ if (USE_CDROM_FORMAT) {
 	        if (defined($aced_tar_file) && $aced_tar_file ne ''){
 	            system "mkdir $content_dir/vnxaced-lf";
 	            system "tar xfz $aced_tar_file -C $content_dir/vnxaced-lf --strip-components=1";
-                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-lf)...", "");
+                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-lf)...");
 	            $found = 1;
 	        }
             # Olive
@@ -1651,7 +1657,7 @@ if (USE_CDROM_FORMAT) {
             if (defined($aced_tar_file) && $aced_tar_file ne ''){
                 system "mkdir $content_dir/vnxaced-olive";
                 system "tar xfz $aced_tar_file -C $content_dir/vnxaced-olive --strip-components=1";
-                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-olive)...", "");
+                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-olive)...");
                 $found = 1;
             }
             # Windows
@@ -1661,7 +1667,7 @@ if (USE_CDROM_FORMAT) {
             if (defined($aced_tar_file) && $aced_tar_file ne ''){
                 system "mkdir $content_dir/vnxaced-win";
                 system "cp $aced_tar_file $content_dir/vnxaced-win";
-                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-win)...", "");
+                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-win)...");
                 $found = 1;
             }
             if (!$found) {
@@ -1690,9 +1696,9 @@ if (USE_CDROM_FORMAT) {
 
 if (USE_CDROM_FORMAT) {
 
-        wlog (N, "-- Creating iso filesystem...", "");
+        wlog (N, "-- Creating iso filesystem...");
         wlog (VVV, "--    $make_iso_cmd -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
-              " -allow-lowercase -allow-multidot -d -o $base_dir/vnx_update.iso $content_dir", "");
+              " -allow-lowercase -allow-multidot -d -o $base_dir/vnx_update.iso $content_dir", $logp);
         system "$make_iso_cmd -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
               " -allow-lowercase -allow-multidot -d -o $base_dir/vnx_update.iso $content_dir";
         #print "--   rm -rf $content_dir\n";
@@ -1703,7 +1709,7 @@ if (USE_CDROM_FORMAT) {
 } else {
 
         # Unmount shared disk
-        $execution->execute( $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_mount );
+        $execution->execute($logp,  $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_mount );
         # sdisk_fname already set
 
 }
@@ -1782,7 +1788,7 @@ EOF
     print XMLFILE "$vm_libirt_xml";
     close (XMLFILE); 
 
-    wlog (N, "-- Starting a virtual machine with root filesystem $opts{'modify-rootfs'}", "");
+    wlog (N, "-- Starting a virtual machine with root filesystem $opts{'modify-rootfs'}");
     system "virsh create $vm_xml_fname"; 
     system "virt-viewer $rootfs_name &"; 
     
@@ -1807,19 +1813,19 @@ EOF
         $vmsocket->flush;
         print $vmsocket "hello\n";
     	my $res = recv_sock ($vmsocket);
-    	wlog (VVV, "    res=$res", "");
+    	wlog (VVV, "    res=$res", $logp);
     	last if ( $res =~ /^OK/);
     	if ( time() - $t > $timeout) {
     		vnx_die ("Timeout waiting for virtual machine to start.")
     	}
     }     
-    wlog (N, "-- Virtual machine started OK.", "");
+    wlog (N, "-- Virtual machine started OK.");
     
     # Update VNXACED if requested
     if ( defined($opts{'update-aced'}) ) {
     
         if (!$opts{yes}) {
-            wlog (N, "-- Do you want to update VNXACED in virtual machine (y/n)?", "");
+            wlog (N, "-- Do you want to update VNXACED in virtual machine (y/n)?");
             my $line = readline(*STDIN);
             unless ( $line =~ /^[yY]/ ) {
                 wlog (N, "-- VNXACED not updated");
@@ -1866,7 +1872,7 @@ sub configure_switched_networks {
 	# Create the symbolic link to the management switch
 	if ($dh->get_vmmgmt_type eq 'net') {
 		my $sock = $doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock");
-		$execution->execute($bd->get_binaries_path_ref->{"ln"} . " -s $sock " . $dh->get_networks_dir .
+		$execution->execute($logp, $bd->get_binaries_path_ref->{"ln"} . " -s $sock " . $dh->get_networks_dir .
 				"/" . $dh->get_vmmgmt_netname . ".ctl" );
 	}
 
@@ -1889,9 +1895,9 @@ sub configure_switched_networks {
 
        # FIXME: maybe this checking should be put in CheckSemantics, due to at this
        # point, the parses has done some work that need to be undone before exiting
-       # (that is what the &mode_shutdown is for)
+       # (that is what the mode_shutdown() is for)
        if (-f $capture_file) {
-       	  &mode_shutdown;
+       	  mode_shutdown();
           $execution->smartdie("$capture_file file already exist. Please remove it manually or specify another capture file in the VNX specification.") 
        }
 
@@ -1911,7 +1917,7 @@ sub configure_switched_networks {
        	  # If uml_switch does not exists, we create and set up it
           unless (&vnet_exists_sw($net_name)) {
 			if ($sock !~ /^$/) {
-				$execution->execute($bd->get_binaries_path_ref->{"ln"} . " -s $sock " . $dh->get_networks_dir . "/$net_name.ctl" );
+				$execution->execute($logp, $bd->get_binaries_path_ref->{"ln"} . " -s $sock " . $dh->get_networks_dir . "/$net_name.ctl" );
 			} else {
 				 my $hub_str = ($hub eq "yes") ? "-hub" : "";
 				 my $sock = $dh->get_networks_dir . "/$net_name.ctl";
@@ -1945,7 +1951,7 @@ sub configure_switched_networks {
 					}
 					
 					if ($execution->get_exe_mode() != $EXE_DEBUG && !&uml_switch_wait($sock, 5)) {
-						&mode_shutdown;
+						mode_shutdown();
 						$execution->smartdie("uml_switch for $net_name failed to start!");
 					}
 				 }
@@ -1953,7 +1959,7 @@ sub configure_switched_networks {
 				 	# Only one modprobe tun in the same execution: after checking tun_device_needed. See mode_t subroutine
                     # -----------------------
 					# To start tun module
-					#!$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
+					#!$execution->execute( $logp, $bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
 
 					# We build TUN device name
 					my $tun_if = $net_name;
@@ -1988,7 +1994,7 @@ sub configure_switched_networks {
                     }
 
 					if ($execution->get_exe_mode() != $EXE_DEBUG && !&uml_switch_wait($sock, 5)) {
-						&mode_shutdown;
+						mode_shutdown();
 						$execution->smartdie("uml_switch for $net_name failed to start!");
 					}
 				}
@@ -2004,11 +2010,11 @@ sub configure_switched_networks {
                 #unless ($vlan =~ /^$/ ) {
                 #    # configure VLAN on this interface
                 #   unless (&check_vlan($tun_if,$vlan)) {
-                #	    $execution->execute($bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
-                #	   $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " add $tun_if $vlan");
+                #	    $execution->execute($logp, $bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
+                #	   $execution->execute($logp, $bd->get_binaries_path_ref->{"vconfig"} . " add $tun_if $vlan");
                 # }
                 #    my $tun_vlan_if = $tun_if . ".$vlan";
-                #    $execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_vlan_if 0.0.0.0 $dh->get_promisc() up");
+                #    $execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_vlan_if 0.0.0.0 $dh->get_promisc() up");
                 #    # We increase interface use counter
                 #    &inc_cter($tun_vlan_if);
                 #}           
@@ -2042,7 +2048,7 @@ sub configure_virtual_bridged_networks {
       # Only one modprobe tun in the same execution: after checking tun_device_needed. See mode_t subroutine
       # -----------------------
       # To start tun module
-      #!$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
+      #!$execution->execute( $logp, $bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
      
       # To create management device (id 0), if needed
       # The name of the if is: $vm_name . "-e0"
@@ -2050,7 +2056,7 @@ sub configure_virtual_bridged_networks {
       
       if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
          my $tun_if = $vm_name . "-e0";
-         $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
+         $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
       }
 
       # To get UML's interfaces list
@@ -2074,11 +2080,11 @@ sub configure_virtual_bridged_networks {
 	        my $tun_if = $vm_name . "-e" . $id;
 
             # To create TUN device
-	        $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
+	        $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
 
             # To set up device
-            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if 0.0.0.0 " . $dh->get_promisc . " up");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set dev $tun_if up");
+            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if 0.0.0.0 " . $dh->get_promisc . " up");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $tun_if up");
                         
 	     }
       }
@@ -2102,12 +2108,12 @@ sub configure_virtual_bridged_networks {
 
          # If bridged does not exists, we create and set up it
          unless (&vnet_exists_br($net_name)) {
-            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addbr $net_name");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " addbr $net_name");
 	        if ($dh->get_stp) {
-               $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " stp $net_name on");
+               $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name on");
 	        }
 	        else {
-               $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
+               $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
 	        }
 	        sleep 1;    # needed in SuSE 8.2
             
@@ -2123,15 +2129,15 @@ sub configure_virtual_bridged_networks {
             chop $brtap_mac;                       
             # Create tap interface
             my $brtap_name = "$net_name-e00";
-            $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $brtap_name -f " . $dh->get_tun_device);
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name address $brtap_mac");                       
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $brtap_name -f " . $dh->get_tun_device);
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name address $brtap_mac");                       
             # Join the tap interface to bridge
-            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $brtap_name");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name up");                       
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $brtap_name");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name up");                       
             
             # Bring the bridge up
-            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");	        
+            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");	        
          }
 
          # Is there an external interface associated with the network?
@@ -2140,14 +2146,14 @@ sub configure_virtual_bridged_networks {
 	        unless ($vlan =~ /^$/ ) {
 	           # If there is not any configured VLAN at this interface, we have to enable it
 	           unless (&check_vlan($external_if,"*")) {
-                  #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
-                  $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
+                  #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
+                  $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
 	           }
 	           # If VLAN is already configured at this interface, we haven't to configure it
 	           unless (&check_vlan($external_if,$vlan)) {
-	              $execution->execute($bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
-	              $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " set_name_type DEV_PLUS_VID_NO_PAD");
-	              $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
+	              $execution->execute($logp, $bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
+	              $execution->execute($logp, $bd->get_binaries_path_ref->{"vconfig"} . " set_name_type DEV_PLUS_VID_NO_PAD");
+	              $execution->execute($logp, $bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
 	           }
                $external_if .= ".$vlan";
                #$external_if .= ":$vlan";
@@ -2155,12 +2161,12 @@ sub configure_virtual_bridged_networks {
 	     
 	        # If the interface is already added to the bridge, we haven't to add it
 	        my @if_list = &vnet_ifs($net_name);
-	        wlog (VVV, "vnet_ifs returns @if_list");
+	        wlog (VVV, "vnet_ifs returns @if_list", $logp);
 	        $_ = "@if_list";
 	        unless (/\b($external_if)\b/) {
-               $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
-               #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
-	           $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $external_if");
+               $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
+               #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
+	           $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $external_if");
 	        }
 	        # We increase interface use counter
 	        &inc_cter($external_if);
@@ -2204,7 +2210,7 @@ sub tun_connect {
 	        my $net_if = $vm_name . "-e" . $id;
 
             # We link TUN/TAP device 
-	        $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
+	        $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
 	     }
 
       }
@@ -2233,11 +2239,11 @@ sub host_config {
         # To get name and mode attribute
       	my $net = $if->getAttribute("net");
 	  	my $net_mode = $dh->get_net_mode ($net);
-	  	wlog (VVV, "** hostif: net=$net, net_mode=$net_mode");
+	  	wlog (VVV, "hostif: net=$net, net_mode=$net_mode", $logp);
 	  	
 		if ($net_mode eq 'uml_switch') {
 			# Create TUN device
-            $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -t $net -u " . $execution->get_uid . " -f " . $dh->get_tun_device);
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -t $net -u " . $execution->get_uid . " -f " . $dh->get_tun_device);
         }
         hostif_addr_conf ($if, $net, 'add');
     }
@@ -2253,29 +2259,29 @@ sub host_config {
         if ($route_type eq "ipv4") {
             if ($dh->is_ipv4_enabled) {
                 if ($route_dest eq "default") {
-                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add default gw $route_gw");
-                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $route_gw");
+                    #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet add default gw $route_gw");
+                    $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $route_gw");
                 } elsif ($route_dest =~ /\/32$/) {
                     # Special case: X.X.X.X/32 destinations are not actually nets, but host. The syntax of
                     # route command changes a bit in this case
-                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -host $route_dest gw $route_gw");
-                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add $route_dest via $route_gw");
+                    #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet add -host $route_dest gw $route_gw");
+                    $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -4 route add $route_dest via $route_gw");
                 } else {
-                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add -net $route_dest gw $route_gw");
-                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add $route_dest via $route_gw");
+                    #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet add -net $route_dest gw $route_gw");
+                    $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -4 route add $route_dest via $route_gw");
                 }
-                #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet add $route_dest gw $route_gw");
+                #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet add $route_dest gw $route_gw");
             }
         }
         # Routes for IPv6
         else {
             if ($dh->is_ipv6_enabled) {
                 if ($route_dest eq "default") {
-                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $route_gw");
-                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $route_gw");
+                    #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $route_gw");
+                    $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $route_gw");
                 } else {
-                    #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add $route_dest gw $route_gw");
-                    $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route add $route_dest via $route_gw");
+                    #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet6 add $route_dest gw $route_gw");
+                    $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -6 route add $route_dest via $route_gw");
                 }
             }
         }
@@ -2288,10 +2294,10 @@ sub host_config {
         $f_type = "ip" if ($f_type =~ /^$/);
         # TODO: change this. When not in VERBOSE mode, echos are redirected to null and do not work... 
         if ($dh->is_ipv4_enabled) {
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv4/ip_forward") if ($f_type eq "ip" or $f_type eq "ipv4");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv4/ip_forward") if ($f_type eq "ip" or $f_type eq "ipv4");
         }
         if ($dh->is_ipv6_enabled) {
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv6/conf/all/forwarding") if ($f_type eq "ip" or $f_type eq "ipv6");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv6/conf/all/forwarding") if ($f_type eq "ip" or $f_type eq "ipv6");
         }
     }
 
@@ -2339,9 +2345,9 @@ sub hostif_addr_conf {
             if ( ($ext_if) && ($cmd eq 'add') ) {
             	# Delete the address from the external interface before configuring it in the network bridge.
             	# If not done, connectivity problems will arise... 
-                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr del " . $ip_addr->cidr() . " dev $ext_if");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr del " . $ip_addr->cidr() . " dev $ext_if");
             }
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr $cmd " . $ip_addr->cidr() . " dev $net");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr $cmd " . $ip_addr->cidr() . " dev $net");
          }
     }
 
@@ -2353,7 +2359,7 @@ sub hostif_addr_conf {
             my $ip = &text_tag($ipv6_list->item($j));
             if (&valid_ipv6_with_mask($ip)) {
                 # Implicit slashed mask in the address
-                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr $cmd $ip dev $net");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr $cmd $ip dev $net");
             } else {
                 # Check the value of the mask attribute
                 my $ipv6_effective_mask = "/64"; # Default mask value          
@@ -2365,10 +2371,10 @@ sub hostif_addr_conf {
 	            if ( ($ext_if) && ($cmd eq 'add') ) {
 	                # Delete the address from the external interface before configuring it in the network bridge.
 	                # If not done, connectivity problems will arise... 
-	                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr del $ip$ipv6_effective_mask dev $ext_if");
+	                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr del $ip$ipv6_effective_mask dev $ext_if");
 	            }
-                #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip$ipv6_effective_mask");
-                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr $cmd $ip$ipv6_effective_mask dev $net");
+                #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net inet6 add $ip$ipv6_effective_mask");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr $cmd $ip$ipv6_effective_mask dev $net");
             }
         }
     }
@@ -2394,7 +2400,7 @@ sub uml_switch_wait {
 # Chown all vnx working files to a non-privileged user (if user is root)
 sub chown_working_dir {
 	if ($> == 0) {
-		$execution->execute($bd->get_binaries_path_ref->{"chown"} . " -R " . $execution->get_uid . " " . $dh->get_vnx_dir);
+		$execution->execute($logp, $bd->get_binaries_path_ref->{"chown"} . " -R " . $execution->get_uid . " " . $dh->get_vnx_dir);
 	}
 }
 
@@ -2419,7 +2425,7 @@ sub xauth_needed {
 # Give the effective user xauth privileges on the current display
 sub xauth_add {
 	if ($> == 0 && $execution->get_uid != 0 && &xauth_needed) {
-		$execution->execute($bd->get_binaries_path_ref->{"echo"} . " add `" .
+		$execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " add `" .
 			 $bd->get_binaries_path_ref->{"xauth"} . " list $ENV{DISPLAY}` | su -s /bin/sh -c " .
 			 $bd->get_binaries_path_ref->{"xauth"} . " " . getpwuid($execution->get_uid));
 	}
@@ -2429,7 +2435,7 @@ sub xauth_add {
 sub xauth_remove {
 	if ($> == 0 && $execution->get_uid != 0 && &xauth_needed) {
 
-		$execution->execute("su -s /bin/sh -c '" . $bd->get_binaries_path_ref->{"xauth"} . " remove $ENV{DISPLAY}' " . getpwuid($execution->get_uid));
+		$execution->execute($logp, "su -s /bin/sh -c '" . $bd->get_binaries_path_ref->{"xauth"} . " remove $ENV{DISPLAY}' " . getpwuid($execution->get_uid));
 	}
 
 }
@@ -2462,7 +2468,7 @@ sub mode_execute {
          	sleep($dh->get_delay);
          	my $time_f = time();
          	my $interval = $time_f - $time_0;
-         	wlog (V, "$interval seconds elapsed...");
+         	wlog (V, "$interval seconds elapsed...", $logp);
          	%vm_ips = &get_UML_command_ip($seq);
       	}
    	} else {
@@ -2501,8 +2507,8 @@ sub mode_execute {
         $num_execs  += $vm_execs;
           
         if ($vm_plugin_ftrees + $vm_plugin_execs + $vm_ftrees + $vm_execs > 0) { 
-            wlog (VVV, "Calling executeCMD for vm $vm_name with seq $seq to execute:"); 
-            wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs");
+            wlog (VVV, "Calling executeCMD for vm $vm_name with seq $seq to execute:", $logp); 
+            wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", $logp);
 	        my $merged_type = $dh->get_vm_merged_type($vm);
 			# call the corresponding vmAPI
 	    	my $vm_type = $vm->getAttribute("type");
@@ -2512,17 +2518,17 @@ sub mode_execute {
 	    	                         \@plugin_ftree_list, \@plugin_exec_list, 
 	    	                         \@ftree_list, \@exec_list);
             if ($error ne 0) {
-                wlog (N, "VNX::vmAPI_${vm_type}->executeCMD returns " . $error);
+                wlog (N, "VNX::vmAPI_${vm_type}->executeCMD returns " . $error, $logp);
             }
         }
 	}
 
-    wlog (VVV, "Total number of commands executed for seq $seq:");
-    wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs, user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs");
+    wlog (VVV, "Total number of commands executed for seq $seq:", $logp);
+    wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs, user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs", $logp);
 	if ($num_plugin_ftrees + $num_plugin_execs + $num_ftrees + $num_execs == 0) {
-        wlog(N, "--", "");
-		wlog(N, "-- ERROR: no commands found for tag '$seq'", "");
-        wlog(N, "--", "");
+        wlog(N, "--");
+		wlog(N, "-- ERROR: no commands found for tag '$seq'");
+        wlog(N, "--");
 	}
 
 	exec_command_host($seq);
@@ -2584,8 +2590,8 @@ sub mode_shutdown {
 	        $num_execs  += $vm_execs;
 	          
 	        if ( $vm_plugin_ftrees + $vm_plugin_execs + $vm_ftrees + $vm_execs > 0) { 
-	            wlog (VVV, "Calling executeCMD for vm $vm_name with seq $seq to execute:"); 
-	            wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs");
+	            wlog (VVV, "Calling executeCMD for vm $vm_name with seq $seq to execute:", $logp); 
+	            wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", $logp);
 	            # call the corresponding vmAPI
 	            my $vm_type = $vm->getAttribute("type");
 	            my $error = "VNX::vmAPI_$vm_type"->executeCMD(
@@ -2599,10 +2605,10 @@ sub mode_shutdown {
 	    }
 
 	    if ($num_plugin_ftrees + $num_plugin_execs + $num_ftrees + $num_execs == 0) {
-	        wlog(V, "Nothing to execute for VM $vm_name with seq=$seq");
+	        wlog(V, "Nothing to execute for VM $vm_name with seq=$seq", $logp);
 	    } else {
-	        wlog (VVV, "Total num of commands executed for VM $vm_name with seq=$seq:");
-	        wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs, user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs");	    	
+	        wlog (VVV, "Total num of commands executed for VM $vm_name with seq=$seq:", $logp);
+	        wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs, user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs", $logp);	    	
 	    }
 
       	if ($opts{M}){
@@ -2698,7 +2704,7 @@ sub mode_shutdown {
          &host_mapping_unpatch ($dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != $EXE_DEBUG));
 
          # To remove lock file (it exists while topology is running)
-         $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_sim_dir . "/lock");
+         $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_sim_dir . "/lock");
     }
 
 }
@@ -2772,8 +2778,8 @@ sub get_vm_ftrees_and_execs {
 	    #  1 - for each active plugin, call: $plugin->get*Files for define mode
         # Create temp directory for plugins files
         my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/plugins/$plugin/$vm_name/";
-        $execution->execute("mkdir -p $files_dir");
-        $execution->execute("rm -rf $files_dir/*");
+        $execution->execute($logp, "mkdir -p $files_dir");
+        $execution->execute($logp, "rm -rf $files_dir/*");
 
         my %files;            
 
@@ -2787,9 +2793,9 @@ sub get_vm_ftrees_and_execs {
 
         if (keys(%files) > 0 ) {
             my $res=`tree $files_dir`; 
-            wlog (VVV, "getFiles returns " . keys(%files) . " files/dirs for vm $vm_name:\n $res");
+            wlog (VVV, "getFiles returns " . keys(%files) . " files/dirs for vm $vm_name:\n $res", $logp);
         } else {
-            wlog (VVV, "getFiles returns no files/dirs for vm $vm_name");
+            wlog (VVV, "getFiles returns no files/dirs for vm $vm_name", $logp);
         }
                 
         if (keys(%files) > 0 ) { 
@@ -2807,7 +2813,7 @@ sub get_vm_ftrees_and_execs {
                                             # $files[1] -> user
                                             # $files[2] -> group
                                             # $files[3] -> perms
-            wlog (VVV, "**** dst=$file[0], user=$file[1], group=$file[2], perms=$file[3], ");                                                           
+            wlog (VVV, "**** dst=$file[0], user=$file[1], group=$file[2], perms=$file[3], ", $logp);                                                           
             # Check whether file/dir uses a relative path
             $execution->smartdie ("file/dir $files{$key} returned by $plugin->getFiles (vm=$vm_name, seq=$seq) uses an absolut path (should be relative to files_dir directory)")       
                 if ( $files{$key} =~ /^\// );
@@ -2815,7 +2821,7 @@ sub get_vm_ftrees_and_execs {
             $execution->smartdie ("file/dir $files_dir$files{$key} returned by plugin $plugin->getFiles does not exist")        
                 unless ( -e "$files_dir$files{$key}" );
             
-            wlog (VVV, "Creating <filetree> tag for plugin file/dir $key");
+            wlog (VVV, "Creating <filetree> tag for plugin file/dir $key", $logp);
                 
             # Create the <filetree> tag
             #   Format: <filetree seq="plugin-$plugin" root="$key">$files{$key}</filetree>
@@ -2855,11 +2861,11 @@ sub get_vm_ftrees_and_execs {
             #my $dst_dir = $dh->get_vm_tmp_dir($vm_name) . "/plugins/filetree/$dst_num";
             my $dst_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num";
             
-            $execution->execute("mkdir -p $dst_dir");
+            $execution->execute($logp, "mkdir -p $dst_dir");
             if ( -d "$files_dir$files{$key}" ) { # It is a directory
-                $execution->execute("cp -r $files_dir$files{$key}/* $dst_dir");
+                $execution->execute($logp, "cp -r $files_dir$files{$key}/* $dst_dir");
             } else { # It is a file
-                $execution->execute("cp $files_dir$files{$key} $dst_dir");
+                $execution->execute($logp, "cp $files_dir$files{$key} $dst_dir");
             }
               
             $dst_num++;
@@ -2874,14 +2880,14 @@ sub get_vm_ftrees_and_execs {
             $execution->smartdie("plugin $plugin getCommands($vm_name,$seq) error: $error");
         }
 
-        wlog (VVV, "getCommands returns " . scalar(@commands) . " commands");
+        wlog (VVV, "getCommands returns " . scalar(@commands) . " commands", $logp);
         if (scalar(@commands) > 0) { 
             $vm_plugin_execs  += scalar(@commands);
         } 
            
         #  4 - add <exec> commands for every command returned by get*Command
         foreach my $cmd (@commands) {
-            wlog (VVV, "Creating <exec> tag for plugin command '$cmd'");
+            wlog (VVV, "Creating <exec> tag for plugin command '$cmd'", $logp);
     
             # Create the <exec> tag
             #   Format: <exec seq="$seq" type="verbatim" ostype="??">$cmd</exec>
@@ -2933,7 +2939,7 @@ sub get_vm_ftrees_and_execs {
                 my $perms = $filetree->getAttribute("perms");
                 my $value = &text_tag($filetree);
 
-                wlog (VVV, "Creating <filetree> tag for user-defined file/dir '$value'");
+                wlog (VVV, "Creating <filetree> tag for user-defined file/dir '$value'", $logp);
                 
                 # Create new node
                 my $new_filetree = $xdoc->createElement('filetree');
@@ -2969,11 +2975,11 @@ sub get_vm_ftrees_and_execs {
                 } 
                     
                 my $dst_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num";
-                $execution->execute("mkdir -p $dst_dir");
+                $execution->execute($logp, "mkdir -p $dst_dir");
 	            if ( -d "$src" ) { # It is a directory
-                    $execution->execute($bd->get_binaries_path_ref->{"cp"} . " -r $src/* $dst_dir");
+                    $execution->execute($logp, $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $dst_dir");
 	            } else { # It is a file
-                    $execution->execute($bd->get_binaries_path_ref->{"cp"} . " $src $dst_dir");
+                    $execution->execute($logp, $bd->get_binaries_path_ref->{"cp"} . " $src $dst_dir");
 	            }
                 
                 $dst_num++;
@@ -3011,7 +3017,7 @@ sub get_vm_ftrees_and_execs {
                 my $ostype = $command->getAttribute("ostype");
                 my $value = &text_tag($command);
 
-                wlog (VVV, "Creating <exec> tag for user-defined command '$value'");
+                wlog (VVV, "Creating <exec> tag for user-defined command '$value'", $logp);
 
                 # Case 1. Verbatim type
                 if ( $type eq "verbatim" ) {  
@@ -3086,18 +3092,18 @@ sub host_unconfig {
        # Routes for IPv4
        if ($route_type eq "ipv4") {
           if ($dh->is_ipv4_enabled) {
-                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route del $route_dest via $route_gw");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -4 route del $route_dest via $route_gw");
 =BEGIN    	
              if ($route_dest eq "default") {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del $route_dest gw $route_gw");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet del $route_dest gw $route_gw");
              } elsif ($route_dest =~ /\/32$/) {
 	            # Special case: X.X.X.X/32 destinations are not actually nets, but host. The syntax of
 		        # route command changes a bit in this case
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del -host $route_dest gw $route_gw");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet del -host $route_dest gw $route_gw");
 	         } else {
-                $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del -net $route_dest gw $route_gw");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet del -net $route_dest gw $route_gw");
              }
-             #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet del $route_dest gw $route_gw");
+             #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet del $route_dest gw $route_gw");
 =END
 =cut
           }
@@ -3106,11 +3112,11 @@ sub host_unconfig {
        # Routes for IPv6
         else {
             if ($dh->is_ipv6_enabled) {
-                $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route del $route_dest via $route_gw");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -6 route del $route_dest via $route_gw");
                 #if ($route_dest eq "default") {
-                #    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 del 2000::/3 gw $route_gw");
+                #    $execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet6 del 2000::/3 gw $route_gw");
                 #} else {
-                #    $execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 del $route_dest gw $route_gw");
+                #    $execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet6 del $route_dest gw $route_gw");
                 #}
             }
        }
@@ -3147,9 +3153,9 @@ sub host_unconfig {
 
 	   	# Destroy the tun device
 		if ($net_mode eq 'uml_switch') {
-	   		#$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net down");
-	   		$execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net down");           
-			$execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $net -f " . $dh->get_tun_device);
+	   		#$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net down");
+	   		$execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net down");           
+			$execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $net -f " . $dh->get_tun_device);
 		}
    }
 
@@ -3188,11 +3194,11 @@ sub external_if_remove {
 
         # To clean up not in use physical interfaces
         if (&get_cter($external_if) == 0) {
-            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");         
-            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delif $net_name $external_if");
+            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");         
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " delif $net_name $external_if");
             unless ($vlan =~ /^$/) {
-                $execution->execute($bd->get_binaries_path_ref->{"vconfig"} . " rem $external_if");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"vconfig"} . " rem $external_if");
             } else { # No vlan associated to external if
                 # Note that now the interface has no IP address nor mask assigned, it is
                 # unconfigured! Tag <physicalif> is checked to try restore the interface
@@ -3213,7 +3219,7 @@ sub tun_destroy_switched {
    # Remove the symbolic link to the management switch socket
    if ($dh->get_vmmgmt_type eq 'net') {
 		my $socket_file = $dh->get_networks_dir . "/" . $dh->get_vmmgmt_netname . ".ctl";
-		$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
+		$execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
 	}
 
    my $net_list = $doc->getElementsByTagName("net");
@@ -3242,10 +3248,10 @@ sub tun_destroy_switched {
 			if ($sock eq '' && -S $socket_file) {
 				$cmd = $bd->get_binaries_path_ref->{"kill"} . " `" .
 					$bd->get_binaries_path_ref->{"lsof"} . " -t $socket_file`";
-				$execution->execute($cmd);
+				$execution->execute($logp, $cmd);
 				sleep 1;
 			}
-	        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
+	        $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
          }
       }
    }
@@ -3270,9 +3276,9 @@ sub tun_destroy {
       
       if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
          my $tun_if = $vm_name . "-e0";
-         #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
-         $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
-         $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
+         #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
+         $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
+         $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
       }
 
       # To get UML's interfaces list
@@ -3293,12 +3299,12 @@ sub tun_destroy {
             my $tun_if = $vm_name . "-e" . $id;
 
             # To throw away TUN device
-            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
+            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
 
             # To remove TUN device
             #print "*** tun_destroy\n";
-            $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
 
          }
 
@@ -3315,7 +3321,7 @@ sub bridges_destroy {
 
    my $doc = $dh->get_doc;
 
-   wlog (VVV, "-- bridges_destroy called", "");
+   wlog (VVV, "bridges_destroy called", $logp);
    # To get list of defined <net>
    my $net_list = $doc->getElementsByTagName("net");
 
@@ -3334,13 +3340,13 @@ sub bridges_destroy {
          if ( (@br_ifs == 1) && ( $br_ifs[0] eq "${net_name}-e00" ) ) {
          	
          	# Destroy the tap associated with the bridge
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set ${net_name}-e00 down");
-            $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d ${net_name}-e00");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set ${net_name}-e00 down");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d ${net_name}-e00");
             
             # Destroy the bridge
-            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $net_name down");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set $net_name down");
-            $execution->execute($bd->get_binaries_path_ref->{"brctl"} . " delbr $net_name");
+            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name down");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name down");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " delbr $net_name");
          }
       }
    }
@@ -3379,10 +3385,10 @@ sub mode_destroy {
         # 3. Delete supporting scenario files...
 	#    ...but only if -M option is not active (DFC 27/01/2010)
 
-        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_sim_dir . "/*");
+        $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_sim_dir . "/*");
 
-        #$execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . "/var/run/libvirt/vnx/" . $dh->get_scename);
-        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_tmp_dir . "/.vnx/" . $dh->get_scename);
+        #$execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . "/var/run/libvirt/vnx/" . $dh->get_scename);
+        $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_tmp_dir . "/.vnx/" . $dh->get_scename);
 
         # Delete network/$net.ports files of ppp networks
         my $doc = $dh->get_doc;
@@ -3391,7 +3397,7 @@ sub mode_destroy {
             my $net = $nets->item ($i);
             my $type = $net->getAttribute ("type");
             if ($type eq 'ppp') {
-		        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_networks_dir 
+		        $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_networks_dir 
 		                             . "/" . $net->getAttribute ("name") . ".ports");
             }
         }      
@@ -3645,10 +3651,10 @@ sub host_mapping_patch {
    my $dir_name = dirname $file_name;
    my $basename = basename $file_name;
    my $file_bk = "$dir_name/$basename.vnx.old";
-   $execution->execute($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
-   $execution->execute($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
 
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
 
 }
 
@@ -3766,9 +3772,9 @@ sub host_mapping_unpatch {
    my $dir_name = dirname $file_name;
    my $basename = basename $file_name;
    my $file_bk = "$dir_name/$basename.vnx.old";
-   $execution->execute($bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
-   $execution->execute($bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
 
 }
 
@@ -4112,11 +4118,11 @@ sub physicalif_config {
       	 	#IPv6 configuration
       	 	my $ip = $phyif->getAttribute("ip");
       	 	my $gw = $phyif->getAttribute("gw");
-            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $interface add $ip");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr add $ip dev $interface");
+            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $interface add $ip");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add $ip dev $interface");
       	 	unless ($gw =~ /^$/ ) {
-               #$execution->execute($bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $gw");            
-               $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $gw");            
+               #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $gw");            
+               $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $gw");            
       	 	}
       	 }
       	 else {
@@ -4126,11 +4132,11 @@ sub physicalif_config {
    	        my $mask = $phyif->getAttribute("mask");
             $mask="255.255.255.0" if ($mask =~ /^$/);
             my $ip_addr = NetAddr::IP->new($ip,$mask);
-            #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $interface $ip netmask $mask");
-            $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $interface");
+            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $interface $ip netmask $mask");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $interface");
        	 	unless ($gw =~ /^$/ ) {
-               #$execution->execute($bd->get_binaries_path_ref->{"route"} . " add default gw $gw");
-               $execution->execute($bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $gw");
+               #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " add default gw $gw");
+               $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $gw");
        	 	}
       	 }
       }
@@ -4268,13 +4274,13 @@ sub inc_cter {
    $file .= ".cter";
 
    unless (-f $dh->get_networks_dir . "/$file") {
-      $execution->execute($bd->get_binaries_path_ref->{"echo"} . " " . $dh->get_scename . "> " . $dh->get_networks_dir . "/$file");
+      $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " " . $dh->get_scename . "> " . $dh->get_networks_dir . "/$file");
    }
    else {
       my $command = $bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_networks_dir . "/$file";
       my $value = `$command`;
       chomp ($value);
-      $execution->execute($bd->get_binaries_path_ref->{"echo"} . " \"$value " . $dh->get_scename . "\"". "> " . $dh->get_networks_dir . "/$file");
+      $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " \"$value " . $dh->get_scename . "\"". "> " . $dh->get_networks_dir . "/$file");
    }
 
 }
@@ -4311,10 +4317,10 @@ sub dec_cter {
       }
 
       if ($value eq "") {
-         $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_networks_dir . "/$file");
+         $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_networks_dir . "/$file");
       }
       else {
-         $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $value > " . $dh->get_networks_dir . "/$file");
+         $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " $value > " . $dh->get_networks_dir . "/$file");
       }
 
    }
@@ -4363,10 +4369,10 @@ sub change_vm_status {
    my $status_file = $dh->get_vm_dir($vm) . "/status";
 
    if ($status eq "REMOVE") {
-      $execution->execute ($bd->get_binaries_path_ref->{"rm"} . " -f $status_file");
+      $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -f $status_file");
    }
    else {
-      $execution->execute($bd->get_binaries_path_ref->{"echo"} . " $status > $status_file"); 
+      $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " $status > $status_file"); 
    }
 }
 
@@ -4473,16 +4479,16 @@ sub mgmt_sock_create {
       $effective_mask = &slashed_to_dotted_mask($mask);
    }
 
-   $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -u $user -t $tap");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u $user -t $tap");
 
-   #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tap $hostip netmask $effective_mask up");
+   #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tap $hostip netmask $effective_mask up");
    my $ip_addr = NetAddr::IP->new($hostip,$effective_mask);
-   $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set dev $tap up");
-   $execution->execute($bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $tap");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $tap up");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $tap");
    #$execution->execute_bg($bd->get_binaries_path_ref->{"su"} . " -pc '".$bd->get_binaries_path_ref->{"uml_switch"}." -tap $tap -unix $socket < /dev/null > /dev/null &' $user");
    $execution->execute_bg($bd->get_binaries_path_ref->{"uml_switch"}." -tap $tap -unix $socket",'/dev/null');
    sleep 1;
-   $execution->execute($bd->get_binaries_path_ref->{"chmod"} . " g+rw $socket");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"chmod"} . " g+rw $socket");
 }
 
 # mgmt_sock_destroy
@@ -4497,11 +4503,11 @@ sub mgmt_sock_destroy {
    my $socket = shift;
    my $tap = shift;
    
-   $execution->execute($bd->get_binaries_path_ref->{"kill"} . " `".$bd->get_binaries_path_ref->{"lsof"}." -t $socket`");
-   $execution->execute($bd->get_binaries_path_ref->{"rm"} . " $socket");
-   #$execution->execute($bd->get_binaries_path_ref->{"ifconfig"} . " $tap down");
-   $execution->execute($bd->get_binaries_path_ref->{"ip"} . " link set dev $tap down");
-   $execution->execute($bd->get_binaries_path_ref->{"tunctl"} . " -d $tap");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"kill"} . " `".$bd->get_binaries_path_ref->{"lsof"}." -t $socket`");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " $socket");
+   #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tap down");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $tap down");
+   $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $tap");
 }
 
 
@@ -4588,7 +4594,7 @@ sub build_topology{
             #if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
             if (&tundevice_needed($dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
                 if (! -e "/dev/net/tun") {
-                    !$execution->execute ($bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
+                    !$execution->execute( $logp, $bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
                 }
             }
 
@@ -4600,12 +4606,12 @@ sub build_topology{
             my $command = $bd->get_binaries_path_ref->{"date"};
             chomp (my $now = `$command`);
             my $input_file_basename = basename $dh->get_input_file;
-            $execution->execute($bd->get_binaries_path_ref->{"cp"} . " " . $dh->get_input_file . " " . $dh->get_sim_dir);
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " '<'!-- copied by $basename at $now --'>' >> ".$dh->get_sim_dir."/$input_file_basename");       
-            $execution->execute($bd->get_binaries_path_ref->{"echo"} . " '<'!-- original path: ".abs_path($dh->get_input_file)." --'>' >> ".$dh->get_sim_dir."/$input_file_basename");
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"cp"} . " " . $dh->get_input_file . " " . $dh->get_sim_dir);
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " '<'!-- copied by $basename at $now --'>' >> ".$dh->get_sim_dir."/$input_file_basename");       
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " '<'!-- original path: ".abs_path($dh->get_input_file)." --'>' >> ".$dh->get_sim_dir."/$input_file_basename");
 
             # To make lock file (it exists while topology is running)
-            $execution->execute ($bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_sim_dir . "/lock");
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_sim_dir . "/lock");
 
             # Create the mgmn_net socket when <vmmgnt type="net">, if needed
             if (($dh->get_vmmgmt_type eq "net") && ($dh->get_vmmgmt_autoconfigure ne "")) {
@@ -5071,8 +5077,8 @@ sub make_vmAPI_doc {
           get_vm_ftrees_and_execs($vm, $vm_name, 'define', 'on_boot',  
                \@plugin_ftree_list, \@plugin_exec_list, \@ftree_list, \@exec_list );
 
-    wlog (VVV, "make_vmAPI_doc: XML created for vm $vm_name with seq 'on_boot' commands included"); 
-    wlog (VVV, "                plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs");
+    wlog (VVV, "make_vmAPI_doc: XML created for vm $vm_name with seq 'on_boot' commands included", "$vm_name> ", $logp); 
+    wlog (VVV, "                plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", "$vm_name> ", $logp);
 
     # Copy all the <filetree> and <exec> to the create_conf XML document
     # 1 - Plugins <filetree> tags
@@ -5097,7 +5103,7 @@ sub make_vmAPI_doc {
         $new_filetree->addChild($dom->createAttribute( perms => $perms));
         $new_filetree->addChild($dom->createTextNode($value));
 
-        wlog (VVV, "make_vmAPI_doc: adding plugin filetree " . $filetree->toString(1) . " to create_conf");
+        wlog (VVV, "make_vmAPI_doc: adding plugin filetree " . $filetree->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
     foreach my $exec (@plugin_exec_list) {
         # TODO: change all to XML::LibXML for this sentence to work
@@ -5117,7 +5123,7 @@ sub make_vmAPI_doc {
         $new_exec->addChild($dom->createAttribute( ostype => $ostype));
         $new_exec->addChild($dom->createTextNode($value));
         
-        wlog (VVV, "make_vmAPI_doc: adding plugin exec " . $exec->toString(1) . " to create_conf");
+        wlog (VVV, "make_vmAPI_doc: adding plugin exec " . $exec->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
     foreach my $filetree (@ftree_list) {
         # TODO: change all to XML::LibXML for this sentence to work
@@ -5140,7 +5146,7 @@ sub make_vmAPI_doc {
         $new_filetree->addChild($dom->createAttribute( perms => $perms));
         $new_filetree->addChild($dom->createTextNode($value));
         
-        wlog (VVV, "make_vmAPI_doc: adding user defined ftree " . $filetree->toString(1) . " to create_conf");
+        wlog (VVV, "make_vmAPI_doc: adding user defined ftree " . $filetree->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
     foreach my $exec (@exec_list) {
         # TODO: change all to XML::LibXML for this sentence to work
@@ -5160,7 +5166,7 @@ sub make_vmAPI_doc {
         $new_exec->addChild($dom->createAttribute( ostype => $ostype));
         $new_exec->addChild($dom->createTextNode($value));
         
-        wlog (VVV, "make_vmAPI_doc: adding user defined exec " . $exec->toString(1) . " to create_conf");
+        wlog (VVV, "make_vmAPI_doc: adding user defined exec " . $exec->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
 
 =BEGIN
@@ -5177,7 +5183,7 @@ sub make_vmAPI_doc {
 		#  1 - for each active plugin, call $plugin->getBootFiles ($vm) 
 		my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/plugins/$plugin/$vm_name/boot/";
 		# Create temp directory for plugins files
-		$execution->execute("mkdir -p $files_dir");
+		$execution->execute($logp, "mkdir -p $files_dir");
 
 		my %files = $plugin->getBootFiles($vm_name, $files_dir);
 		
@@ -5227,8 +5233,8 @@ sub make_vmAPI_doc {
       		
       		# Copy the file/dir to "filetree/$dst_num" dir
       		my $dst_dir = $dh->get_vm_tmp_dir($vm_name) . "/plugins/filetree/$dst_num";
-			$execution->execute("mkdir -p $dst_dir");
-			$execution->execute("cp -r $files_dir$files{$key} $dst_dir");
+			$execution->execute($logp, "mkdir -p $dst_dir");
+			$execution->execute($logp, "cp -r $files_dir$files{$key} $dst_dir");
 			
 			$dst_num++;
 		}
@@ -5294,8 +5300,8 @@ sub make_vmAPI_doc {
 
 	      		# Copy the files/dirs to "filetree/$dst_num" dir
 	      		my $dst_dir = $dh->get_vm_tmp_dir($vm_name) . "/on_boot/filetree/$dst_num";
-				$execution->execute("mkdir -p $dst_dir");
-				$execution->execute("cp -r $value $dst_dir");
+				$execution->execute($logp, "mkdir -p $dst_dir");
+				$execution->execute($logp, "cp -r $value $dst_dir");
 				$dst_num++;
 
 			}
@@ -5439,10 +5445,12 @@ sub print_console_table_entry {
 			printf "CON,%s,%s,%s\n", $vm_name, $merged_type, $_;
 		}
 	} else {
+		$consDesc[0] =~ s/\n/\\n/g;
 		printf " %-12s| %-20s| %s\n", $vm_name, $merged_type, $consDesc[0];
 		shift (@consDesc);
-		foreach (@consDesc) {
-			printf " %-12s| %-20s| %s\n", "", "", $_;
+		foreach my $cons (@consDesc) {
+			$cons =~ s/\n/\\n/g;
+			printf " %-12s| %-20s| %s\n", "", "", $cons;
 		}
 		print "-----------------------------------------------------------------------------------------\n";	
 	}

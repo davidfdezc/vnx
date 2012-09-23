@@ -54,6 +54,7 @@ sub exec_command_host {
 	my $self = shift;
 	my $seq  = shift;
 
+    my $logp = "exec_command_host> ";
 	my $doc = $dh->get_doc;
 
 	# If host <host> is not present, there is nothing to do
@@ -79,7 +80,7 @@ sub exec_command_host {
 			if ( $type eq "verbatim" ) {
 
 				# To include the command "as is"
-				$execution->execute( &text_tag_multiline($command) );
+				$execution->execute( $logp,  &text_tag_multiline($command) );
 			}
 
 			# Case 2. File type
@@ -91,7 +92,7 @@ sub exec_command_host {
 				  or $execution->smartdie("can not open $include_file: $!");
 				while (<INCLUDE_FILE>) {
 					chomp;
-					$execution->execute($_);
+					$execution->execute( $logp, $_);
 				}
 				close INCLUDE_FILE;
 			}
@@ -107,7 +108,7 @@ sub exec_command_host {
 # defined in VNX_CONFFILE console_term entry
 # 
 # Parameters:
-#   - vmName
+#   - vm_name
 #   - con_id
 #   - consType
 #   - consPar
@@ -123,9 +124,11 @@ sub open_console {
 	my $consPar     = shift;
 	my $getLineOnly = shift;
 
+    my $logp = "open_console-$vm_name> ";
+
 	my $command;
 	if ($consType eq 'vnc_display') {
-		$execution->execute("virt-viewer -c $hypervisor $vm_name &");
+		$execution->execute( $logp, "virt-viewer -c $hypervisor $vm_name &");
 		return;  			
    	} elsif ($consType eq 'libvirt_pts') {
 		$command = "virsh -c $hypervisor console $vm_name";
@@ -135,11 +138,11 @@ sub open_console {
             my $pids = `ps uax | grep "virsh -c $hypervisor console $vm_name" | grep -v grep | awk '{ print \$2 }'`;
             $pids =~ s/\R/ /g;
             if ($pids) {
-                wlog (V, "---- open_console: killing consoles processes: $pids");
+                wlog (V, "killing consoles processes: $pids", $logp);
                 system "kill $pids";       
                 system "sleep 1";       
             } else {
-                wlog (V, "---- open_console: no previous consoles found");
+                wlog (V, "no previous consoles found", $logp);
             }
         }
    	} elsif ($consType eq 'uml_pts') {
@@ -154,11 +157,11 @@ sub open_console {
 	        my $pids = `ps uax | grep -i '$emulator_cmd' | grep -v grep | awk '{ print \$2 }'`;
 	        $pids =~ s/\R/ /g;
 	        if ($pids) {
-	            wlog (V, "---- open_console: killing consoles processes: $pids");
+	            wlog (V, "killing consoles processes: $pids", $logp);
 	            system "kill $pids";       
 	            system "sleep 1";       
 	        } else {
-	            wlog (V, "---- open_console: no previous consoles found");
+	            wlog (V, "no previous consoles found", $logp);
 	        }
 	        # Restart getty on virtual machine
 	        my $con_num = $con_id;
@@ -168,7 +171,7 @@ sub open_console {
                            . $dh->get_vm_run_dir($vm_name) . "/mconsole " .
                            "exec pkill getty -t $tty";
                            #"exec kill `ps uax | grep getty | grep $tty | grep -v grep | awk '{print \$2}'` 2> /dev/null";
-            wlog (V, "command=$command");
+            wlog (V, "command=$command", $logp);
             system "$command";
 	        
         }
@@ -180,7 +183,7 @@ sub open_console {
 	
 	my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term');
 	my $exeLine;
-	wlog (VVV, "start_console: $vm_name $command console_term = $console_term");
+	wlog (VVV, "$vm_name $command console_term = $console_term", $logp);
 	if ($console_term eq 'gnome-terminal') {
 		$exeLine = "gnome-terminal --title '$vm_name - console #$con_id' -e '$command'";
 	} elsif ($console_term eq 'konsole') {
@@ -193,7 +196,7 @@ sub open_console {
 		$execution->smartdie ("unknown value ($console_term) of console_term parameter in $vnxConfigFile");
 	}
 	unless (defined $getLineOnly) {
-		$execution->execute($exeLine .  ">/dev/null 2>&1 &");
+		$execution->execute( $logp, $exeLine .  ">/dev/null 2>&1 &");
 	}
 	return $exeLine;
 }
@@ -211,6 +214,8 @@ sub start_console {
 	my $vm_name    = shift;
 	my $consId    = shift;
 
+    my $logp = "start_console-$vm_name> ";
+
 	# Read the console file and start the console with id $consId 
 	my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
 	open (CONS_FILE, "< $consFile") || $execution->smartdie("Could not open $consFile file.");
@@ -223,7 +228,7 @@ sub start_console {
 		if ($con_id eq $consId) {	
 		    #wlog (VVV, "CONS_FILE: $line");
 		    my @consField = split(/,/, $line);
-		    wlog (VVV, "console $con_id of $vm_name: $consField[0] $consField[1] $consField[2]");
+		    wlog (VVV, "console $con_id of $vm_name: $consField[0] $consField[1] $consField[2]", $logp);
 		    #if ($consField[0] eq 'yes') {  # console with display='yes'
 		    # We open the console independently of display value
 		    open_console ($self, $vm_name, $con_id, $consField[1], $consField[2]);
@@ -244,6 +249,8 @@ sub start_consoles_from_console_file {
 	my $self      = shift;
 	my $vm_name    = shift;
 
+    my $logp = "start_consoles_from_console_file-$vm_name> ";
+
 	# Then, we just read the console file and start the active consoles
 	my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
     #open (CONS_FILE, "< $consFile") || $execution->smartdie("Could not open $consFile file.");
@@ -258,7 +265,7 @@ sub start_consoles_from_console_file {
 	    $line =~ s/con.=//;  		# eliminate the "conX=" part of the line
 	    #wlog (VVV, "** CONS_FILE: $line");
 	    my @consField = split(/,/, $line);
-        wlog (VVV, "console $con_id of $vm_name: $consField[0] $consField[1] $consField[2]");
+        wlog (VVV, "console $con_id of $vm_name: $consField[0] $consField[1] $consField[2]", $logp);
 	    if ($consField[0] eq 'yes') {  # console with display='yes'
 	        open_console ($self, $vm_name, $con_id, $consField[1], $consField[2]);
 		} 
@@ -302,13 +309,14 @@ sub get_admin_address {
 
     my $seed = shift;
     my $vm_name = shift;
-#    my $hostnum = shift;
     my $vmmgmt_type = shift;
+
+    my $logp = "get_admin_address-$vm_name> ";
 
     my %ip;
 
     if ($seed eq "file"){
-        wlog (VV, "get_admin_addr called: seed=$seed, vm_name=$vm_name");
+        wlog (VV, "seed=$seed, vm_name=$vm_name", $logp);
         # read management ip value from file
         my $addr_vm   = &get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'addr_vm');
         my $mask      = &get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'mask');
@@ -316,10 +324,10 @@ sub get_admin_address {
         if ( $addr_vm && $mask && $addr_host ) {
 	        $ip{'vm'} = NetAddr::IP->new($addr_vm,$mask);
 	        $ip{'host'} = NetAddr::IP->new($addr_host,$mask);
-	        wlog (VVV, "get_admin_addr returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr);
+	        wlog (VVV, "returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr, $logp);
         }
     } else {
-    	wlog (VV, "get_admin_addr called: seed=$seed, vm_name=$vm_name, vmmgmt_type=$vmmgmt_type");
+    	wlog (VV, "seed=$seed, vm_name=$vm_name, vmmgmt_type=$vmmgmt_type", $logp);
         my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
         if ($vmmgmt_type eq 'private') {
             # check to make sure that the address space won't wrap
@@ -355,13 +363,13 @@ sub get_admin_address {
         my $mask_line = "mask=" . $ip{'host'}->mask();
         my $addr_host_line = "addr_host=" . $ip{'host'}->addr();
         my $mngip_file = $dh->get_vm_dir($vm_name) . '/mng_ip';
-        wlog (VV, "get_admin_addr: mngip_file=$mngip_file");
+        wlog (VV, "mngip_file=$mngip_file", $logp);
         open MNGIP, "> $mngip_file"
             or $execution->smartdie("can not open $mngip_file")
                 unless ( $execution->get_exe_mode() eq $EXE_DEBUG );        
         print MNGIP "$addr_vm_line\n$mask_line\n$addr_host_line\n";
         close MNGIP; 
-        wlog (VV, "get_admin_addr returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr);
+        wlog (VV, "returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr, $logp);
     }
 
     return %ip;
