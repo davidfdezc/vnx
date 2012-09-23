@@ -163,20 +163,23 @@ sub set_mconsole_binary {
 
 sub execute {
     my $self = shift;
+    my $verb_prompt = shift;
    
     my $exe_mode = $self->{'exe_mode'};
     #my $verb_prompt = $self->{'verb_prompt'};
-    my $verb_prompt = @{$self->{'verb_prompt'}}[0];
+    #my $verb_prompt = @{$self->{'verb_prompt'}}[0];
     my $exe_interactive = $self->{'exe_interactive'};
 
     my $retval = 0;	# By default, all right
     if ((my ($command, $CMD_OUT) = @_) == 1) {
         # Direct mode
         if ($exe_mode == $EXE_DEBUG) {
-            print "D-" . $verb_prompt . "$command\n";
+            #print "D-" . $verb_prompt . "$command\n";
+            print sprintf("D-%-8s %s", $verb_prompt, "$command\n");
         }
         elsif ($exe_mode == $EXE_VERBOSE) {
-            print $verb_prompt . "$command\n";
+            #print $verb_prompt . "$command\n";
+            print sprintf("%-10s %s", $verb_prompt, "$command\n");
             system $command;
             $retval = $?;
             if ($exe_interactive) {
@@ -197,10 +200,12 @@ sub execute {
     	#wlog (VVV, "CMD_OUT=$CMD_OUT");
         # Recording mode
         if ($exe_mode == $EXE_DEBUG) {
-            print "D-" . $verb_prompt . "$command\n";
+            #print "D-" . $verb_prompt . "$command\n";
+            print sprintf("D-%-8s %s", $verb_prompt, "$command\n");
         }
         elsif ($exe_mode == $EXE_VERBOSE) {
-            print $verb_prompt . "$command\n";
+            #print $verb_prompt . "$command\n";
+            print sprintf("%-10s %s", $verb_prompt, "$command\n");
             print $CMD_OUT "$command\n";
         }
         elsif ($exe_mode == $EXE_NORMAL) {
@@ -262,12 +267,13 @@ sub execute_bg {
 
 sub execute_mconsole {
    my $self = shift;
+   my $verb_prompt = shift;
 	
    my $mconsole = shift;
    my $cmd = shift;
    
-   #$self->execute($self->{'mconsole_binary'} . " $mconsole 'exec $cmd' 2>/dev/null");
-   $self->execute($self->{'mconsole_binary'} . " $mconsole 'exec $cmd' >/dev/null 2>&1 ");
+   #$self->execute($verb_prompt, $self->{'mconsole_binary'} . " $mconsole 'exec $cmd' 2>/dev/null");
+   $self->execute($verb_prompt, $self->{'mconsole_binary'} . " $mconsole 'exec $cmd' >/dev/null 2>&1 ");
   
 }
 
@@ -284,7 +290,7 @@ sub smartdie {
    if (-f "$vnx_dir/LOCK") {
    	  # Note this 'rm' is not using the path in binaries_path (from VNUML::BinariesData)
    	  # Just a simplification
-      $self->execute("rm -f $vnx_dir/LOCK");
+      $self->execute("smartdie> ", "rm -f $vnx_dir/LOCK");
    }
    print "-------------------------------------------------------------------------------\n";
    printf "%s (%s): %s \n", (caller(1))[3], (caller(0))[2], $mess;
@@ -344,17 +350,22 @@ sub press_any_key {
 	
     my $msg = shift;
     
-    if ($msg) { print "**********************************\n$msg\n**********************************\n" }	
+    my $hline = "----------------------------------------------------------------------------------";
+    
+    print "$hline\n";
+    if ($msg) { print "$msg\n" }	
+    print "Press any key to continue...";
+    
+    # Copy-paste from http://perlmonks.thepen.com/33566.html
+    # A simpler alternative to this code is <>, but that is ugly :)
 
-   # Copy-paste from http://perlmonks.thepen.com/33566.html
-   # A simpler alternative to this code is <>, but that is ugly :)
-
-   my $key;
-   ReadMode 4; # Turn off controls keys
-   while (not defined ($key = ReadKey(1))) {
-      # No key yet
-   }
-   ReadMode 0; # Reset tty mode before exiting
+    my $key;
+    ReadMode 4; # Turn off controls keys
+    while (not defined ($key = ReadKey(1))) {
+        # No key yet
+    }
+    ReadMode 0; # Reset tty mode before exiting
+    print "$hline\n";
 
 }
 
@@ -383,7 +394,9 @@ sub wlog {
 	my $prompt    = shift;
 
     unless ( defined($prompt) or ($msg_level == N) ) {
-    	$prompt = "vnx-log-$EXE_VERBOSITY_LEVEL>";  
+    	#$prompt = "vnx-log-$EXE_VERBOSITY_LEVEL>";  
+    	$prompt = $execution->get_verb_prompt();
+    	
     }
 	
 	my $exe_mode = $execution->get_exe_mode();
@@ -391,7 +404,8 @@ sub wlog {
     if ($msg_level == N) {
         print "$msg\n";      
     } elsif ( ($exe_mode == $EXE_DEBUG) || ( ($exe_mode == $EXE_VERBOSE) && ( $msg_level <= $EXE_VERBOSITY_LEVEL ) ) ) { 
-		print "$prompt$msg\n";		
+		#print "$prompt$msg\n";		
+        print sprintf("%-10s %s", $prompt, "$msg\n");
 	}  
 }
 
