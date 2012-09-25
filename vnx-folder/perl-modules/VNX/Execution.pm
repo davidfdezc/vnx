@@ -74,6 +74,16 @@ sub new {
     # holding the data is constructed after the Execution object. The
     # set_mconsole_binary method has to be used 
     $self->{'mconsole_binary'} = "";
+
+    $self->{'log_file'} = shift;
+#    $self->{'log_fh'} = *LOG_FILE;
+    
+#    if ($self->{'log_file'}) {
+#        print "log file =" . $self->{'log_file'} . "\n";   	
+#    	open LOG_FILE, ">" . $self->{'log_file'}
+#    	   or $execution->smartdie( "can not open log file (" . $self->{'log_file'} . ") for writting" )
+#           unless ($self->{'exe_mode'} eq $EXE_DEBUG );
+#    }
    
     return $self;  
 }
@@ -130,6 +140,16 @@ sub get_uid {
    return $self->{'uid'};
 } 
 
+# get_logfile
+#
+# Returns the logfile
+#
+sub get_logfile {
+   my $self = shift;
+   return $self->{'log_file'};
+} 
+
+
 # set_mconsole_binary
 #
 # Returns the uid
@@ -175,21 +195,44 @@ sub execute {
         # Direct mode
         if ($exe_mode == $EXE_DEBUG) {
             #print "D-" . $verb_prompt . "$command\n";
+            $command =~ s/\n/\\n/g;
             print sprintf("D-%-8s %s", $verb_prompt, "$command\n");
         }
         elsif ($exe_mode == $EXE_VERBOSE) {
             #print $verb_prompt . "$command\n";
-            print sprintf("%-10s %s", $verb_prompt, "$command\n");
-            system $command;
+            my $cmd_line = $command; $cmd_line =~ s/\n/\\n/g;
+            print_log ($cmd_line, $verb_prompt);      
+#            if ($execution->get_logfile()) { 
+#                open LOG_FILE, ">> " . $execution->get_logfile() 
+#                    or $execution->smartdie( "can not open log file (" . $execution->get_logfile . ") for writting" );
+#                print LOG_FILE sprintf("%-10s %s", $verb_prompt, "$cmd_line\n");
+#            } else {
+#            	print sprintf("%-10s %s", $verb_prompt, "$cmd_line\n");
+#            }
+#            close (LOG_FILE);
+            
+            if ( $execution->get_logfile() && ($command !~ m/echo/ ) ) { # "echo .... > file" commands cannot be redirected
+                system "$command 2>> " . $execution->get_logfile() . " >> " . $execution->get_logfile();
+            } else {
+                system "$command";
+            }
             $retval = $?;
             if ($exe_interactive) {
                 &press_any_key;
             }
         }
         elsif ($exe_mode == $EXE_NORMAL) {
-            #system "$command > /dev/null";
-            # redirection eliminated to avoid problems with commands of type "echo XXXX > file"
-            system "$command";
+            # system "$command > /dev/null"; # redirection eliminated to avoid problems with commands of type "echo XXXX > file"
+            # 
+            # Trick to avoid problems with "echo .... > file" commands
+            #print "command=$command\n";
+            if ($command =~ m/echo/ ) {
+            	#print "echo\n";
+                system "$command";
+            } else {
+                #print "NO echo\n";
+                system "$command > /dev/null 2>&1";
+            }
             $retval = $?;
             if ($exe_interactive) {
                 &press_any_key;
@@ -205,8 +248,16 @@ sub execute {
         }
         elsif ($exe_mode == $EXE_VERBOSE) {
             #print $verb_prompt . "$command\n";
-            print sprintf("%-10s %s", $verb_prompt, "$command\n");
             print $CMD_OUT "$command\n";
+            print_log ($command, $verb_prompt);      
+#            if ($execution->get_logfile()) { 
+#                open LOG_FILE, ">> " . $execution->get_logfile() 
+#                    or $execution->smartdie( "can not open log file (" . $execution->get_logfile . ") for writting" );
+#                print LOG_FILE sprintf("%-10s %s", $verb_prompt, "$command\n");
+#            } else {
+#                print sprintf("%-10s %s", $verb_prompt, "$command\n");
+#            }
+            close (LOG_FILE);
         }
         elsif ($exe_mode == $EXE_NORMAL) {
             print $CMD_OUT "$command\n";
@@ -240,7 +291,7 @@ sub execute_bg {
       print "D-daemon: $command\n";
    }
    elsif ($exe_mode == $EXE_VERBOSE) {
-      print "daemon: $command\n";
+      print_log ("daemon: $command", "");
       $self->daemonize($command,$output,$gid);
       if ($exe_interactive) {
          &press_any_key;
@@ -272,8 +323,9 @@ sub execute_mconsole {
    my $mconsole = shift;
    my $cmd = shift;
    
-   #$self->execute($verb_prompt, $self->{'mconsole_binary'} . " $mconsole 'exec $cmd' 2>/dev/null");
-   $self->execute($verb_prompt, $self->{'mconsole_binary'} . " $mconsole 'exec $cmd' >/dev/null 2>&1 ");
+   $self->execute($verb_prompt, $self->{'mconsole_binary'} . " $mconsole 'exec $cmd' 2>/dev/null");
+   #$self->execute($verb_prompt, $self->{'mconsole_binary'} . " $mconsole 'exec $cmd'");
+   #$self->execute($verb_prompt, $self->{'mconsole_binary'} . " $mconsole 'exec $cmd' >/dev/null 2>&1 ");
   
 }
 
@@ -320,7 +372,7 @@ sub daemonize {
 
    # Redirect file handles (as original user, so files can be created, if necessary)
    open STDIN, '/dev/null' or die("can't read /dev/null daemonizing ($command): $!");
-   open STDOUT, ">$output" or die("can't write to $output daemonizing ($command): $!");
+   open STDOUT, ">>$output" or die("can't write to $output daemonizing ($command): $!");
 
    # Change real/effective user of this process
    my ($name,$passwd,$uid,$gid,$quota,$comment,$gcos,$dir,$shell,$expire) = getpwuid($self->get_uid);
@@ -353,8 +405,8 @@ sub press_any_key {
     my $hline = "----------------------------------------------------------------------------------";
     
     print "$hline\n";
-    if ($msg) { print "$msg\n" }	
-    print "Press any key to continue...";
+    if ($msg) { print "Execution paused ($msg)\n" }	
+    print "Press any key to continue...\n";
     
     # Copy-paste from http://perlmonks.thepen.com/33566.html
     # A simpler alternative to this code is <>, but that is ugly :)
@@ -383,9 +435,10 @@ sub pak {
 # initialized before calling it.
 # 
 # Call with: 
-#    wlog (V, "log message")  
-#    wlog (VV, "log message")  
-#    wlog (VVV, "log message")
+#    wlog (N, "log message")  
+#    wlog (V, "log message", "prompt> ")  
+#    wlog (VV, "log message", "prompt> ")  
+#    wlog (VVV, "log message", "prompt> ")
 #  
 sub wlog {
 	
@@ -398,15 +451,45 @@ sub wlog {
     	$prompt = $execution->get_verb_prompt();
     	
     }
+
+    my $exe_mode = $execution->get_exe_mode();
 	
-	my $exe_mode = $execution->get_exe_mode();
 	#print "~~ wlog: msg_level=$msg_level, exe_mode=$exe_mode, EXE_VERBOSITY_LEVEL=$EXE_VERBOSITY_LEVEL\n";		
     if ($msg_level == N) {
-        print "$msg\n";      
+        print "$msg\n"; 
+        if ($execution->get_logfile()) { print_log ($msg, ""); }
     } elsif ( ($exe_mode == $EXE_DEBUG) || ( ($exe_mode == $EXE_VERBOSE) && ( $msg_level <= $EXE_VERBOSITY_LEVEL ) ) ) { 
 		#print "$prompt$msg\n";		
-        print sprintf("%-10s %s", $prompt, "$msg\n");
+		print_log ($msg, $prompt);		
+#        if ($execution->get_logfile() && ($exe_mode != $EXE_DEBUG)) { 
+#            print LOG_FILE sprintf("%-10s %s", $prompt, "$msg\n");
+#        } else {
+#            print sprintf("%-10s %s", $prompt, "$msg\n");
+#        }
 	}  
+	close (LOG_FILE);
+	
+}
+
+sub print_log {
+
+    my $msg = shift;
+    my $prompt = shift;
+    my $line;
+
+    if ($prompt ne "") {
+    	$line = sprintf("%-10s %s", $prompt, "$msg");
+    } else {
+    	$line = $msg;
+    }
+    if ($execution->get_logfile() && ($execution->get_exe_mode() != $EXE_DEBUG) ) { 
+        open LOG_FILE, ">> " . $execution->get_logfile() 
+            or $execution->smartdie( "can not open log file (" . $execution->get_logfile . ") for writting" );
+        print LOG_FILE "$line\n";
+    } else {
+        print "$line\n";
+    }
+    close (LOG_FILE);
 }
 
 

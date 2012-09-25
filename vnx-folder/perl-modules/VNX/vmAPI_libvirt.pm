@@ -1996,8 +1996,6 @@ sub executeCMD {
 #	my @vm_ordered = $dh->get_vm_ordered;
 #	my %vm_hash    = $dh->get_vm_to_use(@plugins);
 
-	# First loop: look for uml_mconsole exec capabilities if needed. This
-	# loop can cause exit, if capabilities are not accomplished
 	my $random_id  = &generate_random_string(6);
 
 

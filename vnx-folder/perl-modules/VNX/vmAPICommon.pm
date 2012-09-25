@@ -167,12 +167,16 @@ sub open_console {
 	        my $con_num = $con_id;
 	        $con_num =~ s/con//;
 	        my $tty = "tty$con_num";
-            my $command = $bd->get_binaries_path_ref->{"uml_mconsole"} . " " 
-                           . $dh->get_vm_run_dir($vm_name) . "/mconsole " .
-                           "exec pkill getty -t $tty";
-                           #"exec kill `ps uax | grep getty | grep $tty | grep -v grep | awk '{print \$2}'` 2> /dev/null";
-            wlog (V, "command=$command", $logp);
-            system "$command";
+
+            my $mconsole = $dh->get_vm_run_dir($vm_name) . "/mconsole";
+	        $execution->execute_mconsole( $logp,  $mconsole, "exec pkill getty -t $tty > /dev/null " );
+	        
+            #my $command = $bd->get_binaries_path_ref->{"uml_mconsole"} . " " 
+            #               . $dh->get_vm_run_dir($vm_name) . "/mconsole " .
+            #               "exec pkill getty -t $tty";
+            #               #"exec kill `ps uax | grep getty | grep $tty | grep -v grep | awk '{print \$2}'` 2> /dev/null";
+            #wlog (V, "command=$command", $logp);
+            #system "$command";
 	        
         }
    	} elsif ($consType eq 'telnet') {
