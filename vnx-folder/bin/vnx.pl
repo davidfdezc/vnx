@@ -187,7 +187,7 @@ sub main {
    	} else {
    		$vnxConfigFile = $DEFAULT_CONF_FILE;
    	}
-   	print "Using configuration file: $vnxConfigFile\n" if (!$opts{b});
+   	pre_wlog ("Using configuration file: $vnxConfigFile") if (!$opts{b});
    
    	# Check the existance of the VNX configuration file 
    	unless ( (-e $vnxConfigFile) or ($opts{'version'}) or ($opts{'help'}) ) {
@@ -199,7 +199,7 @@ sub main {
    	if (!defined $tmp_dir) {
    		$tmp_dir = $DEFAULT_TMP_DIR;
    	}
-   	print "  TMP dir=$tmp_dir\n" if (!$opts{b});
+   	pre_wlog ("  TMP dir=$tmp_dir") if (!$opts{b});
    	my $vnx_dir=&get_conf_value ($vnxConfigFile, 'general', 'vnx_dir');
    	if (!defined $vnx_dir) {
    		$vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
@@ -209,8 +209,8 @@ sub main {
    	unless (valid_absolute_directoryname($vnx_dir) ) {
         vnx_die ("ERROR: $vnx_dir is not an absolute directory name");
    	}
-   	print "  VNX dir=$vnx_dir\n" if (!$opts{b});
-    print $hline . "\n"  if (!$opts{b});
+   	pre_wlog ("  VNX dir=$vnx_dir") if (!$opts{b});
+    pre_wlog ($hline)  if (!$opts{b});
 
    	# To check arguments consistency
    	# 0. Check if -f is present
@@ -272,10 +272,10 @@ sub main {
    	if (($opts{B}) && ($opts{F}) && ($opts{'shutdown'})) {
       	&vnx_die ("Option -F and -B are incompabible\n");
    	}
-    if (($opts{o}) && (!($opts{'create'}))) {
-      	&usage;
-      	&vnx_die ("Option -o only makes sense with -t|--create mode\n");
-   	}
+#    if (($opts{o}) && (!($opts{'create'}))) {
+#      	&usage;
+#      	&vnx_die ("Option -o only makes sense with -t|--create mode\n");
+#   	}
    	if (($opts{w}) && (!($opts{'create'}))) {
       	&usage;
       	&vnx_die ("Option -w only makes sense with -t|--create mode\n");
@@ -388,7 +388,7 @@ sub main {
     my $exeinteractive = ($opts{v} || $opts{vv} || $opts{vvv}) && $opts{i};
 
     # Build the VNX::Execution object
-    $execution = new VNX::Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid);
+    $execution = new VNX::Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid,$opts{o});
     #$execution->set_verb_prompt("host> ");
 
     #
@@ -439,7 +439,7 @@ sub main {
    	
    	# Delete LOCK file if -D option included
    	if ($opts{D}) {
-   	  	print "Deleting ". $vnx_dir . "/LOCK file\n";
+   	  	pre_wlog ("Deleting ". $vnx_dir . "/LOCK file");
 	  	system "rm -f $vnx_dir/LOCK"; 
 	  	if ($how_many_args lt 1) {
 	     	exit(0);
@@ -868,9 +868,12 @@ sub define_VMs {
            
       # call the corresponding vmAPI->defineVM
       my $vm_type = $vm->getAttribute("type");
+      wlog (N, "Defining virtual machine '$vm_name' of type '$merged_type'...");
       my $error = "VNX::vmAPI_$vm_type"->defineVM($vm_name, $merged_type, $docstring);
       if ($error ne 0) {
-      	wlog (N, "VNX::vmAPI_${vm_type}->defineVM returns " . $error);
+          wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->defineVM returns " . $error);
+      } else {
+          wlog (N, "...OK")
       }
       $mngt_ip_counter++ unless ($mngt_ip_data eq "file"); #update only if current value has been used
       undef($curr_uml);
@@ -909,9 +912,12 @@ sub mode_undefine{
         }
         # call the corresponding vmAPI
         my $vm_type = $vm->getAttribute("type");
+        wlog (N, "Undefining virtual machine '$vm_name' of type '$merged_type'...");
         my $error = "VNX::vmAPI_$vm_type"->undefineVM($vm_name, $merged_type);
         if ($error ne 0) {
-            wlog (N, "VNX::vmAPI_${vm_type}->undefineVM returns " . $error);
+            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->undefineVM returns " . $error);
+        } else {
+            wlog (N, "...OK")
         }
     }
 }
@@ -1007,9 +1013,12 @@ sub start_VMs {
       
         # call the corresponding vmAPI
         my $vm_type = $vm->getAttribute("type");
+        wlog (N, "Starting virtual machine '$vm_name' of type '$merged_type'...");
         my $error = "VNX::vmAPI_$vm_type"->startVM($vm_name, $merged_type, $no_console);
         if ($error ne 0) {
-            wlog (V, "VNX::vmAPI_${vm_type}->startVM returns " . $error, $logp);
+            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->startVM returns " . $error);
+        } else {
+        	wlog (N, "...OK");
         }
  
         my $mng_if_value = &mng_if_value( $vm );
@@ -1066,9 +1075,12 @@ sub mode_reset {
       }
       # call the corresponding vmAPI
       my $vm_type = $vm->getAttribute("type");
+      wlog (N, "Reseting virtual machine '$vm_name' of type '$merged_type'...");
       my $error = "VNX::vmAPI_$vm_type"->resetVM($vm_name, $merged_type);
       if ($error ne 0) {
-        wlog (N, "VNX::vmAPI_${vm_type}->resetVM returns " . $error);
+          wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->resetVM returns " . $error);
+      } else {
+          wlog (N, "...OK")
       }
    }
 }
@@ -1094,9 +1106,12 @@ sub mode_save {
 
       # call the corresponding vmAPI
       my $vm_type = $vm->getAttribute("type");
+      wlog (N, "Pausing virtual machine '$vm_name' of type '$merged_type' and saving state to disk...");
       my $error = "VNX::vmAPI_$vm_type"->saveVM($vm_name, $merged_type, $filename);
       if ($error ne 0) {
-        wlog (N, "VNX::vmAPI_${vm_type}->saveVM returns " . $error);
+        wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->saveVM returns " . $error);
+      } else {
+        wlog (N, "...OK")
       }
    }
 }
@@ -1121,9 +1136,12 @@ sub mode_restore {
       $filename = $dh->get_vm_dir($vm_name) . "/" . $vm_name . "_savefile";
       #     call the corresponding vmAPI
       my $vm_type = $vm->getAttribute("type");
+      wlog (N, "Restoring virtual machine '$vm_name' of type '$merged_type' state from disk...");
       my $error = "VNX::vmAPI_$vm_type"->restoreVM($vm_name, $merged_type, $filename);
       if ($error ne 0) {
-        wlog (N, "VNX::vmAPI_${vm_type}->restoreVM returns " . $error);
+          wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->restoreVM returns " . $error);
+      } else {
+          wlog (N, "...OK")
       }
    }
 }
@@ -1146,9 +1164,12 @@ sub mode_suspend {
       
       # call the corresponding vmAPI
       my $vm_type = $vm->getAttribute("type");
+      wlog (N, "Suspending virtual machine '$vm_name' of type '$merged_type'...");
       my $error = "VNX::vmAPI_$vm_type"->suspendVM($vm_name, $merged_type);
       if ($error ne 0) {
-        wlog (N, "VNX::vmAPI_${vm_type}->suspendVM returns " . $error);
+          wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->suspendVM returns " . $error);
+      } else {
+          wlog (N, "...OK")
       }
    }
 }
@@ -1170,9 +1191,12 @@ sub mode_resume {
       }
       # call the corresponding vmAPI
       my $vm_type = $vm->getAttribute("type");
+      wlog (N, "Resuming virtual machine '$vm_name' of type '$merged_type'...");
       my $error = "VNX::vmAPI_$vm_type"->resumeVM($vm_name, $merged_type);
       if ($error ne 0) {
-        wlog (N, "VNX::vmAPI_${vm_type}->resumeVM returns " . $error);
+          wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->resumeVM returns " . $error);
+      } else {
+          wlog (N, "...OK")
       }
    }
 }
@@ -1594,7 +1618,7 @@ if (USE_CDROM_FORMAT) {
         $make_iso_cmd = 'mkisofs';
         my $fail = system ("which $make_iso_cmd > /dev/null");
         if ($fail) { # Try genisoimage 
-            print "mkisofs not found; trying genisoimage\n";
+            wlog (N, "mkisofs not found; trying genisoimage");
             $make_iso_cmd = 'genisoimage';
             $fail = system("which $make_iso_cmd > /dev/null");
             if ($fail) { 
@@ -2507,7 +2531,7 @@ sub mode_execute {
         $num_execs  += $vm_execs;
           
         if ($vm_plugin_ftrees + $vm_plugin_execs + $vm_ftrees + $vm_execs > 0) { 
-            wlog (VVV, "Calling executeCMD for vm $vm_name with seq $seq to execute:", $logp); 
+            wlog (N, "Calling executeCMD for vm '$vm_name' with seq '$seq'..."); 
             wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", $logp);
 	        my $merged_type = $dh->get_vm_merged_type($vm);
 			# call the corresponding vmAPI
@@ -2517,9 +2541,12 @@ sub mode_execute {
 	    	                         $merged_type, $seq, $vm, $vm_name, 
 	    	                         \@plugin_ftree_list, \@plugin_exec_list, 
 	    	                         \@ftree_list, \@exec_list);
-            if ($error ne 0) {
-                wlog (N, "VNX::vmAPI_${vm_type}->executeCMD returns " . $error, $logp);
-            }
+	        if ($error ne 0) {
+	            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->executeCMD returns " . $error);
+	        } else {
+	            wlog (N, "...OK");
+	        }
+            
         }
 	}
 
@@ -2550,6 +2577,17 @@ sub mode_shutdown {
 
     my $do_not_exe_cmds = shift;   # If set, do not execute 'on_shutdown' commands
 
+    if (defined ($do_not_exe_cmds)) {
+        wlog (V, "do_not_exe_cmds set", "mode_shutdown> ");
+    } else {
+    	wlog (V, "do_not_exe_cmds NOT set", "mode_shutdown> ");
+    }
+    if ($opts{F}) {
+        wlog (V, "F flag set", "mode_shutdown> ");
+    } else {
+        wlog (V, "F flag NOT set", "mode_shutdown> ");
+    }
+    
     my $seq = 'on_shutdown';
 
     my @vm_ordered = $dh->get_vm_ordered;
@@ -2594,13 +2632,16 @@ sub mode_shutdown {
 	            wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", $logp);
 	            # call the corresponding vmAPI
 	            my $vm_type = $vm->getAttribute("type");
+                wlog (N, "Executing '$seq' commands on virtual machine $vm_name of type $merged_type...");
 	            my $error = "VNX::vmAPI_$vm_type"->executeCMD(
 	                                     $merged_type, $seq, $vm, $vm_name, 
 	                                     \@plugin_ftree_list, \@plugin_exec_list, 
 	                                     \@ftree_list, \@exec_list);
                 if ($error ne 0) {
                     wlog (N, "VNX::vmAPI_${vm_type}->executeCMD returns " . $error);
-                }
+	            } else {
+	                wlog (N, "...OK")
+	            }
 	        }
 	    }
 
@@ -2619,17 +2660,23 @@ sub mode_shutdown {
 
          	# call the corresponding vmAPI
            	my $vm_type = $vm->getAttribute("type");
+            wlog (N, "Releasing virtual machine '$vm_name' of type '$merged_type'...");
            	my $error = "VNX::vmAPI_$vm_type"->destroyVM($vm_name, $merged_type);
             if ($error ne 0) {
-                wlog (N, "VNX::vmAPI_${vm_type}->destroyVM returns " . $error);
+                wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->destroyVM returns " . $error);
+            } else {
+            	wlog (N, "...OK")
             }
       	}
       	else{
            	# call the corresponding vmAPI
            	my $vm_type = $vm->getAttribute("type");
+           	wlog (N, "Shutdowning virtual machine '$vm_name' of type '$merged_type'...");
            	my $error = "VNX::vmAPI_$vm_type"->shutdownVM($vm_name, $merged_type, $opts{F});
             if ($error ne 0) {
-                wlog (N, "VNX::vmAPI_${vm_type}->shutdownVM returns " . $error);
+                wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->shutdownVM returns " . $error);
+            } else {
+                wlog (N, "...OK")
             }
     	}
     	
@@ -3374,10 +3421,12 @@ sub mode_destroy {
         }
         # call the corresponding vmAPI
         my $vm_type = $vm->getAttribute("type");
-        
+        wlog (N, "Undefining virtual machine '$vm_name' of type '$merged_type'...");
         my $error = "VNX::vmAPI_$vm_type"->undefineVM($vm_name, $merged_type);
         if ($error ne 0) {
-            wlog (N, "VNX::vmAPI_${vm_type}->undefineVM returns " . $error);
+            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->undefineVM returns " . $error);
+        } else {
+            wlog (N, "...OK")
         }
  
     }
@@ -3884,6 +3933,8 @@ sub get_UML_command_ip {
 
    my $seq = shift;
    
+   my $logp = "get_UML_command_ip> ";
+   
    my @vm_ordered = $dh->get_vm_ordered;
    my %vm_hash = $dh->get_vm_to_use(@plugins);
 
@@ -3950,7 +4001,7 @@ sub get_UML_command_ip {
                         }
                         if (&socket_probe($ip_effective,"22")) {
                            $ip_candidate = $ip_effective;
-                           print "$vm_name sshd is ready (socket style): $ip_effective (if id=$id)\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
+                           wlog (V, "$vm_name sshd is ready (socket style): $ip_effective (if id=$id)", $logp);
                            last;
                         }
                      }
@@ -3959,20 +4010,20 @@ sub get_UML_command_ip {
                   }
                }
 	           if ($ip_candidate eq "0") {
-                  print "$vm_name sshd is not ready (socket style)\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
+                  wlog (V, "$vm_name sshd is not ready (socket style)");
 	           }
                $vm_ips{$vm_name} = $ip_candidate;
             }
             else {
                # There is a management interface
-               print "*** get_admin_address($counter, $dh->get_vmmgmt_type, 2)\n";
+               #print "*** get_admin_address($counter, $dh->get_vmmgmt_type, 2)\n";
                my %net = &get_admin_address('file', $vm_name, $dh->get_vmmgmt_type);
                if (!&socket_probe($net{'vm'}->addr(),"22")) {
-                  print "$vm_name sshd is not ready (socket style)\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
+                  wlog (V, "$vm_name sshd is not ready (socket style)", $logp);
                   return %vm_ips;	# Premature exit
                }
                else {
-                  print "$vm_name sshd is ready (socket style): ".$net{'host'}->addr()." (mng_if)\n" if ($execution->get_exe_mode() == $EXE_VERBOSE);
+                  wlog (V, "$vm_name sshd is ready (socket style): ".$net{'host'}->addr()." (mng_if)", $logp);
                   $vm_ips{$vm_name} = $net{'vm'}->addr();
                }
             }
@@ -4588,7 +4639,9 @@ sub create_dirs {
 
 sub build_topology{
    my $basename = basename $0;
-#   my $opts{M} = shift;
+   
+   my $logp = "build_topology> ";
+    
     try {
             # To load tun module if needed
             #if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
@@ -4618,7 +4671,7 @@ sub build_topology{
                 if ($> == 0) {
                     my $sock = &do_path_expansion($dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock"));
                         if (-S $sock) {
-                            print "VNX warning: <mgmt_net> socket already exists. Ignoring socket autoconfiguration\n";
+                            wlog (V, "VNX warning: <mgmt_net> socket already exists. Ignoring socket autoconfiguration", $logp);
                         }
                         else {
                         # Create the socket
@@ -4626,7 +4679,7 @@ sub build_topology{
                         }
                 }
                 else {
-                    print "VNX warning: <mgmt_net> autoconfigure attribute only is used when VNX parser is invoked by root. Ignoring socket autoconfiguration\n";
+                    wlog (V, "VNX warning: <mgmt_net> autoconfigure attribute only is used when VNX parser is invoked by root. Ignoring socket autoconfiguration", $logp);
                 }
             }
 
@@ -5372,13 +5425,9 @@ sub para {
 #                             printed at the end of vnx execution with -t option 
 sub print_console_table_header {
 
-#	my $scename=shift;
-#	
-#	print "-----------------------------------------------------------------------------------------\n";	
-#	print " Scenario \"$scename\" started\n";
-	print "\n";	
-	printf " %-12s| %-20s| %s\n", "VM_NAME", "TYPE", "CONSOLE ACCESS COMMAND";	
-	print "-----------------------------------------------------------------------------------------\n";	
+	wlog (N, "");	
+	wlog (N, sprintf (" %-12s| %-20s| %s", "VM_NAME", "TYPE", "CONSOLE ACCESS COMMAND") );	
+	wlog (N, "-----------------------------------------------------------------------------------------");	
 }  
 
 #
@@ -5416,7 +5465,7 @@ sub print_console_table_entry {
 		 				#push (@consDesc, "$con:  '$console_term -T $vm_name -e screen -t $vm_name $consField[2]'");
 		 				push (@consDesc, "$con,$conLine");
 				    } else {
-				    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
+				    	wlog (N, "ERROR: unknown console type ($consField[1]) in $consFile");
 				    }
 				} else {
 					#print "** conData=$conData\n";
@@ -5432,7 +5481,7 @@ sub print_console_table_entry {
 		 				#push (@consDesc, "$con:  '$console_term -T $vm_name -e screen -t $vm_name $consField[2]'");
 		 				push (@consDesc, "$con:  '$conLine'");
 				    } else {
-				    	print ("ERROR: unknown console type ($consField[1]) in $consFile");
+				    	wlog (N, "ERROR: unknown console type ($consField[1]) in $consFile");
 				    }
 				}
 			}
@@ -5442,17 +5491,17 @@ sub print_console_table_entry {
 	}
 	if (defined $briefFormat) {
 		foreach (@consDesc) {
-			printf "CON,%s,%s,%s\n", $vm_name, $merged_type, $_;
+			wlog (N, sprintf ("CON,%s,%s,%s", $vm_name, $merged_type, $_) );
 		}
 	} else {
 		$consDesc[0] =~ s/\n/\\n/g;
-		printf " %-12s| %-20s| %s\n", $vm_name, $merged_type, $consDesc[0];
+		wlog (N, sprintf (" %-12s| %-20s| %s", $vm_name, $merged_type, $consDesc[0]) );
 		shift (@consDesc);
 		foreach my $cons (@consDesc) {
 			$cons =~ s/\n/\\n/g;
-			printf " %-12s| %-20s| %s\n", "", "", $cons;
+			wlog (N, sprintf (" %-12s| %-20s| %s", "", "", $cons) );
 		}
-		print "-----------------------------------------------------------------------------------------\n";	
+		wlog (N, "-----------------------------------------------------------------------------------------");	
 	}
 	#printf "%-12s  %-20s  ERROR: cannot open file $portfile \n", $name, $merged_type;
 }
@@ -5498,41 +5547,61 @@ sub print_version {
 	
     if ($opts{b}) { 
         # Brief format 
-        print "$version,$release\n";
+        pre_wlog ("$version,$release");
         exit(0);
     } else {
         # Extended format
         my $basename = basename $0;
-        print "\n";
-        print "                   oooooo     oooo ooooo      ooo ooooooo  ooooo \n";
-        print "                    `888.     .8'  `888b.     `8'  `8888    d8'  \n";
-        print "                     `888.   .8'    8 `88b.    8     Y888..8P    \n";
-        print "                      `888. .8'     8   `88b.  8      `8888'     \n";
-        print "                       `888.8'      8     `88b.8     .8PY888.    \n";
-        print "                        `888'       8       `888    d8'  `888b   \n";
-        print "                         `8'       o8o        `8  o888o  o88888o \n";
-        print "\n";
-        print "                             Virtual Networks over LinuX\n";
-        print "                              http://www.dit.upm.es/vnx      \n";
-        print "                                    vnx\@dit.upm.es          \n";
-        print "\n";
-        print "                 Departamento de Ingeniería de Sistemas Telemáticos\n";
-        print "                              E.T.S.I. Telecomunicación\n";
-        print "                          Universidad Politécnica de Madrid\n";
-        print "\n";
-        print "                   Version: $version" . "$branch (built on $release)\n";
-        print "\n";
+        pre_wlog ("");
+        pre_wlog ("                   oooooo     oooo ooooo      ooo ooooooo  ooooo ");
+        pre_wlog ("                    `888.     .8'  `888b.     `8'  `8888    d8'  ");
+        pre_wlog ("                     `888.   .8'    8 `88b.    8     Y888..8P    ");
+        pre_wlog ("                      `888. .8'     8   `88b.  8      `8888'     ");
+        pre_wlog ("                       `888.8'      8     `88b.8     .8PY888.    ");
+        pre_wlog ("                        `888'       8       `888    d8'  `888b   ");
+        pre_wlog ("                         `8'       o8o        `8  o888o  o88888o ");
+        pre_wlog ("");
+        pre_wlog ("                             Virtual Networks over LinuX");
+        pre_wlog ("                              http://www.dit.upm.es/vnx      ");
+        pre_wlog ("                                    vnx\@dit.upm.es          ");
+        pre_wlog ("");
+        pre_wlog ("                 Departamento de Ingeniería de Sistemas Telemáticos");
+        pre_wlog ("                              E.T.S.I. Telecomunicación");
+        pre_wlog ("                          Universidad Politécnica de Madrid");
+        pre_wlog ("");
+        pre_wlog ("                   Version: $version" . "$branch (built on $release)");
+        pre_wlog ("");
         exit(0);
     }           
 }
 
+#
+# pre_wlog
+#
+# Used to print to standard output and log file before Execution object is created
+# and normal wlog sub can be used
+# 
+sub pre_wlog {
+
+    my $msg = shift;
+	
+    print $msg . "\n";
+     
+    if ($opts{o}) {
+        open LOG_FILE, ">> " . $opts{o} 
+            or vnx_die( "can not open log file ($opts{o}) for writting" );
+        print LOG_FILE $msg . "\n";
+    }
+    close (LOG_FILE)
+}
+
 
 sub print_header {
- 
-    print $hline . "\n";
-    print "Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es\n";
-    print "Version: $version" . "$branch (built on $release)\n";
-    print $hline . "\n";
+	
+    pre_wlog ("\n" . $hline);
+    pre_wlog ("Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es");
+    pre_wlog ("Version: $version" . "$branch (built on $release)");
+    pre_wlog ($hline);
     
 }
 

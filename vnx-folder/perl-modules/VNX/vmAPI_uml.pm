@@ -697,8 +697,8 @@ sub startVM {
 			$output = '/dev/stdout';
 		}
 		elsif ( $o_flag =~ /^\/dev/ ) {
-			print
-"VNX warning: for safety /dev files (except /dev/null and /dev/stdout) are forbidden in -o. Using default (standard output)\n";
+			wlog (V, 
+"VNX warning: for safety /dev files (except /dev/null and /dev/stdout) are forbidden in -o. Using default (standard output)", $logp);
 			$output = '/dev/stdout';
 		}
 		elsif ( $o_flag eq "-" ) {
@@ -722,7 +722,11 @@ sub startVM {
 	else {
 
 		# Default value when -o is not being used
-		$output = '/dev/stdout';
+		if ($execution->get_exe_mode() eq $EXE_VERBOSE) {
+            $output = '/dev/stdout';
+		} else {
+            $output = '/dev/null';
+		}
 	}
 		
 	# Create an initialize the socket to receive feedback from the VM
@@ -786,6 +790,7 @@ sub startVM {
 				wlog (V, "Trying to get console 0 pts...\n", $logp)
 				  if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
 				sleep 1;    # Needed to avoid  syncronization problems
+				# Execute uml_mconsole using "system"" to capture output
 				my $command = $bd->get_binaries_path_ref->{"uml_mconsole"} . " " 
 				           . $dh->get_vm_run_dir($vm_name) . "/mconsole config con0 2> /dev/null";
 				my $mconsole_output = `$command`;
@@ -916,6 +921,7 @@ sub startVM {
 		close SCREEN_CONF;
 	}
 
+    return 0;
 }
 
 
@@ -986,17 +992,18 @@ sub destroyVM {
     my $pid_file = $dh->get_vm_run_dir($vm_name) . "/pid";
     wlog (VVV, "pid_file=$pid_file", $logp);
     unless ( !-f $pid_file ) {
+    	print "*******\n";
     	my $command = $bd->get_binaries_path_ref->{"cat"} . " $pid_file";
         chomp( $pid = `$command` );
-        wlog (VVV, "main process pid=$pid", $logp);
+        wlog (N, "main process pid=$pid", $logp);
         # Get pids of child processes
         $command = $bd->get_binaries_path_ref->{"ps"} . " --ppid $pid | grep -v PID | awk '{ print \$1 }'"; 
         chomp( $pids = `$command` );
         $pids=~s/\n/ /g;
-        wlog (VVV, "child processes pids=$pids", $logp);
+        wlog (N, "child processes pids=$pids", $logp);
         $execution->execute($logp,  $bd->get_binaries_path_ref->{"kill"}
               . " -SIGKILL $pid $pids" );
-        wlog (V, "UML processes killed...\n", $logp)
+        wlog (N, "UML processes killed...\n", $logp)
           unless ( $execution->get_exe_mode() eq $EXE_NORMAL );
     }
 
@@ -1031,7 +1038,7 @@ sub shutdownVM {
         $error = "$sub_name called with type $type (should be uml)\n";
 		return $error;
 	}
-
+#pak();
 	&halt_uml( $vm_name, $F_flag );
 
 }
@@ -1371,7 +1378,8 @@ sub executeCMD {
     #
 	my $random_id  = &generate_random_string(6);
 	
-	# For debuging purposes, we save a copy of the <filetree> and <exec> to command.xml file 
+	# For debuging purposes, we save a copy of the <filetree> and <exec> to ${vm_name}_command.xml file 
+    # First, we delete the previous content of the file
     $execution->execute($logp,  "rm -f " . $dh->get_vm_dir($vm_name) . "/${vm_name}_command.xml" );
 
     # Get the exec_mode for this vm
@@ -1530,9 +1538,11 @@ sub executeCMD {
                     unless ($execution->get_exe_mode() eq $EXE_DEBUG );
                 #$execution->pop_verb_prompt();
                 $execution->execute($logp, $bd->get_binaries_path_ref->{"chmod"} . " a+x " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree_cp.$ftree_id" );
-		
+
+#pak "Antes llamada mconsole: $mconsole/mnt/hostfs/filetree_cp.$ftree_id ";		
                 # 3b. Script execution
                 $execution->execute_mconsole( $logp,  $mconsole,"/mnt/hostfs/filetree_cp.$ftree_id" );
+#pak "Despues llamada mconsole";       
 		
                 # 3c. Actively wait for the copying end
                 chomp( my $init = `$date_command` );
@@ -1561,7 +1571,7 @@ sub executeCMD {
                 &set_file_user($mconsole, $dh->get_vm_hostfs_dir($vm_name),$user,keys %file_vm_perms	);
             }
             else {
-                wlog (N, "VNX warning: $mconsole socket does not exist. Copy of $src files can not be performed");
+                wlog (V, "VNX warning: $mconsole socket does not exist. Copy of $src files can not be performed", $logp);
             }
         }
         $dst_num++;
@@ -1710,7 +1720,7 @@ sub executeCMD {
 					);
 		}
 		else {
-			wlog (N, "VNX warning: $mconsole socket does not exist. Commands in vnx.$vm_name.$seq.$random_id has not been executed");
+			wlog (V, "VNX warning: $mconsole socket does not exist. Commands in vnx.$vm_name.$seq.$random_id has not been executed", $logp);
 		}
 	}
 
@@ -1762,10 +1772,10 @@ sub UML_init_wait {
 						&& $message =~ /init_start/ )
 					{
 						my ($uml) = $curr_uml =~ /(.+)#/;
-						wlog (N, "Virtual machine $uml sucessfully booted.\n")
-						   if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
+						#wlog (N, "Virtual machine $uml sucessfully booted.\n")
+						#   if ( $execution->get_exe_mode() eq $EXE_VERBOSE );
 						alarm 0;
-						return;
+						return 0;
 					}
 				}
 			}
@@ -1863,9 +1873,9 @@ sub halt_uml {
 			next;
 		}
 
-	  # Depending of how parser has been called (-F switch), the stop process is
-	  # more or less "aggressive" (and quick)
-	  # uml_mconsole is very verbose: redirect its error output to null device
+        # Depending of how parser has been called (-F switch), the stop process is
+        # more or less "aggressive" (and quick)
+        # uml_mconsole is very verbose: redirect its error output to null device
 		my $mconsole = $dh->get_vm_run_dir($name) . "/mconsole";
 		if ( -S $mconsole ) {
 
@@ -1886,7 +1896,7 @@ sub halt_uml {
 			}
 		}
 		else {
-			wlog (N, "VNX warning: $mconsole socket does not exist");
+			wlog (V, "VNX warning: $mconsole socket does not exist", $logp);
 		}
 	}
 
@@ -2852,7 +2862,7 @@ sub check_mconsole_exec_capabilities {
 		}
 	}
 	else {
-		wlog (N, "VNX warning: $mconsole socket does not exist");
+		wlog (V, "VNX warning: $mconsole socket does not exist", "check_mconsole_exec_capabilities> ");
 
 	}
 
