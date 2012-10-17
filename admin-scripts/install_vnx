@@ -27,7 +27,7 @@ cdir=$( dirname $0 )
 cd $cdir
 
 # Load current version numbers
-source VERSION
+source ./VERSION
 echo "VERSIONS:"
 echo VNX_MAJOR=${VNX_MAJOR}
 echo VNX_MINOR=${VNX_MINOR}
