@@ -26,11 +26,6 @@ done
 #
 # Version format: major.minor.revision
 #
-# To be manually updated:
-#VNX_MAJOR="2"
-#VNX_MINOR="0b"
-# Automatically self updated (do not edit):
-#VNX_LATEST_REVISION="930"
 
 RELDATE=$( date +%d/%m/%Y_%H:%M )
 
@@ -54,6 +49,7 @@ VNX_VERSION_DATE=${VNX_VERSION}-`date +%Y%m%d%H%M`
 echo "** "
 echo "** Will now build VNX tar file, version $VNX_VERSION"
 echo "** "
+
 #echo "** IMPORTANT NOTE: Before running this script, please make sure to pull the latest project changeset from the repositories in order to synchronize version numbers."
 #read -p "** Continue? (y/n)" -n 1
 #if [[ ! $REPLY =~ ^[Yy]$ ]]
@@ -92,10 +88,6 @@ mkdir -p tmp
 rm -rf tmp/*
 mkdir -p tmp/${FNAME}
 
-# 
-# Create VERSION file
-#
-cat $cdir/VERSION > tmp/${FNAME}/VERSION 
 
 #
 # Create ACE tar files
@@ -234,6 +226,10 @@ cd ..
 #
 sed --in-place -e 's/^VNX_LATEST_REVISION.*/VNX_LATEST_REVISION\=\"'$VNX_NEW_REVISION'"/g' admin-scripts/VERSION
 
+# 
+# Create VERSION file
+#
+cat $cdir/VERSION > tmp/${FNAME}/VERSION 
 
 echo "** "
 echo "** ...done"

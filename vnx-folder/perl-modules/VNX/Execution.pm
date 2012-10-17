@@ -240,7 +240,8 @@ sub execute {
         }
     }
     else {
-    	#wlog (VVV, "CMD_OUT=$CMD_OUT");
+        wlog (VVV, "command=$command");
+        wlog (VVV, "CMD_OUT=$CMD_OUT");
         # Recording mode
         if ($exe_mode == $EXE_DEBUG) {
             #print "D-" . $verb_prompt . "$command\n";
