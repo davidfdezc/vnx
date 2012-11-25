@@ -37,15 +37,12 @@
 use strict;
 use POSIX;
 use Sys::Syslog;
-use XML::DOM;
+use XML::LibXML;
 use IO::Handle;
 use File::Basename;
 
 my $VNXACED_VER='MM.mm.rrrr';
 my $VNXACED_BUILT='DD/MM/YYYY';
-
-use constant LINUX_TTY   => '/dev/ttyS1';
-use constant FREEBSD_TTY => '/dev/cuau1';
 
 use constant VNXACED_PID => '/var/run/vnxaced.pid';
 use constant VNXACED_LOG => '/var/log/vnxaced.log';
@@ -55,6 +52,22 @@ use constant FREEBSD_CD_DIR => '/cdrom';
 use constant LINUX_CD_DIR   => '/media/cdrom';
 
 use constant INIT_DELAY   => '10';
+
+# Channel used to send messages from host to virtuqal machine
+# Values:
+#    - SERIAL: serial line
+#    - SHARED_FILE: shared file
+use constant H2VM_CHANNEL => 'SERIAL';
+
+use constant LINUX_TTY   => '/dev/ttyS1';
+use constant FREEBSD_TTY => '/dev/cuau1';
+
+use constant MSG_FILE => '/mnt/sdisk/cmd/command';
+
+use constant MOUNT => 'YES';  # Controls if mount/umount commands are executed
+							  # Set to YES when using CDROM or shared disk with serial line
+							  # Set to NO when using shared disk without serial line
+
 
 my @platform;
 my $mount_cdrom_cmd;
@@ -164,9 +177,9 @@ if ($platform[0] eq 'Linux'){
     $umount_sdisk_cmd = 'umount /mnt/sdisk';
     system "mkdir -p /mnt/sdisk";
     $console_ttys = "/dev/ttyS0 /dev/tty1";
-
+	
 } elsif ($platform[0] eq 'FreeBSD'){
-
+	
     $vm_tty = FREEBSD_TTY;
 	$mount_cdrom_cmd = 'mount /cdrom';
 	$umount_cdrom_cmd = 'umount -f /cdrom';
@@ -174,11 +187,12 @@ if ($platform[0] eq 'Linux'){
     $umount_sdisk_cmd = 'umount /mnt/sdisk';
     system "mkdir -p /mnt/sdisk";
     $console_ttys = "/dev/ttyv0";
-
+	
 } else {
 	write_log ("ERROR: unknown platform ($platform[0]). Only Linux and FreeBSD supported.");
 	exit (1);
 }
+
 
 # delete file log content without deleting the file
 #if (open(LOG, ">>" . VNXACED_LOG)) {
@@ -271,12 +285,15 @@ sub exe_mount_cmd {
 
 	my $cmd = shift;
 
-	if ($VERBOSE) {
-		my $res=`$cmd`;
-		write_log ("exe_mount_cmd: $cmd (res=$res)") if ($VERBOSE);
-	} else {
-		$cmd="$cmd >/dev/null 2>&1";
-		system "$cmd";
+	if ( MOUNT eq 'YES' ) {
+	
+		if ($VERBOSE) {
+			my $res=`$cmd`;
+			write_log ("exe_mount_cmd: $cmd (res=$res)") if ($VERBOSE);
+		} else {
+			$cmd="$cmd >/dev/null 2>&1";
+			system "$cmd";
+		}
 	}
 }
 
@@ -316,7 +333,7 @@ sub listen {
     #write_console ('-------------------------'); write_console ($status); write_console ('-------------------------');
     #
     # Check if execution of commands with seq='on_boot' is pending. That means
-    # that we just just started again after autoconfiguration reboot.
+    # that we just started again after autoconfiguration reboot.
     #
     my $on_boot_cmds_pending = get_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending');
     if ($on_boot_cmds_pending eq 'yes') {
@@ -402,18 +419,47 @@ sub listen {
     #
     # Main commands processing loop
     #
-    # Open the TTY for reading commands and process them 
-    open (VMTTY, "< $vm_tty") or vnxaced_die ("Couldn't open $vm_tty for reading");
-    write_log ("~~ Waiting for commands...");
-    while ( chomp( my $line = <VMTTY> ) ) {
-        process_cmd ($line);
-        write_log ("~~ Waiting for commands...");
+
+	if ( H2VM_CHANNEL eq 'SERIAL' ) {
+
+	    # Open the TTY for reading commands and process them 
+	    open (VMTTY, "< $vm_tty") or vnxaced_die ("Couldn't open $vm_tty for reading");
+	    write_log ("~~ Waiting for commands on serial line...");
+	    while ( chomp( my $line = <VMTTY> ) ) {
+	        process_cmd ($line);
+	        write_log ("~~ Waiting for commands on serial line...");
+		}
+	
+	} elsif ( H2VM_CHANNEL eq 'SHARED_FILE' ){
+		
+		my $cmd_file      = MSG_FILE . '.msg';
+		my $cmd_file_lock = MSG_FILE . '.lock';
+		my $cmd_file_res  = MSG_FILE . '.res';
+
+		while (1) {			
+		    write_log ("~~ Waiting for commands on shared file ($cmd_file)...");
+			while ( ! (-e $cmd_file && ! -e $cmd_file_lock ) ) {
+		        #print "$cmd_file\n";
+		        sleep 1;
+		        #print ".";
+		    }
+		    my $cmd = `cat $cmd_file`; chomp( $cmd );
+		    process_cmd ($cmd);
+		    system("rm -f $cmd_file");
+		
+		    sleep 1;
+		    # Write result
+		    $cmd = "touch $cmd_file_lock"; system ($cmd);
+		    $cmd = "echo 'OK' > $cmd_file_res"; system ($cmd);
+		    $cmd = "rm -f $cmd_file_lock"; system ($cmd);
+		}
 	}
+    
 }
 
 sub process_cmd {
 	
-	my $line = shift;
+	my $line  = shift;
 
     my $cd_dir;
     my $files_dir;
@@ -503,7 +549,7 @@ sub process_cmd {
                     # unknown file, do nothing
                 }
             }
-               
+
             if ( $cmd[1] eq "cdrom" ) {
                 exe_mount_cmd ($umount_cdrom_cmd);
             } else { # sdisk 
@@ -574,6 +620,8 @@ sub autoupdate {
 	
     my $files_dir = shift;	
     
+    my $res;
+    
 	#############################
 	# update for Linux          #
 	#############################
@@ -582,10 +630,10 @@ sub autoupdate {
 
         if (-e "$files_dir/install_vnxaced") {
             system "perl $files_dir/uninstall_vnxaced -n";
-            system "perl $files_dir/install_vnxaced";
+            $res = system "perl $files_dir/install_vnxaced";
         } elsif (-e "$files_dir/vnxaced-lf/install_vnxaced") {
             system "perl $files_dir/vnxaced-lf/uninstall_vnxaced -n";
-            system "perl $files_dir/vnxaced-lf/install_vnxaced";
+            $res = system "perl $files_dir/vnxaced-lf/install_vnxaced";
         }
         
 		#if ( ($platform[1] eq 'Ubuntu') or   
@@ -607,14 +655,23 @@ sub autoupdate {
 
         if (-e "$files_dir/install_vnxaced") {
 	        system "$files_dir/uninstall_vnxaced -n";
-	        system "$files_dir/install_vnxaced";
+	        $res = system "$files_dir/install_vnxaced";
         } elsif (-e "$files_dir/vnxaced-lf/install_vnxaced") {
 	        system "$files_dir/vnxaced-lf/uninstall_vnxaced -n";
-	        system "$files_dir/vnxaced-lf/install_vnxaced";
+	        $res = system "$files_dir/vnxaced-lf/install_vnxaced";
         }
 		#system "cp /cdrom/vnxaced.pl /usr/local/bin/vnxaced";
 		#system "cp /cdrom/freebsd/vnxace /etc/rc.d/vnxace";
 	}
+	
+	if ($res != 0) {
+        write_console ( "\r\n" );
+        write_console ( "   ------------------------------------------------------------------------\r\n" );
+        write_console ( "    ERROR: vnxaced not updated. Try to install manually to see errors\r\n" );
+        write_console ( "   ------------------------------------------------------------------------\r\n" );
+		return;
+	}
+	
     # Write trace messages to /etc/vnx_rootfs_version, log file and console
     my $vnxaced_vers = `/usr/local/bin/vnxaced -V | grep Version | awk '{printf "%s %s",\$2,\$3}'`;
     chomp (my $date = `date`);
@@ -665,11 +722,11 @@ sub is_new_file {
 
 	my $file = shift;
 
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($file);
+	my $parser    = XML::LibXML->new;
+    my $dom       = $parser->parse_file($file);
 	my $idTagList = $dom->getElementsByTagName("id");
 	my $idTag     = $idTagList->item(0);
-	my $new_cid    = $idTag->getFirstChild->getData;
+	my $new_cid   = $idTag->getFirstChild->getData;
 	chomp($new_cid);
 #	write_log ("sleep 60");
 #	sleep 60;
@@ -678,8 +735,8 @@ sub is_new_file {
 	#chomp (my $old_cid = `$command`);
 	
 	my $old_cid = get_conf_value (VNXACED_STATUS, 'cmd_id');
-	#write_console ("-- old_cid = '$old_cid'\r\n");
-    #write_console ("-- new_cid = '$new_cid'\r\n");
+	#write_console ("~~ old_cid = '$old_cid'\r\n");
+    #write_console ("~~ new_cid = '$new_cid'\r\n");
 	
 	#write_log ("comparing -$old_cid- and -$new_cid-");
 	
@@ -698,7 +755,7 @@ sub is_new_file {
 	
 	# check it is written correctly
     $new_cid = get_conf_value (VNXACED_STATUS, 'cmd_id');
-    #write_console ("-- cid saved to disk = '$new_cid'\r\n");
+    #write_console ("~~ cid saved to disk = '$new_cid'\r\n");
 
 	return "1";
 }
@@ -824,10 +881,12 @@ sub exe_cmd_aux {
 sub execute_commands {
 
 	my $commands_file = shift;
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($commands_file);
+
+	my $parser = XML::LibXML->new;
+    my $dom    = $parser->parse_file($commands_file);
+    
 	my $execTagList = $dom->getElementsByTagName("exec");
-	for (my $j = 0 ; $j < $execTagList->getLength; $j++){
+	for (my $j = 0 ; $j < $execTagList->size; $j++){
 		my $execTag    = $execTagList->item($j);
 		my $seq        = $execTag->getAttribute("seq");
 		my $type       = $execTag->getAttribute("type");
@@ -898,8 +957,9 @@ sub autoconfigure_ubuntu {
     
     my $vnxboot_file = shift;
 
-    my $parser       = new XML::DOM::Parser;
-    my $dom          = $parser->parsefile($vnxboot_file);
+	my $parser = XML::LibXML->new;
+    my $dom    = $parser->parse_file($vnxboot_file);
+  
     my $global_node   = $dom->getElementsByTagName("create_conf")->item(0);
     my $virtualmTagList = $global_node->getElementsByTagName("vm");
     my $virtualmTag     = $virtualmTagList->item(0);
@@ -949,7 +1009,7 @@ sub autoconfigure_ubuntu {
         my @ip_routes;   # Stores the route configuration lines
 
         my $routeTaglist = $virtualmTag->getElementsByTagName("route");
-        my $numRoutes    = $routeTaglist->getLength;
+        my $numRoutes    = $routeTaglist->size;
         for (my $j = 0 ; $j < $numRoutes ; $j++){
             my $routeTag = $routeTaglist->item($j);
             my $routeType = $routeTag->getAttribute("type");
@@ -975,7 +1035,7 @@ sub autoconfigure_ubuntu {
         }   
 
         # Network interfaces configuration: <if> tags
-        my $numif        = $ifTaglist->getLength;
+        my $numif        = $ifTaglist->size;
         for (my $j = 0 ; $j < $numif ; $j++){
             my $ifTag = $ifTaglist->item($j);
             my $id    = $ifTag->getAttribute("id");
@@ -998,14 +1058,14 @@ sub autoconfigure_ubuntu {
             my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
             my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
 
-            if ( ($ipv4Taglist->getLength == 0 ) && ( $ipv6Taglist->getLength == 0 ) ) {
+            if ( ($ipv4Taglist->size == 0 ) && ( $ipv6Taglist->size == 0 ) ) {
                 # No addresses configured for the interface. We include the following commands to 
                 # have the interface active on start
                 print INTERFACES "iface " . $ifName . " inet manual\n";
                 print INTERFACES "  up ifconfig " . $ifName . " 0.0.0.0 up\n";
             } else {
                 # Config IPv4 addresses
-                for ( my $j = 0 ; $j < $ipv4Taglist->getLength ; $j++ ) {
+                for ( my $j = 0 ; $j < $ipv4Taglist->size ; $j++ ) {
 
                     my $ipv4Tag = $ipv4Taglist->item($j);
                     my $mask    = $ipv4Tag->getAttribute("mask");
@@ -1020,7 +1080,7 @@ sub autoconfigure_ubuntu {
                     }
                 }
                 # Config IPv6 addresses
-                for ( my $j = 0 ; $j < $ipv6Taglist->getLength ; $j++ ) {
+                for ( my $j = 0 ; $j < $ipv6Taglist->size ; $j++ ) {
 
                     my $ipv6Tag = $ipv6Taglist->item($j);
                     my $ip    = $ipv6Tag->getFirstChild->getData;
@@ -1051,7 +1111,7 @@ sub autoconfigure_ubuntu {
         my $ipv4Forwarding = 0;
         my $ipv6Forwarding = 0;
         my $forwardingTaglist = $virtualmTag->getElementsByTagName("forwarding");
-        my $numforwarding = $forwardingTaglist->getLength;
+        my $numforwarding = $forwardingTaglist->size;
         for (my $j = 0 ; $j < $numforwarding ; $j++){
             my $forwardingTag   = $forwardingTaglist->item($j);
             my $forwarding_type = $forwardingTag->getAttribute("type");
@@ -1111,8 +1171,9 @@ sub autoconfigure_fedora {
 
 	my $vnxboot_file = shift;
 	
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($vnxboot_file);
+	my $parser = XML::LibXML->new;
+    my $dom    = $parser->parse_file($vnxboot_file);
+	
 	my $global_node   = $dom->getElementsByTagName("create_conf")->item(0);
 	my $virtualmTagList = $global_node->getElementsByTagName("vm");
 	my $virtualmTag     = $virtualmTagList->item(0);
@@ -1168,7 +1229,7 @@ sub autoconfigure_fedora {
         system "rm -f /etc/sysconfig/network-scripts/route6-Auto*"; 
         
 		# Network interfaces configuration: <if> tags
-		my $numif        = $ifTaglist->getLength;
+		my $numif        = $ifTaglist->size;
 		#my $firstIf;
 		my $firstIPv4If;
 		my $firstIPv6If;
@@ -1225,7 +1286,7 @@ sub autoconfigure_fedora {
 			my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
 
 			# Config IPv4 addresses
-			for ( my $j = 0 ; $j < $ipv4Taglist->getLength ; $j++ ) {
+			for ( my $j = 0 ; $j < $ipv4Taglist->size ; $j++ ) {
 
 				my $ipv4Tag = $ipv4Taglist->item($j);
 				my $mask    = $ipv4Tag->getAttribute("mask");
@@ -1244,7 +1305,7 @@ sub autoconfigure_fedora {
 			}
 			# Config IPv6 addresses
 			my $ipv6secs;
-			for ( my $j = 0 ; $j < $ipv6Taglist->getLength ; $j++ ) {
+			for ( my $j = 0 ; $j < $ipv6Taglist->size ; $j++ ) {
 
 				my $ipv6Tag = $ipv6Taglist->item($j);
 				my $ip    = $ipv6Tag->getFirstChild->getData;
@@ -1275,7 +1336,7 @@ sub autoconfigure_fedora {
 		open ROUTE6_FILE, ">" . $route6File or print "error opening $route6File";
 		
 		my $routeTaglist = $virtualmTag->getElementsByTagName("route");
-		my $numRoutes    = $routeTaglist->getLength;
+		my $numRoutes    = $routeTaglist->size;
 		for (my $j = 0 ; $j < $numRoutes ; $j++){
 			my $routeTag = $routeTaglist->item($j);
 			my $routeType = $routeTag->getAttribute("type");
@@ -1310,7 +1371,7 @@ sub autoconfigure_fedora {
 		my $ipv4Forwarding = 0;
 		my $ipv6Forwarding = 0;
 		my $forwardingTaglist = $virtualmTag->getElementsByTagName("forwarding");
-		my $numforwarding = $forwardingTaglist->getLength;
+		my $numforwarding = $forwardingTaglist->size;
 		for (my $j = 0 ; $j < $numforwarding ; $j++){
 			my $forwardingTag   = $forwardingTaglist->item($j);
 			my $forwarding_type = $forwardingTag->getAttribute("type");
@@ -1373,9 +1434,10 @@ sub autoconfigure_freebsd {
 	my $vnxboot_file = shift;
 
 	write_log ("~~ autoconfigure_freebsd");
+
+	my $parser = XML::LibXML->new;
+    my $dom    = $parser->parse_file($vnxboot_file);
 	
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($vnxboot_file);
 	my $global_node   = $dom->getElementsByTagName("create_conf")->item(0);
 	my $virtualmTagList = $global_node->getElementsByTagName("vm");
 	my $virtualmTag     = $virtualmTagList->item(0);
@@ -1421,7 +1483,7 @@ sub autoconfigure_freebsd {
 		print RC "sendmail_enable=\"NONE\"\n"; #avoids some startup errors
 
 		# Network interfaces configuration: <if> tags
-		my $numif        = $ifTaglist->getLength;
+		my $numif = $ifTaglist->size;
 		for (my $i = 0 ; $i < $numif ; $i++){
 			my $ifTag = $ifTaglist->item($i);
 			my $id    = $ifTag->getAttribute("id");
@@ -1437,7 +1499,7 @@ sub autoconfigure_freebsd {
 				
 			# IPv4 addresses
 			my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
-			for ( my $j = 0 ; $j < $ipv4Taglist->getLength ; $j++ ) {
+			for ( my $j = 0 ; $j < $ipv4Taglist->size ; $j++ ) {
 
 				my $ipv4Tag = $ipv4Taglist->item($j);
 				my $mask    = $ipv4Tag->getAttribute("mask");
@@ -1453,7 +1515,7 @@ sub autoconfigure_freebsd {
 
 			# IPv6 addresses
 			my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
-			for ( my $j = 0 ; $j < $ipv6Taglist->getLength ; $j++ ) {
+			for ( my $j = 0 ; $j < $ipv6Taglist->size ; $j++ ) {
 
 				my $ipv6Tag = $ipv6Taglist->item($j);
 				my $ip    = $ipv6Tag->getFirstChild->getData;
@@ -1472,7 +1534,7 @@ sub autoconfigure_freebsd {
 		
 		# Network routes configuration: <route> tags
 		my $routeTaglist       = $virtualmTag->getElementsByTagName("route");
-		my $numroute        = $routeTaglist->getLength;
+		my $numroute        = $routeTaglist->size;
 
 		# Example content:
 		# 	  static_routes="r1 r2"
@@ -1521,7 +1583,7 @@ sub autoconfigure_freebsd {
 		my $ipv4Forwarding = 0;
 		my $ipv6Forwarding = 0;
 		my $forwardingTaglist = $virtualmTag->getElementsByTagName("forwarding");
-		my $numforwarding = $forwardingTaglist->getLength;
+		my $numforwarding = $forwardingTaglist->size;
 		for (my $j = 0 ; $j < $numforwarding ; $j++){
 			my $forwardingTag   = $forwardingTaglist->item($j);
 			my $forwarding_type = $forwardingTag->getAttribute("type");
@@ -1583,10 +1645,11 @@ sub execute_filetree {
 
     write_log ("~~ processing <filetree> tags in file $cmd_file");
 
-	my $parser           = new XML::DOM::Parser;
-	my $dom              = $parser->parsefile($cmd_file);
+	my $parser = XML::LibXML->new;
+    my $dom    = $parser->parse_file($cmd_file);
+
 	my $filetree_taglist = $dom->getElementsByTagName("filetree");
-	for (my $j = 0 ; $j < $filetree_taglist->getLength ; $j++){
+	for (my $j = 0 ; $j < $filetree_taglist->size ; $j++){
 		my $filetree_tag = $filetree_taglist->item($j);
 		my $seq          = $filetree_tag->getAttribute("seq");
         my $root         = $filetree_tag->getAttribute("root");

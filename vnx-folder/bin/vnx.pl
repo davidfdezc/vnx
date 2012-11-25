@@ -3954,7 +3954,9 @@ sub get_UML_command_ip {
 	  # If seq not empty then check vm only uses exec_mode="net"
 	  unless ($seq eq "") {
 
-		unless (defined &get_vm_exec_mode($vm) && &get_vm_exec_mode($vm) eq "net") {
+		my $exec_mode = $dh->get_vm_exec_mode($vm);
+		#unless (defined &get_vm_exec_mode($vm) && &get_vm_exec_mode($vm) eq "net") {
+		unless (defined $exec_mode && $exec_mode eq "net") {
 	        $counter++;
 	        next;
 	     }
@@ -4477,6 +4479,7 @@ sub get_user_in_seq {
       
 }
 
+=BEGIN
 # get_vm_exec_mode
 #
 # Arguments:
@@ -4497,6 +4500,8 @@ sub get_vm_exec_mode {
    }
       
 }
+=END
+=cut
 
 
 # mgmt_sock_create
