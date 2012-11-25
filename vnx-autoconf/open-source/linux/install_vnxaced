@@ -42,13 +42,32 @@ print "-- Installing VNX ACE daemon from $cdir\n";
 
 my @platform = split(/,/, &getOSDistro);
 	
+# Check if XML::LibXML module is installed
+my $res=`perl -MXML::LibXML -e 1 2>&1`;
+if ($res) {
+    print "ERROR: module XML::LibXML not installed\n";
+    my $cmd;
+    if ($platform[1] eq 'Ubuntu') {
+        $cmd = "apt-get -y install libxml-libxml-perl";
+    } elsif ($platform[1] eq 'Fedora' || $platform[1] eq 'CentOS' ) {
+        $cmd = "yum -y install perl-XML-LibXML";
+    } elsif ($platform[0] eq 'FreeBSD') {
+        $cmd = "pkg_add -r perl p5-xml-libxml";
+    } 
+    print "       Install it manually with the following command:\n";
+    print "         $cmd\n";
+    print "       and execute again vnxaced installation script.\n";
+    exit (1);
+}	
+	
 if ($platform[0] eq 'Linux'){
 	
 	# ~~~~~~~~~~~~~~~~~~
 	#  Update for Linux       
 	# ~~~~~~~~~~~~~~~~~~
 	print "-- Linux platform detected ($platform[1]-$platform[2])\n";
-    if ($platform[1] eq 'Ubuntu' && $platform[2] =~ /^8.04/ ){
+    if ( ($platform[1] eq 'Ubuntu' && $platform[2] =~ /^8.04/ ) || 
+         ($platform[1] eq 'Debian' ) ) {
 
         # Particular case for Ubuntu 8.04: use VNXACED based on init.d
         system "cp -v vnxaced.pl /usr/local/bin/vnxaced";

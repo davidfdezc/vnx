@@ -2,9 +2,11 @@
 # Start/stop the vnxaced 
 #
 ### BEGIN INIT INFO
-# Provides:          dynamips
+# Provides:          vnxace
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
+# Required-Start:
+# Required-Stop:
 # Short-Description: VNX Autoconfiguration and Command Execution Daemon
 ### END INIT INFO
 

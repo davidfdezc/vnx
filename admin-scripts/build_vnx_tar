@@ -203,6 +203,16 @@ cp admin-scripts/install_vnx tmp/${FNAME}
 mv tmp/${FNAME}/doc/00-readme.txt tmp/${FNAME}
 
 #
+# Update VERSION file with the new value of VNX_LATEST_REVISION 
+#
+sed --in-place -e 's/^VNX_LATEST_REVISION.*/VNX_LATEST_REVISION\=\"'$VNX_NEW_REVISION'"/g' admin-scripts/VERSION
+
+# 
+# Create VERSION file
+#
+cat $cdir/VERSION > tmp/${FNAME}/VERSION 
+
+#
 # Create tar file and move it to distrib directory
 #
 cd tmp
@@ -220,16 +230,6 @@ rm vnx-latest.tgz
 ln -s ${FNAME}.tgz vnx-latest.tgz
 # rm -rf tmp/*
 cd ..
-
-#
-# Update this file with the new value of VNX_LATEST_REVISION 
-#
-sed --in-place -e 's/^VNX_LATEST_REVISION.*/VNX_LATEST_REVISION\=\"'$VNX_NEW_REVISION'"/g' admin-scripts/VERSION
-
-# 
-# Create VERSION file
-#
-cat $cdir/VERSION > tmp/${FNAME}/VERSION 
 
 echo "** "
 echo "** ...done"

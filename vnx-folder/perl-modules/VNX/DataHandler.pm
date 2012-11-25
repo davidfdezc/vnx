@@ -301,6 +301,13 @@ sub new {
 
    # 4. Assignement, by reference
    $self->{'global_data'} = \%global_data;  
+ 
+   	# DEBUG: print global_data hash  
+   	wlog (VVV, "-- Content of dh->{'global_data'} -----------------------------------------------", "");
+	while ( my ($k,$v) = each %global_data ) {
+    	wlog (VVV, "$k => $v", "");
+	}
+   	wlog (VVV, "-- End of content of dh->{'global_data'} ----------------------------------------", "");
 
    return $self;
 }
@@ -636,14 +643,17 @@ sub get_default_forwarding_type {
 #
 sub get_vm_exec_mode {
 
-    my $self    = shift;
-    my $vm = shift;
+    my $self = shift;
+    my $vm   = shift;
 
+    my $logp = "get_vm_exec_mode> ";
+    my $type = $vm->getAttribute('type');
+    wlog (VV, "type=" . $vm->getAttribute('type') . ", subtype=" . $vm->getAttribute('subtype') . ", os=" . $vm->getAttribute('os') . ", exec_mode=" . $vm->getAttribute("exec_mode"), $logp);
     if ( $vm->getAttribute("exec_mode") ne "" ) {
         return $vm->getAttribute("exec_mode");
     }
     else {
-        return $dh->get_default_exec_mode ($vm->getAttribute('type'), $vm->getAttribute('subtype'), $vm->getAttribute('os'));
+        return $dh->get_default_exec_mode ($type, $vm->getAttribute('subtype'), $vm->getAttribute('os'));
     }
 
 }
@@ -669,33 +679,40 @@ sub get_default_exec_mode {
     my $merged_type;
     my $def_execmode;
    
+    my $logp = "get_default_exec_mode> ";
+    wlog (VV, "type=$type, subtype=$subtype, o=$os", $logp);
+    
     if (!$type) { return "ERROR\n"; }
     if ( ($os) && (!$subtype) ) { return "ERROR\n"; }
 
+
     if ( (!$os) && (!$subtype) ) { # subtype and os empty
-        $merged_type = "$type";
-        my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type"};
+        $merged_type = "$type";        
+        $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type"};
+        
     } elsif ( (!$os) && ($subtype) ) { # os empty
         $merged_type = "$type-$subtype";
-        my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type-$subtype"};
+        $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type-$subtype"};
         if (!$def_execmode) { # Look for a default mode for the whole type
-            my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type"};
+            $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type"};
         }
     } else { # none empty
         $merged_type = "$type-$subtype-$os";
-        my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type-$subtype-$os"};
+        $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type-$subtype-$os"};
         if (!$def_execmode) { # Look for a default mode for the whole subtype
-            my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type-$subtype"};
+            $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type-$subtype"};
             if (!$def_execmode) { # Look for a default mode for the whole subtype
-                my $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type"};
+                $def_execmode = $self->{'global_data'}->{"default_exec_mode-$type"};
             }
         } 
     }
+    wlog (VV, "type=$type, def_execmode=$def_execmode", $logp);
 
     # If no default found in <exec_mode> tags under <vm_defaults>...   
     if (!$def_execmode) {  # ...set the defaults defined in Globals.pm
         if ($merged_type eq 'uml') {
             $def_execmode = $EXEC_MODES_UML[0];
+    		wlog (VV, "type=$type, def_execmode=$def_execmode", $logp);
         } elsif ($merged_type eq 'libvirt-kvm-linux') {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_LINUX[0];
         } elsif ($merged_type eq 'libvirt-kvm-windows') {

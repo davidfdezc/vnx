@@ -1153,6 +1153,32 @@ sub check_doc {
         # Check exec_mode attribute of <vm>
         my $exec_mode = $vm->getAttribute("exec_mode");
 
+        if ($exec_mode eq '') { # Set default value
+               wlog (V, "exec_mode not specified. Using default: " . $dh->get_vm_exec_mode($vm), "check_doc");
+               $vm->setAttribute( 'exec_mode', $dh->get_vm_exec_mode($vm) );
+        } else {
+	        if ($merged_type eq 'uml') {
+				if ( "@EXEC_MODES_UML" !~ $exec_mode )  { 
+					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+	        } elsif ($merged_type eq 'libvirt-kvm-linux') {
+				if ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $exec_mode )  {
+					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+			} elsif ($merged_type eq 'libvirt-kvm-freebsd') {
+				if ( "@EXEC_MODES_LIBVIRT_KVM_FREEBSD" !~ $exec_mode )  {
+					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+	        } elsif ($merged_type eq 'libvirt-kvm-windows') {
+				if ( "@EXEC_MODES_LIBVIRT_KVM_WINDOWS" !~ $exec_mode )  {
+					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+	        } elsif ($merged_type eq 'libvirt-kvm-olive') {
+				if ( "@EXEC_MODES_LIBVIRT_KVM_OLIVE" !~ $exec_mode )  {
+					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+	        } elsif ( ($merged_type eq 'dynamips-3600') or ($merged_type eq 'dynamips-7200') )  {
+				if ( "@EXEC_MODES_DYNAMIPS" !~ $exec_mode )  {
+					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+	        }
+        } 
+
+=BEGIN
         if ($merged_type eq 'uml') {
            if ($exec_mode eq '') { # Set default value 
                $vm->setAttribute( 'exec_mode', "$EXEC_MODES_UML[0]" );
@@ -1184,6 +1210,9 @@ sub check_doc {
            } elsif ( "@EXEC_MODES_DYNAMIPS" !~ $exec_mode )  {
                return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
         }
+=END
+=cut        
+        
         my $exec_list = $vm->getElementsByTagName("exec");
         # For each <exec> in the vm
         for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
