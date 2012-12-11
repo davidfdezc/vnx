@@ -444,22 +444,47 @@ sub listen {
 		        #print ".";
 		    }
 		    my $cmd = `cat $cmd_file`; chomp( $cmd );
-		    process_cmd ($cmd);
 		    system("rm -f $cmd_file");
-		
-		    sleep 1;
+		    process_cmd ($cmd);
+
+		    #sleep 1;
 		    # Write result
-		    $cmd = "touch $cmd_file_lock"; system ($cmd);
-		    $cmd = "echo 'OK' > $cmd_file_res"; system ($cmd);
-		    $cmd = "rm -f $cmd_file_lock"; system ($cmd);
+		    #$cmd = "touch $cmd_file_lock"; system ($cmd);
+		    #$cmd = "echo 'OK' > $cmd_file_res"; system ($cmd);
+		    #$cmd = "rm -f $cmd_file_lock"; system ($cmd);
 		}
 	}
     
 }
 
+sub send_cmd_response {
+	
+	my $resp = shift;
+	
+	write_log ("     sending response '$resp' to host...\n");
+	if ( H2VM_CHANNEL eq 'SERIAL' ) {
+    	system "echo $resp > $vm_tty";
+
+	} elsif ( H2VM_CHANNEL eq 'SHARED_FILE' ){
+
+		my $cmd_file      = MSG_FILE . '.msg';
+		my $cmd_file_lock = MSG_FILE . '.lock';
+		my $cmd_file_res  = MSG_FILE . '.res';
+	
+	    #sleep 1;
+	    # Write result
+	    my $cmd = "touch $cmd_file_lock"; system ($cmd);
+	    $cmd = "echo '$resp' > $cmd_file_res"; system ($cmd);
+	    $cmd = "rm -f $cmd_file_lock"; system ($cmd);
+
+	}		
+}
+
 sub process_cmd {
 	
 	my $line  = shift;
+	
+	my $res; # Command execution result: OK, NOTOK
 
     my $cd_dir;
     my $files_dir;
@@ -505,7 +530,8 @@ sub process_cmd {
                     &execute_filetree($file);
                     &execute_commands($file);
                     write_log ("     sending 'done' signal to host...\n");
-                    system "echo OK > $vm_tty";
+                    send_cmd_response ("OK");
+                    #system "echo OK > $vm_tty";
                     
                 } elsif ( ($fname eq "vnxboot") || ($fname eq "vnxboot.xml") ) {
 
@@ -533,6 +559,7 @@ sub process_cmd {
                     write_log ("     configuration file received in $file");
                     set_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending', 'yes');
                     set_conf_value (VNXACED_STATUS, 'exec_mode', $cmd[1]);
+                    #send_cmd_response ('OK');
                     &autoconfigure($file);
     
                 } elsif ($fname eq "vnx_update.xml"){
@@ -543,6 +570,7 @@ sub process_cmd {
                     chomp (my $now = `date`);                       
                     write_log ("~~ $now:");
                     write_log ("     update files received in $file");
+                    #send_cmd_response ('OK');
                     autoupdate ($files_dir);
      
                 } else {
@@ -557,28 +585,33 @@ sub process_cmd {
             }
                
         } else {
-            write_log ("ERROR: exec_mode $cmd[1] not supported")
+            write_log ("ERROR: exec_mode $cmd[1] not supported");
+            send_cmd_response ("NOTOK exec_mode $cmd[1] not supported"); 
         }
             
     } elsif ($cmd[0] eq "nop") { # do nothing
 
-        write_log ("nop command received. Nothing to do.")
+        write_log ("nop command received. Nothing to do.");
+        send_cmd_response ('OK');
 
     } elsif ($cmd[0] eq "hello") { 
 
         write_log ("hello command received. Sending OK...");
-        system "echo OK > $vm_tty";
+        send_cmd_response ('OK');
+        #system "echo OK > $vm_tty";
 
     } elsif ($cmd[0] eq "halt") { 
 
         write_log ("halt command received. Sending OK and halting...");
-        system "echo OK > $vm_tty";
+        send_cmd_response ('OK');
+        #system "echo OK > $vm_tty";
         system "halt -p";
 
     } elsif ($cmd[0] eq "reboot") { 
 
         write_log ("reboot command received. Sending OK and rebooting...");
-        system "echo OK > $vm_tty";
+        send_cmd_response ('OK');
+        #system "echo OK > $vm_tty";
         system "reboot";
 
     } elsif ($cmd[0] eq "vnxaced_update") { 
@@ -599,17 +632,20 @@ sub process_cmd {
                 my $res=`ls -l $files_dir`; write_log ("\n~~ $cmd[1] content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
             }
             
-            system "echo OK > $vm_tty";
+            send_cmd_response ('OK');
+            #system "echo OK > $vm_tty";
             autoupdate ($files_dir);             
         	
         } else {
             write_log ("ERROR: exec_mode $cmd[1] not supported");
-            my $msg = "NOTOK exec_mode $cmd[1] not supported";
-            system "echo $msg > $vm_tty";
+            send_cmd_response ("NOTOK exec_mode $cmd[1] not supported");
+            #system "echo $msg > $vm_tty";
         }
         
     } else {
         write_log ("ERROR: unknown command ($cmd[0])");
+        send_cmd_response ("NOTOK unknown command ($cmd[0])");
+        
     }	
 	
 }
