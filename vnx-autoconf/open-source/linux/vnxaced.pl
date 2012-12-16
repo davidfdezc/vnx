@@ -923,7 +923,9 @@ sub execute_commands {
     
 	my $execTagList = $dom->getElementsByTagName("exec");
 	for (my $j = 0 ; $j < $execTagList->size; $j++){
-		my $execTag    = $execTagList->item($j);
+       	# Note DFC 16/12/2012: with LibXML the first element is 1 (not 0)
+		my $execTag    = $execTagList->item($j+1);
+		
 		my $seq        = $execTag->getAttribute("seq");
 		my $type       = $execTag->getAttribute("type");
 		my $ostype     = $execTag->getAttribute("ostype");
@@ -1688,12 +1690,16 @@ sub execute_filetree {
 
 	my $filetree_taglist = $dom->getElementsByTagName("filetree");
 	for (my $j = 0 ; $j < $filetree_taglist->size ; $j++){
-		my $filetree_tag = $filetree_taglist->item($j);
+
+       	# Note DFC 16/12/2012: with LibXML the first element is 1 (not 0)
+        my $filetree_tag = $filetree_taglist->item($j+1);
+		
 		my $seq          = $filetree_tag->getAttribute("seq");
         my $root         = $filetree_tag->getAttribute("root");
         my $user         = $filetree_tag->getAttribute("user");
         my $group        = $filetree_tag->getAttribute("group");
         my $perms        = $filetree_tag->getAttribute("perms");
+        my $source       = $filetree_tag->getFirstChild->getData;
 		my $folder = $j + 1;
 		my $source_path = $cmd_path . "/filetree/" . $folder . "/";
         write_log ("~~   processing <filetree> tag: seq=$seq, root=$root, " . 
@@ -1709,15 +1715,15 @@ sub execute_filetree {
 		# Check if files destination (root attribute) is a directory or a file
 		my $cmd;
 		if ( $root =~ /\/$/ ) {
-			# Destination is a directory
-        	write_log ("~~   Destination is a directory");
-			unless (-d $root){
-				write_log ("~~   creating unexisting dir '$root'...");
-				system "mkdir -p $root";
-			}
+            # Destination is a directory
+            write_log ("~~   Destination is a directory");
+            unless (-d $root){
+                write_log ("~~   creating unexisting dir '$root'...");
+                system "mkdir -p $root";
+            }
 
             $cmd="cp -vR ${source_path}* $root";
-            write_log ("~~   Execruting '$cmd' ...");
+            write_log ("~~   Executing '$cmd' ...");
             $res=`$cmd`;
             write_log ("Copying filetree files ($root):") if ($VERBOSE);
             write_log ("$res") if ($VERBOSE);
@@ -1727,39 +1733,44 @@ sub execute_filetree {
             foreach my $file (@files) {
                 my $fname = basename ($file);
                 write_log ($file . "," . $fname);
-                if ( $user ne ''  ) { 
+                if ( $user ne ''  ) {
                     $res=`chown -R $vopt $user $root/$fname`; write_log($res) if ($VERBOSE); }
-                if ( $group ne '' ) { 
+                if ( $group ne '' ) {
                     $res=`chown -R $vopt .$group $root/$fname`; write_log($res) if ($VERBOSE); }
-                if ( $perms ne '' ) { 
+                if ( $perms ne '' ) {
                     $res=`chmod -R $vopt $perms $root/$fname`; write_log($res) if ($VERBOSE); }
-            }  			
+            }
 			
 		} else {
-			# Destination is a file
-			# Check that $source_path contains only one file
-        	write_log ("~~   Destination is a file");
-			if ($num_files > 3) { # count "." and ".."
-        		write_log ("~~   ERROR in filetree: destination ($root) is a file and there is more than one file in $source_path (seq=$seq)\n");
-        		next;
-			}
-			my $file_dir = dirname($root);
-			unless (-d $file_dir){
-				write_log ("~~   creating unexisting dir '$file_dir'...");
-				system "mkdir -p $file_dir";
-			}
-			$cmd="cp -v ${source_path}* $root";
+            # Destination is a file
+            # Check that $source_path contains only one file
+            write_log ("~~   Destination is a file");
+            write_log ("~~       source_path=${source_path}");
+            write_log ("~~       root=${root}");
+            if ($num_files > 3) { # count "." and ".."
+                write_log ("~~   ERROR in filetree: destination ($root) is a file and there is more than one file in $source_path (seq=$seq)\n");
+                next;
+            }
+            my $file_dir = dirname($root);
+            unless (-d $file_dir){
+                write_log ("~~   creating unexisting dir '$file_dir'...");
+                system "mkdir -p $file_dir";
+            }
+            $cmd="cp -v ${source_path}* $root";
             write_log ("~~   Executing '$cmd' ...");
             $res=`$cmd`;
             write_log ("Copying filetree file ($root):") if ($VERBOSE);
             write_log ("$res") if ($VERBOSE);
             # Change owner and permissions of file $root if specified in <filetree>
-            if ( $user ne ''  ) { 
-                $res=`chown -R $vopt $user $root`; write_log($res) if ($VERBOSE); }
-            if ( $group ne '' ) { 
-                $res=`chown -R $vopt .$group $root`; write_log($res) if ($VERBOSE); }
-            if ( $perms ne '' ) { 
-                $res=`chmod -R $vopt $perms $root`; write_log($res) if ($VERBOSE); }
+            if ( $user ne ''  ) {
+                $cmd="chown -R $vopt $user $root";
+                $res=`$cmd`; write_log($cmd . "/n" . $res) if ($VERBOSE); }
+            if ( $group ne '' ) {
+                $cmd="chown -R $vopt .$group $root";
+                $res=`$cmd`; write_log($cmd . "/n" . $res) if ($VERBOSE); }
+            if ( $perms ne '' ) {
+                $cmd="chmod -R $vopt $perms $root";
+                $res=`$cmd`; write_log($cmd . "/n" . $res) if ($VERBOSE); }
 		}
 		write_log ("~~~~~~~~~~~~~~~~~~~~");
 	}
