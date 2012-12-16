@@ -1154,7 +1154,7 @@ sub check_doc {
         my $exec_mode = $vm->getAttribute("exec_mode");
 
         if ($exec_mode eq '') { # Set default value
-               wlog (V, "exec_mode not specified. Using default: " . $dh->get_vm_exec_mode($vm), "check_doc");
+               wlog (VV, "exec_mode not specified for vm $vmName. Using default: " . $dh->get_vm_exec_mode($vm), "check_doc>");
                $vm->setAttribute( 'exec_mode', $dh->get_vm_exec_mode($vm) );
         } else {
 	        if ($merged_type eq 'uml') {
