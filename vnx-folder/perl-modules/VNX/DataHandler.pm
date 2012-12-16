@@ -706,10 +706,11 @@ sub get_default_exec_mode {
             }
         } 
     }
-    wlog (VV, "type=$type, def_execmode=$def_execmode", $logp);
+    #wlog (VV, "type=$type, def_execmode=$def_execmode", $logp);
 
     # If no default found in <exec_mode> tags under <vm_defaults>...   
     if (!$def_execmode) {  # ...set the defaults defined in Globals.pm
+        wlog (VV, "merged-type=$merged_type", $logp);
         if ($merged_type eq 'uml') {
             $def_execmode = $EXEC_MODES_UML[0];
     		wlog (VV, "type=$type, def_execmode=$def_execmode", $logp);
@@ -719,7 +720,7 @@ sub get_default_exec_mode {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_WINDOWS[0];
         } elsif ($merged_type eq 'libvirt-kvm-olive') {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_OLIVE[0];
-        } elsif ( ($merged_type eq 'dynamips-c3600') or ($merged_type eq 'dynamips-c7200') )  {
+        } elsif ( ($merged_type eq 'dynamips-3600') or ($merged_type eq 'dynamips-7200') )  {
             $def_execmode = $EXEC_MODES_DYNAMIPS[0];
         } else {
         	$def_execmode = "ERROR";

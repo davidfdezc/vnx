@@ -1678,6 +1678,8 @@ sub execute_filetree {
 	my $cmd_file = shift;
 
 	my $cmd_path = dirname($cmd_file);
+	
+	my $vopt=''; if ($VERBOSE) { $vopt='-v' };
 
     write_log ("~~ processing <filetree> tags in file $cmd_file");
 
@@ -1713,15 +1715,25 @@ sub execute_filetree {
 				write_log ("~~   creating unexisting dir '$root'...");
 				system "mkdir -p $root";
 			}
-			# Change owner and permissions if specified in <filetree>
-			$cmd="cp -vR ${source_path}* $root";
-	        write_log ("~~   Executing '$cmd' ...");
-	        $res=`$cmd`;
-	        write_log ("Copying filetree files:") if ($VERBOSE);
-	        write_log ("$res") if ($VERBOSE);
-			if ( $user ne ''  ) { system "chown -R $user $root/*"}
-            if ( $group ne '' ) { system "chown -R .$group $root/*"}
-			if ( $perms ne '' ) { system "chmod -R $perms $root/*"}
+
+            $cmd="cp -vR ${source_path}* $root";
+            write_log ("~~   Execruting '$cmd' ...");
+            $res=`$cmd`;
+            write_log ("Copying filetree files ($root):") if ($VERBOSE);
+            write_log ("$res") if ($VERBOSE);
+
+            # Change owner and permissions if specified in <filetree>
+            my @files= <${source_path}*>;
+            foreach my $file (@files) {
+                my $fname = basename ($file);
+                write_log ($file . "," . $fname);
+                if ( $user ne ''  ) { 
+                    $res=`chown -R $vopt $user $root/$fname`; write_log($res) if ($VERBOSE); }
+                if ( $group ne '' ) { 
+                    $res=`chown -R $vopt .$group $root/$fname`; write_log($res) if ($VERBOSE); }
+                if ( $perms ne '' ) { 
+                    $res=`chmod -R $vopt $perms $root/$fname`; write_log($res) if ($VERBOSE); }
+            }  			
 			
 		} else {
 			# Destination is a file
@@ -1739,12 +1751,15 @@ sub execute_filetree {
 			$cmd="cp -v ${source_path}* $root";
             write_log ("~~   Executing '$cmd' ...");
             $res=`$cmd`;
-            write_log ("Copying filetree files:") if ($VERBOSE);
+            write_log ("Copying filetree file ($root):") if ($VERBOSE);
             write_log ("$res") if ($VERBOSE);
-            # Change owner and permissions if specified in <filetree>
-            if ( $user ne ''  ) { system "chown -R $user $root"}
-            if ( $group ne '' ) { system "chown -R .$group $root"}
-            if ( $perms ne '' ) { system "chmod -R $perms $root"}
+            # Change owner and permissions of file $root if specified in <filetree>
+            if ( $user ne ''  ) { 
+                $res=`chown -R $vopt $user $root`; write_log($res) if ($VERBOSE); }
+            if ( $group ne '' ) { 
+                $res=`chown -R $vopt .$group $root`; write_log($res) if ($VERBOSE); }
+            if ( $perms ne '' ) { 
+                $res=`chmod -R $vopt $perms $root`; write_log($res) if ($VERBOSE); }
 		}
 		write_log ("~~~~~~~~~~~~~~~~~~~~");
 	}

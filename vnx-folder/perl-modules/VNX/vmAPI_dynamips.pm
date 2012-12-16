@@ -115,6 +115,8 @@ sub defineVM {
 	my $logp = "dynamips-defineVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 	
+	my $error=0;
+	
     my $extConfFile;
 	my $newRouterConfFile;
 	my $ifTagList;
@@ -459,6 +461,7 @@ sub defineVM {
 
     print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     
+    return $error;
     
 }
 
@@ -609,6 +612,8 @@ sub undefineVM{
     my $logp = "dynamips-undefineVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
+	my $error=0;
+	
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
     
@@ -619,6 +624,8 @@ sub undefineVM{
     #$t->print("hypervisor reset");
    	#$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
+    
+    return $error;
 }
 
 #
@@ -639,6 +646,7 @@ sub destroyVM{
     my $logp = "dynamips-destroyVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
+	my $error=0;
 	my $line;
 
     print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
@@ -689,6 +697,8 @@ sub destroyVM{
    	#$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
    	$t->close;
 
+	return $error;
+	
 }
 
 #
@@ -711,6 +721,8 @@ sub startVM {
     my $logp = "dynamips-startVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
+	my $error=0;
+	
     print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Starting router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
     my $t = new Net::Telnet (Timeout => 10);
@@ -749,7 +761,8 @@ sub startVM {
             }                             
         }
     }
-
+    
+    return $error;
 }
 
 
@@ -771,6 +784,8 @@ sub shutdownVM{
 	
 	my $logp = "dynamips-shutdownVM-$vm_name> ";
 	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
+	
+	my $error=0;
 	
 	# This is an ordered shutdown. We first save the configuration:
 
@@ -795,6 +810,7 @@ sub shutdownVM{
 	#&change_vm_status( $dh, $vm_name, "REMOVE" );
 	&change_vm_status( $vm_name, "REMOVE" );
 
+	return $error;
 }
 
 #
@@ -816,6 +832,8 @@ sub saveVM{
 	
 	my $logp = "dynamips-saveVM-$vm_name> ";
 	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
+	
+	my $error=0;
 		
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -825,7 +843,8 @@ sub saveVM{
     $t->print("vm extract_config $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
-	
+
+    return $error;	
 }
 
 #
@@ -847,7 +866,9 @@ sub restoreVM{
 	my $logp = "dynamips-restoreVM-$vm_name> ";
 	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
-	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
+    my $error=0;
+    
+    print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Rebooting router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
 
     sleep(2);
@@ -859,7 +880,9 @@ sub restoreVM{
     $t->print("vm start $vm_name");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
-	
+
+    return $error;
+    	
 }
 
 #
@@ -881,6 +904,8 @@ sub suspendVM{
     my $logp = "dynamips-suspendVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
+    my $error=0;
+    
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
 	
@@ -889,7 +914,8 @@ sub suspendVM{
     $t->print("vm suspend $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
-	
+
+    return $error;	
 }
 
 #
@@ -910,6 +936,7 @@ sub resumeVM{
     my $logp = "dynamips-resumeVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
+    my $error=0;
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
     
@@ -918,7 +945,8 @@ sub resumeVM{
     $t->print("vm resume $vm_name");
     my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
-	
+
+    return $error;	
 }
 
 ####################################################################
@@ -937,6 +965,8 @@ sub rebootVM{
     my $logp = "dynamips-rebootVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
+    my $error=0;
+    
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
 	
@@ -949,6 +979,9 @@ sub rebootVM{
     $t->print("vm start $vm_name");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
+
+    return $error;
+
 }
 
 ####################################################################
@@ -967,6 +1000,8 @@ sub resetVM{
     my $logp = "dynamips-resetVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
+    my $error=0;
+    
 	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
 	
@@ -979,7 +1014,9 @@ sub resetVM{
     $t->print("vm start $vm_name");
     $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
-	
+
+    return $error;
+    	
 }
 
 ####################################################################
@@ -1005,6 +1042,8 @@ sub executeCMD{
 	my $temp;
 	my $port;
 	my $extConfFile; 
+	
+	my $error = 0;
 	
 	# Recupero el puerto telnet de acceso al router
 	my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
@@ -1200,6 +1239,9 @@ sub executeCMD{
 			}
 		}
 	}	
+
+	return $error
+
 }
 
 #
