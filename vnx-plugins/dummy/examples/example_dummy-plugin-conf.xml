@@ -1,0 +1,14 @@
+<dummy_conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/dummy.xsd">
+
+   <vm name="h1" type="t1">
+      <tag1>value11</tag1>
+      <tag2>value12</tag2>
+   </vm>
+
+   <vm name="h2" type="t2">
+      <tag1>value21</tag1>
+      <tag2>value22</tag2>
+   </vm>
+
+</dummy_conf>

@@ -7,7 +7,7 @@ VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
 Name:        simple_caine
-Description: Just one CAINE Ubuntu virtual machine connected to a Network named Net0 with address 10.0.0.16. 
+Description: Just one CAINE Ubuntu virtual machine connected to a Network named Net0 with address 10.0.0.19. 
              The host has an interface in Net0 with address 10.0.0.1  
              This simple scenario is supposed to be used for testing the different 
              types of virtual machines supported by VNX. You can start several simple_*.xml
@@ -29,9 +29,9 @@ SPAIN
   <global>
     <version>2.0</version>
     <scenario_name>simple_caine</scenario_name>
-    <automac offset="16"/>
+    <automac offset="19"/>
     <!--vm_mgmt type="none" /-->
-    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="16">
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="72">
        <host_mapping />
     </vm_mgmt> 
     <vm_defaults>
@@ -46,7 +46,7 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_caine</filesystem>
     <mem>1G</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.16/24</ipv4>
+      <ipv4>10.0.0.19/24</ipv4>
     </if>
 
     <!-- Virtual machine command examples -->

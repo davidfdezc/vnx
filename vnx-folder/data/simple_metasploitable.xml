@@ -6,8 +6,9 @@
 VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
-Name:        simple_uml
-Description: Just one Debian UML virtual machine with GUI connected to a Network named Net0 with address 10.0.0.2. 
+Name:        simple_metasploitable
+Description: Just one virtual machine running the metasploitable rootfs connected to a Network 
+             named Net0 with address 10.0.0.18. 
              The host has an interface in Net0 with address 10.0.0.1  
              This simple scenario is supposed to be used for testing the different 
              types of virtual machines supported by VNX. You can start several simple_*.xml
@@ -23,33 +24,34 @@ SPAIN
 
 -->
 
+
 <vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
     <version>2.0</version>
-    <scenario_name>simple_uml</scenario_name>
-    <automac offset="2"/>
+    <scenario_name>simple_ubuntu</scenario_name>
+    <automac offset="18"/>
     <!--vm_mgmt type="none" /-->
-    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="4">
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="68">
        <host_mapping />
     </vm_mgmt> 
     <vm_defaults>
-        <exec_mode type="uml">sdisk</exec_mode>
+	    <console id="0" display="yes"/>
+	    <console id="1" display="yes"/>
     </vm_defaults>
   </global>
-
-  <net name="Net0" mode="virtual_bridge" />
-
-  <vm name="uml" type="uml" subtype="" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_uml</filesystem>
-    <mem>64M</mem>
-    <kernel>/usr/share/vnx/kernels/linux</kernel>
-    <console id="0" display="yes">xterm</console>
-    <if id="1" net="Net0">
-      <ipv4>10.0.0.2/24</ipv4>
-    </if>
     
-    <!-- filetree commands -->    
+  <net name="Net0" mode="virtual_bridge" />
+  
+  <vm name="ubuntu" type="libvirt" subtype="kvm" os="linux" exec_mode="sdisk">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_metasploitable</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.18/24</ipv4>
+    </if>
+
+    <!-- Virtual machine command examples -->
+
     <!-- Copy file conf/on_boot.txt to /root directory during 
          vm startup. All filetree and exec commands with seq='on_boot
          are automatically executed during vm startup -->
@@ -80,7 +82,7 @@ SPAIN
 
     <!-- Make a copy of on_shutdown.txt before file vm shutdown. -->
     <exec seq="on_shutdown" type="verbatim">cp /root/on_shutdown.txt /root/on_shutdown2.txt</exec>
-    
+
   </vm>
 
   <host>

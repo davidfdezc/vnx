@@ -831,7 +831,7 @@ sub exe_cmd {
 			# problems. Other ways tested (using exec or system with all kind of 
 			# input/output redirections made some commands fail (for example, when 
 			# starting apache: the server starts but does not answer requests and 
-			# shows and error in logs related to sockets). 
+			# shows an error in logs related to sockets). 
         	exe_cmd_aux ("$cmd");
 		} 
 	} elsif ($ostype eq 'exec') {

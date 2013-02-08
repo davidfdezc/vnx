@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        example_dummy-plugin
+Description: Example scenario to show the use of the dummy plugin. It is made of two 
+             ubuntu vm: h1 and h2.   
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>example_ospf-plugin</scenario_name>
+    <ssh_key>~/.ssh/id_dsa.pub</ssh_key>
+    <automac offset="4"/>
+    <!--vm_mgmt type="none" /-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="16">
+       <host_mapping />
+    </vm_mgmt> 
+    <vm_defaults>
+	    <console id="0" display="no"/>
+	    <console id="1" display="yes"/>
+        <exec_mode type="uml">mconsole</exec_mode>
+        <exec_mode type="libvirt" subtype="kvm">cdrom</exec_mode>
+        <exec_mode type="libvirt" subtype="kvm" os="windows">cdrom</exec_mode>
+        <exec_mode type="libvirt" subtype="kvm" os="olive">sdisk</exec_mode>
+    </vm_defaults>
+    <extension plugin="dummy" conf="example_dummy-plugin-conf.xml" />
+    
+    <help>
+         <seq_help seq='start-www'>Start apache2 web server</seq_help>
+         <seq_help seq='stop-www'>Stop apache2 web server</seq_help>     
+    </help>
+    
+  </global>
+    
+  <net name="lan1" mode="virtual_bridge" />
+  
+  <!-- NODES -->
+
+  <vm name="h1" type="libvirt" subtype="kvm" os="linux" exec_mode="sdisk">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="lan1">
+      <ipv4>10.0.1.2/24</ipv4>
+      <ipv6>2001:db8:1::2/64</ipv6>
+    </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>    
+    <route type="ipv6" gw="2001:db8:1::1">default</route>       
+  </vm>
+
+  <vm name="h2" type="libvirt" subtype="kvm" os="linux" exec_mode="sdisk">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="lan1">
+      <ipv4>10.0.1.3/24</ipv4>
+      <ipv6>2001:db8:1::3/64</ipv6>
+    </if>
+    <route type="ipv4" gw="10.0.2.1">default</route>    
+    <route type="ipv6" gw="2001:db8:2::1">default</route>       
+  </vm>
+  
+
+  <host>
+    <hostif net="lan1">
+       <ipv4>10.0.1.1/24</ipv4>
+       <ipv6>2001:db8:1::1/64</ipv6>
+    </hostif>
+    <route type="ipv4" gw="10.0.1.1">10.0.0.0/16</route>    
+    <route type="ipv6" gw="2001:db8:1::1">2001:db8::/32</route>    
+  </host>
+  
+</vnx>

@@ -912,6 +912,9 @@ sub defineVM {
 			my $target2_tag = $init_xml->createElement('target');
 			$disk2_tag->addChild($target2_tag);
 			$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
+			# Testing Fedora 17 problem with shared disk...
+			#$target2_tag->addChild( $init_xml->createAttribute( cache => 'none' ) );
+			
         	
         }
         

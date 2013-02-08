@@ -486,6 +486,7 @@ sub main {
 	# TODO: migrate to XML::LibXML (XML::DOM developmentd seems to be stopped)
 	#my $parser = XML::LibXML->new();
     my $doc = $parser->parsefile($input_file);
+    
        	       	
    	# Calculate the directory where the input_file lives
    	my $xml_dir = (fileparse(abs_path($input_file)))[1];
@@ -610,7 +611,7 @@ sub main {
 =END
 =cut	
       	
-      	if (my $err_msg = $plugin->initPlugin($mode,$plugin_conf)) {
+      	if (my $err_msg = $plugin->initPlugin($mode,$plugin_conf,$doc)) {
          	&vnx_die ("plugin $plugin reports error: $err_msg\n");
       	}
       	push (@plugins,$plugin);
