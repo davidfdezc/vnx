@@ -71,6 +71,13 @@ Repository:    $vnx_rootfs_repo"
 # Return name of symbolic link for a root_fs
 #
 function get_link_name {
+   if [[ $1 == *uml* ]] ; then
+      if [[ $1 == *debian* ]] ; then
+         echo "rootfs_tutorial"
+      else
+         echo "rootfs_light"
+      fi
+   fi
    if [[ $1 == *ubuntu* ]] ; then
       if [[ $1 == *gui* ]] ; then
          echo "rootfs_ubuntu-gui"
@@ -99,12 +106,14 @@ function get_link_name {
          echo "rootfs_centos"
       fi
    fi
-   if [[ $1 == *uml* ]] ; then
-      if [[ $1 == *debian* ]] ; then
-         echo "rootfs_tutorial"
-      else
-         echo "rootfs_light"
-      fi
+   if [[ $1 == *honeywall* ]] ; then
+      echo "rootfs_honeywall"
+   fi
+   if [[ $1 == *metasploitable* ]] ; then
+      echo "rootfs_metasploitable"
+   fi
+   if [[ $1 == *caine* ]] ; then
+      echo "rootfs_caine"
    fi
 }
 

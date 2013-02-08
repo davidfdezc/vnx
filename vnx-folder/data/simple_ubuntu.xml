@@ -31,7 +31,7 @@ SPAIN
     <scenario_name>simple_ubuntu</scenario_name>
     <automac offset="4"/>
     <!--vm_mgmt type="none" /-->
-    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="16">
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="12">
        <host_mapping />
     </vm_mgmt> 
     <vm_defaults>

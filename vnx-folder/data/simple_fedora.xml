@@ -29,8 +29,11 @@ SPAIN
   <global>
     <version>2.0</version>
     <scenario_name>simple_fedora</scenario_name>
-    <automac offset="10"/>
-    <vm_mgmt type="none" />
+    <automac offset="9"/>
+    <!--vm_mgmt type="none" /-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="32">
+       <host_mapping />
+    </vm_mgmt> 
     <vm_defaults>
 	    <console id="0" display="yes"/>
 	    <console id="1" display="yes"/>
@@ -48,10 +51,10 @@ SPAIN
     </if>
 
     <!-- Copy the files under conf/txtfile to vm /tmp directory -->
-    <filetree seq="copyfile" root="/tmp">conf/txtfile</filetree>
+    <filetree seq="copyfile" root="/tmp/">conf/txtfile</filetree>
     
     <!-- Copy the files under conf/txtfile to vm /var/www directory -->
-    <filetree seq="start-www" root="/var/www/html">conf/txtfile</filetree>
+    <filetree seq="start-www" root="/var/www/html/">conf/txtfile</filetree>
 
     <!-- Start/stop apache www server -->
     <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/html/*</exec>

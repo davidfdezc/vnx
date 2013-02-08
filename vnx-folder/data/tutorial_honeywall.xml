@@ -28,9 +28,9 @@ SPAIN
   <global>
     <version>2.0</version>
     <scenario_name>tutorial_honeywall</scenario_name>
-    <automac offset="4"/>
+    <automac offset="17"/>
     <vm_mgmt type="none" />
-    <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="17">
+    <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="64">
        <host_mapping />
     </vm_mgmt!--> 
     <vm_defaults>

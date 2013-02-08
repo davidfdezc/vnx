@@ -30,7 +30,7 @@ SPAIN
     <scenario_name>simple_dynamips</scenario_name>
     <automac offset="11"/>
     <!--vm_mgmt type="none" /-->
-    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="44">
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="40">
        <host_mapping />
     </vm_mgmt> 
     <vm_defaults>
