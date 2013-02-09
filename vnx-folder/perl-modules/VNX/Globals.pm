@@ -107,6 +107,9 @@ our $version;;
 our $release;
 our $branch;
 
+# Debug: tracer show stack traces on errors
+#our $tracer;
+
 ###########################################################
 # Global objects
 

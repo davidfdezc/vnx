@@ -49,6 +49,7 @@ use VNX::TextManipulation;
 use XML::LibXML;
 use VNX::vmAPICommon;
 use VNX::Execution;
+use VNX::DocumentChecks;
 
 
 # 
@@ -205,18 +206,20 @@ sub check_doc {
 		unless ($dh->get_ssh_version eq '1' || $dh->get_ssh_version eq '2');
 
     # 3. To check <ssh_key>
-    my $ssh_key_list = $doc->getElementsByTagName("ssh_key");
-    for (my $i = 0; $i < $ssh_key_list->getLength; $i++) {
-	   my $ssh_key = &do_path_expansion(&text_tag($ssh_key_list->item($i)));
+    #my $ssh_key_list = $doc->getElementsByTagName("ssh_key");
+    #for (my $i = 0; $i < $ssh_key_list->getLength; $i++) {
+    foreach my $ssh_key ($doc->getElementsByTagName("ssh_key")) {
+	   my $ssh_key = &do_path_expansion(&text_tag($ssh_key));
 	   return "$ssh_key is not a valid absolute filename" unless &valid_absolute_filename($ssh_key);
 	   return "$ssh_key (ssh key file) does not exist or is not readable" unless (-r $ssh_key);
     }
 
     # 4. To check <shell>
-    my $shell_list = $doc->getElementsByTagName("shell");
-    for (my $i = 0; $i < $shell_list->getLength; $i++) {
-	   my $shell = &do_path_expansion(&text_tag($shell_list->item($i)));
-	   return "$shell (shell) is not a valid absolute filename" unless &valid_absolute_filename($shell);
+    #my $shell_list = $doc->getElementsByTagName("shell");
+    #for (my $i = 0; $i < $shell_list->getLength; $i++) {
+    foreach my $shell ($doc->getElementsByTagName("shell")) {
+        my $shell = &do_path_expansion(&text_tag($shell));
+        return "$shell (shell) is not a valid absolute filename" unless &valid_absolute_filename($shell);
     }
 
     # 5. To check <tun_device>
@@ -238,13 +241,14 @@ sub check_doc {
     }
 
     # 6. To check <basedir>
-    my $basedir_list = $doc->getElementsByTagName("basedir");
-    for (my $i = 0; $i < $basedir_list->getLength; $i++) {
-	   my $basedir = &do_path_expansion(&text_tag($basedir_list->item($i)));
-       return $basedir . " (basedir) is not a valid absolute directory name" 
-         unless &valid_absolute_directoryname($basedir);
-       return $basedir . " (basedir) does not exist or is not readable (user $uid_name)"
-         unless (-d $basedir);
+    #my $basedir_list = $doc->getElementsByTagName("basedir");
+    #for (my $i = 0; $i < $basedir_list->getLength; $i++) {
+    foreach my $basedir ($doc->getElementsByTagName("basedir")) {
+        my $basedir = &do_path_expansion(&text_tag($basedir));
+        return $basedir . " (basedir) is not a valid absolute directory name" 
+            unless &valid_absolute_directoryname($basedir);
+        return $basedir . " (basedir) does not exist or is not readable (user $uid_name)"
+            unless (-d $basedir);
     }   
 
 	# 7. To check <vm_mgmt>
@@ -261,17 +265,17 @@ sub check_doc {
 	if ($dh->get_vmmgmt_type eq 'private') {
 		return "<vm_mgmt> offset attribute must be a multiple of 4 for private management" if ($dh->get_vmmgmt_offset % 4 != 0);
 	}
-	my $vmmgmt_list = $doc->getElementsByTagName("vm_mgmt");
-	my $vmmgmt_net_list;
+	my @vmmgmt_list = $doc->getElementsByTagName("vm_mgmt");
+	my @vmmgmt_net_list;
 	my $vmmgmt_net_list_len = 0;
-	my $vmmgmt_hostmap_list;
+	my @vmmgmt_hostmap_list;
 	# DFC 31/3/2011: <vm_mgmt> made compulsory to simplify 
-	if ($vmmgmt_list->getLength == 0) {
+	if (@vmmgmt_list == 0) {
 		return "<vm_mgmt> tag missing"
-	} elsif ($vmmgmt_list->getLength == 1) {
-		$vmmgmt_net_list = $vmmgmt_list->item(0)->getElementsByTagName("mgmt_net");
-		$vmmgmt_net_list_len = $vmmgmt_net_list->getLength;
-		$vmmgmt_hostmap_list = $vmmgmt_list->item(0)->getElementsByTagName("host_mapping");
+	} elsif (@vmmgmt_list == 1) {
+		@vmmgmt_net_list = $vmmgmt_list[0]->getElementsByTagName("mgmt_net");
+		$vmmgmt_net_list_len = @vmmgmt_net_list;
+		@vmmgmt_hostmap_list = $vmmgmt_list[0]->getElementsByTagName("host_mapping");
 	} else {
 		return "tag <vm_mgmt> duplicated"
 	}
@@ -280,28 +284,30 @@ sub check_doc {
     # <vm_mgmt> tag has attribute type "net".	
 	if ($dh->get_vmmgmt_type eq 'net') {
 		return "<vm_mgmt> element of type=\"net\" must have exactly one <mgmt_net> child element"
-		if ($vmmgmt_net_list_len != 1);
-		my $sock = &do_path_expansion($vmmgmt_net_list->item(0)->getAttribute("sock"));
-		
-		# The sock file checking is avoid when autoconfigure attribute is in use
-		# and involing user is root
-		unless (($dh->get_vmmgmt_autoconfigure ne "") && ($is_root)) {
-		   $> = $uid if ($is_root);
-		   return "$sock (sock) does not exist or is not readable (user $uid_name)" unless (-r $sock);
-		   return "$sock (sock) is not writeable (user $uid_name)" unless (-w _);
-		   return "$sock (sock) is not a valid socket" unless (-S _);
-		   $> = 0 if ($is_root);
-		   
-		   # 7c. the address of the mgmt_net is configured on an interface on the host machine
-		   return "No interface on the host is configured for VM management with address " . $dh->get_vmmgmt_hostip . "/" . $dh->get_vmmgmt_mask
-		      unless (&hostip_exists($dh->get_vmmgmt_hostip, $dh->get_vmmgmt_mask));
-		}		
+		  if ($vmmgmt_net_list_len != 1);
+        my $sock = $vmmgmt_net_list[0]->getAttribute("sock");
+        unless (empty($sock)) {
+	        my $sock = &do_path_expansion($sock);
+	        # The sock file checking is avoided when autoconfigure attribute is in use
+	        # and involing user is root
+	        unless (($dh->get_vmmgmt_autoconfigure ne "") && ($is_root)) {
+	           $> = $uid if ($is_root);
+	           return "$sock (sock) does not exist or is not readable (user $uid_name)" unless (-r $sock);
+	           return "$sock (sock) is not writeable (user $uid_name)" unless (-w _);
+	           return "$sock (sock) is not a valid socket" unless (-S _);
+	           $> = 0 if ($is_root);
+	           
+	           # 7c. the address of the mgmt_net is configured on an interface on the host machine
+	           return "No interface on the host is configured for VM management with address " . $dh->get_vmmgmt_hostip . "/" . $dh->get_vmmgmt_mask
+	              unless (&hostip_exists($dh->get_vmmgmt_hostip, $dh->get_vmmgmt_mask));
+	        }               	
+        }
 
 	} else {
 		return "<vm_mgmt> may only have a <mgmt_net> child if attribute type=\"net\"" if ($vmmgmt_net_list_len > 0);
 	}
 	return "<vm_mgmt> may not have a <host_mapping> child if attribute type=\"none\""
-		if (defined($vmmgmt_hostmap_list) && $vmmgmt_hostmap_list->getLength > 0 && $dh->get_vmmgmt_type eq 'none');
+		if (@vmmgmt_hostmap_list > 0 && $dh->get_vmmgmt_type eq 'none');
 
    # 8. To check <net>
    # Hash for duplicated names detection
@@ -310,144 +316,154 @@ sub check_doc {
    # Hash for duplicated physical interface detection
    my %phyif_names;
 
-   # To get list of defined <net>
-   my $net_list = $doc->getElementsByTagName("net");
+    # To get list of defined <net>
+    #my $net_list = $doc->getElementsByTagName("net");
 
-   # To process list
-   for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
-      my $net = $net_list->item($i);
+    # To process list
+    #for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+    foreach my $net ($doc->getElementsByTagName("net")) {
+        #my $net = $net_list->item($i);
 
-      # To get name attribute
-      my $name = $net->getAttribute("name");
+        # To get name attribute
+        my $name = $net->getAttribute("name");
       
-      # To check name length
-      my $upper = $max_name_length + 1;
-      return "net name $name is too long: max $max_name_length characters"
-         if ($name =~ /^.{$upper,}$/);
+        # To check name length
+        my $upper = $max_name_length + 1;
+        return "net name $name is too long: max $max_name_length characters"
+            if ($name =~ /^.{$upper,}$/);
          
-      # To check name has no whitespace
-      return "net name \"$name\" can not containt whitespaces"
-      	if ($name =~ /\s/);
+        # To check name has no whitespace
+        return "net name \"$name\" can not containt whitespaces"
+            if ($name =~ /\s/);
 
-      # To get mode attribute
-      my $mode = $net->getAttribute("mode");
+        # To get mode attribute
+        my $mode = $net->getAttribute("mode");
 
-      # 8a. there are no duplicated net names (<net>) and no name is the reserved word "lo"
-      if (defined($net_names{$name})) {
-         return "duplicated net name: $name";
-      }
-      elsif ($name eq "lo") {
-      	return "\"lo\" is a reserved word that can not be used as <net> name (you can simply use \"lo_\" instead)";
-      }
-	  elsif ($name =~ /_Mgmt$/) {
-		return "the suffix \"_Mgmt\" has been designated for management networks and cannot be used in a <net> tag";
-	  }
-      else {
-         $net_names{$name} = 1;
-      }
+        # 8a. there are no duplicated net names (<net>) and no name is the reserved word "lo"
+        if (defined($net_names{$name})) {
+            return "duplicated net name: $name";
+        }
+        elsif ($name eq "lo") {
+            return "\"lo\" is a reserved word that can not be used as <net> name (you can simply use \"lo_\" instead)";
+        }
+        elsif ($name =~ /_Mgmt$/) {
+            return "the suffix \"_Mgmt\" has been designated for management networks and cannot be used in a <net> tag";
+        }
+        else {
+            $net_names{$name} = 1;
+        }
 
-      my $capture_file = $net->getAttribute("capture_file");
-      my $capture_expression = $net->getAttribute("capture_expression");
-      my $capture_dev = $net->getAttribute("capture_dev");
+        my $capture_file = $net->getAttribute("capture_file");
+        my $capture_expression = $net->getAttribute("capture_expression");
+        my $capture_dev = $net->getAttribute("capture_dev");
 
-      #8b. capture_expression is right
-      if ($capture_expression ne "") {
-         my ($err, $result);
-         my $dev = Net::Pcap::lookupdev(\$err);
+        #8b. capture_expression is right
+        if (defined($capture_expression)) {
+            my ($err, $result);
+            my $dev = Net::Pcap::lookupdev(\$err);
 
-         my $filter;
-         my $pcap_t = Net::Pcap::open_live($dev, 1024, 1, 0, \$err);
-         if ($is_root) {
-            $result = Net::Pcap::compile($pcap_t, \$filter, $capture_expression, 0, 0);
-         }
-         if ($result == -1) {
-            return "net $name capture filter expression \"$capture_expression\" not valid\n";
-         }
-      }
+            my $filter;
+            my $pcap_t = Net::Pcap::open_live($dev, 1024, 1, 0, \$err);
+            if ($is_root) {
+                $result = Net::Pcap::compile($pcap_t, \$filter, $capture_expression, 0, 0);
+            }
+            if ($result == -1) {
+                return "net $name capture filter expression \"$capture_expression\" not valid\n";
+            }
+        }
 
-      #8c. capture_expression only used with capture_file
-      return "expression \"$capture_expression\" has no sense without a capture_file attribute in net $name" if (($capture_expression) && !($capture_file));
+        #8c. capture_expression only used with capture_file
+        return "expression \"$capture_expression\" has no sense without a capture_file attribute in net $name" if (($capture_expression) && !($capture_file));
       
-      #8d. capture attribute only used with mode="uml_switch" nets
-      return "capture atributes in net $name only make sense in mode=\"uml_switch\" nets" if ((($capture_expression) || ($capture_file) || ($capture_dev)) && !($mode eq "uml_switch"));
+        #8d. capture attribute only used with mode="uml_switch" nets
+        return "capture atributes in net $name only make sense in mode=\"uml_switch\" nets" if ((($capture_expression) || ($capture_file) || ($capture_dev)) && !($mode eq "uml_switch"));
 
-      my $umlswitch_binary = &do_path_expansion($net->getAttribute("uml_switch_binary"));
+        my $umlswitch_binary = $net->getAttribute("uml_switch_binary");
 
-      #8e. uml_switches are valid, readable and executable filenames
-      if ($umlswitch_binary !~ /^$/) {
-         $> = $uid if ($is_root);
-         return "$umlswitch_binary (umlswitch_binary) is not a valid absolute filename" unless &valid_absolute_filename($umlswitch_binary);
-         return "$umlswitch_binary (umlswitch_binary) is not readable or executable (user $uid_name)" unless (-r $umlswitch_binary && -x $umlswitch_binary);
-		 $> = 0 if ($is_root);
-       }
+        #8e. uml_switches are valid, readable and executable filenames
+        #if ($umlswitch_binary !~ /^$/) {
+        unless (empty($umlswitch_binary)) {
+            my $umlswitch_binary = &do_path_expansion($umlswitch_binary);
+            $> = $uid if ($is_root);
+            return "$umlswitch_binary (umlswitch_binary) is not a valid absolute filename" unless &valid_absolute_filename($umlswitch_binary);
+            return "$umlswitch_binary (umlswitch_binary) is not readable or executable (user $uid_name)" unless (-r $umlswitch_binary && -x $umlswitch_binary);
+            $> = 0 if ($is_root);
+        }
 
-      # 8f. To check external attribute (if present)
-      # (this method is not very strong, only existence and duplication is 
-      # checked; a best checking would be to analyze the full information 
-      # returned by ifconfig command) 
+        # 8f. To check external attribute (if present)
+        # (this method is not very strong, only existence and duplication is 
+        # checked; a best checking would be to analyze the full information 
+        # returned by ifconfig command) 
 
-      my $external_if = $net->getAttribute("external");
-      unless ($external_if =~ /^$/) {
-	    #print $bp->{"ifconfig"} . " $external_if &> /dev/null\n";
+        my $external_if = $net->getAttribute("external");
+        #unless ($external_if =~ /^$/) {
+        unless (empty($external_if)) {
+            #print $bp->{"ifconfig"} . " $external_if &> /dev/null\n";
 	    
-	    # DFC (30/3/2011): only check the interface existance not the subinterface 
-	    # (we eliminate the .XXX from the interface name) 
-		my $external_base_if = $external_if;
-		$external_base_if =~ s/\..*//;
-	    if (system($bp->{"ifconfig"} . " $external_base_if > /dev/null 2>&1")) {
-	      return "in network $name, $external_base_if does not exist";
-	    } 
-	    # Check the VLAN attribute (to compose the physical name, for 
-	    # duplication checking)
-	    my $vlan = $net->getAttribute("vlan");
-	    my $phy_name;
-	    unless ($vlan =~ /^$/) {
-	    	$phy_name = "$external_if.$vlan";
-	    }
-	    else {
-	    	$phy_name = "$external_if";
-	    }
-	    
-	    if (defined($phyif_names{$phy_name})) {
-	    	return "two networks are attemping to use the same external physical interface: $phy_name";
-	    }
-	    else {
-	    	$phyif_names{$phy_name} = 1;
-	    }
-      }
+		    # DFC (30/3/2011): only check the interface existance not the subinterface 
+		    # (we eliminate the .XXX from the interface name) 
+			my $external_base_if = $external_if;
+			$external_base_if =~ s/\..*//;
+		    if (system($bp->{"ifconfig"} . " $external_base_if > /dev/null 2>&1")) {
+		      return "in network $name, $external_base_if does not exist";
+		    } 
+		    # Check the VLAN attribute (to compose the physical name, for 
+		    # duplication checking)
+		    my $vlan = $net->getAttribute("vlan");
+		    my $phy_name;
+            #unless ($vlan =~ /^$/) {
+            unless (empty($vlan)) {
+		    	$phy_name = "$external_if.$vlan";
+		    }
+		    else {
+		    	$phy_name = "$external_if";
+		    }
+		    
+		    if (defined($phyif_names{$phy_name})) {
+		    	return "two networks are attemping to use the same external physical interface: $phy_name";
+		    }
+		    else {
+		    	$phyif_names{$phy_name} = 1;
+		    }
+        }
       
       # 8g. To check only two virtual machines for PPP nets
       my $type = $net->getAttribute("type");
+      if (empty($type)) {
+      	 $type = "lan"; # default value
+      	 $net->setAttribute("type", "lan")
+      }
       if ($type eq "ppp") {
          # Get all the ifs of the scenario
          my $machines = 0;
-         my $if_list = $doc->getElementsByTagName("if");
-         for ( my $j = 0; $j < $if_list->getLength; $j++ ) {
-         	if ($if_list->item($j)->getAttribute("net") eq $name) {
-         		$machines++;
+         #my $if_list = $doc->getElementsByTagName("if");
+         #for ( my $j = 0; $j < $if_list->getLength; $j++ ) {
+         foreach my $if ($doc->getElementsByTagName("if")) {
+            if ($if->getAttribute("net") eq $name) {
+                $machines++;
          		last if ($machines > 3);
          	}
          }
          # Eliminated. It caused problems when using EDIV
          #return "PPP $name net is connected to just one interface: PPP networks must be connected to exactly two interfaces" if ($machines < 2);
          return "PPP $name net is connected to more than two interface: PPP networks must be connected to exactly two interfaces"if ($machines > 2);         
-      }
-      
-      if ($type ne "ppp") {
+      } elsif ($type eq "lan") {
          #8h. To check no-PPP networks doesn't have <bw> tag
-         my $bw_list = $net->getElementsByTagName("bw");
-         return "net $name is not a PPP network and only PPP networks can have a <bw> tag" if ($bw_list->getLength != 0)
+         my @bw_list = $net->getElementsByTagName("bw");
+         return "net $name is not a PPP network and only PPP networks can have a <bw> tag" if (@bw_list != 0)
       }
-      else {
+#      else {
          # DFC 3/5/11: relaxed to allow PPP links in dynamips withouth <bw> tag
          #8h. To check PPP networks has <bw> tag
          #my $bw_list = $net->getElementsByTagName("bw");
          #return "net $name is a PPP network and PPP networks must have a <bw> tag" if ($bw_list->getLength == 0)
-      }
+#      }
 
       # 8i. Check sock files
-      my $sock = &do_path_expansion($net->getAttribute("sock"));
-	  if ($sock !~ /^$/) {
+      my $sock = $net->getAttribute("sock");
+      #if ($sock !~ /^$/) {
+      unless (empty($sock)) {
+        my $sock = &do_path_expansion($sock);
 		$> = $uid if ($is_root);
 		return "$sock (sock) does not exist or is not readable (user $uid_name)" unless (-r $sock);
 		return "$sock (sock) is not writeable (user $uid_name)" unless (-w _);
@@ -485,9 +501,9 @@ sub check_doc {
 
       # Calculate the efective basedir (laterly used for <filetree> checkings)
       my $effective_basedir = $dh->get_default_basedir;
-      my $basedir_list = $vm->getElementsByTagName("basedir");
-      if ($basedir_list->getLength == 1) {
-         $effective_basedir = &text_tag($basedir_list->item(0));
+      my @basedir_list = $vm->getElementsByTagName("basedir");
+      if (@basedir_list == 1) {
+         $effective_basedir = &text_tag($basedir_list[0]);
       }
 
       # 9a. To check if the same name has been seen before
@@ -502,89 +518,93 @@ sub check_doc {
       my %if_ids_eth;
       my %if_ids_lo;
 
-      # To get UML's interfaces list
-      my $if_list = $vm->getElementsByTagName("if");
+        # To get UML's interfaces list
+        #my $if_list = $vm->getElementsByTagName("if");
 
-      # To process list
-      for ( my $j = 0; $j < $if_list->getLength; $j++) {
-         my $if = $if_list->item($j);
+        # To process list
+        #for ( my $j = 0; $j < $if_list->getLength; $j++) {
+        foreach my $if ($vm->getElementsByTagName("if")) {
+            #my $if = $if_list->item($j);
 
-         # To get id attribute
-         my $id = $if->getAttribute("id");
+            # To get id attribute
+            my $id = $if->getAttribute("id");
          
-         # To get net attribute
-         my $net = $if->getAttribute("net");
+            # To get net attribute
+            my $net = $if->getAttribute("net");
 
-         # To check <mng_if>
-	     my $mng_if_value = $dh->get_default_mng_if;
-	     my $mng_if_list = $vm->getElementsByTagName("mng_if");
-	     if ($mng_if_list->getLength == 1) {
-            $mng_if_value = &text_tag($mng_if_list->item(0));
-		 }
+            # To check <mng_if>
+            my $mng_if_value = $dh->get_default_mng_if;
+            my @mng_if_list = $vm->getElementsByTagName("mng_if");
+            if (@mng_if_list == 1) {
+                $mng_if_value = &text_tag($mng_if_list[0]);
+            }
 
-         # 9b. To check id 0 is not used
-         # DFC 5/5/2011: relaxed to allow define the mngt if name in dynamips routers
-         # return "if id 0 in vm $name is not allowed while vm management is enabled unless <mng_if> is used"
-         #   if (($id == 0) && $dh->get_vmmgmt_type ne 'none' && ($mng_if_value ne "no"));
+            # 9b. To check id 0 is not used
+            # DFC 5/5/2011: relaxed to allow define the mngt if name in dynamips routers
+            # return "if id 0 in vm $name is not allowed while vm management is enabled unless <mng_if> is used"
+            #   if (($id == 0) && $dh->get_vmmgmt_type ne 'none' && ($mng_if_value ne "no"));
 
-         # 9c. To check if the same id has been seen before
-         if ($net eq "lo") {
-            if (defined($if_ids_lo{$id})) {
-               return "duplicated if id $id inside vm $name (for lo interfaces)";
+            # 9c. To check if the same id has been seen before
+            if ($net eq "lo") {
+                if (defined($if_ids_lo{$id})) {
+                    return "duplicated if id $id inside vm $name (for lo interfaces)";
+                }
+                else {
+                    $if_ids_lo{$id} = 1;
+                }
             }
             else {
-               $if_ids_lo{$id} = 1;
+                if (defined($if_ids_eth{$id})) {
+                    return "duplicated if id $id inside vm $name (for eth interfaces)";
+                }
+                else {
+                    $if_ids_eth{$id} = 1;
+                }
             }
-         }
-         else {
-            if (defined($if_ids_eth{$id})) {
-               return "duplicated if id $id inside vm $name (for eth interfaces)";
-            }
-            else {
-               $if_ids_eth{$id} = 1;
-            }
-         }
 
-         # 9d. To check that there is a net with this name or "lo"
-         unless (($net eq "lo") || ($net eq "vm_mgmt") || (defined($net_names{$net}))) {
-            return "net $net defined for interface $id of virtual machine $name is not valid: it must be defined in a <net> tag (or use \"lo\")";
-         }
+            # 9d. To check that there is a net with this name or "lo"
+            unless (($net eq "lo") || ($net eq "vm_mgmt") || (defined($net_names{$net}))) {
+                return "net $net defined for interface $id of virtual machine $name is not valid: it must be defined in a <net> tag (or use \"lo\")";
+            }
          
-         # 9e. <mac> can not be put within <if net="lo">
-         if ($net eq "lo") {
-         	my $mac_list = $if->getElementsByTagName("mac");
-         	if ($mac_list->getLength != 0) {
-         		return "<if net=\"lo\"> can not nests <mac> tag";
-         	}
-         } 
-         # 9f. check that uml_switch is only used with uml vms, that is, an interface
-         #     of a libvirt or dynamips machine cannot be connected to a uml_switch
-	     for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
-      		 my $net_def = $net_list->item($i);
-      		 my $net_id = $net_def->getAttribute("id");
-      		 my $net_name = $net_def->getAttribute("name");
-      		 my $net_mode = $net_def->getAttribute("mode");
-      		 if ($net_name eq $net) {
-      		 	if ( (($vm_type eq 'libvirt') or ($vm_type eq 'dynamips')) and ($net_mode eq 'uml_switch') ){
-	         	 	return "vm '$name' of type '$vm_type' is not allowed to connect its interface '$id' to network '$net' based on 'uml_switch'";
-      		 	}
-      		 }
-	     }
+            # 9e. <mac> can not be put within <if net="lo">
+            if ($net eq "lo") {
+                my @mac_list = $if->getElementsByTagName("mac");
+                if (@mac_list != 0) {
+                    return "<if net=\"lo\"> can not nests <mac> tag";
+                }
+            } 
+            # 9f. check that uml_switch is only used with uml vms, that is, an interface
+            #     of a libvirt or dynamips machine cannot be connected to a uml_switch
+            #for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+            foreach my $net_def ($doc->getElementsByTagName("net")) {
+                #my $net_def = $net_list->item($i);
+                my $net_id = $net_def->getAttribute("id");
+                my $net_name = $net_def->getAttribute("name");
+                my $net_mode = $net_def->getAttribute("mode");
+                if ($net_name eq $net) {
+                    if ( (($vm_type eq 'libvirt') or ($vm_type eq 'dynamips')) and ($net_mode eq 'uml_switch') ){
+                        return "vm '$name' of type '$vm_type' is not allowed to connect its interface '$id' to network '$net' based on 'uml_switch'";
+                    }
+                }
+            }
          
-      }
+        }
 
 	  #10. Check users and groups
-      my $user_list = $vm->getElementsByTagName("user");
-	  for (my $j = 0; $j < $user_list->getLength; $j++) {
-		 my $user = $user_list->item($j);
+      #my $user_list = $vm->getElementsByTagName("user");
+	  #for (my $j = 0; $j < $user_list->getLength; $j++) {
+	  foreach my $user ($vm->getElementsByTagName("user")) {
+		 #my $user = $user_list->item($j);
 		 my $username = $user->getAttribute("username");
 		 my $effective_group = $user->getAttribute("group");
 		 return "Invalid username $username"
 			 unless ($username =~ /[A-Za-z0-9_]+/);
-		 my $group_list = $user->getElementsByTagName("group");
+		 #my $group_list = $user->getElementsByTagName("group");
 		 my %user_groups;
-		 for (my $k = 0; $k < $group_list->getLength; $k++) {
-			my $group = &text_tag($group_list->item($k));
+		 #for (my $k = 0; $k < $group_list->getLength; $k++) {
+		 foreach my $group ($user->getElementsByTagName("group")) {
+			my $group = &text_tag($group);
 			$user_groups{$group} = 1;
 			return "Invalid group $group for user $username"
 				unless ($group =~ /[A-Za-z0-9_]+/);
@@ -593,111 +613,114 @@ sub check_doc {
              unless ($user_groups{$effective_group} eq '' || $user_groups{$effective_group});
 	  }
 
-      #11. To check <filetree>
-      my $filetree_list = $vm->getElementsByTagName("filetree");
+        #11. To check <filetree>
+        #my $filetree_list = $vm->getElementsByTagName("filetree");
 
-      # To process list
-      for ( my $j = 0; $j < $filetree_list->getLength; $j++) {
-         my $filetree = &text_tag($filetree_list->item($j));
-         my $root = $filetree_list->item($j)->getAttribute("root");
-         # Calculate the efective filetree
-         my $filetree_effective;
-         if ($filetree =~ /^\//) {
-            # Absolute pathname
-            $filetree_effective = &do_path_expansion($filetree);
-         }
-         else {
-         	# Relative pahtname
-         	if ($effective_basedir eq "") {
-         	   # Relative to xml_dir
-         	   $filetree_effective = &do_path_expansion(&chompslash($dh->get_xml_dir) . "/$filetree");
-         	}
-         	else {
-               # Relative to basedir
-               $filetree_effective = &do_path_expansion(&chompslash($effective_basedir) . "/$filetree");
-         	}
-         }
+        # To process list
+        #for ( my $j = 0; $j < $filetree_list->getLength; $j++) {
+        foreach my $ftree ($vm->getElementsByTagName("filetree")) {      	
+            my $filetree = &text_tag($ftree);
+            my $root = $ftree->getAttribute("root");
+            # Calculate the efective filetree
+            my $filetree_effective;
+            if ($filetree =~ /^\//) {
+                # Absolute pathname
+                $filetree_effective = &do_path_expansion($filetree);
+            }
+            else {
+                # Relative pahtname
+                if ($effective_basedir eq "") {
+                    # Relative to xml_dir
+                    $filetree_effective = &do_path_expansion(&chompslash($dh->get_xml_dir) . "/$filetree");
+                }
+                else {
+                    # Relative to basedir
+                    $filetree_effective = &do_path_expansion(&chompslash($effective_basedir) . "/$filetree");
+                }
+            }
                  
-         # Checkings
-         return "$filetree (filetree) is not a valid absolute directory name" 
-            unless &valid_absolute_directoryname($filetree_effective);
-        # Changed to allow individual files in filetrees
-		if (-d $filetree_effective) { # It is a directory
-         	return "$filetree_effective (filetree) directory is not readable/executable (user $uid_name)"
-            unless (-r $filetree_effective && -x _);
-		} elsif (-f $filetree_effective) { # It is a file
-         	return "$filetree_effective (filetree) file is not readable (user $uid_name)"
-            unless (-r $filetree_effective);
-		} else {
-			return "$filetree (filetree) is not a valid file or directory"
-		}
+            # Checkings
+            return "$filetree (filetree) is not a valid absolute directory name" 
+                unless &valid_absolute_directoryname($filetree_effective);
+            # Changed to allow individual files in filetrees
+            if (-d $filetree_effective) { # It is a directory
+                return "$filetree_effective (filetree) directory is not readable/executable (user $uid_name)"
+                unless (-r $filetree_effective && -x _);
+            } elsif (-f $filetree_effective) { # It is a file
+                return "$filetree_effective (filetree) file is not readable (user $uid_name)"
+                unless (-r $filetree_effective);
+            } else {
+                return "$filetree (filetree) is not a valid file or directory"
+            }
 
-         return "$root (root) is not a valid absolute directory name" unless &valid_absolute_directoryname($root);
-      }
-      # vm type attribute is requiered; subtype and os are optional or not depending on the type value
-	  my $vm_subtype = $vm->getAttribute("subtype");		         
-	  my $vm_os = $vm->getAttribute("os");		         
-	  if ($vm_type eq "libvirt") {
-		  if ( ($vm_subtype eq '') or ($vm_os eq '') ) {
-			  return "missing 'subtype' and/or 'os' attribute for libvirt vm $name";
-		  }
-	  } elsif ($vm_type eq "dynamips") {
-		  if ($vm_subtype eq '') {
-		  	  return "missing 'subtype' attribute for dynamips vm $name";
-	  	  }
-	  }
-	  # vm arch attribute is only allowed for libvirt VMs
-      my $vm_arch = $vm->getAttribute("arch");               
-      if ($vm_arch ne '') { # A value for arch is specified
-
-        if ($vm_type eq "libvirt") {
-            if ( ($vm_arch ne 'i686') && ($vm_arch ne 'x86_64') ) {
-            	return "invalid attribute value (arch='$vm_arch') in VM '$name'. Valid values: i686, x86_64";
-            }        	
-        } else {
-        	return "invalid attribute 'arch' in <vm name='$name'> tag. 'arch' only allowed for libvirt virtual machines";
+            return "$root (root) is not a valid absolute directory name" unless &valid_absolute_directoryname($root);
         }
-      } else { # arch not specified
-
+        # vm type attribute is requiered; subtype and os are optional or not depending on the type value
+        my $vm_subtype = $vm->getAttribute("subtype");		         
+        my $vm_os = $vm->getAttribute("os");		         
         if ($vm_type eq "libvirt") {
-            # set default value to i686
-            $vm->setAttribute( 'arch', "i686" );
+            if ( ($vm_subtype eq '') or ($vm_os eq '') ) {
+                return "missing 'subtype' and/or 'os' attribute for libvirt vm $name";
+            }
+        } elsif ($vm_type eq "dynamips") {
+            if ($vm_subtype eq '') {
+                return "missing 'subtype' attribute for dynamips vm $name";
+            }
         }
-      }
+        # vm arch attribute is only allowed for libvirt VMs
+        my $vm_arch = $vm->getAttribute("arch");               
+        #if ($vm_arch ne '') { # A value for arch is specified
+        unless (empty($vm_arch)) { # A value for arch is specified
+
+            if ($vm_type eq "libvirt") {
+                if ( ($vm_arch ne 'i686') && ($vm_arch ne 'x86_64') ) {
+                    return "invalid attribute value (arch='$vm_arch') in VM '$name'. Valid values: i686, x86_64";
+                }        	
+            } else {
+                return "invalid attribute 'arch' in <vm name='$name'> tag. 'arch' only allowed for libvirt virtual machines";
+            }
+        } else { # arch not specified
+
+            if ($vm_type eq "libvirt") {
+                # set default value to i686
+                $vm->setAttribute( 'arch', "i686" );
+            }
+        }
       
-   }
+    }
 
-   #12. To check <filesystem>
-   $> = $uid if ($is_root);
-   my $filesystem_list = $doc->getElementsByTagName("filesystem");
-   for ( my $i = 0 ; $i < $filesystem_list->getLength; $i++) {
-      my $filesystem = &do_path_expansion(&text_tag($filesystem_list->item($i)));
-      my $filesystem_type = $filesystem_list->item($i)->getAttribute("type");
-      if ($filesystem_type eq "hostfs") {         	
-         # 12a. <filesystem> are valid, readable/executable files
-         return "$filesystem (filesystem) is not a valid absolute directory name" unless &valid_absolute_directoryname($filesystem);
-         return "$filesystem (filesystem) is not does not exist or is not readable (user $uid_name)" unless (-d $filesystem);
-         return "$filesystem (filesystem) is not readable/executable (user $uid_name)" unless (-r _ && -x _);
-         # 12b. no more than one virtual machine use the same hostfs filesystem
-         if ($hostfs_paths{&chompslash($filesystem)} == 1) {
-            return "the same hostfs directory (" . &chompslash($filesystem) . ") is being used in more than one virtual machine";
-         }
-         else {
-            $hostfs_paths{&chompslash($filesystem)} = 1;
-         }
+    #12. To check <filesystem>
+    $> = $uid if ($is_root);
+    #my $filesystem_list = $doc->getElementsByTagName("filesystem");
+    #for ( my $i = 0 ; $i < $filesystem_list->getLength; $i++) {
+    foreach my $fsystem ($doc->getElementsByTagName("filesystem")) {   	
+        my $filesystem = &do_path_expansion(&text_tag($fsystem));
+        my $filesystem_type = $fsystem->getAttribute("type");
+        if ($filesystem_type eq "hostfs") {         	
+            # 12a. <filesystem> are valid, readable/executable files
+            return "$filesystem (filesystem) is not a valid absolute directory name" unless &valid_absolute_directoryname($filesystem);
+            return "$filesystem (filesystem) is not does not exist or is not readable (user $uid_name)" unless (-d $filesystem);
+            return "$filesystem (filesystem) is not readable/executable (user $uid_name)" unless (-r _ && -x _);
+            # 12b. no more than one virtual machine use the same hostfs filesystem
+            if ($hostfs_paths{&chompslash($filesystem)} == 1) {
+                return "the same hostfs directory (" . &chompslash($filesystem) . ") is being used in more than one virtual machine";
+            }
+            else {
+                $hostfs_paths{&chompslash($filesystem)} = 1;
+            }
          	
-      }
-      else {
-         #12a (again). <filesystem> are valid, readable/executable files
-         # DFC 25/4/2011: allowed relative filesystem paths following rules descried in FileChecks->get_abs_path
-         $filesystem = &get_abs_path ($filesystem);
-         # return "$filesystem (filesystem) is not a valid absolute filename" unless &valid_absolute_filename($filesystem);
-         return "$filesystem (filesystem) does not exist or is not readable (user $uid_name)" unless (-r $filesystem);
-         if ($filesystem_type eq "direct") {
-            return "$filesystem (filesystem) is not writeable (user $uid_name)" unless (-w $filesystem);
-         }
-      }
-   }
+        }
+        else {
+            #12a (again). <filesystem> are valid, readable/executable files
+            # DFC 25/4/2011: allowed relative filesystem paths following rules descried in FileChecks->get_abs_path
+            $filesystem = &get_abs_path ($filesystem);
+            # return "$filesystem (filesystem) is not a valid absolute filename" unless &valid_absolute_filename($filesystem);
+            return "$filesystem (filesystem) does not exist or is not readable (user $uid_name)" unless (-r $filesystem);
+            if ($filesystem_type eq "direct") {
+                return "$filesystem (filesystem) is not writeable (user $uid_name)" unless (-w $filesystem);
+            }
+        }
+    }
 
    #12c. To check default filesystem type is valid
    if ($dh->get_default_filesystem_type eq "direct" ||
@@ -706,22 +729,27 @@ sub check_doc {
    }
 
    #13. To check <kernel>
-   my $kernel_list = $doc->getElementsByTagName("kernel");
-   for ( my $i = 0 ; $i < $kernel_list->getLength; $i++) {
-      my $kernel = $kernel_list->item(0);
-      my $kernel_exe = &do_path_expansion(&text_tag($kernel));
-      my $kernel_initrd = &do_path_expansion($kernel->getAttribute("initrd"));
-      my $kernel_modules = &do_path_expansion($kernel->getAttribute("modules"));
+   #my $kernel_list = $doc->getElementsByTagName("kernel");
+   #for ( my $i = 0 ; $i < $kernel_list->getLength; $i++) {
+   foreach my $kernel ($doc->getElementsByTagName("kernel")) {
+      #my $kernel = $kernel_list->item(0);
       # 13a. <kernel> are valid, readable/executable files
+      my $kernel_exe = &do_path_expansion(&text_tag($kernel));
       return "$kernel_exe (kernel) is not a valid absolute filename" unless &valid_absolute_filename($kernel_exe);
       return "$kernel_exe (kernel) does not exist or is not readable/executable (user $uid_name)" unless (-r $kernel_exe && -x _);
       # 13b. initrd checking
-      if ($kernel_initrd !~ /^$/) {
+      my $kernel_initrd = $kernel->getAttribute("initrd");
+      #if ($kernel_initrd !~ /^$/) {
+      unless (empty($kernel_initrd)) {
+         $kernel_initrd = &do_path_expansion($kernel_initrd);
          return "$kernel_initrd (initrd) is not a valid absolute filename" unless &valid_absolute_filename($kernel_initrd);
          return "$kernel_initrd (initrd) does not exist or is not readable (user $uid_name)" unless (-r $kernel_initrd);
       }
       # 13c. modules checking
-	  if ($kernel_modules !~ /^$/) {
+      my $kernel_modules = $kernel->getAttribute("modules");
+	  #if ($kernel_modules !~ /^$/) {
+      unless (empty($kernel_modules)) {	  	
+         $kernel_modules = &do_path_expansion($kernel_modules);
          return "$kernel_modules (modules) is not a valid absolute directory" unless &valid_absolute_directoryname($kernel_modules);
          return "$kernel_modules (modules) does not exist or is not readable (user $uid_name)" unless (-d $kernel_modules);
          return "$kernel_modules (modules) is not readable/executable (user $uid_name)" unless (-r $kernel_modules && -x $kernel_modules);
@@ -729,22 +757,23 @@ sub check_doc {
    }
    $> = 0 if ($is_root);
 
-   # 14. To check <hostif>
-   my $hostif_list = $doc->getElementsByTagName("hostif");
+    # 14. To check <hostif>
+    #my $hostif_list = $doc->getElementsByTagName("hostif");
 
-   # To process list
-   for ( my $i = 0; $i < $hostif_list->getLength; $i++) {
-      my $hostif = $hostif_list->item($i);
+    # To process list
+    #for ( my $i = 0; $i < $hostif_list->getLength; $i++) {
+    foreach my $hostif ($doc->getElementsByTagName("hostif")) {
+        #my $hostif = $hostif_list->item($i);
 
-      # To get net attribute
-      my $net = $hostif->getAttribute("net");
+        # To get net attribute
+        my $net = $hostif->getAttribute("net");
 
-      # To check that there is a net with this name
-      unless (defined($net_names{$net})) {
-	    return "hostif net $net is not valid: it must be defined in a <net> tag";
-      }
+        # To check that there is a net with this name
+        unless (defined($net_names{$net})) {
+            return "hostif net $net is not valid: it must be defined in a <net> tag";
+        }
 
-   }
+    }
 
    # 15. To check <physicalif>
    # Hash for duplicated names detection
@@ -752,11 +781,12 @@ sub check_doc {
    my %phyif_names_ipv6;
 
    # To get list of defined <net>
-   my $phyif_list = $doc->getElementsByTagName("physicalif");
+   #my $phyif_list = $doc->getElementsByTagName("physicalif");
 
    # To process list
-   for ( my $i = 0; $i < $phyif_list->getLength; $i++ ) {
-      my $phyif = $phyif_list->item($i);
+   #for ( my $i = 0; $i < $phyif_list->getLength; $i++ ) {
+   foreach my $phyif ($doc->getElementsByTagName("physicalif")) {
+      #my $phyif = $phyif_list->item($i);
 
       # To get name and type attribute
       my $name = $phyif->getAttribute("name");
@@ -792,7 +822,8 @@ sub check_doc {
          # To check if valid IPv6 address
          # Note the empty gw is allowable. This attribute is #IMPLIED in DTD and
          # the physicalif_config in vnumlparser.pl deals rightfully with emtpy values
-         unless ($gw =~ /^$/ ) {
+         #unless ($gw =~ /^$/ ) {
+         unless (empty($gw)) {
             unless (&valid_ipv6($gw)) {
                return "'$gw' is not a valid IPv6 address in a <physicalif> gw";
             }
@@ -825,7 +856,7 @@ sub check_doc {
 
          # To get mask attribute
          my $mask = $phyif->getAttribute("mask");
-         $mask="255.255.255.0" if ($mask =~ /^$/);
+         $mask="255.255.255.0" if (empty($mask));
 
          # To check if valid IPv4 mask
          unless (&valid_ipv4_mask($mask)) {
@@ -838,7 +869,8 @@ sub check_doc {
          # To check if valid IPv4 address
          # Note the empty gw is allowable. This attribute is #IMPLIED in DTD and
          # the physicalif_config in vnumlparser.pl deals rightfully with emtpy values
-         unless ($gw =~ /^$/ ) {
+         #unless ($gw =~ /^$/ ) {
+         unless (empty($gw)) {
             unless (&valid_ipv4($gw)) {
                return "'$gw' is not a valid IPv4 address in a <physicalif> gw";
             }
@@ -847,11 +879,13 @@ sub check_doc {
    }
 
    # 16. To check IPv4 addresses
-   my $ipv4_list = $doc->getElementsByTagName("ipv4");
-   for ( my $i = 0; $i < $ipv4_list->getLength; $i++ ) {
-      my $ipv4 = &text_tag($ipv4_list->item($i));
-      my $mask = $ipv4_list->item($i)->getAttribute("mask");
-      if ($mask eq '') {
+   #my $ipv4_list = $doc->getElementsByTagName("ipv4");
+   #for ( my $i = 0; $i < $ipv4_list->getLength; $i++ ) {
+   foreach my $ipv4s ($doc->getElementsByTagName("ipv4")) {
+      my $ipv4 = &text_tag($ipv4s);
+      my $mask = $ipv4s->getAttribute("mask");
+      #if ($mask eq '') {
+      if (empty($mask)) {
          # Doesn't has mask attribute, mask would be implicit in address
          unless (&valid_ipv4($ipv4) || &valid_ipv4_with_mask($ipv4)) {
             return "'$ipv4' is not a valid IPv4 address (Z.Z.Z.Z) or IPv4 address with implicit mask (Z.Z.Z.Z/M, M<=32) in a <ipv4>";
@@ -871,11 +905,12 @@ sub check_doc {
    }
 
    # 17. To check IPv6 addresses
-   my $ipv6_list = $doc->getElementsByTagName("ipv6");
-   for ( my $i = 0; $i < $ipv6_list->getLength; $i++ ) {
-      my $ipv6 = &text_tag($ipv6_list->item($i));
-      my $mask = $ipv6_list->item($i)->getAttribute("mask");      
-      if ($mask eq '') {
+   #my $ipv6_list = $doc->getElementsByTagName("ipv6");
+   #for ( my $i = 0; $i < $ipv6_list->getLength; $i++ ) {
+   foreach my $ipv6s ($doc->getElementsByTagName("ipv6")) {
+      my $ipv6 = &text_tag($ipv6s);
+      my $mask = $ipv6s->getAttribute("mask");      
+      if (empty($mask)) {
          # Doesn't has mask attribute, mask would be implicit in address
          unless (&valid_ipv6($ipv6) || &valid_ipv6_with_mask($ipv6)) {
             return "'$ipv6' is not a valid IPv6 address (Z:Z:Z:Z:Z:Z:Z:Z) or IPv6 address with implicit mask (Z:Z:Z:Z:Z:Z:Z:Z/M, M<=128) in a <ipv6>";
@@ -896,11 +931,12 @@ sub check_doc {
    }
 
    # 18. To check addresses related with <route> tag
-   my $route_list = $doc->getElementsByTagName("route");
-   for ( my $i = 0; $i < $route_list->getLength; $i++ ) {
-      my $route_dest = &text_tag($route_list->item($i));
-      my $route_gw = $route_list->item($i)->getAttribute("gw");
-      my $route_type = $route_list->item($i)->getAttribute("type");
+   #my $route_list = $doc->getElementsByTagName("route");
+   #for ( my $i = 0; $i < $route_list->getLength; $i++ ) {
+   foreach my $route ($doc->getElementsByTagName("route")) {
+      my $route_dest = &text_tag($route);
+      my $route_gw = $route->getAttribute("gw");
+      my $route_type = $route->getAttribute("type");
       if ($route_type eq "ipv4") {
          unless (($route_dest eq "default")||(&valid_ipv4_with_mask($route_dest))) {
             return "'$route_dest' is not a valid IPv4 address with mask (Z.Z.Z.Z/M) in a <route>";
@@ -924,20 +960,22 @@ sub check_doc {
    }
 
    # 19. To check <bw>
-   my $bw_list = $doc->getElementsByTagName("bw");
-   for ( my $i = 0; $i < $bw_list->getLength; $i++ ) {
-      my $bw = &text_tag($bw_list->item($i));
+   #my $bw_list = $doc->getElementsByTagName("bw");
+   #for ( my $i = 0; $i < $bw_list->getLength; $i++ ) {
+   foreach my $bw_tag ($doc->getElementsByTagName("bw")) {
+      my $bw = &text_tag($bw_tag);
       return "<bw> value $bw is not a valid integer number" unless ($bw =~ /^\d+$/);
    }
    
    # 20. To check uniqueness of <console> id attribute in the same scope
    # (<vm_defaults>) or <vm>
-   my $vm_defaults_list = $doc->getElementsByTagName("vm_defaults");
-   if ($vm_defaults_list->getLength == 1) {
-   	   my $console_list = $vm_defaults_list->item(0)->getElementsByTagName("console");
+   my @vm_defaults_list = $doc->getElementsByTagName("vm_defaults");
+   if (@vm_defaults_list == 1) {
+   	   #my $console_list = $vm_defaults_list[0]->getElementsByTagName("console");
    	   my %console_ids;
-   	   for (my $i = 0; $i < $console_list->getLength; $i++) {
-   	   	   my $id = $console_list->item($i)->getAttribute("id");
+   	   #for (my $i = 0; $i < $console_list->getLength; $i++) {
+   	   foreach my $console ($vm_defaults_list[0]->getElementsByTagName("console")) {
+   	   	   my $id = $console->getAttribute("id");
    	   	   if (exists $console_ids{$id} && $console_ids{$id} == 1) {
    	   	      return "console id $id duplicated in <vm_defaults>";
    	   	   }
@@ -946,13 +984,15 @@ sub check_doc {
    	   	   }
    	   }
    }
-   my $vm_list = $doc->getElementsByTagName("vm");
-   for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
-   	   my $name = $vm_list->item($i)->getAttribute("name");
-   	   my $console_list = $vm_list->item($i)->getElementsByTagName("console");
+   #my $vm_list = $doc->getElementsByTagName("vm");
+   #for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
+   foreach my $vm ($doc->getElementsByTagName("vm")) {
+   	   my $name = $vm->getAttribute("name");
+   	   #my $console_list = $vm->getElementsByTagName("console");
    	   my %console_ids;
-   	   for (my $j = 0; $j < $console_list->getLength; $j++) {
-   	   	   my $id = $console_list->item($j)->getAttribute("id");
+   	   #for (my $j = 0; $j < $console_list->getLength; $j++) {
+       foreach my $console ($vm_defaults_list[0]->getElementsByTagName("console")) {
+   	   	   my $id = $console->getAttribute("id");
    	   	   if (exists $console_ids{$id} && $console_ids{$id} == 1) {
    	   	      return "console id $id duplicated in virtual machine $name";
    	   	   }
@@ -966,22 +1006,24 @@ sub check_doc {
    # has also the same user attribute
    # ELIMINATED
        
-    $vm_list = $doc->getElementsByTagName("vm");
-    for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
-   	    my $name = $vm_list->item($i)->getAttribute("name");
+    #$vm_list = $doc->getElementsByTagName("vm");
+    #for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
+    foreach my $vm ($doc->getElementsByTagName("vm")) {
+   	    my $name = $vm->getAttribute("name");
    	    my %seq_users;
 
-        my $type = $vm_list->item($i)->getAttribute("type");
+        my $type = $vm->getAttribute("type");
    	    unless ($type eq 'uml') {
    	    	next;
    	    } 
-        my $merged_type = $dh->get_vm_merged_type ($vm_list->item($i));
+        my $merged_type = $dh->get_vm_merged_type ($vm);
    	   
    	   # Checks for <exec>
-   	   my $exec_list = $vm_list->item($i)->getElementsByTagName("exec");
-   	   for (my $j = 0; $j < $exec_list->getLength; $j++) {
-   	   	   my $seq = $exec_list->item($j)->getAttribute("seq");
-   	   	   my $user = $exec_list->item($j)->getAttribute("user");
+   	   #my $exec_list = $vm->getElementsByTagName("exec");
+   	   #for (my $j = 0; $j < $exec_list->getLength; $j++) {
+   	   foreach my $exec ($vm->getElementsByTagName("exec")) {
+   	   	   my $seq = $exec->getAttribute("seq");
+   	   	   my $user = $exec->getAttribute("user");
 
    	   	   if (defined($seq_users{$seq})) {
    	   	      if ($seq_users{$seq} ne $user) {
@@ -994,10 +1036,11 @@ sub check_doc {
    	   }
 
         # Checks for <filetree>  	   
-        my $filetree_list = $vm_list->item($i)->getElementsByTagName("filetree");
-        for (my $j = 0; $j < $filetree_list->getLength; $j++) {
-            my $seq = $filetree_list->item($j)->getAttribute("seq");
-            my $user = $filetree_list->item($j)->getAttribute("user");
+        #my $filetree_list = $vm->getElementsByTagName("filetree");
+        #for (my $j = 0; $j < $filetree_list->getLength; $j++) {
+        foreach my $filetree ($vm->getElementsByTagName("filetree")) { 
+            my $seq = $filetree->getAttribute("seq");
+            my $user = $filetree->getAttribute("user");
 
             if (defined($seq_users{$seq})) {
                 if ($seq_users{$seq} ne $user) {
@@ -1008,8 +1051,8 @@ sub check_doc {
                 $seq_users{$seq} = $user;
             }
             # 21a. To check that attributes "group" and "perms" of <filetree>'s are only used in linux and Freebsd VMs
-            my $group = $filetree_list->item($j)->getAttribute("group");
-            my $perms = $filetree_list->item($j)->getAttribute("perms");
+            my $group = $filetree->getAttribute("group");
+            my $perms = $filetree->getAttribute("perms");
             #wlog (VVV, "**** group=$group, perms=$perms\n");
             return "group and perms attribute of <filetree> tag can only be used in Linux or FreeBSD virtual machines"
                 if ( ( $group ne '' || $perms ne '' ) && ( ( $merged_type ne 'libvirt-kvm-linux') 
@@ -1019,21 +1062,23 @@ sub check_doc {
    }
    
    # 22. To check user attribute is not used in <exec> within <host>
-   my $host_list = $doc->getElementsByTagName("host");
-   if ($host_list->getLength > 0) {
-      my $exec_list = $host_list->item(0)->getElementsByTagName("exec");
-      for (my $i = 0; $i < $exec_list->getLength; $i++) {
-      	 my $seq = $exec_list->item($i)->getAttribute("seq");
-         if ($exec_list->item($i)->getAttribute("user") ne "") {
+   my @host_list = $doc->getElementsByTagName("host");
+   if (@host_list > 0) {
+      #my $exec_list = $host_list->item(0)->getElementsByTagName("exec");
+      #for (my $i = 0; $i < $exec_list->getLength; $i++) {
+      foreach my $exec ($host_list[0]->getElementsByTagName("exec")) {
+      	 my $seq = $exec->getAttribute("seq");
+         if ($exec->getAttribute("user") ne "") {
             return "the use of user attribute in <exec> is forbidden within <host> in command sequence '$seq'";
          }
       }
    }
 
 	# 23. To check that <mem> tag is specified in Megabytes or Gigabytes
-	my $mem_list = $doc->getElementsByTagName("mem");
-	for (my $j = 0; $j < $mem_list->getLength; $j++) {
-      	my $mem = &text_tag($mem_list->item($j));
+	#my $mem_list = $doc->getElementsByTagName("mem");
+	#for (my $j = 0; $j < $mem_list->getLength; $j++) {
+	foreach my $mem_tag ($doc->getElementsByTagName("mem")) {
+      	my $mem = &text_tag($mem_tag);
 		if ( $mem !~ /[MG]$/ ) {
 			return "<mem> tag sintax error ($mem); memory values must end with 'M' or 'G'";
 		}
@@ -1042,8 +1087,8 @@ sub check_doc {
 	# DYNAMIPS checks
 
 	# - check that dynamips_ext only appears <=1 times
-   my $dynext_list = $doc->getElementsByTagName("dynamips_ext");
-   if ($dynext_list->getLength > 1) {
+   my @dynext_list = $doc->getElementsByTagName("dynamips_ext");
+   if (@dynext_list > 1) {
 			return "duplicated <dynamips_ext> tag. Only one allowed";
    }
    
@@ -1054,17 +1099,19 @@ sub check_doc {
    	#         - the net type is ppp
    	#         - the other end is a dynamips router and the interface connected is also a serial line
 	# Virtual machines loop
-	$vm_list = $doc->getElementsByTagName ("vm");
-	for (my $i = 0; $i < $vm_list->getLength; $i++) {
+	#$vm_list = $doc->getElementsByTagName ("vm");
+	#for (my $i = 0; $i < $vm_list->getLength; $i++) {
+	foreach my $vm ($doc->getElementsByTagName ("vm")) {
 
-	    my $vm = $vm_list->item ($i);
+	    #my $vm = $vm_list->item ($i);
 	    my $name = $vm->getAttribute ("name");
 	    my $type = $vm->getAttribute ("type");
 		if ( $type eq 'dynamips') {
 			# Network interfaces loop
-	        my $if_list = $vm->getElementsByTagName ("if");
-	        for (my $j = 0; $j < $if_list->getLength; $j++) {
-	            my $if = $if_list->item ($j);
+	        #my $if_list = $vm->getElementsByTagName ("if");
+	        #for (my $j = 0; $j < $if_list->getLength; $j++) {
+	        foreach my $if ($vm->getElementsByTagName ("if")) {
+	            #my $if = $if_list->item ($j);
 	            my $id = $if->getAttribute ("id");
 	            my $net = $if->getAttribute ("net");
 	            my $ifName = $if->getAttribute ("name");
@@ -1124,36 +1171,29 @@ sub check_doc {
 	}
 	
 	# Check that files specified in <conf> tag exist and are readable
-    my $conf_list = $doc->getElementsByTagName("conf");
-    for ( my $i = 0 ; $i < $conf_list->getLength; $i++) {
-       my $conf = $conf_list->item(0);
+    #my $conf_list = $doc->getElementsByTagName("conf");
+    #for ( my $i = 0 ; $i < $conf_list->getLength; $i++) {
+    foreach my $conf ($doc->getElementsByTagName("conf")) {
+       #my $conf = $conf_list->item(0);
        $conf = &get_abs_path (&text_tag($conf));
        # <conf> are valid, readable/executable files
        return "$conf (conf) does not exist or is not readable/executable (user $uid_name)" unless (-r $conf);
     }
-	
-	# Check that files specified in <conf> tag exist and are readable
-    $conf_list = $doc->getElementsByTagName("conf");
-    for ( my $i = 0 ; $i < $conf_list->getLength; $i++) {
-       my $conf = $conf_list->item(0);
-       $conf = &get_abs_path (&text_tag($conf));
-       # <conf> are valid, readable/executable files
-       return "$conf (conf) does not exist or is not readable/executable (user $uid_name)" unless (-r $conf);
-    }
-        
+	       
  	# Check exec_mode attribute of <vm> and ostype attribute of <exec> mode in relation with the VM type and set default 
  	# values if not specified in the XML file
-    $vm_list = $doc->getElementsByTagName("vm");
+    #$vm_list = $doc->getElementsByTagName("vm");
     # For each virtual machine 
-    for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
-        my $vm = $vm_list->item($i);
+    #for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
+    foreach my $vm ($doc->getElementsByTagName("vm")) {
+        #my $vm = $vm_list->item($i);
         my $vmName = $vm->getAttribute("name");
         my $merged_type = $dh->get_vm_merged_type($vm);
 
         # Check exec_mode attribute of <vm>
         my $exec_mode = $vm->getAttribute("exec_mode");
 
-        if ($exec_mode eq '') { # Set default value
+        if (empty($exec_mode)) { # Set default value
                wlog (VV, "exec_mode not specified for vm $vmName. Using default: " . $dh->get_vm_exec_mode($vm), "check_doc>");
                $vm->setAttribute( 'exec_mode', $dh->get_vm_exec_mode($vm) );
         } else {
@@ -1213,10 +1253,11 @@ sub check_doc {
 =END
 =cut        
         
-        my $exec_list = $vm->getElementsByTagName("exec");
+        #my $exec_list = $vm->getElementsByTagName("exec");
         # For each <exec> in the vm
-        for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
-        	my $cmd = $exec_list->item($j);
+        #for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
+        foreach my $cmd ($doc->getElementsByTagName("vm")) {
+        	#my $cmd = $exec_list->item($j);
             my $cmdMode = $cmd->getAttribute("mode"); # mode attribute eliminated from <exec>
             my $cmdOSType = $cmd->getAttribute("ostype");
             #wlog (VVV, "-- vm=$vmName,type=$merged_type, exec_mode=$cmdMode, exec_ostype=$cmdOSType\n");
@@ -1226,7 +1267,7 @@ sub check_doc {
 #            		$cmd->setAttribute( 'mode', "$EXEC_MODES_UML[0]" );
 #            	} elsif ( "@EXEC_MODES_UML" !~ $cmdMode )  {
 #       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
-            	if ($cmdOSType eq '') { # Set default value 
+            	if (empty($cmdOSType)) { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_UML[0]" );
             	} elsif ( "@EXEC_OSTYPE_UML" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
@@ -1236,7 +1277,7 @@ sub check_doc {
 #            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_LINUX[0]" );
 #            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $cmdMode )  {
 #       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
-            	if ($cmdOSType eq '') { # Set default value 
+            	if (empty($cmdOSType)) { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_LINUX[0]" );
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_LINUX" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
@@ -1246,7 +1287,7 @@ sub check_doc {
 #                   $cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_LINUX[0]" );
 #               } elsif ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $cmdMode )  {
 #                       return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
-                if ($cmdOSType eq '') { # Set default value 
+                if (empty($cmdOSType)) { # Set default value 
                     $cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD[0]" );
                 } elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD" !~ $cmdOSType )  {
                     return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
@@ -1256,7 +1297,7 @@ sub check_doc {
 #            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_WINDOWS[0]" );
 #            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_WINDOWS" !~ $cmdMode )  {
 #       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
-            	if ($cmdOSType eq '') { # Set default value 
+            	if (empty($cmdOSType)) { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS[0]" );
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
@@ -1266,7 +1307,7 @@ sub check_doc {
 #            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_OLIVE[0]" );
 #            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_OLIVE" !~ $cmdMode )  {
 #       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
-            	if ($cmdOSType eq '') { # Set default value 
+            	if (empty($cmdOSType)) { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_OLIVE[0]" );
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_OLIVE" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
@@ -1276,7 +1317,7 @@ sub check_doc {
 #            		$cmd->setAttribute( 'mode', "$EXEC_MODES_DYNAMIPS[0]" );
 #            	} elsif ( "@EXEC_MODES_DYNAMIPS" !~ $cmdMode )  {
 #       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
-            	if ($cmdOSType eq '') { # Set default value 
+            	if (empty($cmdOSType)) { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_DYNAMIPS[0]" );
             		#wlog (VVV, "-- ostype set to $EXEC_OSTYPE_DYNAMIPS[0]")
             	} elsif ( "@EXEC_OSTYPE_DYNAMIPS" !~ $cmdOSType )  {

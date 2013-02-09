@@ -67,8 +67,8 @@ use VNX::IPChecks;
 use VNX::vmAPICommon;
 #needed for UML_bootfile
 use File::Basename;
-use XML::DOM;
-#use XML::LibXML;
+#use XML::DOM;
+use XML::LibXML;
 #use XML::DOM::ValParser;
 use IO::Socket::UNIX qw( SOCK_STREAM );
 
@@ -393,7 +393,9 @@ sub defineVM {
 		my $type_tag = $init_xml->createElement('type');
 		$os_tag->addChild($type_tag);
         my $vm_arch = $vm->getAttribute("arch");
-		$type_tag->addChild( $init_xml->createAttribute( arch => "$vm_arch" ) );
+		unless (empty($vm_arch)) {
+		  $type_tag->addChild( $init_xml->createAttribute( arch => "$vm_arch" ) );	
+		}
         # DFC 23/6/2011: Added machine attribute to avoid a problem in CentOS hosts
 		$type_tag->addChild( $init_xml->createAttribute( machine => "pc" ) );
 		$type_tag->addChild( $init_xml->createTextNode("hvm") );
@@ -463,16 +465,17 @@ sub defineVM {
 		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
 
         # network <interface> tags
-		my $ifTagList = $virtualm->getElementsByTagName("if");
-		my $numif     = $ifTagList->getLength;
+		#my $ifTagList = $virtualm->getElementsByTagName("if");
+		#my $numif     = $ifTagList->getLength;
 		my $mng_if_exists = 0;
 		my $mng_if_mac;
 
-		for ( my $j = 0 ; $j < $numif ; $j++ ) {
-			my $ifTag = $ifTagList->item($j);
-			my $id    = $ifTag->getAttribute("id");
-			my $net   = $ifTag->getAttribute("net");
-			my $mac   = $ifTag->getAttribute("mac");
+		#for ( my $j = 0 ; $j < $numif ; $j++ ) {
+		foreach my $if ($virtualm->getElementsByTagName("if")) {
+			#my $ifTag = $ifTagList->item($j);
+			my $id  = $if->getAttribute("id");
+			my $net = $if->getAttribute("net");
+			my $mac = $if->getAttribute("mac");
 
 			my $interface_tag = $init_xml->createElement('interface');
 			$devices_tag->addChild($interface_tag);
@@ -534,19 +537,21 @@ sub defineVM {
 		open (CONS_FILE, "> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
 
 		# Go through <consoles> tag list to get attributes (display, port) and value  
-		my $consTagList = $virtualm->getElementsByTagName("console");
-		my $numcons     = $consTagList->getLength;
+		#my $consTagList = $virtualm->getElementsByTagName("console");
+		#my $numcons     = $consTagList->getLength;
         my $cons0Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
-		for ( my $j = 0 ; $j < $numcons ; $j++ ) {
-			my $consTag = $consTagList->item($j);
-       		my $value   = &text_tag($consTag);
-			my $id      = $consTag->getAttribute("id");
-			my $display = $consTag->getAttribute("display");
+		#for ( my $j = 0 ; $j < $numcons ; $j++ ) {
+		foreach my $cons ($virtualm->getElementsByTagName("console")) {
+			#my $consTag = $consTagList->item($j);
+       		my $value   = &text_tag($cons);
+			my $id      = $cons->getAttribute("id");
+			my $display = $cons->getAttribute("display");
        		#print "** console: id=$id, value=$value\n" if ($exemode == $EXE_VERBOSE);
 			if ( $id eq "0" ) {
 				print "WARNING (vm=$vm_name): value $value ignored for <console id='0'> tag (only 'vnc' allowed).\n" 
 				   if ( ($value ne "") && ($value ne "vnc") ); 
-				if ($display ne '') { $cons0Display = $display }
+                #if ($display ne '') { $cons0Display = $display }
+                unless (empty($display)) { $cons0Display = $display }
 			}
 			if ( $id > 0 ) {
 				print "WARNING (vm=$vm_name): only consoles with id='0' allowed for Windows libvirt virtual machines. Tag ignored.\n"
@@ -720,9 +725,9 @@ sub defineVM {
 
 		# conf tag
 		my $confFile = '';
-		my $confTagList = $virtualm->getElementsByTagName("conf");
-        if ($confTagList->getLength == 1) {
-			$confFile = $confTagList->item(0)->getFirstChild->getData;
+		my @confTagList = $virtualm->getElementsByTagName("conf");
+        if (@confTagList == 1) {
+			$confFile = $confTagList[0]->getFirstChild->getData;
 			wlog (VVV, "vm_name configuration file: $confFile", $logp);
         }
 
@@ -854,8 +859,8 @@ sub defineVM {
         #   We move all the files to the shared disk
         
         # Check if thereis any filetree in $vm_doc
-        my $filetree_tag_list = $dom->getElementsByTagName("filetree");
-        if ($filetree_tag_list->getLength > 0) { # At least one filetree defined
+        my @filetree_tag_list = $dom->getElementsByTagName("filetree");
+        if (@filetree_tag_list > 0) { # At least one filetree defined
             # Copy the files to the shared disk        
 	        my $onboot_files_dir = $dh->get_vm_tmp_dir($vm_name) . "/on_boot";
 	        $execution->execute( $logp, $bd->get_binaries_path_ref->{"mv"} . " -v $onboot_files_dir/filetree/* $sdisk_content/filetree/" );
@@ -919,16 +924,17 @@ sub defineVM {
         }
         
         # network <interface> tags linux
-		my $ifTagList = $virtualm->getElementsByTagName("if");
-		my $numif     = $ifTagList->getLength;
+		#my $ifTagList = $virtualm->getElementsByTagName("if");
+		#my $numif     = $ifTagList->getLength;
 		my $mng_if_exists = 0;
 		my $mng_if_mac;
 
-		for ( my $j = 0 ; $j < $numif ; $j++ ) {
-			my $ifTag = $ifTagList->item($j);
-			my $id    = $ifTag->getAttribute("id");
-			my $net   = $ifTag->getAttribute("net");
-            my $mac   = $ifTag->getAttribute("mac");
+		#for ( my $j = 0 ; $j < $numif ; $j++ ) {
+		foreach my $if ($virtualm->getElementsByTagName("if")) {
+			#my $ifTag = $ifTagList->item($j);
+			my $id    = $if->getAttribute("id");
+			my $net   = $if->getAttribute("net");
+            my $mac   = $if->getAttribute("mac");
 
 			# Ignore loopback interfaces (they are configured by the ACED daemon, but
 			# should not be treated by libvirt)
@@ -990,7 +996,8 @@ sub defineVM {
 			# DFC: set interface model to 'i82559er' in olive router interfaces.
 			#      Using e1000 the interfaces are not created correctly (to further investigate) 
 			if ($type eq "libvirt-kvm-olive") {
-                my $if_name = $ifTag->getAttribute("name");
+                # TODO: check that all olive interfaces have a correct name attribute
+                my $if_name = $if->getAttribute("name");
 				my $model_tag = $init_xml->createElement('model');
 				$interface_tag->addChild($model_tag);
 				wlog (VVV, "olive: adding interface $if_name", $logp);
@@ -1035,25 +1042,28 @@ sub defineVM {
 		open (CONS_FILE, "> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
 
 		# Go through <consoles> tag list to get attributes (display, port) and value  
-		my $consTagList = $virtualm->getElementsByTagName("console");
-		my $numcons     = $consTagList->getLength;
+		#my $consTagList = $virtualm->getElementsByTagName("console");
+		#my $numcons     = $consTagList->getLength;
         my $consType = $VNX::Globals::CONS1_DEFAULT_TYPE;
         my $cons0Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
         my $cons1Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
         my $cons1Port = '';
-		for ( my $j = 0 ; $j < $numcons ; $j++ ) {
-			my $consTag = $consTagList->item($j);
-       		my $value   = &text_tag($consTag);
-			my $id      = $consTag->getAttribute("id");
-			my $display = $consTag->getAttribute("display");
+		#for ( my $j = 0 ; $j < $numcons ; $j++ ) {
+		foreach my $cons ($virtualm->getElementsByTagName("console")) {
+			#my $consTag = $consTagList->item($j);
+       		my $value   = &text_tag($cons);
+			my $id      = $cons->getAttribute("id");
+			my $display = $cons->getAttribute("display");
        		#print "** console: id=$id, value=$value\n" if ($exemode == $EXE_VERBOSE);
 			if (  $id eq "0" ) {
-				if ($display ne '') { $cons0Display = $display }
+                #if ($display ne '') { $cons0Display = $display }
+				unless (empty($display)) { $cons0Display = $display }
 			}
 			if ( $id eq "1" ) {
 				if ( $value eq "pts" || $value eq "telnet" ) { $consType = $value; }
-				$cons1Port = $consTag->getAttribute("port");
-				if ($display ne '') { $cons1Display = $display }
+				$cons1Port = $cons->getAttribute("port");
+				#if ($display ne '') { $cons1Display = $display }
+                unless (empty($display)) { $cons1Display = $display }
 			}
 			if ( $id > 1 ) {
 				print "WARNING (vm=$vm_name): only consoles with id='0' or id='1' allowed for libvirt virtual machines. Tag ignored.\n"
@@ -2113,9 +2123,9 @@ sub executeCMD {
 		
 		$execution->set_verb_prompt("$vm_name> ");
 		my $shell      = $dh->get_default_shell;
-		my $shell_list = $vm->getElementsByTagName("shell");
-		if ( $shell_list->getLength == 1 ) {
-			$shell = &text_tag( $shell_list->item(0) );
+		my @shell_list = $vm->getElementsByTagName("shell");
+		if ( @shell_list == 1 ) {
+			$shell = &text_tag( $shell_list[0] );
 		}
 		my $date_command = $bd->get_binaries_path_ref->{"date"};
 		chomp( my $now = `$date_command` );
@@ -2276,7 +2286,7 @@ sub executeCMD {
 #		chomp( $now = `$cmd` );
 
 		# To process exec tags of matching commands sequence
-		my $command_list = $vm->getElementsByTagName("exec");
+		#my $command_list = $vm->getElementsByTagName("exec");
 
 # EL COMMAND_FILE YA ESTA CREADO
 		# To process list, dumping commands to file
@@ -2287,8 +2297,9 @@ sub executeCMD {
 #		$execution->execute( $logp, "<id>" . $fileid ."</id>", *COMMAND_FILE );
 
 		my $countcommand = 0;
-		for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
-			my $command = $command_list->item($j);	
+		#for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
+		foreach my $command ($vm->getElementsByTagName("exec")) {
+			#my $command = $command_list->item($j);	
 			# To get attributes
 			my $cmd_seq_string = $command->getAttribute("seq");
 			
@@ -2753,17 +2764,18 @@ sub executeCMD {
     my $doc = $dh->get_doc;
     
     # If host <host> is not present, there is nothing to do
-    return if ( $doc->getElementsByTagName("host")->getLength eq 0 );
+    return if ( $doc->getElementsByTagName("host") eq 0 );
     
     # To get <host> tag
     my $host = $doc->getElementsByTagName("host")->item(0);
     
     # To process exec tags of matching commands sequence
-    my $command_list_host = $host->getElementsByTagName("exec");
+    #my $command_list_host = $host->getElementsByTagName("exec");
     
     # To process list, dumping commands to file
-    for ( my $j = 0 ; $j < $command_list_host->getLength ; $j++ ) {
-        my $command = $command_list_host->item($j);
+    #for ( my $j = 0 ; $j < $command_list_host->getLength ; $j++ ) {
+    foreach my $command ($host->getElementsByTagName("exec")) {
+        #my $command = $command_list_host->item($j);
     
         # To get attributes
         my $cmd_seq = $command->getAttribute("seq");
@@ -2953,11 +2965,12 @@ sub get_net_by_type {
 	my $doc = $dh->get_doc;
 
 	# To get list of defined <net>
-	my $net_list = $doc->getElementsByTagName("net");
+	#my $net_list = $doc->getElementsByTagName("net");
 
 	# To process list
-	for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
-		my $net  = $net_list->item($i);
+	#for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
+	foreach my $net ($doc->getElementsByTagName("net")) {
+		#my $net  = $net_list->item($i);
 		my $name = $net->getAttribute("name");
 		my $type = $net->getAttribute("type");
 
@@ -3002,9 +3015,10 @@ sub get_ip_hostname {
 	#my $mng_if_value = &mng_if_value( $dh, $vm );
 	my $mng_if_value = &mng_if_value( $vm );
 
-	my $if_list = $vm->getElementsByTagName("if");
-	for ( my $i = 0 ; $i < $if_list->getLength ; $i++ ) {
-		my $id = $if_list->item($i)->getAttribute("id");
+	#my $if_list = $vm->getElementsByTagName("if");
+	#for ( my $i = 0 ; $i < $if_list->getLength ; $i++ ) {
+	foreach my $if ($vm->getElementsByTagName("if")) {
+		my $id = $if->getAttribute("id");
 		if (   ( $id == 0 )
 			&& $dh->get_vmmgmt_type ne 'none'
 			&& ( $mng_if_value ne "no" ) )
@@ -3015,9 +3029,9 @@ sub get_ip_hostname {
 			# allow a id=0 <if> if managemente interface hasn't been disabled
 			next;
 		}
-		my $ipv4_list = $if_list->item($i)->getElementsByTagName("ipv4");
-		if ( $ipv4_list->getLength != 0 ) {
-			my $ip = &text_tag( $ipv4_list->item(0) );
+		my @ipv4_list = $if->getElementsByTagName("ipv4");
+		if ( @ipv4_list != 0 ) {
+			my $ip = &text_tag( $ipv4_list[0] );
 			if ( &valid_ipv4_with_mask($ip) ) {
 				$ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
 				$ip = "$1.$2.$3.$4";
@@ -3041,11 +3055,13 @@ sub get_user_in_seq {
 	my $username = "";
 
 	# Looking for in <exec>
-	my $exec_list = $vm->getElementsByTagName("exec");
-	for ( my $i = 0 ; $i < $exec_list->getLength ; $i++ ) {
-		if ( $exec_list->item($i)->getAttribute("seq") eq $seq ) {
-			if ( $exec_list->item($i)->getAttribute("user") ne "" ) {
-				$username = $exec_list->item($i)->getAttribute("user");
+	#my $exec_list = $vm->getElementsByTagName("exec");
+	#for ( my $i = 0 ; $i < $exec_list->getLength ; $i++ ) {
+	foreach my $exec ($vm->getElementsByTagName("exec")) {
+		if ( $exec->getAttribute("seq") eq $seq ) {
+            #if ( $exec->getAttribute("user") ne "" ) {
+            unless ( empty($exec->getAttribute("user")) ) {
+				$username = $exec->getAttribute("user");
 				last;
 			}
 		}
@@ -3053,11 +3069,13 @@ sub get_user_in_seq {
 
 	# If not found in <exec>, try with <filetree>
 	if ( $username eq "" ) {
-		my $filetree_list = $vm->getElementsByTagName("filetree");
-		for ( my $i = 0 ; $i < $filetree_list->getLength ; $i++ ) {
-			if ( $filetree_list->item($i)->getAttribute("seq") eq $seq ) {
-				if ( $filetree_list->item($i)->getAttribute("user") ne "" ) {
-					$username = $filetree_list->item($i)->getAttribute("user");
+		#my $filetree_list = $vm->getElementsByTagName("filetree");
+		#for ( my $i = 0 ; $i < $filetree_list->getLength ; $i++ ) {
+		foreach my $filetree ($vm->getElementsByTagName("filetree")) {
+			if ( $filetree->getAttribute("seq") eq $seq ) {
+                #if ( $filetree->getAttribute("user") ne "" ) {
+                unless ( empty($filetree->getAttribute("user")) ) {
+					$username = $filetree->getAttribute("user");
 					last;
 				}
 			}
@@ -3181,12 +3199,13 @@ sub get_simple_conf {
 	my $parser       = new XML::DOM::Parser;
 	my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_olive")->item(0);
-	my $virtualmList = $globalNode->getElementsByTagName("vm");
+	#my $virtualmList = $globalNode->getElementsByTagName("vm");
 			
 	# First, we look for a definition in the $vm_name <vm> section 
-	for ( my $j = 0 ; $j < $virtualmList->getLength ; $j++ ) {
+	#for ( my $j = 0 ; $j < $virtualmList->getLength ; $j++ ) {
+	foreach my $virtualm ($globalNode->getElementsByTagName("vm")) {
 	 	# We get name attribute
-	 	my $virtualm = $virtualmList->item($j);
+	 	#my $virtualm = $virtualmList->item($j);
 		my $name = $virtualm->getAttribute("name");
 		if ( $name eq $vm_name ) {
 			my $tag_list = $virtualm->getElementsByTagName("$tagName");
@@ -3202,12 +3221,12 @@ sub get_simple_conf {
 	# Then, if a virtual machine specific definition was not found, 
 	# have a look in the <global> section
 	if ($global_tag eq 1){
-		my $globalList = $globalNode->getElementsByTagName("global");
-		if ($globalList->getLength gt 0){
-			my $globaltag = $globalList->item(0);
-			my $tag_gl_list = $globaltag->getElementsByTagName("$tagName");
-			if ($tag_gl_list->getLength gt 0){
-				my $tag_gl = $tag_gl_list->item(0);
+		my @globalList = $globalNode->getElementsByTagName("global");
+		if (@globalList gt 0){
+			my $globaltag = $globalList[0];
+			my @tag_gl_list = $globaltag->getElementsByTagName("$tagName");
+			if (@tag_gl_list gt 0){
+				my $tag_gl = $tag_gl_list[0];
 				$result = &text_tag($tag_gl);
                 print "*** vmName = $vm_name, global entry found ($result)\n";
 			}

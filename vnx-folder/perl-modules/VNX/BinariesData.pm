@@ -96,29 +96,30 @@ sub new {
 #
 sub add_additional_xterm_binaries {
 	my $self = shift;
-#	my $dh = shift;
 
     # Check <vm_defaults>, in order to detect consoles with xterm
     my %xterm_console_default;
-	my $vm_defaults_list = $dh->get_doc->getElementsByTagName("vm_defaults");
-    if ($vm_defaults_list->getLength == 1) {
-       my $console_list = $vm_defaults_list->item(0)->getElementsByTagName("console");
-       for (my $i = 0; $i < $console_list->getLength; $i++) {
-          if (&text_tag($console_list->item($i)) eq "xterm") {
-             my $console_id = $console_list->item($i)->getAttribute("id");
-             $xterm_console_default{$console_id} = 1;
-          }
-       }
+	my @vm_defaults_list = $dh->get_doc->getElementsByTagName("vm_defaults");
+    if (@vm_defaults_list == 1) {
+        #my $console_list = $vm_defaults_list[0]->getElementsByTagName("console");
+        #for (my $i = 0; $i < $console_list->getLength; $i++) {
+       	foreach my $console ($vm_defaults_list[0]->getElementsByTagName("console")) {
+            if (&text_tag($console) eq "xterm") {
+                my $console_id = $console->getAttribute("id");
+                $xterm_console_default{$console_id} = 1;
+            }
+        }
     }
 
 	my %xterm_binaries;
-	my $vm_list = $dh->get_doc->getElementsByTagName("vm");
-	for ( my $i = 0 ; $i < $vm_list->getLength; $i++ ) {
+	my @vm_list = $dh->get_doc->getElementsByTagName("vm");
+	#for ( my $i = 0 ; $i < $vm_list->getLength; $i++ ) {
+	foreach my $vm ($dh->get_doc->getElementsByTagName("vm")) {
 		# Is using the virtual machine a xterm? Check the efective
 		# consoles list
 						
 		my $xterm_is_used = 0;
-		my @console_list = $dh->merge_console($vm_list->item($i));
+		my @console_list = $dh->merge_console($vm);
 		foreach my $console (@console_list) {
 	       if (&text_tag($console) eq 'xterm') {
 		      $xterm_is_used = 1;
@@ -128,21 +129,21 @@ sub add_additional_xterm_binaries {
 		
 		if ($xterm_is_used) {
 		   my $xterm;
-		   my $xterm_list = $vm_list->item($i)->getElementsByTagName("xterm");
-		   if ($xterm_list->getLength > 0) {
-	          $xterm = &text_tag($xterm_list->item(0));
+		   my @xterm_list = $vm->getElementsByTagName("xterm");
+		   if (@xterm_list > 0) {
+	          $xterm = &text_tag($xterm_list[0]);
            }
 		   else {
 		      # If <xterm> has been specified in <vm_defaults> use that value
-			  if (($vm_defaults_list->getLength == 1) && ($vm_defaults_list->item(0)->getElementsByTagName("xterm")->getLength == 1)) {
-			     $xterm = &text_tag($vm_defaults_list->item(0)->getElementsByTagName("xterm")->item(0));
+			  if ((@vm_defaults_list == 1) && ($vm_defaults_list[0]->getElementsByTagName("xterm") == 1)) {
+			     $xterm = &text_tag($vm_defaults_list[0]->getElementsByTagName("xterm")->[0]);
 			  }
 			  else {			
 			     # Get the default xterm for the kernel
 			     my $kernel = $dh->get_default_kernel;
-		  	     my $kernel_list = $vm_list->item($i)->getElementsByTagName("kernel");
-			     if ($kernel_list->getLength > 0) {
-				    $kernel = &text_tag($kernel_list->item(0));
+		  	     my @kernel_list = $vm->getElementsByTagName("kernel");
+			     if (@kernel_list > 0) {
+				    $kernel = &text_tag($kernel_list[0]);
 			     }
 			     my $cmd = "$kernel --help | grep \"default values are 'xterm=\"";
 			     chomp(my $line = `$cmd`);
@@ -192,23 +193,24 @@ sub add_additional_vlan_binaries {
 #	- The DataHandler object describing the VNX XML specification
 #
 sub add_additional_screen_binaries {
-   my $self = shift;
+    my $self = shift;
 #   my $dh = shift;
    
-   my @list = ();
+    my @list = ();
    
-   my $vm_list = $dh->get_doc->getElementsByTagName("vm");
-   for (my $i = 0; $i < $vm_list->getLength; $i++) {
-      my @console_list = $dh->merge_console($vm_list->item($i));
-	  foreach my $console (@console_list) {
-         if (&text_tag($console) eq 'pts') {
-		    push (@list,"screen");
-		    last;
-		 }
-	  }
-   }
+    #my $vm_list = $dh->get_doc->getElementsByTagName("vm");
+    #for (my $i = 0; $i < $vm_list->getLength; $i++) {
+   	foreach my $vm ($dh->get_doc->getElementsByTagName("vm")) {
+        my @console_list = $dh->merge_console($vm);
+        foreach my $console (@console_list) {
+            if (&text_tag($console) eq 'pts') {
+                push (@list,"screen");
+                last;
+            }
+        }
+    }
       
-   $self->{'binaries_screen'} = \@list;
+    $self->{'binaries_screen'} = \@list;
 }
 
 # add_additional_uml_switch_binaries
@@ -217,25 +219,24 @@ sub add_additional_screen_binaries {
 #	- The DataHandler object describing the VNX XML specification
 #
 sub add_additional_uml_switch_binaries {
-   my $self = shift;
-#   my $dh = shift;
+    my $self = shift;
+    my @list = ();
    
-   my @list = ();
+    # Additional case: when using <mgmt_net autoconfigure="on"> uml_switch
+    # must be added.
+    if ($dh->get_vmmgmt_autoconfigure ne "") {
+        @list = ("uml_switch");
+    }   
    
-   # Additional case: when using <mgmt_net autoconfigure="on"> uml_switch
-   # must be added.
-   if ($dh->get_vmmgmt_autoconfigure ne "") {
-      @list = ("uml_switch");
-   }   
-   
-   my $net_list = $dh->get_doc->getElementsByTagName("net");
-   for (my $i = 0; $i < $net_list->getLength; $i++) {
-      if ($net_list->item($i)->getAttribute("mode") eq "uml_switch") {
-         @list  = ("uml_switch");
-         last;
-      }
-   }   
-   $self->{'binaries_switch'} = \@list;
+    #my $net_list = $dh->get_doc->getElementsByTagName("net");
+    #for (my $i = 0; $i < $net_list->getLength; $i++) {
+    foreach my $net ($dh->get_doc->getElementsByTagName("net")) {
+        if ($net->getAttribute("mode") eq "uml_switch") {
+            @list  = ("uml_switch");
+            last;
+        }
+    }   
+    $self->{'binaries_switch'} = \@list;
 }
 
 # add_additional_bridge_binaries
@@ -244,26 +245,26 @@ sub add_additional_uml_switch_binaries {
 #	- The DataHandler object describing the VNX XML specification
 #
 sub add_additional_bridge_binaries {
-   my $self = shift;
-#   my $dh = shift;
+    my $self = shift;
    
-   my @list = ();
-   my $net_list = $dh->get_doc->getElementsByTagName("net");
-   for (my $i = 0; $i < $net_list->getLength; $i++) {
-      if ($net_list->item($i)->getAttribute("mode") eq "virtual_bridge") {
-         push (@list, "brctl");
-         last;
-      }
-   }   
-   $self->{'binaries_bridge'} = \@list;
+    my @list = ();
+    #my $net_list = $dh->get_doc->getElementsByTagName("net");
+    #for (my $i = 0; $i < $net_list->getLength; $i++) {
+    foreach my $net ($dh->get_doc->getElementsByTagName("net")) {
+        if ($net->getAttribute("mode") eq "virtual_bridge") {
+            push (@list, "brctl");
+            last;
+        }
+    }   
+    $self->{'binaries_bridge'} = \@list;
 }
 
 # check_binaries_mandatory
 sub check_binaries_mandatory {
-   my $self = shift; 
-   my $ref = $self->{'binaries_mandatory'};
-   my @list = @$ref;
-   return &check_binaries($self, @list); 
+    my $self = shift; 
+    my $ref = $self->{'binaries_mandatory'};
+    my @list = @$ref;
+    return &check_binaries($self, @list); 
 }
 
 # check_binaries_screen

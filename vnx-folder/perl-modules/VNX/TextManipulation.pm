@@ -31,6 +31,7 @@ package VNX::TextManipulation;
 use strict;
 use warnings;
 use Exporter;
+#use VNX::Globals;
 
 our @ISA = qw(Exporter);
 our @EXPORT = qw( dec2bin bin2dec text_tag text_tag_multiline clean_line
@@ -58,6 +59,9 @@ sub bin2dec {
 # If the Element correpond to and emty tag, this function returns ""
 #
 sub text_tag {
+
+   #print $tracer->as_string;
+   
    my $element = $_[0];
    my @element_children = $element->getChildNodes;
    my $n = @element_children;
@@ -65,7 +69,7 @@ sub text_tag {
       return "";
    }
    else {
-      my $string = &clean_line($element_children[0]->getNodeValue);
+      my $string = &clean_line($element_children[0]->textContent());
       $string =~ s/\n//g;
       return $string;
    }
@@ -86,7 +90,7 @@ sub text_tag_multiline {
       return "";
    }
    else {
-      return &clean_line($element_children[0]->getNodeValue);
+      return &clean_line($element_children[0]->textContent());
    }
 }
 

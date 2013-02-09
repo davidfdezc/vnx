@@ -70,7 +70,7 @@ sub new {
    my %global_data;
    
    # 1. Fields that live under <vm_defaults>
-   my $vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
+   my @vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
    my $no_filesystem = 1;
    my $no_mem = 1;
    my $no_kernel = 1;
@@ -79,59 +79,59 @@ sub new {
    my $no_mgn_if = 1;
    my $no_xterm = 1;
    my $no_forwarding = 1;
-   if ($vm_defaults_list->getLength == 1) {
+   if (@vm_defaults_list == 1) {
    
-      my $filesystem_list = $vm_defaults_list->item(0)->getElementsByTagName("filesystem");
-      if ($filesystem_list->getLength == 1) {
-         $global_data{'default_filesystem'} = &do_path_expansion(&text_tag($filesystem_list->item(0)));;
-         $global_data{'default_filesystem_type'} = $filesystem_list->item(0)->getAttribute("type");
+      my @filesystem_list = $vm_defaults_list[0]->getElementsByTagName("filesystem");
+      if (@filesystem_list == 1) {
+         $global_data{'default_filesystem'} = &do_path_expansion(&text_tag($filesystem_list[0]));;
+         $global_data{'default_filesystem_type'} = $filesystem_list[0]->getAttribute("type");
          $no_filesystem = 0;
       }
       
-      my $default_mem_list = $vm_defaults_list->item(0)->getElementsByTagName("mem");
-      if ($default_mem_list->getLength == 1) {
-         $global_data{'default_mem'} = &text_tag($default_mem_list->item(0));;
+      my @default_mem_list = $vm_defaults_list[0]->getElementsByTagName("mem");
+      if (@default_mem_list == 1) {
+         $global_data{'default_mem'} = &text_tag($default_mem_list[0]);;
          $no_mem = 0;
       }
       
-      my $kernel_list = $vm_defaults_list->item(0)->getElementsByTagName("kernel");
-      if ($kernel_list->getLength == 1) {
-         $global_data{'default_kernel'} = &do_path_expansion(&text_tag($kernel_list->item(0)));
-         $global_data{'default_initrd'} = &do_path_expansion($kernel_list->item(0)->getAttribute("initrd"));
-         $global_data{'default_devfs'} = $kernel_list->item(0)->getAttribute("devfs");
-         $global_data{'default_root'} = &do_path_expansion($kernel_list->item(0)->getAttribute("root"));
-         $global_data{'default_modules'} = &do_path_expansion($kernel_list->item(0)->getAttribute("modules"));
-         $global_data{'default_trace'} = $kernel_list->item(0)->getAttribute("trace");
+      my @kernel_list = $vm_defaults_list[0]->getElementsByTagName("kernel");
+      if (@kernel_list == 1) {
+         $global_data{'default_kernel'} = &do_path_expansion(&text_tag($kernel_list[0]));
+         $global_data{'default_initrd'} = &do_path_expansion($kernel_list[0]->getAttribute("initrd"));
+         $global_data{'default_devfs'} = $kernel_list[0]->getAttribute("devfs");
+         $global_data{'default_root'} = &do_path_expansion($kernel_list[0]->getAttribute("root"));
+         $global_data{'default_modules'} = &do_path_expansion($kernel_list[0]->getAttribute("modules"));
+         $global_data{'default_trace'} = $kernel_list[0]->getAttribute("trace");
          $no_kernel = 0;
       }
       
-      my $shell_list = $vm_defaults_list->item(0)->getElementsByTagName("shell");
-      if ($shell_list->getLength == 1) {
-         $global_data{'default_shell'} = &do_path_expansion(&text_tag($shell_list->item(0)));
+      my @shell_list = $vm_defaults_list[0]->getElementsByTagName("shell");
+      if (@shell_list == 1) {
+         $global_data{'default_shell'} = &do_path_expansion(&text_tag($shell_list[0]));
          $no_shell = 0;
       }
 
-      my $basedir_list = $vm_defaults_list->item(0)->getElementsByTagName("basedir");
-      if ($basedir_list->getLength == 1) {
-         $global_data{'default_basedir'} = &do_path_expansion(&text_tag($basedir_list->item(0)));
+      my @basedir_list = $vm_defaults_list[0]->getElementsByTagName("basedir");
+      if (@basedir_list == 1) {
+         $global_data{'default_basedir'} = &do_path_expansion(&text_tag($basedir_list[0]));
          $no_basedir = 0;
       }
       
-      my $mng_if_list = $vm_defaults_list->item(0)->getElementsByTagName("mng_if");
-      if ($mng_if_list->getLength == 1) {
-         $global_data{'default_mng_if'} = &text_tag($mng_if_list->item(0));
+      my @mng_if_list = $vm_defaults_list[0]->getElementsByTagName("mng_if");
+      if (@mng_if_list == 1) {
+         $global_data{'default_mng_if'} = &text_tag($mng_if_list[0]);
          $no_mgn_if = 0;
       }
       
-      my $xterm_list = $vm_defaults_list->item(0)->getElementsByTagName("xterm");
-      if ($xterm_list->getLength == 1) {
-         $global_data{'default_xterm'} = &text_tag($xterm_list->item(0));
+      my @xterm_list = $vm_defaults_list[0]->getElementsByTagName("xterm");
+      if (@xterm_list == 1) {
+         $global_data{'default_xterm'} = &text_tag($xterm_list[0]);
          $no_xterm = 0;
       }
             
-      my $forwarding_list = $vm_defaults_list->item(0)->getElementsByTagName("forwarding");
-      if ($forwarding_list->getLength == 1) {
-         $global_data{'default_forwarding_type'} = $forwarding_list->item(0)->getAttribute("type");
+      my @forwarding_list = $vm_defaults_list[0]->getElementsByTagName("forwarding");
+      if (@forwarding_list == 1) {
+         $global_data{'default_forwarding_type'} = $forwarding_list[0]->getAttribute("type");
          $no_forwarding = 0;
       }
       
@@ -144,16 +144,18 @@ sub new {
 #         $global_data{'default_exec_mode'} = "cdrom";
 #      }
 
-      my $execmode_list = $vm_defaults_list->item(0)->getElementsByTagName("exec_mode");
+      #my @execmode_list = $vm_defaults_list[0]->getElementsByTagName("exec_mode");
       my $countcommand = 0;
-      for ( my $j = 0 ; $j < $execmode_list->getLength ; $j++ ) {
-            
-          my $command = $execmode_list->item($j);
+      #for ( my $j = 0 ; $j < $execmode_list->getLength ; $j++ ) {
+      
+      foreach my $command ($vm_defaults_list[0]->getElementsByTagName("exec_mode")) {      	
+          #my $command = $execmode_list->item($j);
           my $merged_type = $self->get_vm_merged_type($command);
           my $execmode_value = &text_tag($command);
           $global_data{"default_exec_mode-$merged_type"} =$execmode_value;
           wlog (VVV, "default exec_mode for vm type $merged_type set to $execmode_value");
-      }
+      } 
+            
    }
    
    if ($no_filesystem) {
@@ -190,17 +192,17 @@ sub new {
    # 2. Fields taken from the scenario  
 
    # scenario's name
-   my $scename_list = $self->{'doc'}->getElementsByTagName("scenario_name");
-   if ($scename_list->getLength == 1) {
-      $global_data{'scename'} = &text_tag($scename_list->item(0));
+   my @scename_list = $self->{'doc'}->getElementsByTagName("scenario_name");
+   if (@scename_list == 1) {
+      $global_data{'scename'} = &text_tag($scename_list[0]);
    }
    else {
       $self->{'execution'}->smartdie ("scenario name is missing\n");
    }
   
    # Host mapping
-   my $hostmapping_list = $self->{'doc'}->getElementsByTagName("host_mapping");
-   if ($hostmapping_list->getLength == 1) {
+   my @hostmapping_list = $self->{'doc'}->getElementsByTagName("host_mapping");
+   if (@hostmapping_list == 1) {
       $global_data{'host_mapping'} = 1;
    }
    else {
@@ -208,27 +210,27 @@ sub new {
    }
 
    # Dynamips mapping
-   my $dynamipsmapping_list = $self->{'doc'}->getElementsByTagName("dynamips_ext");
-   if ($dynamipsmapping_list->getLength == 1) {
-      $global_data{'dynamips_ext'} =  &text_tag($dynamipsmapping_list->item(0));
+   my @dynamipsmapping_list = $self->{'doc'}->getElementsByTagName("dynamips_ext");
+   if (@dynamipsmapping_list == 1) {
+      $global_data{'dynamips_ext'} =  &text_tag($dynamipsmapping_list[0]);
    }
    else {
  	  $global_data{'dynamips_ext'} = 0;             
    }
    
    # Olive mapping
-   my $olivemapping_list = $self->{'doc'}->getElementsByTagName("olive_ext");
-   if ($olivemapping_list->getLength == 1) {
-      $global_data{'olive_ext'} =  &text_tag($olivemapping_list->item(0));
+   my @olivemapping_list = $self->{'doc'}->getElementsByTagName("olive_ext");
+   if (@olivemapping_list == 1) {
+      $global_data{'olive_ext'} =  &text_tag($olivemapping_list[0]);
    }
    else {
  	  $global_data{'olive_ext'} = 0;             
    }
 
    # Network configuration options, if <netconfig> is present
-   my $netconfig_list = $self->{'doc'}->getElementsByTagName("netconfig");
-   if ($netconfig_list->getLength == 1) {
-      ($global_data{'stp'},$global_data{'promisc'}) = &netconfig($self, $netconfig_list->item(0));
+   my @netconfig_list = $self->{'doc'}->getElementsByTagName("netconfig");
+   if (@netconfig_list == 1) {
+      ($global_data{'stp'},$global_data{'promisc'}) = &netconfig($self, $netconfig_list[0]);
    }
    else {
    	  $global_data{'promisc'} = "promisc";          # by default, interfaces are set up in promiscous mode
@@ -243,9 +245,9 @@ sub new {
    $global_data{'vmmgmt_netname'} = $global_data{'scename'} . "_Mgmt";
    $global_data{'vmmgmt_hostip'} = '192.168.0.1';
    $global_data{'vmmgmt_autoconfigure'} = '';
-   my $vmmgmt_list = $self->{'doc'}->getElementsByTagName("vm_mgmt");
-   if ($vmmgmt_list->getLength == 1) {
-	  my ($type,$net,$mask,$offset,$hostip,$autoconfigure) = &vmmgmt($self, $vmmgmt_list->item(0));
+   my @vmmgmt_list = $self->{'doc'}->getElementsByTagName("vm_mgmt");
+   if (@vmmgmt_list == 1) {
+	  my ($type,$net,$mask,$offset,$hostip,$autoconfigure) = &vmmgmt($self, $vmmgmt_list[0]);
 	  if ($type ne '') {
 		  $global_data{'vmmgmt_type'} = $type;
 	  }
@@ -268,10 +270,11 @@ sub new {
 
    # AutoMAC offset
    $global_data{'automac_offset'} = 0;
-   my $automac_list = $self->{'doc'}->getElementsByTagName("automac");
-   if ($automac_list->getLength == 1) {
-      my $att = $automac_list->item(0)->getAttribute("offset");
-      if ($att =~ /^$/) {
+   my @automac_list = $self->{'doc'}->getElementsByTagName("automac");
+   if (@automac_list == 1) {
+      my $att = $automac_list[0]->getAttribute("offset");
+      #if ($att =~ /^$/) {
+      if (empty($att)) {
          $global_data{'automac_offset'} = 0;
       }
       else {
@@ -281,15 +284,15 @@ sub new {
 
    # SSH version, if present
    $global_data{'ssh_version'} = "2";	        # default SSH protocol version is 1}
-   my $ssh_version_list = $self->{'doc'}->getElementsByTagName("ssh_version");
-   if ($ssh_version_list->getLength == 1) {
-      $global_data{'ssh_version'} = &text_tag($ssh_version_list->item(0));
+   my @ssh_version_list = $self->{'doc'}->getElementsByTagName("ssh_version");
+   if (@ssh_version_list == 1) {
+      $global_data{'ssh_version'} = &text_tag($ssh_version_list[0]);
    }
 
    # Tun device, if <tun_device> is present
-   my $tun_device_list = $self->{'doc'}->getElementsByTagName("tun_device");
-   if ($tun_device_list->getLength == 1) {
-      $global_data{'tun_device'} = &do_path_expansion(&text_tag($tun_device_list->item(0)));
+   my @tun_device_list = $self->{'doc'}->getElementsByTagName("tun_device");
+   if (@tun_device_list == 1) {
+      $global_data{'tun_device'} = &do_path_expansion(&text_tag($tun_device_list[0]));
    }
    else {
       $global_data{'tun_device'} = &do_path_expansion("/dev/net/tun");   # default tun device
@@ -791,42 +794,46 @@ sub get_vm_byname {
 # TODO check there isn't duplicated order numbers
 #
 sub get_vm_ordered {
-   my $self = shift;
+    my $self = shift;
 
-   # The array to be returned at the end
-   my @vm_ordered;
+	# The array to be returned at the end
+	my @vm_ordered;
 
-   my $vm_list = $self->{'doc'}->getElementsByTagName("vm");
-   my %vm_index;
+	my @vm_list = $self->{'doc'}->getElementsByTagName("vm");
+	my %vm_index;
 
-   # Build a index hash
-   for (my $i = 0; $i < $vm_list->getLength; $i++) {
-      my $order = $vm_list->item($i)->getAttribute("order");
-      if ($order =~ /^$/) {
-        # Empty string
-        # Do nothing
-      }
-      elsif ($order =~ /^\d+$/) {
-         # A value
-         $vm_index{$order} = $i;
-      }
-      else {
-         my $name = $vm_list->item($i)->getAttribute("name");
-         $self->{'execution'}->smartdie("vm $name has invalid order string: $order");
+	# Build a index hash
+	for (my $i = 0; $i < @vm_list; $i++) {
+	 
+		my $order = $vm_list[$i]->getAttribute("order");
+		
+		if (!defined($order)) { 
+		#if ($order =~ /^$/) {
+			# Empty string
+			# Do nothing
+		}
+		elsif ($order =~ /^\d+$/) {
+			# A value
+			$vm_index{$order} = $i;
+		}
+		else {
+			my $name = $vm_list[$i]->getAttribute("name");
+            $self->{'execution'}->smartdie("vm $name has invalid order string: $order");
       }
   }
   
-  # The first machines in the are the ones with "order" attribute
+  # The first machines in the list are the ones with "order" attribute
   foreach (sort numerically keys %vm_index) {
-     @vm_ordered = (@vm_ordered, $vm_list->item($vm_index{$_}));
+     @vm_ordered = (@vm_ordered, $vm_list[$vm_index{$_}]);
   }
    
   # Finally, add machines without order, in the same order they appear in the VNX file
-  for (my $i = 0; $i < $vm_list->getLength; $i++) {
-     my $order = $vm_list->item($i)->getAttribute("order");
-     if ($order =~ /^$/) {
+  for (my $i = 0; $i < @vm_list; $i++) {
+     my $order = $vm_list[$i]->getAttribute("order");
+     if (!defined($order)) { 
+     #if ($order =~ /^$/) {
         # Empty string
-        @vm_ordered = (@vm_ordered, $vm_list->item($i));	
+        @vm_ordered = (@vm_ordered, $vm_list[$i]);	
      }
   }
 
@@ -1189,31 +1196,34 @@ sub is_ipv4_enabled {
 # is found
 #
 sub check_tag_attribute {
-   my $self = shift;
+	my $self = shift;
 
-   my $tag = shift;
-   my $attribute = shift;
-   my $matches = 0;
+	my $tag = shift;
+	my $attribute = shift;
+	my $matches = 0;
 
-   my $doc = $self->{'doc'};
+	my $doc = $self->{'doc'};
 
-   # To get list of defined tags
-   my $tag_list = $doc->getElementsByTagName($tag);
+   	# To get list of defined tags
+   	#my $tag_list = $doc->getElementsByTagName($tag);
 
-   # To process list
-   for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
-      my $tag = $tag_list->item($i);
+   	# To process list
+   	#for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
+	foreach my $tag ($doc->getElementsByTagName($tag)) {
+
+      #my $tag = $tag_list->item($i);
 
       # To try getting attribute
-      my $attribute_value = $tag->getAttribute($attribute);
+		my $attribute_value = $tag->getAttribute($attribute);
 
-      unless ($attribute_value =~ /^$/) {
-         $matches++;
-      }
+        #unless ($attribute_value =~ /^$/) {
+        unless (empty($attribute_value)) {
+			$matches++;
+		}
 
-   }
+	}
 
-   return $matches;
+	return $matches;
 
 }
 
@@ -1225,31 +1235,33 @@ sub check_tag_attribute {
 # Overriding criterium: equal id attribute.
 #
 sub merge_console {
-   my $self = shift;
+    my $self = shift;
    
-   my $vm = shift;
-   my @list = ();
+	my $vm = shift;
+	my @list = ();
    
-   # First, add from vm_defaults
-   my $vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
-   if ($vm_defaults_list->getLength == 1) {
-      my $console_list = $vm_defaults_list->item(0)->getElementsByTagName("console");
-      for (my $i = 0; $i < $console_list->getLength; $i++) {
-         my $console = $console_list->item($i);
-         my $id = $console->getAttribute("id");
-         unless (&console_in_vm($self,$vm,$id)) {
-            push (@list, $console);
-         }
-      }
-   }
+	# First, add from vm_defaults
+	my @vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
+	if (@vm_defaults_list == 1) {
+		#my $console_list = $vm_defaults_list[0]->getElementsByTagName("console");
+		#for (my $i = 0; $i < $console_list->getLength; $i++) {
+      	foreach my $console ($vm_defaults_list[0]->getElementsByTagName("console")) {
+			#my $console = $console_list->item($i);
+			my $id = $console->getAttribute("id");
+			unless (&console_in_vm($self,$vm,$id)) {
+				push (@list, $console);
+			}
+		}
+	}
    
-   # Second, add from the vm
-   my $console_list = $vm->getElementsByTagName("console");
-   for (my $i = 0; $i < $console_list->getLength; $i++) {
-      push (@list, $console_list->item($i));
-   }
+	# Second, add from the vm
+	#my $console_list = $vm->getElementsByTagName("console");
+	#for (my $i = 0; $i < $console_list->getLength; $i++) {
+    foreach my $console ($vm->getElementsByTagName("console")) {		
+		push (@list, $console);
+	}
    
-   return @list;
+	return @list;
 }
 
 # merge_route
@@ -1260,32 +1272,34 @@ sub merge_console {
 # Overriding criterium: equal type attribute and and tag value
 #
 sub merge_route {
-   my $self = shift;
+    my $self = shift;
    
-   my $vm = shift;
-   my @list = ();
+    my $vm = shift;
+    my @list = ();
    
-   # First, add from vm_defaults
-   my $vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
-   if ($vm_defaults_list->getLength == 1) {
-      my $route_list = $vm_defaults_list->item(0)->getElementsByTagName("route");
-      for (my $i = 0; $i < $route_list->getLength; $i++) {
-         my $route = $route_list->item($i);
-         my $route_type = $route->getAttribute("type");
-         my $route_dest = &text_tag($route);
-         unless (&route_in_vm($self,$vm,$route_type,$route_dest)) {
-            push (@list, $route);
-         }
-      }
-   }
+    # First, add from vm_defaults
+    my @vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
+    if (@vm_defaults_list == 1) {
+        my $route_list = $vm_defaults_list[0]->getElementsByTagName("route");
+        #for (my $i = 0; $i < $route_list->getLength; $i++) {
+        foreach my $route ( $vm_defaults_list[0]->getElementsByTagName("route") ) {
+            #my $route = $route_list->item($i);
+            my $route_type = $route->getAttribute("type");
+            my $route_dest = &text_tag($route);
+            unless (&route_in_vm($self,$vm,$route_type,$route_dest)) {
+                push (@list, $route);
+            }
+        }
+    }
    
-   # Second, add from the vm
-   my $route_list = $vm->getElementsByTagName("route");
-   for (my $i = 0; $i < $route_list->getLength; $i++) {
-      push (@list, $route_list->item($i));
-   }
+    # Second, add from the vm
+    #my $route_list = $vm->getElementsByTagName("route");
+    #for (my $i = 0; $i < $route_list->getLength; $i++) {
+    foreach my $route ( $vm->getElementsByTagName("route") ) {	    	
+        push (@list, $route);
+    }
    
-   return @list;
+    return @list;
 
 }
 
@@ -1297,31 +1311,33 @@ sub merge_route {
 # Overriding criterium: equal username attribute
 #
 sub merge_user {
-   my $self = shift;
+    my $self = shift;
 
-   my $vm = shift;
-   my @list = ();
+    my $vm = shift;
+    my @list = ();
    
-   # First, add from vm_defaults
-   my $vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
-   if ($vm_defaults_list->getLength == 1) {
-      my $user_list = $vm_defaults_list->item(0)->getElementsByTagName("user");
-      for (my $i = 0; $i < $user_list->getLength; $i++) {
-         my $user = $user_list->item($i);
-         my $username = $user->getAttribute("username");
-         unless (&user_in_vm($self,$vm,$username)) {
-            push (@list, $user);
-         }
-      }
-   }
+    # First, add from vm_defaults
+    my @vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
+    if (@vm_defaults_list == 1) {
+        #my $user_list = $vm_defaults_list->item(0)->getElementsByTagName("user");
+        #for (my $i = 0; $i < $user_list->getLength; $i++) {
+        foreach my $user ($vm_defaults_list[0]->getElementsByTagName("user")) { 
+            #my $user = $user_list->item($i);
+            my $username = $user->getAttribute("username");
+            unless (&user_in_vm($self,$vm,$username)) {
+                push (@list, $user);
+            }
+        }
+    }
    
-   # Second, add from the vm
-   my $user_list = $vm->getElementsByTagName("user");
-   for (my $i = 0; $i < $user_list->getLength; $i++) {
-      push (@list, $user_list->item($i));
-   }
+    # Second, add from the vm
+    #my $user_list = $vm->getElementsByTagName("user");
+    #for (my $i = 0; $i < $user_list->getLength; $i++) {
+    foreach my $user ($vm->getElementsByTagName("user")) { 
+        push (@list, $user);
+    }
    
-   return @list;
+    return @list;
 }
 
 # merge_filetree
@@ -1333,33 +1349,35 @@ sub merge_user {
 # (after chompslash)
 #
 sub merge_filetree {
-   my $self = shift;
+    my $self = shift;
 
-   my $vm = shift;
-   my @list = ();
+    my $vm = shift;
+    my @list = ();
    
-   # First, add from vm_defaults
-   my $vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
-   if ($vm_defaults_list->getLength == 1) {
-      my $filetree_list = $vm_defaults_list->item(0)->getElementsByTagName("filetree");
-      for (my $i = 0; $i < $filetree_list->getLength; $i++) {
-         my $filetree = $filetree_list->item($i);
-         my $when = $filetree->getAttribute("seq");
-         my $root = $filetree->getAttribute("root");
-         my $target = &text_tag($filetree);
-         unless (&filetree_in_vm($self,$vm,$when,$root,$target)) {
-            push (@list, $filetree);
-         }
-      }
-   }
+    # First, add from vm_defaults
+    my @vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
+    if (@vm_defaults_list == 1) {
+        my $filetree_list = $vm_defaults_list[0]->getElementsByTagName("filetree");
+        #for (my $i = 0; $i < $filetree_list->getLength; $i++) {
+        foreach my $filetree ($vm_defaults_list[0]->getElementsByTagName("filetree")) { 
+            #my $filetree = $filetree_list->item($i);
+            my $when = $filetree->getAttribute("seq");
+            my $root = $filetree->getAttribute("root");
+            my $target = &text_tag($filetree);
+            unless (&filetree_in_vm($self,$vm,$when,$root,$target)) {
+                push (@list, $filetree);
+            }
+        }
+    }
    
-   # Second, add from the vm
-   my $filetree_list = $vm->getElementsByTagName("filetree");
-   for (my $i = 0; $i < $filetree_list->getLength; $i++) {
-      push (@list, $filetree_list->item($i));
-   }
+    # Second, add from the vm
+    #my $filetree_list = $vm->getElementsByTagName("filetree");
+    #for (my $i = 0; $i < $filetree_list->getLength; $i++) {
+    foreach my $filetree ($vm->getElementsByTagName("filetree")) {
+        push (@list, $filetree);
+    }
    
-   return @list;
+    return @list;
 }
 
 ###########################################################################
@@ -1406,10 +1424,10 @@ sub vmmgmt {
    my $hostip = '';
    my $autoconfigure = '';
 
-   my $vmmgmt_net_list = $vmmgmt->getElementsByTagName("mgmt_net");
-   if ($vmmgmt_net_list->getLength > 0) {
-		$hostip = $vmmgmt_net_list->item(0)->getAttribute("hostip");
-		$autoconfigure = $vmmgmt_net_list->item(0)->getAttribute("autoconfigure");
+   my @vmmgmt_net_list = $vmmgmt->getElementsByTagName("mgmt_net");
+   if (@vmmgmt_net_list > 0) {
+		$hostip = $vmmgmt_net_list[0]->getAttribute("hostip");
+		$autoconfigure = $vmmgmt_net_list[0]->getAttribute("autoconfigure");
 	}
 
    return ($vmmgmt->getAttribute('type'),
@@ -1428,19 +1446,20 @@ sub vmmgmt {
 # - id attribute in <console>
 #
 sub console_in_vm {
-   my $self = shift;
+    my $self = shift;
 
-   my $vm = shift;
-   my $id = shift;
+    my $vm = shift;
+    my $id = shift;
    
-   my $console_list = $vm->getElementsByTagName("console");
-   for (my $i=0; $i < $console_list->getLength; $i++) {
-      if ($console_list->item($i)->getAttribute("id") eq $id) {
-         return 1;
-      }
-   }
+    #my $console_list = $vm->getElementsByTagName("console");
+    #for (my $i=0; $i < $console_list->getLength; $i++) {
+    foreach my $console ($vm->getElementsByTagName("console")) {
+        if ($console->getAttribute("id") eq $id) {
+            return 1;
+        }
+    }
    
-   return 0;
+    return 0;
 
 }
 
@@ -1453,21 +1472,21 @@ sub console_in_vm {
 # - destination (value of tag <route>)
 #
 sub route_in_vm {
-   my $self = shift;
+    my $self = shift;
 
-   my $vm = shift;
-   my $type = shift;
-   my $dest = shift;
+    my $vm = shift;
+    my $type = shift;
+    my $dest = shift;
    
-   my $route_list = $vm->getElementsByTagName("route");
-   for (my $i=0; $i < $route_list->getLength; $i++) {
-      if (($route_list->item($i)->getAttribute("type") eq $type) &&
-          (&text_tag($route_list->item($i)) eq $dest)) {
-         return 1;
-      }
-   }
+    #my $route_list = $vm->getElementsByTagName("route");
+    #for (my $i=0; $i < $route_list->getLength; $i++) {
+    foreach my $route ($vm->getElementsByTagName("route")) {
+        if (($route->getAttribute("type") eq $type) && (&text_tag($route) eq $dest)) {
+            return 1;
+        }
+    }
    
-   return 0;
+    return 0;
 
 }
 
@@ -1479,19 +1498,20 @@ sub route_in_vm {
 # - username attribute in <user>
 #
 sub user_in_vm {
-   my $self = shift;
+    my $self = shift;
 
-   my $vm = shift;
-   my $username = shift;
+    my $vm = shift;
+    my $username = shift;
    
-   my $user_list = $vm->getElementsByTagName("user");
-   for (my $i=0; $i < $user_list->getLength; $i++) {
-      if ($user_list->item($i)->getAttribute("username") eq $username) {
-         return 1;
-      }
-   }
+    #my $user_list = $vm->getElementsByTagName("user");
+    #for (my $i=0; $i < $user_list->getLength; $i++) {
+   	foreach my $user ($vm->getElementsByTagName("user")) {
+        if ($user->getAttribute("username") eq $username) {
+            return 1;
+        }
+    }
    
-   return 0;
+    return 0;
 
 }
 
@@ -1512,16 +1532,17 @@ sub filetree_in_vm {
    my $root = shift;
    my $target = shift;
    
-   my $filetree_list = $vm->getElementsByTagName("filetree");
-   for (my $i=0; $i < $filetree_list->getLength; $i++) {
-      if (($filetree_list->item($i)->getAttribute("seq") eq $when) &&
-          ($filetree_list->item($i)->getAttribute("root") eq $root) &&
-          (&chompslash(&text_tag($filetree_list->item($i))) eq &chompslash($target))) {
-         return 1;
-      }
-   }
+   #my $filetree_list = $vm->getElementsByTagName("filetree");
+   #for (my $i=0; $i < $filetree_list->getLength; $i++) {
+   	foreach my $filetree ($vm->getElementsByTagName("filetree")) {
+        if (($filetree->getAttribute("seq") eq $when) &&
+            ($filetree->getAttribute("root") eq $root) &&
+            (&chompslash(&text_tag($filetree)) eq &chompslash($target))) {
+                return 1;
+        }
+    }
    
-   return 0;
+    return 0;
 
 }
 
@@ -1535,11 +1556,10 @@ sub get_net_type {
    	my $self = shift;
 	my $netName = shift;
 	
-	#my $doc = $self->{'doc'}->get_doc;
-	#my $net_list = $doc->getElementsByTagName ("net");
-	my $net_list = $self->{'doc'}->getElementsByTagName("net");
-	for (my $i = 0; $i < $net_list->getLength; $i++) {
-	    my $net = $net_list->item ($i);
+	#my $net_list = $self->{'doc'}->getElementsByTagName("net");
+	#for (my $i = 0; $i < $net_list->getLength; $i++) {
+	foreach my $net ($self->{'doc'}->getElementsByTagName("net")) {
+	    #my $net = $net_list->item ($i);
 	    my $name = $net->getAttribute ("name");
         if ($name eq $netName) {
 	    	return $net->getAttribute ("type");
@@ -1556,11 +1576,10 @@ sub get_net_mode {
     my $self = shift;
     my $netName = shift;
     
-    #my $doc = $self->{'doc'}->get_doc;
-    #my $net_list = $doc->getElementsByTagName ("net");
-    my $net_list = $self->{'doc'}->getElementsByTagName("net");
-    for (my $i = 0; $i < $net_list->getLength; $i++) {
-        my $net = $net_list->item ($i);
+    #my $net_list = $self->{'doc'}->getElementsByTagName("net");
+    #for (my $i = 0; $i < $net_list->getLength; $i++) {
+    foreach my $net ($self->{'doc'}->getElementsByTagName("net")) {
+        #my $net = $net_list->item ($i);
         my $name = $net->getAttribute ("name");
         if ($name eq $netName) {
             return $net->getAttribute ("mode");
@@ -1577,11 +1596,10 @@ sub get_net_extif {
     my $self = shift;
     my $netName = shift;
     
-    #my $doc = $self->{'doc'}->get_doc;
-    #my $net_list = $doc->getElementsByTagName ("net");
-    my $net_list = $self->{'doc'}->getElementsByTagName("net");
-    for (my $i = 0; $i < $net_list->getLength; $i++) {
-        my $net = $net_list->item ($i);
+    #my $net_list = $self->{'doc'}->getElementsByTagName("net");
+    #for (my $i = 0; $i < $net_list->getLength; $i++) {
+    foreach my $net ($self->{'doc'}->getElementsByTagName("net")) {
+        #my $net = $net_list->item ($i);
         my $name = $net->getAttribute ("name");
         if ($name eq $netName) {
             return $net->getAttribute ("external");
@@ -1598,11 +1616,10 @@ sub get_net_vlan {
     my $self = shift;
     my $netName = shift;
     
-    #my $doc = $self->{'doc'}->get_doc;
-    #my $net_list = $doc->getElementsByTagName ("net");
-    my $net_list = $self->{'doc'}->getElementsByTagName("net");
-    for (my $i = 0; $i < $net_list->getLength; $i++) {
-        my $net = $net_list->item ($i);
+    #my $net_list = $self->{'doc'}->getElementsByTagName("net");
+    #for (my $i = 0; $i < $net_list->getLength; $i++) {
+    foreach my $net ($self->{'doc'}->getElementsByTagName("net")) {
+        #my $net = $net_list->item ($i);
         my $name = $net->getAttribute ("name");
         if ($name eq $netName) {
             return $net->getAttribute ("vlan");
@@ -1631,20 +1648,18 @@ sub get_vms_in_a_net {
 	my @vms;
 	my @ifs;
 	
-	#print "**** net=$netName \n";
-	# Virtual machines loop
-	#my $doc = $self->{'doc'}->get_doc;
-	#my $vms = $doc->getElementsByTagName ("vm");
-	my $vms = $self->{'doc'}->getElementsByTagName("vm");
-	for (my $i = 0; $i < $vms->getLength; $i++) {
-	    my $found;
-	    my $vm = $vms->item ($i);
+	#my $vms = $self->{'doc'}->getElementsByTagName("vm");
+	#for (my $i = 0; $i < $vms->getLength; $i++) {
+	foreach my $vm ($self->{'doc'}->getElementsByTagName("vm")) {
+        my $found;
+	    #my $vm = $vms->item ($i);
 	    my $name = $vm->getAttribute ("name");
 		# Network interfaces loop
-        my $ifs = $vm->getElementsByTagName ("if");
-        my $n = $ifs->getLength;
-        for (my $j = 0; $j < $n; $j++) {
-            my $if = $ifs->item ($j);
+        #my $ifs = $vm->getElementsByTagName ("if");
+        #my $n = $ifs->getLength;
+        #for (my $j = 0; $j < $n; $j++) {
+        foreach my $if ($vm->getElementsByTagName ("if")) {
+            #my $if = $ifs->item ($j);
             my $id = $if->getAttribute ("id");
             my $net = $if->getAttribute ("net");
             if ($net eq $netName) {
@@ -1672,9 +1687,11 @@ sub get_vm_merged_type {
 	
 	my $merged_type = $type;
 	
-	if (!($subtype eq "")){
+    #if (!($subtype eq "")){
+    if (defined($subtype)){
 		$merged_type = $merged_type . "-" . $subtype;
-		if (!($os eq "")){
+        #if (!($os eq "")){
+        if (defined($os)){
 			$merged_type = $merged_type . "-" . $os;
 		}
 	}
@@ -1698,13 +1715,15 @@ sub get_seqs {
     unless (defined($vm)) {
     	$vm = $self->{'doc'}
     }
-    my $filetree_list = $vm->getElementsByTagName("filetree");
-    for ( my $j = 0 ; $j < $filetree_list->getLength ; $j++ ) {
-        $vm_seqs{$filetree_list->item($j)->getAttribute('seq')} = 'yes';
+    #my $filetree_list = $vm->getElementsByTagName("filetree");
+    #for ( my $j = 0 ; $j < $filetree_list->getLength ; $j++ ) {
+    foreach my $filetree ($vm->getElementsByTagName("filetree")) {
+        $vm_seqs{$filetree->getAttribute('seq')} = 'yes';
     }
-    my $exec_list = $vm->getElementsByTagName("exec");
-    for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
-        $vm_seqs{$exec_list->item($j)->getAttribute('seq')} = 'yes';
+    #my $exec_list = $vm->getElementsByTagName("exec");
+    #for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
+    foreach my $exec ($vm->getElementsByTagName("exec")) {
+        $vm_seqs{$exec->getAttribute('seq')} = 'yes';
     }
 
     return %vm_seqs;

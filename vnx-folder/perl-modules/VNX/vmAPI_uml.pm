@@ -114,9 +114,9 @@ use VNX::vmAPICommon;
 use File::Basename;
 use File::Path;
 
-use XML::DOM;
+#use XML::DOM;
 
-#use XML::LibXML;
+use XML::LibXML;
 #use XML::DOM::ValParser;
 
 
@@ -388,13 +388,14 @@ sub startVM {
 		$filesystem = $dh->get_vm_fs_dir($name) . "/opt_fs";
 
 		# Install global public ssh keys in the UML
-		my $global_list = $global_doc->getElementsByTagName("global");
-		my $key_list = $global_list->item(0)->getElementsByTagName("ssh_key");
+		#my $global_list = $global_doc->getElementsByTagName("global");
+		#my $key_list = $global_list->item(0)->getElementsByTagName("ssh_key");
 
 		# If tag present, add the key
-		for ( my $j = 0 ; $j < $key_list->getLength ; $j++ ) {
+		#for ( my $j = 0 ; $j < $key_list->getLength ; $j++ ) {
+		foreach my $key ($global_doc->getElementsByTagName("global")->item(0)->getElementsByTagName("ssh_key")) {
 			my $keyfile =
-			  &do_path_expansion( &text_tag( $key_list->item($j) ) );
+			  &do_path_expansion( &text_tag( $key ) );
 			$execution->execute($logp,  $bd->get_binaries_path_ref->{"cat"}
 				  . " $keyfile >> $path"
 				  . "keyring_root" );
@@ -408,20 +409,22 @@ sub startVM {
 			$execution->execute($logp,  $bd->get_binaries_path_ref->{"touch"} 
 				  . " $path"
 				  . "group_$username" );
-			my $group_list = $user->getElementsByTagName("group");
-			for ( my $k = 0 ; $k < $group_list->getLength ; $k++ ) {
-				my $group = &text_tag( $group_list->item($k) );
-				if ( $group eq $initial_group ) {
-					$group = "*$group";
+			#my $group_list = $user->getElementsByTagName("group");
+			#for ( my $k = 0 ; $k < $group_list->getLength ; $k++ ) {
+			foreach my $group ($user->getElementsByTagName("group")) {	
+				my $group_name = &text_tag( $group );
+				if ( $group_name eq $initial_group ) {
+					$group_name = "*$group";
 				}
 				$execution->execute($logp,  $bd->get_binaries_path_ref->{"echo"}
-					  . " $group >> $path"
+					  . " $group_name >> $path"
 					  . "group_$username" );
 			}
-			my $key_list = $user->getElementsByTagName("ssh_key");
-			for ( my $k = 0 ; $k < $key_list->getLength ; $k++ ) {
+			#my $key_list = $user->getElementsByTagName("ssh_key");
+			#for ( my $k = 0 ; $k < $key_list->getLength ; $k++ ) {
+			foreach my $key ($user->getElementsByTagName("ssh_key")) {
 				my $keyfile =
-				  &do_path_expansion( &text_tag( $key_list->item($k) ) );
+				  &do_path_expansion( &text_tag( $key ) );
 				$execution->execute($logp,  $bd->get_binaries_path_ref->{"cat"}
 					  . " $keyfile >> $path"
 					  . "keyring_$username" );
@@ -463,23 +466,27 @@ sub startVM {
 	if ( $kernelTag ne 'default' ) {
 		$kernel = $kernelTag;
         wlog (VVV, "kernel tag=" . $kernel_item->toString, $logp);
-		if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
+        #if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
+        unless ( empty($kernel_item->getAttribute("initrd")) ) {
 			push( @params,
 				"initrd=" . $kernel_item->getAttribute("initrd") );
 			push( @build_params,
 				"initrd=" . $kernel_item->getAttribute("initrd") );
 		}
-		if ( $kernel_item->getAttribute("devfs") !~ /^$/ ) {
+        #if ( $kernel_item->getAttribute("devfs") !~ /^$/ ) {
+        unless ( empty($kernel_item->getAttribute("devfs")) ) {
 			push( @params, "devfs=" . $kernel_item->getAttribute("devfs") );
 			push( @build_params,
 				"devfs=" . $kernel_item->getAttribute("devfs") );
 		}
-		if ( $kernel_item->getAttribute("root") !~ /^$/ ) {
+        #if ( $kernel_item->getAttribute("root") !~ /^$/ ) {
+        unless ( empty($kernel_item->getAttribute("root")) ) {
 			push( @params, "root=" . $kernel_item->getAttribute("root") );
 			push( @build_params,
 				"root=" . $kernel_item->getAttribute("root") );
 		}
-		if ( $kernel_item->getAttribute("modules") !~ /^$/ ) {
+        #if ( $kernel_item->getAttribute("modules") !~ /^$/ ) {
+        unless ( empty($kernel_item->getAttribute("modules")) ) {
 			push( @build_params,
 				"modules=" . $kernel_item->getAttribute("modules") );
 		}
@@ -595,16 +602,17 @@ sub startVM {
 	push( @params, "mem=" . $mem );
 
 	# Go through each interface
-	my $ifTagList = $virtualm->getElementsByTagName("if");
-	my $numif     = $ifTagList->getLength;
+	#my $ifTagList = $virtualm->getElementsByTagName("if");
+	#my $numif     = $ifTagList->getLength;
 
-	for ( my $j = 0 ; $j < $numif ; $j++ ) {
+	#for ( my $j = 0 ; $j < $numif ; $j++ ) {
+	foreach my $if ($virtualm->getElementsByTagName("if")) {
 
-		my $ifTag = $ifTagList->item($j);
+		#my $ifTag = $ifTagList->item($j);
 
-		my $id  = $ifTag->getAttribute("id");
-		my $net = $ifTag->getAttribute("net");
-		my $mac = $ifTag->getAttribute("mac");
+		my $id  = $if->getAttribute("id");
+		my $net = $if->getAttribute("net");
+		my $mac = $if->getAttribute("mac");
 
 		if ( &get_net_by_mode( $net, "uml_switch" ) != 0 ) {
 			my $uml_switch_sock = $dh->get_networks_dir . "/$net.ctl";
@@ -659,27 +667,27 @@ sub startVM {
 	# Boot command execution
 
 	#get tag o_flag (el output)
-	my $o_flagTagList = $virtualm->getElementsByTagName("o_flag");
-	my $num           = $o_flagTagList->getLength;
-	my $o_flagTag     = $o_flagTagList->item(0);
+	my @o_flagTagList = $virtualm->getElementsByTagName("o_flag");
+	my $num           = @o_flagTagList;
+	my $o_flagTag     = $o_flagTagList[0];
 	my $o_flag        = "";
 	eval { $o_flag = $o_flagTag->getFirstChild->getData; };
 
 	#get tag e_flag
-	my $e_flagTagList = $virtualm->getElementsByTagName("e_flag");
-	my $e_flagTag     = $e_flagTagList->item(0);
+	my @e_flagTagList = $virtualm->getElementsByTagName("e_flag");
+	my $e_flagTag     = $e_flagTagList[0];
 	my $e_flag        = "";
 	eval { $e_flag = $e_flagTag->getFirstChild->getData; };
 
 	#get tag group2_flag (output)
-	my $group2TagList = $virtualm->getElementsByTagName("group2");
-	my $group2Tag     = $group2TagList->item(0);
+	my @group2TagList = $virtualm->getElementsByTagName("group2");
+	my $group2Tag     = $group2TagList[0];
 	my $group2        = "";
 	eval { $group2 = $group2Tag->getFirstChild->getData; };
 
 	#get tag F_flag
-	my $F_flagTagList = $virtualm->getElementsByTagName("F_flag");
-	my $F_flagTag     = $F_flagTagList->item(0);
+	my @F_flagTagList = $virtualm->getElementsByTagName("F_flag");
+	my $F_flagTag     = $F_flagTagList[0];
 	my $F_flag        = "";
 	eval { $F_flag = $F_flagTag->getFirstChild->getData; };
 
@@ -771,17 +779,18 @@ sub startVM {
 	if ( $execution->get_exe_mode() ne $EXE_DEBUG ) {
 		
 		# Go through <consoles> tag list to get default value for display attribute  
-		my $consTagList = $virtualm->getElementsByTagName("console");
-		my $numcons     = $consTagList->getLength;
+		#my $consTagList = $virtualm->getElementsByTagName("console");
+		#my $numcons     = $consTagList->getLength;
         my $consType = $VNX::Globals::CONS1_DEFAULT_TYPE;
         my $cons0Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
         my $cons1Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
         my $cons1Port = '';
-		for ( my $j = 0 ; $j < $numcons ; $j++ ) {
-			my $consTag = $consTagList->item($j);
-       		my $value   = &text_tag($consTag);
-			my $id      = $consTag->getAttribute("id");
-			my $display = $consTag->getAttribute("display");
+		#for ( my $j = 0 ; $j < $numcons ; $j++ ) {
+		foreach my $cons ($virtualm->getElementsByTagName("console")) {
+			#my $consTag = $consTagList->item($j);
+       		my $value   = &text_tag($cons);
+			my $id      = $cons->getAttribute("id");
+			my $display = $cons->getAttribute("display");
        		wlog (VVV, "console: id=$id, display=$display, value=$value", $logp);
 			if ($display ne '') {
 				if (  $id eq "0" ) {
@@ -1380,9 +1389,9 @@ sub executeCMD {
 
     # Calculate the efective basedir
     my $basedir = $dh->get_default_basedir;
-    my $basedir_list = $vm->getElementsByTagName("basedir");
-    if ($basedir_list->getLength == 1) {
-		$basedir = &text_tag($basedir_list->item(0));
+    my @basedir_list = $vm->getElementsByTagName("basedir");
+    if (@basedir_list == 1) {
+		$basedir = &text_tag($basedir_list[0]);
 	}
 	my $basename = basename $0;
 
@@ -1511,9 +1520,9 @@ sub executeCMD {
 	                #$execution->set_verb_prompt("$vm_name> ");
 			
 	                my $shell      = $dh->get_default_shell;
-	                my $shell_list = $vm->getElementsByTagName("shell");
-	                if ( $shell_list->getLength == 1 ) {
-	                    $shell = &text_tag( $shell_list->item(0) );
+	                my @shell_list = $vm->getElementsByTagName("shell");
+	                if ( @shell_list == 1 ) {
+	                    $shell = &text_tag( $shell_list[0] );
 	                }
 	                my $date_command = $bd->get_binaries_path_ref->{"date"} . " +%s";
 	                chomp( my $now = `$date_command` );
@@ -1616,9 +1625,9 @@ sub executeCMD {
 	
 	    # We create the script
 		my $shell      = $dh->get_default_shell;
-		my $shell_list = $vm->getElementsByTagName("shell");
-		if ( $shell_list->getLength == 1 ) {
-			$shell = &text_tag( $shell_list->item(0) );
+		my @shell_list = $vm->getElementsByTagName("shell");
+		if ( @shell_list == 1 ) {
+			$shell = &text_tag( $shell_list[0] );
 		}
 		my $command = $bd->get_binaries_path_ref->{"date"};
 		chomp( my $now = `$command` );
@@ -2103,11 +2112,12 @@ sub get_net_by_mode {
 	my $doc = $dh->get_doc;
 
 	# To get list of defined <net>
-	my $net_list = $doc->getElementsByTagName("net");
+	#my $net_list = $doc->getElementsByTagName("net");
 
 	# To process list
-	for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
-		my $net  = $net_list->item($i);
+	#for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
+	foreach my $net ($doc->getElementsByTagName("net")) {
+		#my $net  = $net_list->item($i);
 		my $name = $net->getAttribute("name");
 		my $mode = $net->getAttribute("mode");
 
@@ -2294,11 +2304,12 @@ sub vm_tun_access {
 	}
 
 	# To get UML's interfaces list
-	my $if_list = $vm->getElementsByTagName("if");
+	#my $if_list = $vm->getElementsByTagName("if");
 
 	# To process list
-	for ( my $j = 0 ; $j < $if_list->getLength ; $j++ ) {
-		my $if = $if_list->item($j);
+	#for ( my $j = 0 ; $j < $if_list->getLength ; $j++ ) {
+	foreach my $if ($vm->getElementsByTagName("if")) {
+		#my $if = $if_list->item($j);
 
 		# We get attribute
 		my $net = $if->getAttribute("net");
@@ -2397,9 +2408,9 @@ sub create_vm_bootfile {
 
 	# We begin boot script
 	my $shell      = $dh->get_default_shell;
-	my $shell_list = $vm->getElementsByTagName("shell");
-	if ( $shell_list->getLength == 1 ) {
-		$shell = &text_tag( $shell_list->item(0) );
+	my @shell_list = $vm->getElementsByTagName("shell");
+	if ( @shell_list == 1 ) {
+		$shell = &text_tag( $shell_list[0] );
 	}
 	my $command = $bd->get_binaries_path_ref->{"date"};
 	chomp( my $now = `$command` );
@@ -2441,12 +2452,13 @@ sub create_vm_bootfile {
 
 	# To get UML's interfaces list
 
-	my $if_list =
-	  $vm->getElementsByTagName("if");    ### usar en su lugar el xml recibido
+	#my $if_list =
+	#  $vm->getElementsByTagName("if");    ### usar en su lugar el xml recibido
 
 	# To process list
-	for ( my $i = 0 ; $i < $if_list->getLength ; $i++ ) {
-		my $if = $if_list->item($i);
+	#for ( my $i = 0 ; $i < $if_list->getLength ; $i++ ) {
+	foreach my $if ($vm->getElementsByTagName("if")) {
+		#my $if = $if_list->item($i);
 
 		# We get id and name attributes
 		my $id       = $if->getAttribute("id");
@@ -2493,10 +2505,11 @@ sub create_vm_bootfile {
 # 4a. To process interface IPv4 addresses
 # The first address have to be assigned without "add" to avoid creating subinterfaces
 		if ( $dh->is_ipv4_enabled ) {
-			my $ipv4_list = $if->getElementsByTagName("ipv4");
+			#my $ipv4_list = $if->getElementsByTagName("ipv4");
 			my $command   = "";
-			for ( my $j = 0 ; $j < $ipv4_list->getLength ; $j++ ) {
-				my $ip = &text_tag( $ipv4_list->item($j) );
+			#for ( my $j = 0 ; $j < $ipv4_list->getLength ; $j++ ) {
+			foreach my $ipv4 ($if->getElementsByTagName("ipv4")) {
+				my $ip = &text_tag( $ipv4 );
 				my $ipv4_effective_mask = "255.255.255.0";  # Default mask value
 				if ( &valid_ipv4_with_mask($ip) ) {
 
@@ -2512,7 +2525,7 @@ sub create_vm_bootfile {
 
 					# Check the value of the mask attribute
 					my $ipv4_mask_attr =
-					  $ipv4_list->item($j)->getAttribute("mask");
+					  $ipv4->getAttribute("mask");
 					if ( $ipv4_mask_attr ne "" ) {
 
 						# Slashed or dotted?
@@ -2535,9 +2548,10 @@ sub create_vm_bootfile {
 
 		# 4b. To process interface IPv6 addresses
 		if ( $dh->is_ipv6_enabled ) {
-			my $ipv6_list = $if->getElementsByTagName("ipv6");
-			for ( my $j = 0 ; $j < $ipv6_list->getLength ; $j++ ) {
-				my $ip = &text_tag( $ipv6_list->item($j) );
+			#my $ipv6_list = $if->getElementsByTagName("ipv6");
+			#for ( my $j = 0 ; $j < $ipv6_list->getLength ; $j++ ) {
+			foreach my $ipv6 ($if->getElementsByTagName("ipv6")) {
+				my $ip = &text_tag( $ipv6 );
 				if ( &valid_ipv6_with_mask($ip) ) {
 
 					# Implicit slashed mask in the address
@@ -2549,7 +2563,7 @@ sub create_vm_bootfile {
 					# Check the value of the mask attribute
 					my $ipv6_effective_mask = "/64";    # Default mask value
 					my $ipv6_mask_attr =
-					  $ipv6_list->item($j)->getAttribute("mask");
+					  $ipv6->getAttribute("mask");
 					if ( $ipv6_mask_attr ne "" ) {
 
 					   # Note that, in the case of IPv6, mask are always slashed
@@ -2615,10 +2629,11 @@ sub create_vm_bootfile {
 
 	# 6. Forwarding configuration
 	my $f_type          = $dh->get_default_forwarding_type;
-	my $forwarding_list = $vm->getElementsByTagName("forwarding");
-	if ( $forwarding_list->getLength == 1 ) {
-		$f_type = $forwarding_list->item(0)->getAttribute("type");
-		$f_type = "ip" if ( $f_type =~ /^$/ );
+	my @forwarding_list = $vm->getElementsByTagName("forwarding");
+	if ( @forwarding_list == 1 ) {
+		$f_type = $forwarding_list[0]->getAttribute("type");
+        #$f_type = "ip" if ( $f_type =~ /^$/ );
+        $f_type = "ip" if (empty($f_type));
 	}
 	if ( $dh->is_ipv4_enabled ) {
 		$execution->execute($logp,  "echo 1 > /proc/sys/net/ipv4/ip_forward",
@@ -2776,9 +2791,9 @@ sub create_vm_onboot_commands_file {
 
 	# We begin plugin configuration script
 	my $shell      = $dh->get_default_shell;
-	my $shell_list = $vm->getElementsByTagName("shell");
-	if ( $shell_list->getLength == 1 ) {
-		$shell = &text_tag( $shell_list->item(0) );
+	my @shell_list = $vm->getElementsByTagName("shell");
+	if ( @shell_list == 1 ) {
+		$shell = &text_tag( $shell_list[0] );
 	}
 	my $command = $bd->get_binaries_path_ref->{"date"};
 	chomp( my $now = `$command` );
@@ -2792,14 +2807,15 @@ sub create_vm_onboot_commands_file {
 	# Add the filetree and exec commands found in vm_doc
 	# <filetree> tags
 	my $ftree_num = 1;
-	my $filetree_taglist = $vm_doc->getElementsByTagName("filetree");
-	for (my $j = 0 ; $j < $filetree_taglist->getLength ; $j++){
-        my $filetree_tag = $filetree_taglist->item($j);
-        my $seq          = $filetree_tag->getAttribute("seq");
-        my $root         = $filetree_tag->getAttribute("root");
-        my $user         = $filetree_tag->getAttribute("user");
-        my $group        = $filetree_tag->getAttribute("group");
-        my $perms        = $filetree_tag->getAttribute("perms");
+	#my $filetree_taglist = $vm_doc->getElementsByTagName("filetree");
+	#for (my $j = 0 ; $j < $filetree_taglist->getLength ; $j++){
+	foreach my $filetree ($vm_doc->getElementsByTagName("filetree")) {
+        #my $filetree_tag = $filetree_taglist->item($j);
+        my $seq          = $filetree->getAttribute("seq");
+        my $root         = $filetree->getAttribute("root");
+        my $user         = $filetree->getAttribute("user");
+        my $group        = $filetree->getAttribute("group");
+        my $perms        = $filetree->getAttribute("perms");
 	    my $filetree_vm = "/mnt/hostfs/filetree/$ftree_num";
 	    
 	    # Copy the files
@@ -2847,13 +2863,14 @@ sub create_vm_onboot_commands_file {
 	$execution->execute($logp, "echo 1 > $path" . "onboot_commands.end",*CONFILE);
 	
     # <exec> tags
-    my $execTagList = $vm_doc->getElementsByTagName("exec");
-    for (my $j = 0 ; $j < $execTagList->getLength; $j++){
-        my $execTag = $execTagList->item($j);
-        my $seq     = $execTag->getAttribute("seq");
-        my $type    = $execTag->getAttribute("type");
-        my $ostype  = $execTag->getAttribute("ostype");
-        my $command = $execTag->getFirstChild->getData;
+    #my $execTagList = $vm_doc->getElementsByTagName("exec");
+    #for (my $j = 0 ; $j < $execTagList->getLength; $j++){
+    foreach my $exec ($vm_doc->getElementsByTagName("exec")) {
+        #my $execTag = $execTagList->item($j);
+        my $seq     = $exec->getAttribute("seq");
+        my $type    = $exec->getAttribute("type");
+        my $ostype  = $exec->getAttribute("ostype");
+        my $command = $exec->getFirstChild->getData;
         $execution->execute($logp,  "# <exec> tag: seq=$seq,type=$type,ostype=$ostype", *CONFILE );
         $execution->execute($logp,  "$command", *CONFILE );
 
@@ -2942,11 +2959,12 @@ sub get_net_by_type {
 	my $doc = $dh->get_doc;
 
 	# To get list of defined <net>
-	my $net_list = $doc->getElementsByTagName("net");
+	#my $net_list = $doc->getElementsByTagName("net");
 
 	# To process list
-	for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
-		my $net  = $net_list->item($i);
+	#for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
+	foreach my $net ($doc->getElementsByTagName("net")) {
+		#my $net  = $net_list->item($i);
 		my $name = $net->getAttribute("name");
 		my $type = $net->getAttribute("type");
 
@@ -2991,9 +3009,10 @@ sub get_ip_hostname {
 	#my $mng_if_value = &mng_if_value( $dh, $vm );
 	my $mng_if_value = &mng_if_value( $vm );
 
-	my $if_list = $vm->getElementsByTagName("if");
-	for ( my $i = 0 ; $i < $if_list->getLength ; $i++ ) {
-		my $id = $if_list->item($i)->getAttribute("id");
+	#my $if_list = $vm->getElementsByTagName("if");
+	#for ( my $i = 0 ; $i < $if_list->getLength ; $i++ ) {
+	foreach my $if ($vm->getElementsByTagName("if")) {
+		my $id = $if->getAttribute("id");
 		if (   ( $id == 0 )
 			&& $dh->get_vmmgmt_type ne 'none'
 			&& ( $mng_if_value ne "no" ) )
@@ -3004,9 +3023,9 @@ sub get_ip_hostname {
 			# allow a id=0 <if> if managemente interface hasn't been disabled
 			next;
 		}
-		my $ipv4_list = $if_list->item($i)->getElementsByTagName("ipv4");
-		if ( $ipv4_list->getLength != 0 ) {
-			my $ip = &text_tag( $ipv4_list->item(0) );
+		my @ipv4_list = $if->getElementsByTagName("ipv4");
+		if ( @ipv4_list != 0 ) {
+			my $ip = &text_tag( $ipv4_list[0] );
 			if ( &valid_ipv4_with_mask($ip) ) {
 				$ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
 				$ip = "$1.$2.$3.$4";
@@ -3072,11 +3091,12 @@ sub get_user_in_seq {
 	my $username = "";
 
 	# Looking for in <exec>
-	my $exec_list = $vm->getElementsByTagName("exec");
-	for ( my $i = 0 ; $i < $exec_list->getLength ; $i++ ) {
-		if ( $exec_list->item($i)->getAttribute("seq") eq $seq ) {
-			if ( $exec_list->item($i)->getAttribute("user") ne "" ) {
-				$username = $exec_list->item($i)->getAttribute("user");
+	#my $exec_list = $vm->getElementsByTagName("exec");
+	#for ( my $i = 0 ; $i < $exec_list->getLength ; $i++ ) {
+	foreach my $exec ($vm->getElementsByTagName("exec")) {
+		if ( $exec->getAttribute("seq") eq $seq ) {
+			if ( $exec->getAttribute("user") ne "" ) {
+				$username = $exec->getAttribute("user");
 				last;
 			}
 		}
@@ -3119,9 +3139,9 @@ sub check_mconsole_exec_capabilities {
 	# Checking the kernel
 	my $kernel_check = 0;
 	my $kernel       = $dh->get_default_kernel;
-	my $kernel_list  = $vm->getElementsByTagName("kernel");
-	if ( $kernel_list->getLength > 0 ) {
-		$kernel = &text_tag( $kernel_list->item(0) );
+	my @kernel_list  = $vm->getElementsByTagName("kernel");
+	if ( @kernel_list > 0 ) {
+		$kernel = &text_tag( $kernel_list[0] );
 
 	}
 

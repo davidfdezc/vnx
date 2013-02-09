@@ -58,17 +58,18 @@ sub exec_command_host {
 	my $doc = $dh->get_doc;
 
 	# If host <host> is not present, there is nothing to do
-	return if ( $doc->getElementsByTagName("host")->getLength eq 0 );
+	return if ( $doc->getElementsByTagName("host") eq 0 );
 
 	# To get <host> tag
 	my $host = $doc->getElementsByTagName("host")->item(0);
 
 	# To process exec tags of matching commands sequence
-	my $command_list = $host->getElementsByTagName("exec");
+	#my $command_list = $host->getElementsByTagName("exec");
 
 	# To process list, dumping commands to file
-	for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
-		my $command = $command_list->item($j);
+	#for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
+	foreach my $command ($host->getElementsByTagName("exec")) {
+		#my $command = $command_list->item($j);
 
 		# To get attributes
 		my $cmd_seq = $command->getAttribute("seq");

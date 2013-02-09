@@ -90,6 +90,9 @@ use Exception::Class ( "Vnx::Exception" =>
                          },
 		       ); 
 
+#use Devel::StackTrace;
+#$tracer = Devel::StackTrace->new;
+
 # see man Exception::Class. a hack to use Exception::Class
 # as a base class for Exceptions while using Error.pm, instead
 # of its own Error::Simple
@@ -482,10 +485,10 @@ sub main {
 	}
 
    	# Create DOM tree
-	my $parser = new XML::DOM::Parser;
+	#my $parser = new XML::DOM::Parser;
 	# TODO: migrate to XML::LibXML (XML::DOM developmentd seems to be stopped)
-	#my $parser = XML::LibXML->new();
-    my $doc = $parser->parsefile($input_file);
+	my $parser = XML::LibXML->new();
+    my $doc = $parser->parse_file($input_file);
     
        	       	
    	# Calculate the directory where the input_file lives
@@ -578,10 +581,14 @@ sub main {
  
    	push (@INC, "/usr/share/vnx/plugins");
   
-   	my $extension_list = $dh->get_doc->getElementsByTagName("extension");
-   	for ( my $i = 0; $i < $extension_list->getLength; $i++ ) {
-      	my $plugin = $extension_list->item($i)->getAttribute("plugin");
-      	my $plugin_conf = $extension_list->item($i)->getAttribute("conf");
+   	#my @extension_list = $dh->get_doc->getElementsByTagName("extension");
+   	#for ( my $i = 0; $i < @extension_list; $i++ ) {
+
+   	foreach my $extension ( $dh->get_doc->getElementsByTagName("extension") ) {
+      	#my $plugin = $extension_list->item($i)->getAttribute("plugin");
+      	#my $plugin_conf = $extension_list->item($i)->getAttribute("conf");
+      	my $plugin = $extension->getAttribute("plugin");
+      	my $plugin_conf = $extension->getAttribute("conf");
       
         if (defined($plugin_conf)) {
             # Check Plugin Configuration File (PCF) existance
@@ -1875,9 +1882,10 @@ sub get_seq_desc {
     my $seq = shift;
 
     my $doc = $dh->get_doc;
-    my $exechelp_list = $doc->getElementsByTagName("seq_help");
-    for ( my $j = 0 ; $j < $exechelp_list->getLength ; $j++ ) {
-        my $exechelp = $exechelp_list->item($j);
+    #my $exechelp_list = $doc->getElementsByTagName("seq_help");
+    #for ( my $j = 0 ; $j < $exechelp_list->getLength ; $j++ ) {
+    foreach my $exechelp ($doc->getElementsByTagName("seq_help")) {     	
+        #my $exechelp = $exechelp_list->item($j);
         #wlog (VVV, $exechelp->toString());
         if ($exechelp->getAttribute('seq') eq $seq) {
             return text_tag($exechelp);        	
@@ -1901,32 +1909,34 @@ sub configure_switched_networks {
 				"/" . $dh->get_vmmgmt_netname . ".ctl" );
 	}
 
-    my $net_list = $doc->getElementsByTagName("net");
-    for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+    #my $net_list = $doc->getElementsByTagName("net");
+    #for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+    foreach my $net ($doc->getElementsByTagName("net")) {
 
        my $command;
        # We get attributes
-       my $net_name = $net_list->item($i)->getAttribute("name");
-       my $mode     = $net_list->item($i)->getAttribute("mode");
-       my $sock     = &do_path_expansion($net_list->item($i)->getAttribute("sock"));
-       my $external_if = $net_list->item($i)->getAttribute("external");
-       my $vlan     = $net_list->item($i)->getAttribute("vlan");
-       $command     = $net_list->item($i)->getAttribute("uml_switch_binary");
+       my $net_name = $net->getAttribute("name");
+       my $mode     = $net->getAttribute("mode");
+       my $sock     = $net->getAttribute("sock");
+       unless (empty($sock)) { $sock = do_path_expansion($sock) };
+       my $external_if = $net->getAttribute("external");
+       my $vlan     = $net->getAttribute("vlan");
+       $command     = $net->getAttribute("uml_switch_binary");
 
        # Capture related attributes
-       my $capture_file = $net_list->item($i)->getAttribute("capture_file");
-       my $capture_expression = $net_list->item($i)->getAttribute("capture_expression");
-       my $capture_dev = $net_list->item($i)->getAttribute("capture_dev");
+       my $capture_file = $net->getAttribute("capture_file");
+       my $capture_expression = $net->getAttribute("capture_expression");
+       my $capture_dev = $net->getAttribute("capture_dev");
 
        # FIXME: maybe this checking should be put in CheckSemantics, due to at this
        # point, the parses has done some work that need to be undone before exiting
        # (that is what the mode_shutdown() is for)
-       if (-f $capture_file) {
+       if (!empty($capture_file) && -f $capture_file) {
        	  mode_shutdown();
           $execution->smartdie("$capture_file file already exist. Please remove it manually or specify another capture file in the VNX specification.") 
        }
 
-       my $hub     = $net_list->item($i)->getAttribute("hub");
+       my $hub = $net->getAttribute("hub");
 
        # This function only processes uml_switch networks
        if ($mode eq "uml_switch") {
@@ -1935,13 +1945,14 @@ sub configure_switched_networks {
        	  if ((&vnet_exists_sw($net_name)) && (&check_net_host_conn($net_name,$dh->get_doc))) {
        	  	wlog (N, "VNX warning: switched network $net_name with connection to host already exits. Ignoring.");
        	  }
-       	  if ((!($external_if =~ /^$/))) {
+          #if ((!($external_if =~ /^$/))) {
+          unless ( empty($external_if) ) {
        	  	wlog (N, "VNX warning: switched network $net_name with external connection to $external_if: not implemented in current version. Ignoring.");
        	  }
        	
        	  # If uml_switch does not exists, we create and set up it
           unless (&vnet_exists_sw($net_name)) {
-			if ($sock !~ /^$/) {
+			unless (empty($sock)) {
 				$execution->execute($logp, $bd->get_binaries_path_ref->{"ln"} . " -s $sock " . $dh->get_networks_dir . "/$net_name.ctl" );
 			} else {
 				 my $hub_str = ($hub eq "yes") ? "-hub" : "";
@@ -2056,77 +2067,79 @@ sub configure_switched_networks {
 # To create TUN/TAP devices
 sub configure_virtual_bridged_networks {
 
-   # TODO: to considerate "external" atribute when network is "ppp"
+    # TODO: to considerate "external" atribute when network is "ppp"
 
-   my $doc = $dh->get_doc;
-   my @vm_ordered = $dh->get_vm_ordered;
+    my $doc = $dh->get_doc;
+    my @vm_ordered = $dh->get_vm_ordered;
 
-   # 1. Set up tun devices
+    # 1. Set up tun devices
 
-   for ( my $i = 0; $i < @vm_ordered; $i++) {
-      my $vm = $vm_ordered[$i];
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
 
-      # We get name and type attribute
-      my $vm_name = $vm->getAttribute("name");
-      my $vm_type = $vm->getAttribute("type");
+        # We get name and type attribute
+        my $vm_name = $vm->getAttribute("name");
+        my $vm_type = $vm->getAttribute("type");
 
-      # Only one modprobe tun in the same execution: after checking tun_device_needed. See mode_t subroutine
-      # -----------------------
-      # To start tun module
-      #!$execution->execute( $logp, $bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
+        # Only one modprobe tun in the same execution: after checking tun_device_needed. See mode_t subroutine
+        # -----------------------
+        # To start tun module
+        #!$execution->execute( $logp, $bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
      
-      # To create management device (id 0), if needed
-      # The name of the if is: $vm_name . "-e0"
-      my $mng_if_value = &mng_if_value($vm);
+        # To create management device (id 0), if needed
+        # The name of the if is: $vm_name . "-e0"
+        my $mng_if_value = &mng_if_value($vm);
       
-      if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
-         my $tun_if = $vm_name . "-e0";
-         $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
-      }
+        if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
+            my $tun_if = $vm_name . "-e0";
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
+        }
 
-      # To get UML's interfaces list
-      my $if_list = $vm->getElementsByTagName("if");
+        # To get UML's interfaces list
+        #my $if_list = $vm->getElementsByTagName("if");
 
-      # To process list
-      for ( my $j = 0; $j < $if_list->getLength; $j++) {
-         my $if = $if_list->item($j);
+        # To process list
+        #for ( my $j = 0; $j < $if_list->getLength; $j++) {
+        foreach my $if ($vm->getElementsByTagName("if")) {      	
+            #my $if = $if_list->item($j);
 
-         # We get attribute
-         my $id = $if->getAttribute("id");
-	     my $net = $if->getAttribute("net");
+            # We get attribute
+            my $id = $if->getAttribute("id");
+            my $net = $if->getAttribute("net");
 
-         # Only TUN/TAP for interfaces attached to bridged networks
-         # We do not create tap interfaces for libvirt VMs. It is done by libvirt 
-   	     #if (&check_net_br($net)) {
-         if ( ($vm_type ne 'libvirt') && ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
-         #if ( ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
+            # Only TUN/TAP for interfaces attached to bridged networks
+            # We do not create tap interfaces for libvirt VMs. It is done by libvirt 
+            #if (&check_net_br($net)) {
+            if ( ($vm_type ne 'libvirt') && ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
+            #if ( ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
 
-	        # We build TUN device name
-	        my $tun_if = $vm_name . "-e" . $id;
+                # We build TUN device name
+                my $tun_if = $vm_name . "-e" . $id;
 
-            # To create TUN device
-	        $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
+                # To create TUN device
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
 
-            # To set up device
-            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if 0.0.0.0 " . $dh->get_promisc . " up");
-            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $tun_if up");
+                # To set up device
+                #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if 0.0.0.0 " . $dh->get_promisc . " up");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $tun_if up");
                         
-	     }
-      }
-   }
+            }
+        }
+    }
    
    # 2. Create bridges
       
-   my $net_list = $doc->getElementsByTagName("net");
+    #my $net_list = $doc->getElementsByTagName("net");
 
-   # To process list
-   for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+    # To process list
+    #for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+   	foreach my $net ($doc->getElementsByTagName("net")) {
 
       # We get name attribute
-      my $net_name    = $net_list->item($i)->getAttribute("name");
-      my $mode    = $net_list->item($i)->getAttribute("mode");
-      my $external_if = $net_list->item($i)->getAttribute("external");
-      my $vlan    = $net_list->item($i)->getAttribute("vlan");
+      my $net_name    = $net->getAttribute("name");
+      my $mode        = $net->getAttribute("mode");
+      my $external_if = $net->getAttribute("external");
+      my $vlan        = $net->getAttribute("vlan");
 
       # This function only processes virtual_bridge networks
       if ($mode ne "uml_switch") {
@@ -2166,9 +2179,11 @@ sub configure_virtual_bridged_networks {
          }
 
          # Is there an external interface associated with the network?
-         unless ($external_if =~ /^$/) {
+         #unless ($external_if =~ /^$/) {
+         unless (empty($external_if)) {
             # If there is an external interface associate, to check if VLAN is being used
-	        unless ($vlan =~ /^$/ ) {
+            #unless ($vlan =~ /^$/ ) {
+            unless (empty($vlan) ) {
 	           # If there is not any configured VLAN at this interface, we have to enable it
 	           unless (&check_vlan($external_if,"*")) {
                   #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
@@ -2204,42 +2219,43 @@ sub configure_virtual_bridged_networks {
 # To link TUN/TAP to the bridges
 sub tun_connect {
 
-   my @vm_ordered = $dh->get_vm_ordered;
+    my @vm_ordered = $dh->get_vm_ordered;
 
-   for ( my $i = 0; $i < @vm_ordered; $i++) {
-      my $vm = $vm_ordered[$i];
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
 
-      # We get name attribute
-      my $vm_name = $vm->getAttribute("name");
-      my $vm_type = $vm->getAttribute("type");
+        # We get name attribute
+        my $vm_name = $vm->getAttribute("name");
+        my $vm_type = $vm->getAttribute("type");
 
-      # To get UML's interfaces list
-      my $if_list = $vm->getElementsByTagName("if");
+        # To get UML's interfaces list
+        #my $if_list = $vm->getElementsByTagName("if");
 
-      # To process list
-      for ( my $j = 0; $j < $if_list->getLength; $j++) {
-         my $if = $if_list->item($j);
+        # To process list
+        #for ( my $j = 0; $j < $if_list->getLength; $j++) {
+      	foreach my $if ($vm->getElementsByTagName("if")) {
+            #my $if = $if_list->item($j);
 
-         # To get id attribute
-         my $id = $if->getAttribute("id");
+            # To get id attribute
+            my $id = $if->getAttribute("id");
 
-         # We get net attribute
-         my $net = $if->getAttribute("net");
+            # We get net attribute
+            my $net = $if->getAttribute("net");
 	 
-         # Only TUN/TAP for interfaces attached to bridged networks
-         # We do not add tap interfaces for libvirt VMs. It is done by libvirt 
-         #if (&check_net_br($net)) {
-         if (($vm_type ne 'libvirt') && ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
-         #if ( ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
+            # Only TUN/TAP for interfaces attached to bridged networks
+            # We do not add tap interfaces for libvirt VMs. It is done by libvirt 
+            #if (&check_net_br($net)) {
+            if (($vm_type ne 'libvirt') && ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
+            #if ( ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
 	 
-	        my $net_if = $vm_name . "-e" . $id;
+                my $net_if = $vm_name . "-e" . $id;
 
-            # We link TUN/TAP device 
-	        $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
-	     }
+                # We link TUN/TAP device 
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
+            }
 
-      }
-   }
+        }
+    }
 
 }
 
@@ -2250,16 +2266,17 @@ sub host_config {
     my $doc = $dh->get_doc;
 
     # If host tag is not present, there is nothing to do
-    return if ($doc->getElementsByTagName("host")->getLength eq 0);
+    return if ($doc->getElementsByTagName("host") eq 0);
 
     my $host = $doc->getElementsByTagName("host")->item(0);
 
     # To get host's interfaces list
-    my $if_list = $host->getElementsByTagName("hostif");
+    #my $if_list = $host->getElementsByTagName("hostif");
 
     # To process list
-    for ( my $i = 0; $i < $if_list->getLength; $i++) {
-        my $if = $if_list->item($i);
+    #for ( my $i = 0; $i < $if_list->getLength; $i++) {
+    foreach my $if ($host->getElementsByTagName("hostif")) {
+        #my $if = $if_list->item($i);
 
         # To get name and mode attribute
       	my $net = $if->getAttribute("net");
@@ -2275,11 +2292,12 @@ sub host_config {
 
 
     # To get host's routes list
-    my $route_list = $host->getElementsByTagName("route");
-    for ( my $i = 0; $i < $route_list->getLength; $i++) {
-        my $route_dest = &text_tag($route_list->item($i));;
-        my $route_gw = $route_list->item($i)->getAttribute("gw");
-        my $route_type = $route_list->item($i)->getAttribute("type");
+    #my $route_list = $host->getElementsByTagName("route");
+    #for ( my $i = 0; $i < $route_list->getLength; $i++) {
+    foreach my $route ($host->getElementsByTagName("route")) {
+        my $route_dest = &text_tag($route);;
+        my $route_gw = $route->getAttribute("gw");
+        my $route_type = $route->getAttribute("type");
         # Routes for IPv4
         if ($route_type eq "ipv4") {
             if ($dh->is_ipv4_enabled) {
@@ -2313,10 +2331,10 @@ sub host_config {
     }
 
     # Enable host forwarding
-    my $forwarding = $host->getElementsByTagName("forwarding");
-    if ($forwarding->getLength == 1) {
-        my $f_type = $forwarding->item(0)->getAttribute("type");
-        $f_type = "ip" if ($f_type =~ /^$/);
+    my @forwarding = $host->getElementsByTagName("forwarding");
+    if (@forwarding == 1) {
+        my $f_type = $forwarding[0]->getAttribute("type");
+        $f_type = "ip" if (empty($f_type));
         # TODO: change this. When not in VERBOSE mode, echos are redirected to null and do not work... 
         if ($dh->is_ipv4_enabled) {
             $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " 1 > /proc/sys/net/ipv4/ip_forward") if ($f_type eq "ip" or $f_type eq "ipv4");
@@ -2343,9 +2361,10 @@ sub hostif_addr_conf {
     # 1a. To process interface IPv4 addresses
     if ($dh->is_ipv4_enabled) {
 
-        my $ipv4_list = $if->getElementsByTagName("ipv4");
-        for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
-            my $ip = &text_tag($ipv4_list->item($j));
+        #my $ipv4_list = $if->getElementsByTagName("ipv4");
+        #for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
+        foreach my $ipv4 ($if->getElementsByTagName("ipv4")) {
+            my $ip = &text_tag($ipv4);
             my $ipv4_effective_mask = "255.255.255.0"; # Default mask value
             my $ip_addr;       
             if (&valid_ipv4_with_mask($ip)) {
@@ -2353,7 +2372,7 @@ sub hostif_addr_conf {
                 $ip_addr = NetAddr::IP->new($ip);
             } else {
                 # Check the value of the mask attribute
-                my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
+                my $ipv4_mask_attr = $ipv4->getAttribute("mask");
                 if ($ipv4_mask_attr ne "") {
                     # Slashed or dotted?
                     if (&valid_dotted_mask($ipv4_mask_attr)) {
@@ -2377,18 +2396,19 @@ sub hostif_addr_conf {
     }
 
     # 2a. To process interface IPv6 addresses
-    my $ipv6_list = $if->getElementsByTagName("ipv6");
+    #my $ipv6_list = $if->getElementsByTagName("ipv6");
     if ($dh->is_ipv6_enabled) {
             
-        for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
-            my $ip = &text_tag($ipv6_list->item($j));
+        #for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
+        foreach my $ipv6 ($if->getElementsByTagName("ipv6")) {
+            my $ip = &text_tag($ipv6);
             if (&valid_ipv6_with_mask($ip)) {
                 # Implicit slashed mask in the address
                 $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr $cmd $ip dev $net");
             } else {
                 # Check the value of the mask attribute
                 my $ipv6_effective_mask = "/64"; # Default mask value          
-                my $ipv6_mask_attr = $ipv6_list->item($j)->getAttribute("mask");
+                my $ipv6_mask_attr = $ipv6->getAttribute("mask");
                 if ($ipv6_mask_attr ne "") {
                     # Note that, in the case of IPv6, mask are always slashed
                     $ipv6_effective_mask = $ipv6_mask_attr;
@@ -2433,9 +2453,10 @@ sub chown_working_dir {
 # Check to see if any of the UMLs use xterm in console tags
 sub xauth_needed {
 
-	my $vm_list = $dh->get_doc->getElementsByTagName("vm");
-	for (my $i = 0; $i < $vm_list->getLength; $i++) {
-	   my @console_list = $dh->merge_console($vm_list->item($i));
+	#my $vm_list = $dh->get_doc->getElementsByTagName("vm");
+	#for (my $i = 0; $i < $vm_list->getLength; $i++) {
+	foreach my $vm ($dh->get_doc->getElementsByTagName("vm")) {
+	   my @console_list = $dh->merge_console($vm);
 	   foreach my $console (@console_list) {
           if (&text_tag($console) eq 'xterm') {
 		     return 1;
@@ -2737,7 +2758,9 @@ sub mode_shutdown {
          # Destroy the mgmn_net socket when <vmmgnt type="net">, if needed
          if (($dh->get_vmmgmt_type eq "net") && ($dh->get_vmmgmt_autoconfigure ne "")) {
             if ($> == 0) {
-               my $sock = &do_path_expansion($dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock"));
+               my $sock = $dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock");
+               if (empty($sock)) { $sock = ''} 
+               else              { $sock = do_path_expansion($sock) };
                if (-S $sock) {
                   # Destroy the socket
                   &mgmt_sock_destroy($sock,$dh->get_vmmgmt_autoconfigure);
@@ -2817,7 +2840,9 @@ sub get_vm_ftrees_and_execs {
         
     # Create the XML doc to store the <filetree>'s and <exec>'s returned
     # by the calls to get*Files and get*Commands
-    my $xdoc = XML::DOM::Document->new;
+    #my $xdoc = XML::DOM::Document->new;
+    my $xdoc = XML::LibXML->createDocument( "1.0", "UTF-8" );
+
     my $plugin_cmds = $xdoc->createElement('plugin_cmds');
     $xdoc->appendChild($plugin_cmds);
         
@@ -3041,10 +3066,11 @@ sub get_vm_ftrees_and_execs {
     wlog (VVV, "temporary filetrees directory content for sequence $seq \n $res");
 
     # <exec>
-    my $command_list = $vm->getElementsByTagName("exec");
-    for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
+    #my $command_list = $vm->getElementsByTagName("exec");
+    #for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
+    foreach my $command ($vm->getElementsByTagName("exec")) {
                 
-        my $command = $command_list->item($j);
+        #my $command = $command_list->item($j);
     
         # To get attributes
         my $cmd_seq_string = $command->getAttribute("seq");
@@ -3126,19 +3152,20 @@ sub host_unconfig {
    my $doc = $dh->get_doc;
 
    # If host <host> is not present, there is nothing to unconfigure
-   return if ($doc->getElementsByTagName("host")->getLength eq 0);
+   return if ($doc->getElementsByTagName("host") eq 0);
 
    # To get <host> tag
    my $host = $doc->getElementsByTagName("host")->item(0);
 
-   # To get host routes list
-   my $route_list = $host->getElementsByTagName("route");
-   for ( my $i = 0; $i < $route_list->getLength; $i++) {
-       my $route_dest = &text_tag($route_list->item($i));;
-       my $route_gw = $route_list->item($i)->getAttribute("gw");
-       my $route_type = $route_list->item($i)->getAttribute("type");
-       # Routes for IPv4
-       if ($route_type eq "ipv4") {
+    # To get host routes list
+    #my $route_list = $host->getElementsByTagName("route");
+    #for ( my $i = 0; $i < $route_list->getLength; $i++) {
+    foreach my $route ($host->getElementsByTagName("route")) {
+        my $route_dest = &text_tag($route);;
+        my $route_gw = $route->getAttribute("gw");
+        my $route_type = $route->getAttribute("type");
+        # Routes for IPv4
+        if ($route_type eq "ipv4") {
           if ($dh->is_ipv4_enabled) {
                 $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -4 route del $route_dest via $route_gw");
 =BEGIN    	
@@ -3156,8 +3183,8 @@ sub host_unconfig {
 =cut
           }
 
-       }
-       # Routes for IPv6
+        }
+        # Routes for IPv6
         else {
             if ($dh->is_ipv6_enabled) {
                 $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -6 route del $route_dest via $route_gw");
@@ -3170,12 +3197,13 @@ sub host_unconfig {
        }
    }
 
-   # To get host interfaces list
-   my $if_list = $host->getElementsByTagName("hostif");
+    # To get host interfaces list
+    #my $if_list = $host->getElementsByTagName("hostif");
 
-   # To process list
-   for ( my $i = 0; $i < $if_list->getLength; $i++) {
-	   	my $if = $if_list->item($i);
+    # To process list
+    #for ( my $i = 0; $i < $if_list->getLength; $i++) {
+   	foreach my $if ($host->getElementsByTagName("hostif")) {
+        #my $if = $if_list->item($i);
 
 	   	# To get name and mode attribute
 	   	my $net = $if->getAttribute("net");
@@ -3204,8 +3232,8 @@ sub host_unconfig {
 	   		#$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net down");
 	   		$execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net down");           
 			$execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $net -f " . $dh->get_tun_device);
-		}
-   }
+        }
+    }
 
 }
 
@@ -3219,22 +3247,24 @@ sub external_if_remove {
     my $doc = $dh->get_doc;
 
     # To get list of defined <net>
-    my $net_list = $doc->getElementsByTagName("net");
+    #my $net_list = $doc->getElementsByTagName("net");
 
     # To process list, decreasing use counter of external interfaces
-    for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
-        my $net = $net_list->item($i);
+    #for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+    foreach my $net ($doc->getElementsByTagName("net")) {
+        #my $net = $net_list->item($i);
 
         # To get name attribute
         my $net_name = $net->getAttribute("name");
 
         # We check if there is an associated external interface
         my $external_if = $net->getAttribute("external");
-        next if ($external_if =~ /^$/);
+        next if (empty($external_if));
 
         # To check if VLAN is being used
         my $vlan = $net->getAttribute("vlan");
-        $external_if .= ".$vlan" unless ($vlan =~ /^$/);
+        $external_if .= ".$vlan" unless (empty($vlan));
+        #$external_if .= ".$vlan" unless ($vlan =~ /^$/);
         #$external_if .= ":$vlan" unless ($vlan =~ /^$/);
 
         # To decrease use counter
@@ -3245,7 +3275,7 @@ sub external_if_remove {
             #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
             $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");         
             $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " delif $net_name $external_if");
-            unless ($vlan =~ /^$/) {
+            unless (empty($vlan)) {
                 $execution->execute($logp, $bd->get_binaries_path_ref->{"vconfig"} . " rem $external_if");
             } else { # No vlan associated to external if
                 # Note that now the interface has no IP address nor mask assigned, it is
@@ -3262,47 +3292,48 @@ sub external_if_remove {
 
 sub tun_destroy_switched {
 
-   my $doc = $dh->get_doc;
+    my $doc = $dh->get_doc;
 
-   # Remove the symbolic link to the management switch socket
-   if ($dh->get_vmmgmt_type eq 'net') {
-		my $socket_file = $dh->get_networks_dir . "/" . $dh->get_vmmgmt_netname . ".ctl";
-		$execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
-	}
+    # Remove the symbolic link to the management switch socket
+    if ($dh->get_vmmgmt_type eq 'net') {
+        my $socket_file = $dh->get_networks_dir . "/" . $dh->get_vmmgmt_netname . ".ctl";
+        $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
+    }
 
-   my $net_list = $doc->getElementsByTagName("net");
+    #my $net_list = $doc->getElementsByTagName("net");
 
-   for ( my $i = 0 ; $i < $net_list->getLength; $i++ ) {
+    #for ( my $i = 0 ; $i < $net_list->getLength; $i++ ) {
+   	foreach my $net ($doc->getElementsByTagName("net")) {
 
-      # We get attributes
-      my $net_name    = $net_list->item($i)->getAttribute("name");
-      my $mode    = $net_list->item($i)->getAttribute("mode");
-      my $sock    = $net_list->item($i)->getAttribute("sock");
-      my $vlan    = $net_list->item($i)->getAttribute("vlan");
-      my $cmd;
+        # We get attributes
+        my $net_name = $net->getAttribute("name");
+        my $mode     = $net->getAttribute("mode");
+        my $sock     = $net->getAttribute("sock");
+        my $vlan     = $net->getAttribute("vlan");
+        my $cmd;
       
-      # This function only processes uml_switch networks
-      if ($mode eq "uml_switch") {
+        # This function only processes uml_switch networks
+        if ($mode eq "uml_switch") {
 
-         # Decrease the use counter
-         &dec_cter("$net_name.ctl");
+            # Decrease the use counter
+            &dec_cter("$net_name.ctl");
             
-         # Destroy the uml_switch only when no other concurrent scenario is using it
-         if (&get_cter ("$net_name.ctl") == 0) {
-         	my $socket_file = $dh->get_networks_dir() . "/$net_name.ctl";
-         	# Casey (rev 1.90) proposed to use -f instead of -S, however 
-         	# I've performed some test and it fails... let's use -S?
-     		#if ($sock eq '' && -f $socket_file) {
-			if ($sock eq '' && -S $socket_file) {
-				$cmd = $bd->get_binaries_path_ref->{"kill"} . " `" .
-					$bd->get_binaries_path_ref->{"lsof"} . " -t $socket_file`";
-				$execution->execute($logp, $cmd);
-				sleep 1;
-			}
-	        $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
-         }
-      }
-   }
+            # Destroy the uml_switch only when no other concurrent scenario is using it
+            if (&get_cter ("$net_name.ctl") == 0) {
+                my $socket_file = $dh->get_networks_dir() . "/$net_name.ctl";
+                # Casey (rev 1.90) proposed to use -f instead of -S, however 
+                # I've performed some test and it fails... let's use -S?
+                #if ($sock eq '' && -f $socket_file) {
+                if ($sock eq '' && -S $socket_file) {
+                    $cmd = $bd->get_binaries_path_ref->{"kill"} . " `" .
+                        $bd->get_binaries_path_ref->{"lsof"} . " -t $socket_file`";
+                    $execution->execute($logp, $cmd);
+				    sleep 1;
+                }
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
+            }
+        }
+    }
 }
 
 ######################################################
@@ -3310,55 +3341,56 @@ sub tun_destroy_switched {
 
 sub tun_destroy {
 
-   my @vm_ordered = $dh->get_vm_ordered;
+    my @vm_ordered = $dh->get_vm_ordered;
 
-   for ( my $i = 0; $i < @vm_ordered; $i++) {
-      my $vm = $vm_ordered[$i];
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
 
-      # To get name attribute
-      my $vm_name = $vm->getAttribute("name");
+        # To get name attribute
+        my $vm_name = $vm->getAttribute("name");
 
-      # To throw away and remove management device (id 0), if neeed
-      #my $mng_if_value = &mng_if_value($dh,$vm);
-      my $mng_if_value = &mng_if_value($vm);
+        # To throw away and remove management device (id 0), if neeed
+        #my $mng_if_value = &mng_if_value($dh,$vm);
+        my $mng_if_value = &mng_if_value($vm);
       
-      if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
-         my $tun_if = $vm_name . "-e0";
-         #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
-         $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
-         $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
-      }
-
-      # To get UML's interfaces list
-      my $if_list = $vm->getElementsByTagName("if");
-
-      # To process list
-      for ( my $j = 0; $j < $if_list->getLength; $j++) {
-         my $if = $if_list->item($j);
-
-         # To get attributes
-         my $id = $if->getAttribute("id");
-         my $net = $if->getAttribute("net");
-
-         # Only exists TUN/TAP in a bridged network
-         #if (&check_net_br($net)) {
-         if (&get_net_by_mode($net,"virtual_bridge") != 0) {
-            # To build TUN device name
-            my $tun_if = $vm_name . "-e" . $id;
-
-            # To throw away TUN device
+        if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
+            my $tun_if = $vm_name . "-e0";
             #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
             $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
-
-            # To remove TUN device
-            #print "*** tun_destroy\n";
             $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
+        }
 
-         }
+        # To get UML's interfaces list
+        #my $if_list = $vm->getElementsByTagName("if");
 
-      }
+        # To process list
+        #for ( my $j = 0; $j < $if_list->getLength; $j++) {
+        foreach my $if ($vm->getElementsByTagName("if")) {
+            #my $if = $if_list->item($j);
 
-   }
+            # To get attributes
+            my $id = $if->getAttribute("id");
+            my $net = $if->getAttribute("net");
+
+            # Only exists TUN/TAP in a bridged network
+            #if (&check_net_br($net)) {
+            if (&get_net_by_mode($net,"virtual_bridge") != 0) {
+	            # To build TUN device name
+	            my $tun_if = $vm_name . "-e" . $id;
+	
+	            # To throw away TUN device
+	            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
+	            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
+	
+	            # To remove TUN device
+	            #print "*** tun_destroy\n";
+	            $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
+
+            }
+
+        }
+
+    }
 
 }
 
@@ -3367,37 +3399,38 @@ sub tun_destroy {
 
 sub bridges_destroy {
 
-   my $doc = $dh->get_doc;
+    my $doc = $dh->get_doc;
 
-   wlog (VVV, "bridges_destroy called", $logp);
-   # To get list of defined <net>
-   my $net_list = $doc->getElementsByTagName("net");
+    wlog (VVV, "bridges_destroy called", $logp);
+    # To get list of defined <net>
+    #my $net_list = $doc->getElementsByTagName("net");
 
-   # To process list, decreasing use counter of external interfaces
-   for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+    # To process list, decreasing use counter of external interfaces
+    #for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+   	foreach my $net ($doc->getElementsByTagName("net")) {
 
-      # To get attributes
-      my $net_name = $net_list->item($i)->getAttribute("name");
-      my $mode = $net_list->item($i)->getAttribute("mode");
+        # To get attributes
+        my $net_name = $net->getAttribute("name");
+        my $mode = $net->getAttribute("mode");
 
-      # This function only processes uml_switch networks
-      if ($mode ne "uml_switch") {
+        # This function only processes uml_switch networks
+        if ($mode ne "uml_switch") {
 
-         # Set bridge down and remove it only in the case there isn't any associated interface 
-         my @br_ifs =&vnet_ifs($net_name);   
-         if ( (@br_ifs == 1) && ( $br_ifs[0] eq "${net_name}-e00" ) ) {
+            # Set bridge down and remove it only in the case there isn't any associated interface 
+            my @br_ifs =&vnet_ifs($net_name);   
+            if ( (@br_ifs == 1) && ( $br_ifs[0] eq "${net_name}-e00" ) ) {
          	
-         	# Destroy the tap associated with the bridge
-            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set ${net_name}-e00 down");
-            $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d ${net_name}-e00");
+                # Destroy the tap associated with the bridge
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set ${net_name}-e00 down");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d ${net_name}-e00");
             
-            # Destroy the bridge
-            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name down");
-            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name down");
-            $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " delbr $net_name");
-         }
-      }
-   }
+                # Destroy the bridge
+                #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name down");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name down");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"brctl"} . " delbr $net_name");
+            }
+        }
+    }
 }
 
 
@@ -3442,9 +3475,10 @@ sub mode_destroy {
 
         # Delete network/$net.ports files of ppp networks
         my $doc = $dh->get_doc;
-		my $nets = $doc->getElementsByTagName ("net");
-		for (my $i = 0; $i < $nets->getLength; $i++) {
-            my $net = $nets->item ($i);
+		#my $nets = $doc->getElementsByTagName ("net");
+		#for (my $i = 0; $i < $nets->getLength; $i++) {
+		foreach my $net ($doc->getElementsByTagName ("net")) {
+            #my $net = $nets->item ($i);
             my $type = $net->getAttribute ("type");
             if ($type eq 'ppp') {
 		        $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_networks_dir 
@@ -3484,10 +3518,11 @@ sub check_user {
 	return 0 if ($> == 0);
 	
 	# Search for not uml_switch networks
-	my $net_list = $doc->getElementsByTagName("net");
-	for (my $i = 0; $i < $net_list->getLength; $i++) {
-		if ($net_list->item($i)->getAttribute("mode") ne "uml_switch") {
-			my $net_name = $net_list->item($i)->getAttribute("name");
+	#my $net_list = $doc->getElementsByTagName("net");
+	#for (my $i = 0; $i < $net_list->getLength; $i++) {
+	foreach my $net ($doc->getElementsByTagName("net")) {
+		if ($net->getAttribute("mode") ne "uml_switch") {
+			my $net_name = $net->getAttribute("name");
 			return "$net_name is a bridge_virtual net and only uml_switch virtual networks can be used by no-root users when running $basename";
 		}
 	}
@@ -3502,14 +3537,14 @@ sub check_user {
     }
 
     # Search for host configuration (no-root user can not perform any configuration in the host)
-    my $host_list = $doc->getElementsByTagName("host");
-    if ($host_list->getLength == 1) {
+    my @host_list = $doc->getElementsByTagName("host");
+    if (@host_list == 1) {
     	return "only root user can perform host configuration. Try again removing <host> tag.";
     }
     
     # Search for host_mapping (no-root user can not touch /etc/host)
-    my $host_map_list = $doc->getElementsByTagName("host_mapping");
-    if ($host_map_list->getLength == 1) {
+    my @host_map_list = $doc->getElementsByTagName("host_mapping");
+    if (@host_map_list == 1) {
     	return "only root user can perform host mapping configuration. Try again removing <host_mapping> tag.";
     }
 	
@@ -3985,13 +4020,15 @@ sub get_UML_command_ip {
                # Note that disabling IPv4 didn't assign addresses in scenario
                # interfaces, so the search can be avoided
                if ($dh->is_ipv4_enabled) {
-                  my $if_list = $vm->getElementsByTagName("if");
-                  for ( my $i = 0; $i < $if_list->getLength; $i++ ) {
-                     my $if = $if_list->item($i);
+                  #my $if_list = $vm->getElementsByTagName("if");
+                  #for ( my $i = 0; $i < $if_list->getLength; $i++ ) {
+                  foreach my $if ($vm->getElementsByTagName("if")) {
+                     #my $if = $if_list->item($i);
                      my $id = $if->getAttribute("id");
-                     my $ipv4_list = $if->getElementsByTagName("ipv4");
-                     for ( my $i = 0; $i < $ipv4_list->getLength; $i++ ) {
-                        my $ip = &text_tag($ipv4_list->item($i));
+                     #my $ipv4_list = $if->getElementsByTagName("ipv4");
+                     #for ( my $i = 0; $i < $ipv4_list->getLength; $i++ ) {
+                     foreach my $ipv4 ($if->getElementsByTagName("ipv4")) {
+                        my $ip = &text_tag($ipv4);
                         my $ip_effective;
                         # IP could end in /mask, so we are prepared to remove the suffix
                         # in that case
@@ -4060,9 +4097,9 @@ sub automac {
 
       my $doc = $dh->get_doc;
 
-      my $automac_list = $doc->getElementsByTagName("automac");
+      my @automac_list = $doc->getElementsByTagName("automac");
       # If tag is not in use, return empty string
-      if ($automac_list->getLength == 0) {
+      if (@automac_list == 0) {
          return "";
       }
 
@@ -4158,39 +4195,40 @@ sub physicalif_config {
 
    my $doc = $dh->get_doc;
 
-   # To get list of defined <physicalif>
-   my $phyif_list = $doc->getElementsByTagName("physicalif");
+    # To get list of defined <physicalif>
+    #my $phyif_list = $doc->getElementsByTagName("physicalif");
 
-   # To process list
-   for ( my $i = 0; $i < $phyif_list->getLength; $i++ ) {
-      my $phyif = $phyif_list->item($i);
+    # To process list
+    #for ( my $i = 0; $i < $phyif_list->getLength; $i++ ) {
+    foreach my $phyif ($doc->getElementsByTagName("physicalif")) {
+        #my $phyif = $phyif_list->item($i);
 
-      my $name = $phyif->getAttribute("name");
-      if ($name eq $interface) {
-      	 my $type = $phyif->getAttribute("type");
-      	 if ($type eq "ipv6") {
-      	 	#IPv6 configuration
-      	 	my $ip = $phyif->getAttribute("ip");
-      	 	my $gw = $phyif->getAttribute("gw");
-            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $interface add $ip");
-            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add $ip dev $interface");
-      	 	unless ($gw =~ /^$/ ) {
-               #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $gw");            
-               $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $gw");            
-      	 	}
-      	 }
-      	 else {
-      	 	#IPv4 configuration
+        my $name = $phyif->getAttribute("name");
+        if ($name eq $interface) {
+            my $type = $phyif->getAttribute("type");
+            if ($type eq "ipv6") {
+                #IPv6 configuration
+                my $ip = $phyif->getAttribute("ip");
+                my $gw = $phyif->getAttribute("gw");
+                #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $interface add $ip");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add $ip dev $interface");
+                unless (empty($gw)) {
+                    #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " -A inet6 add 2000::/3 gw $gw");            
+                    $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -6 route add default via $gw");            
+            }
+        }
+        else {
+            #IPv4 configuration
       	 	my $ip = $phyif->getAttribute("ip");
 	        my $gw = $phyif->getAttribute("gw");
    	        my $mask = $phyif->getAttribute("mask");
-            $mask="255.255.255.0" if ($mask =~ /^$/);
+            $mask="255.255.255.0" if (empty($mask));
             my $ip_addr = NetAddr::IP->new($ip,$mask);
             #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $interface $ip netmask $mask");
             $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $interface");
-       	 	unless ($gw =~ /^$/ ) {
-               #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " add default gw $gw");
-               $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $gw");
+       	 	unless (empty($gw)) {
+                #$execution->execute($logp, $bd->get_binaries_path_ref->{"route"} . " add default gw $gw");
+                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " -4 route add default via $gw");
        	 	}
       	 }
       }
@@ -4231,25 +4269,26 @@ sub get_net_by_mode {
    
    my $doc = $dh->get_doc;
    
-   # To get list of defined <net>
-   my $net_list = $doc->getElementsByTagName("net");
+    # To get list of defined <net>
+    #my $net_list = $doc->getElementsByTagName("net");
 
-   # To process list
-   for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
-   	  my $net = $net_list->item($i);
-      my $name = $net->getAttribute("name");
-      my $mode = $net->getAttribute("mode");
+    # To process list
+    #for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+   	foreach my $net ($doc->getElementsByTagName("net")) {
+   	    #my $net = $net_list->item($i);
+        my $name = $net->getAttribute("name");
+        my $mode = $net->getAttribute("mode");
 
-      if (($name_target eq $name) && (($mode_target eq "*") || ($mode_target eq $mode))) {
-         return $net;
-      }
-      # Special case (implicit virtual_bridge)
-      if (($name_target eq $name) && ($mode_target eq "virtual_bridge") && ($mode eq "")) {
-         return $net;
-      }
-   }
+        if (($name_target eq $name) && (($mode_target eq "*") || ($mode_target eq $mode))) {
+            return $net;
+        }
+        # Special case (implicit virtual_bridge)
+        if (($name_target eq $name) && ($mode_target eq "virtual_bridge") && ($mode eq "")) {
+            return $net;
+        }
+    }
    
-   return 0;	
+    return 0;	
 }
 
 
@@ -4442,41 +4481,43 @@ sub change_vm_status {
 #
 sub get_user_in_seq {
 
-   my $vm = shift;
-   my $seq = shift;
+    my $vm = shift;
+    my $seq = shift;
 
-   my $username = "";
+    my $username = "";
 
-   # Lookinf for in <exec>   
-   my $exec_list = $vm->getElementsByTagName("exec");
-   for (my $i = 0 ; $i < $exec_list->getLength; $i++) {
-      if ($exec_list->item($i)->getAttribute("seq") eq $seq) {
-         if ($exec_list->item($i)->getAttribute("user") ne "") {
-            $username = $exec_list->item($i)->getAttribute("user");
-            last;
-         }
-      }
-   }
-
-   # If not found in <exec>, try with <filetree>   
-   if ($username eq "") {
-      my $filetree_list = $vm->getElementsByTagName("filetree");
-      for (my $i = 0 ; $i < $filetree_list->getLength; $i++) {
-         if ($filetree_list->item($i)->getAttribute("seq") eq $seq) {
-            if ($filetree_list->item($i)->getAttribute("user") ne "") {
-               $username = $filetree_list->item($i)->getAttribute("user");
-               last;
+    # Lookinf for in <exec>   
+    #my $exec_list = $vm->getElementsByTagName("exec");
+    #for (my $i = 0 ; $i < $exec_list->getLength; $i++) {
+    foreach my $exec ($vm->getElementsByTagName("exec")) {
+        if ($exec->getAttribute("seq") eq $seq) {
+            if ($exec->getAttribute("user") ne "") {
+                $username = $exec->getAttribute("user");
+                last;
             }
-         }
-      }
-   }
+        }
+    }
 
-   # If no mode was found in <exec> or <filetree>, use default   
-   if ($username eq "") {
-      $username = "root";
-   }
+    # If not found in <exec>, try with <filetree>   
+    if ($username eq "") {
+        #my $filetree_list = $vm->getElementsByTagName("filetree");
+        #for (my $i = 0 ; $i < $filetree_list->getLength; $i++) {
+        foreach my $filetree ($vm->getElementsByTagName("filetree")) {
+            if ($filetree->getAttribute("seq") eq $seq) {
+                if ($filetree->getAttribute("user") ne "") {
+                    $username = $filetree->getAttribute("user");
+                    last;
+                }
+            }
+        }
+    }
+
+    # If no mode was found in <exec> or <filetree>, use default   
+    if ($username eq "") {
+        $username = "root";
+    }
    
-   return $username;
+    return $username;
       
 }
 
@@ -4675,14 +4716,16 @@ sub build_topology{
             # Create the mgmn_net socket when <vmmgnt type="net">, if needed
             if (($dh->get_vmmgmt_type eq "net") && ($dh->get_vmmgmt_autoconfigure ne "")) {
                 if ($> == 0) {
-                    my $sock = &do_path_expansion($dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock"));
-                        if (-S $sock) {
-                            wlog (V, "VNX warning: <mgmt_net> socket already exists. Ignoring socket autoconfiguration", $logp);
-                        }
-                        else {
+                    my $sock = $dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock");
+                    if (empty($sock)) { $sock = ''}
+                    else              { &do_path_expansion($sock) };
+                    if (-S $sock) {
+                        wlog (V, "VNX warning: <mgmt_net> socket already exists. Ignoring socket autoconfiguration", $logp);
+                    }
+                    else {
                         # Create the socket
                         &mgmt_sock_create($sock,$dh->get_vmmgmt_autoconfigure,$dh->get_vmmgmt_hostip,$dh->get_vmmgmt_mask);
-                        }
+                    }
                 }
                 else {
                     wlog (V, "VNX warning: <mgmt_net> autoconfigure attribute only is used when VNX parser is invoked by root. Ignoring socket autoconfiguration", $logp);
@@ -4753,13 +4796,13 @@ sub make_vmAPI_doc {
    	# To get filesystem and type
    	my $filesystem;
    	my $filesystem_type;
-   	my $filesystem_list = $vm->getElementsByTagName("filesystem");
+   	my @filesystem_list = $vm->getElementsByTagName("filesystem");
 
    	# filesystem tag in dom tree        
    	my $fs_tag = $dom->createElement('filesystem');
    	$vm_tag->addChild($fs_tag);
 
-   	if ($filesystem_list->getLength == 1) {
+   	if (@filesystem_list == 1) {
       	# $filesystem = &do_path_expansion(&text_tag($vm->getElementsByTagName("filesystem")->item(0)));
       	$filesystem = &get_abs_path(&text_tag($vm->getElementsByTagName("filesystem")->item(0)));
       	$filesystem_type = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
@@ -4779,9 +4822,9 @@ sub make_vmAPI_doc {
 
    	# Memory assignment
    	my $mem = $dh->get_default_mem;      
-   	my $mem_list = $vm->getElementsByTagName("mem");
-   	if ($mem_list->getLength == 1) {
-      	$mem = &text_tag($mem_list->item(0));
+   	my @mem_list = $vm->getElementsByTagName("mem");
+   	if (@mem_list == 1) {
+      	$mem = &text_tag($mem_list[0]);
    	}
    
 	# Convert <mem> tag value to Kilobytes (only "M" and "G" letters are allowed) 
@@ -4802,27 +4845,31 @@ sub make_vmAPI_doc {
    	my $kernel;
    	my @params;
    	my @build_params;
-   	my $kernel_list = $vm->getElementsByTagName("kernel");
+   	my  @kernel_list = $vm->getElementsByTagName("kernel");
       
    	# kernel tag in dom tree
    	my $kernel_tag = $dom->createElement('kernel');
    	$vm_tag->addChild($kernel_tag);
-   	if ($kernel_list->getLength == 1) {
-      	my $kernel_item = $kernel_list->item(0);
+   	if (@kernel_list == 1) {
+      	my $kernel_item = $kernel_list[0];
       	$kernel = &do_path_expansion(&text_tag($kernel_item));         
       	# to dom tree
       	$kernel_tag->addChild($dom->createTextNode($kernel));
         # Set kernel attributes      	
-        if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
+        #if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
+        unless ( empty($kernel_item->getAttribute("initrd")) ) {
             $kernel_tag->addChild($dom->createAttribute( initrd => $kernel_item->getAttribute("initrd")));
         }
-        if ( $kernel_item->getAttribute("devfs") !~ /^$/ ) {
+        #if ( $kernel_item->getAttribute("devfs") !~ /^$/ ) {
+        unless ( empty($kernel_item->getAttribute("devfs")) ) {
             $kernel_tag->addChild($dom->createAttribute( devfs => $kernel_item->getAttribute("devfs")));
         }
-        if ( $kernel_item->getAttribute("root") !~ /^$/ ) {
+        #if ( $kernel_item->getAttribute("root") !~ /^$/ ) {
+        unless ( empty($kernel_item->getAttribute("root"))) {
             $kernel_tag->addChild($dom->createAttribute( root => $kernel_item->getAttribute("root")));
         }
-        if ( $kernel_item->getAttribute("modules") !~ /^$/ ) {
+        #if ( $kernel_item->getAttribute("modules") !~ /^$/ ) {
+        unless ( empty($kernel_item->getAttribute("modules")) ) {
             $kernel_tag->addChild($dom->createAttribute( modules => $kernel_item->getAttribute("modules")));
         }
         if ( $kernel_item->getAttribute("trace") eq "on" ) {
@@ -4836,10 +4883,10 @@ sub make_vmAPI_doc {
    	
    	# conf tag
    	my $conf;
-   	my $conf_list = $vm->getElementsByTagName("conf");
-   	if ($conf_list->getLength == 1) {
+   	my @conf_list = $vm->getElementsByTagName("conf");
+   	if (@conf_list == 1) {
 		# get config file from the <conf> tag
-      	$conf = &get_abs_path ( &text_tag($conf_list->item(0)) );
+      	$conf = &get_abs_path ( &text_tag($conf_list[0]) );
    		#print "***  conf=$conf\n";
 	   	# create <conf> tag in dom tree
 		my $conf_tag = $dom->createElement('conf');
@@ -4866,7 +4913,7 @@ sub make_vmAPI_doc {
                 $console_tag->addChild($dom->createAttribute( display => $console_display));
             }
             my $console_port = $console->getAttribute("port");
-            if ($console_port ne "") {
+            unless (empty($console_port)) {
                 $console_tag->addChild($dom->createAttribute( port => $console_port));
             }  
 		}
@@ -4883,9 +4930,10 @@ sub make_vmAPI_doc {
 		# to specify the name of the mgmt interface with a tag like this:
 		#       <if id="0" net="vm_mgmt" name="e0/0">
    		my $mgmtIfName;
-   		my $if_list = $vm->getElementsByTagName("if");
-   		for ( my $j = 0; $j < $if_list->getLength; $j++) {
-      		my $if = $if_list->item($j);
+   		#my $if_list = $vm->getElementsByTagName("if");
+   		#for ( my $j = 0; $j < $if_list->getLength; $j++) {
+   		foreach my $if ($vm->getElementsByTagName("if")) {
+      		#my $if = $if_list->item($j);
       		my $id = $if->getAttribute("id");
       		#print "**** If id=$id\n";
       		
@@ -4924,13 +4972,14 @@ sub make_vmAPI_doc {
    
    	# To process all interfaces
    	# To get UML's interfaces list
-   	my $if_list = $vm->getElementsByTagName("if");
+   	#my $if_list = $vm->getElementsByTagName("if");
 
    	# To process list, we ignore interface zero since it
    	# gets setup as necessary management interface
-   	for ( my $j = 0; $j < $if_list->getLength; $j++) {
+   	#for ( my $j = 0; $j < $if_list->getLength; $j++) {
+   	foreach my $if ($vm->getElementsByTagName("if")) {
       
-      	my $if = $if_list->item($j);
+      	#my $if = $if_list->item($j);
     
       	# To get attributes
       	my $id = $if->getAttribute("id");
@@ -4940,15 +4989,15 @@ sub make_vmAPI_doc {
 		if ($id > 0) { 
 	
 	      	# To get MAC address
-	      	my $mac_list = $if->getElementsByTagName("mac");
+	      	my @mac_list = $if->getElementsByTagName("mac");
 	      	my $mac;
 	      	# If <mac> is not present, we ask for an automatic one (if
 	      	# <automac> is not enable may be null; in this case UML 
 	      	# autoconfiguration based in IP address of the interface 
 	      	# is used -but it doesn't work with IPv6!)
-	      	if ($mac_list->getLength == 1) {
+	      	if (@mac_list == 1) {
 	      	
-	         	$mac = &text_tag($mac_list->item(0));
+	         	$mac = &text_tag($mac_list[0]);
 	         	# expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
 	         	$mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
 	         	$mac = "," . $mac;
@@ -4972,7 +5021,9 @@ sub make_vmAPI_doc {
 	      	$if_tag->addChild( $dom->createAttribute( mac => $mac));
 	      	try {
 	      		my $name = $if->getAttribute("name");
-	      		$if_tag->addChild( $dom->createAttribute( name => $name));
+	      		unless (empty($name)) { 
+	      			$if_tag->addChild( $dom->createAttribute( name => $name)) 
+	      		};
 	      	} 
 	      	catch Error with {
 	      	
@@ -4981,11 +5032,12 @@ sub make_vmAPI_doc {
 	      	# To process interface IPv4 addresses
 	      	# The first address has to be assigned without "add" to avoid creating subinterfaces
 	      	if ($dh->is_ipv4_enabled) {
-	         	my $ipv4_list = $if->getElementsByTagName("ipv4");
+	         	#my $ipv4_list = $if->getElementsByTagName("ipv4");
 	         	#my $command = "";
-	         	for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
+	         	#for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
+	         	foreach my $ipv4 ($if->getElementsByTagName("ipv4")) {
 	
-	            	my $ip = &text_tag($ipv4_list->item($j));
+	            	my $ip = &text_tag($ipv4);
 	            	my $ipv4_effective_mask = "255.255.255.0"; # Default mask value	       
 	            	if (&valid_ipv4_with_mask($ip)) {
 	               		# Implicit slashed mask in the address
@@ -4997,7 +5049,7 @@ sub make_vmAPI_doc {
 	            	}
 	            	else { 
 	               		# Check the value of the mask attribute
-	               		my $ipv4_mask_attr = $ipv4_list->item($j)->getAttribute("mask");
+	               		my $ipv4_mask_attr = $ipv4->getAttribute("mask");
 	               		if ($ipv4_mask_attr ne "") {
 	                  		# Slashed or dotted?
 	                  		if (&valid_dotted_mask($ipv4_mask_attr)) {
@@ -5028,11 +5080,12 @@ sub make_vmAPI_doc {
 		     
 		# To process interface IPv6 addresses
 	  	     if ($dh->is_ipv6_enabled) {
-		        my $ipv6_list = $if->getElementsByTagName("ipv6");
-		        for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
+		        #my $ipv6_list = $if->getElementsByTagName("ipv6");
+		        #for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
+		        foreach my $ipv6 ($if->getElementsByTagName("ipv6")) {
 		           my $ipv6_tag = $dom->createElement('ipv6');
 	               $if_tag->addChild($ipv6_tag);
-		           my $ip = &text_tag($ipv6_list->item($j));
+		           my $ip = &text_tag($ipv6);
 		           if (&valid_ipv6_with_mask($ip)) {
 		              # Implicit slashed mask in the address
 		              $ipv6_tag->addChild($dom->createTextNode($ip));
@@ -5040,7 +5093,7 @@ sub make_vmAPI_doc {
 		           else {
 		              # Check the value of the mask attribute
 	 	              my $ipv6_effective_mask = "/64"; # Default mask value	       
-		              my $ipv6_mask_attr = $ipv6_list->item($j)->getAttribute("mask");
+		              my $ipv6_mask_attr = $ipv6->getAttribute("mask");
 		              if ($ipv6_mask_attr ne "") {
 		                 # Note that, in the case of IPv6, mask are always slashed
 	                     $ipv6_effective_mask = $ipv6_mask_attr;
@@ -5071,10 +5124,11 @@ sub make_vmAPI_doc {
     
     # Forwarding
     my $f_type = $dh->get_default_forwarding_type;
-    my $forwarding_list = $vm->getElementsByTagName("forwarding");
-    if ($forwarding_list->getLength == 1) {
-   		$f_type = $forwarding_list->item(0)->getAttribute("type");
-     	$f_type = "ip" if ($f_type =~ /^$/);
+    my @forwarding_list = $vm->getElementsByTagName("forwarding");
+    if (@forwarding_list == 1) {
+   		$f_type = $forwarding_list[0]->getAttribute("type");
+        #$f_type = "ip" if ($f_type =~ /^$/);
+        $f_type = "ip" if (empty($f_type));
   	}
   	if ($f_type ne ""){
     	my $forwarding_tag = $dom->createElement('forwarding');
@@ -5138,6 +5192,7 @@ sub make_vmAPI_doc {
 
     wlog (VVV, "make_vmAPI_doc: XML created for vm $vm_name with seq 'on_boot' commands included", "$vm_name> ", $logp); 
     wlog (VVV, "                plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", "$vm_name> ", $logp);
+
 
     # Copy all the <filetree> and <exec> to the create_conf XML document
     # 1 - Plugins <filetree> tags
@@ -5227,179 +5282,6 @@ sub make_vmAPI_doc {
         
         wlog (VVV, "make_vmAPI_doc: adding user defined exec " . $exec->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
-
-=BEGIN
-	# Plugin related tasks:
-	#  1 - for each active plugin, call $plugin->getBootFiles ($vm) 
-	#  2 - add <filetree> commands to copy all the files specified in the calls to getBootFiles
-	#  3 - for each active plugin, call $plugin->getBootCommands ($vm) 
-	#  4 - add <exec> commands for every command returned by getBootCommands
-	
-	my $dst_num = 1;  	# Name of the directory where each specific file/dir will be copied
-					  	# in the shared disk. See filetree processing for details  
-	foreach my $plugin (@plugins) {
-
-		#  1 - for each active plugin, call $plugin->getBootFiles ($vm) 
-		my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/plugins/$plugin/$vm_name/boot/";
-		# Create temp directory for plugins files
-		$execution->execute($logp, "mkdir -p $files_dir");
-
-		my %files = $plugin->getBootFiles($vm_name, $files_dir);
-		
-		if (defined($files{"ERROR"}) && $files{"ERROR"} ne "") {
-            $execution->smartdie("plugin $plugin getBootFiles($vm_name) error: ".$files{"ERROR"});
-        }
-		my $res=`tree $files_dir`; wlog (VVV, "*** Files created by plugin $plugin for VM $vm_name:\n $res");
-		
-		foreach my $key ( keys %files ) {  	
-            # $key holds a comma separated list with the destination file/dir in the VM and the user, group and permissions
-            # $files{$key} holds the pathname of the file/dir in the host
-            
-            my @file = split( /,/, $key );  # $files[0] -> dst
-                                            # $files[1] -> user
-                                            # $files[2] -> group
-                                            # $files[3] -> perms
-            wlog (VVV, "**** dst=$file[0], user=$file[1], group=$file[2], perms=$file[3], ");                                                           
-            # Check whether file/dir uses a relative path
-            $execution->smartdie ("file/dir $files{$key} returned by $plugin->getBootFiles uses an absolut path (should be relative to files_dir directory)")       
-                if ( $files{$key} =~ /^\// );
-            # Check whether file/dir exists
-            $execution->smartdie ("file/dir $files_dir$files{$key} returned by plugin $plugin->getBootFiles does not exist")     
-                unless ( -e "$files_dir$files{$key}" );
-
-			#  2 - add <filetree> commands to copy all the files specified in the calls to getBootFiles
-			#      Format: <filetree seq="plugin-$plugin" root="$key">$files{$key}</filetree>
-	   		my $filetree_tag = $dom->createElement('filetree');
-   			$vm_tag->addChild($filetree_tag);
-      		$filetree_tag->addChild($dom->createAttribute( seq => "plugin-$plugin"));
-			if ( ( -d "$files_dir$files{$key}" )	# If $files{$key} is a directory...
-			     && ( !( $file[0] =~ /\/$/ ) )	) { 	# ...and $file[0] (dst dir) does not end with a "/"
-			  	# Add a slash; <filetree> root attribute must be a directory
-      			$filetree_tag->addChild($dom->createAttribute( root => "$file[0]/" ) );
-			} else {
-      			$filetree_tag->addChild($dom->createAttribute( root => "$file[0]" ) );
-			}			
-   			$filetree_tag->addChild($dom->createTextNode( "$files{$key}" ));
-            if ($file[1] ne '') {
-                $filetree_tag->setAttribute( user => "$file[1]" );
-            }
-            if ($file[2] ne '') {
-                $filetree_tag->setAttribute( group => "$file[2]" );
-            }
-            if ($file[3] ne '') {
-                $filetree_tag->setAttribute( perms => "$file[3]" );
-            }
-      		
-      		# Copy the file/dir to "filetree/$dst_num" dir
-      		my $dst_dir = $dh->get_vm_tmp_dir($vm_name) . "/plugins/filetree/$dst_num";
-			$execution->execute($logp, "mkdir -p $dst_dir");
-			$execution->execute($logp, "cp -r $files_dir$files{$key} $dst_dir");
-			
-			$dst_num++;
-		}
-		
-		#  3 - for each active plugin, call $plugin->getBootCommands ($vm)
-		my @commands = $plugin->getBootCommands($vm_name);
-       
-       	my $error = shift(@commands);
-       	if ($error ne "") {
-          	$execution->smartdie("plugin $plugin getBootCommands($vm_name) error: $error");
-       	}
-
-		#  4 - add <exec> commands for every command returned by getBootCommands
-    	foreach my $cmd (@commands) {
-			wlog (VVV, "**** Processing $cmd...");
-
-			# Create the <exec> tag
-			#   Format: <exec seq="$seq" type="verbatim" mode="??" ostype="??">$cmd</exec>
-		   	my $exec_tag = $dom->createElement('exec');
-	   		$vm_tag->appendChild($exec_tag);
-	      	$exec_tag->setAttribute( seq => "plugin-$plugin");
-	      	$exec_tag->setAttribute( type => "verbatim");
-	      	#$exec_tag->setAttribute( mode => "cdrom");
-	      	$exec_tag->setAttribute( ostype => "system");
-   			$exec_tag->appendChild($dom->createTextNode( "$cmd" ));
-      	
-      	}		 
-	}
-	
-	# "on_boot" commands and filetrees
-	# Add to the vnxboot.xml all the <exec> and <filetree> tags with seq="on_boot"
-	# to be executed during virtual machine initialization
-	
-	# <filetree>
-	my @filetree_list = $dh->merge_filetree($vm);
-	foreach my $filetree (@filetree_list) {
-		
-		my $filetree_seq_string = $filetree->getAttribute("seq");
-			
-		# Accept several commands in the same seq tag, separated by spaces
-		my @filetree_seqs = split(' ',$filetree_seq_string);
-		foreach my $filetree_seq (@filetree_seqs) {
-		
-			if ( $filetree_seq eq 'on_boot' ) {
-
-# This code does not work, probably because we are mixing XML::DOM and XML::LibXML documents
-# TODO: migrate all the code to XML::LibXML
-#				my $filetree_clon = $filetree->cloneNode(1);
-#				$filetree_clon->setOwnerDocument($dom->getOwnerDocument());
-#  				$vm_tag->addChild($filetree_clon);
-
-				# We copy the node manually...boring
-				# Read values
-				my $seq = $filetree->getAttribute("seq");
-				my $root = $filetree->getAttribute("root");
-				my $value = &text_tag($filetree);
-				# Create new node
-	   			my $new_filetree = $dom->createElement('filetree');
-   				$vm_tag->addChild($new_filetree);
-      			$new_filetree->addChild($dom->createAttribute( seq => $seq));
-      			$new_filetree->addChild($dom->createAttribute( root => $root));
-   				$new_filetree->addChild($dom->createTextNode( $value ));
-
-	      		# Copy the files/dirs to "filetree/$dst_num" dir
-	      		my $dst_dir = $dh->get_vm_tmp_dir($vm_name) . "/on_boot/filetree/$dst_num";
-				$execution->execute($logp, "mkdir -p $dst_dir");
-				$execution->execute($logp, "cp -r $value $dst_dir");
-				$dst_num++;
-
-			}
-		}
-	}
-	
-	# <exec>
-	my $command_list = $vm->getElementsByTagName("exec");
-	for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
-			
-		my $command = $command_list->item($j);
-
-		# To get attributes
-		my $cmd_seq_string = $command->getAttribute("seq");
-
-		# Accept several commands in the same seq tag, separated by spaces
-		my @cmd_seqs = split(' ',$cmd_seq_string);
-		foreach my $cmd_seq (@cmd_seqs) {
-			
-			if ( $cmd_seq eq 'on_boot' ) {
-				# Read values
-				my $type = $command->getAttribute("type");
-				my $mode = $command->getAttribute("mode");
-				my $ostype = $command->getAttribute("ostype");
-				my $value = &text_tag($command);
-				# Create new node
-	   			my $new_exec = $dom->createElement('exec');
-   				$vm_tag->addChild($new_exec);
-      			$new_exec->addChild($dom->createAttribute( seq => 'on_boot'));
-      			$new_exec->addChild($dom->createAttribute( type => $type));
-      			$new_exec->addChild($dom->createAttribute( mode => $mode));
-      			$new_exec->addChild($dom->createAttribute( ostype => $ostype));
-   				$new_exec->addChild($dom->createTextNode( $value ));
-			}
-		}
-	}
-
-=END
-=cut
   
     # dom es un XML::LibXML::Document; 
     my $docstring = $dom->toString(1);
