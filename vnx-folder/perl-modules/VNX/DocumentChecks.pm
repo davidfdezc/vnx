@@ -34,7 +34,8 @@ use warnings;
 use Exporter;
 
 our @ISA = qw(Exporter);
-our @EXPORT = qw( vm_has_tag 
+our @EXPORT = qw( empty
+              vm_has_tag 
               num_tags_in_vm
               at_least_one_vm_without_mng_if 
               at_least_one_vm_with_mng_if 
@@ -42,6 +43,15 @@ our @EXPORT = qw( vm_has_tag
 
 use VNX::Globals;
 use VNX::TextManipulation;
+
+# empty
+#
+# Returs true if the variable passed is defined and has a value different from '' or false in any other cases.
+#
+sub empty {
+  my $var = shift;
+  return ( !defined($var) or $var =~ /^$/ );
+}
 
 # vm_has_tag
 #
@@ -59,15 +69,16 @@ sub vm_has_tag {
 
 
    # Search for tag
-   my $tag_list = $vm->getElementsByTagName($tag);
+   my @tag_list = $vm->getElementsByTagName($tag);
    
-   if ($tag_list->getLength != 0) {
+   if (@tag_list != 0) {
 
       # Special case: filetree
       if ($tag eq "filetree") {
          my $seq = shift;
-         for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
-	        my $seq_at_string = $tag_list->item($i)->getAttribute("seq");
+         #for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
+         foreach my $tag (@tag_list) {
+	        my $seq_at_string = $tag->getAttribute("seq");
 	        
 	        # JSF 02/12/10: we accept several commands in the same seq tag,
 			# separated by spaces
@@ -83,8 +94,9 @@ sub vm_has_tag {
       # Special case: exec
       elsif ($tag eq "exec") {
          my $seq = shift;
-         for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
-	        my $seq_at_string = $tag_list->item($i)->getAttribute("seq");
+         #for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
+         foreach my $tag (@tag_list) {
+	        my $seq_at_string = $tag->getAttribute("seq");
 	        
 	        
 	        # JSF 02/12/10: we accept several commands in the same seq tag,
@@ -123,15 +135,16 @@ sub num_tags_in_vm {
     my $num_tags = 0;
 
     # Search for tag
-    my $tag_list = $vm->getElementsByTagName($tag);
+    my @tag_list = $vm->getElementsByTagName($tag);
    
-    if ($tag_list->getLength != 0) {
+    if (@tag_list != 0) {
 
         # Special case: filetree
         if ($tag eq "filetree") {
             my $seq = shift;
-            for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
-                my $seq_at_string = $tag_list->item($i)->getAttribute("seq");
+            #for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
+            foreach my $tag (@tag_list) {
+                my $seq_at_string = $tag->getAttribute("seq");
                 # JSF 02/12/10: we accept several commands in the same seq tag,
                 # separated by spaces
                 my @seqs = split(' ',$seq_at_string);
@@ -143,8 +156,9 @@ sub num_tags_in_vm {
         # Special case: exec
         elsif ($tag eq "exec") {
             my $seq = shift;
-            for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
-                my $seq_at_string = $tag_list->item($i)->getAttribute("seq");
+            #for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
+            foreach my $tag (@tag_list) {
+                my $seq_at_string = $tag->getAttribute("seq");
             
                 # JSF 02/12/10: we accept several commands in the same seq tag,
                 # separated by spaces
@@ -223,9 +237,9 @@ sub mng_if_value {
    my $vm = shift;
 
    my $mng_if_value = $dh->get_default_mng_if;
-   my $mng_if_list = $vm->getElementsByTagName("mng_if");
-   if ($mng_if_list->getLength == 1) {
-      $mng_if_value = &text_tag($mng_if_list->item(0));
+   my @mng_if_list = $vm->getElementsByTagName("mng_if");
+   if (@mng_if_list == 1) {
+      $mng_if_value = &text_tag($mng_if_list[0]);
    }
 
    return $mng_if_value;

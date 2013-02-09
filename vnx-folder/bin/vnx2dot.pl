@@ -40,7 +40,8 @@
 #
 
 use strict;
-use XML::DOM;
+#use XML::DOM;
+use XML::LibXML;
 
 #my $colorscheme="rdbu9";
 my $colorscheme="set39";
@@ -51,8 +52,9 @@ my $vmcolor="5";
 my $hostcolor="7";
 my $fontcolor="#FFFFFF";
 
-my $parser       = new XML::DOM::Parser;
-my $dom          = $parser->parsefile($ARGV[0]);
+#my $parser       = new XML::DOM::Parser;
+my $parser       = XML::LibXML->new();
+my $dom          = $parser->parse_file($ARGV[0]);
 
 
 #open FILE,  $ARGV[0]  || die "Can't open $ARGV[0]\n" ;
@@ -77,12 +79,13 @@ FIN
  
 print "// Networks\n" ;
 # Networks
-my $nets = $dom->getElementsByTagName ("net");
-my $n = $nets->getLength;
+#my $nets = $dom->getElementsByTagName ("net");
+#my $n = $nets->getLength;
 
-for (my $i = 0; $i < $n; $i++)
+#for (my $i = 0; $i < $n; $i++)
+foreach my $net ($dom->getElementsByTagName ("net"))  
 {
-    my $net = $nets->item ($i);
+    #my $net = $nets->item ($i);
     my $name = $net->getAttribute ("name");
     my $name2 = $name;
     $name2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
@@ -94,11 +97,12 @@ my %legend;
 
 # Virtual machines
 print "\n\n// Virtual machines \n" ;
-my $vms = $dom->getElementsByTagName ("vm");
-$n = $vms->getLength;
+#my $vms = $dom->getElementsByTagName ("vm");
+#$n = $vms->getLength;
 
-for (my $i = 0; $i < $n; $i++) {
-    my $vm = $vms->item ($i);
+#for (my $i = 0; $i < $n; $i++) {
+foreach my $vm ($dom->getElementsByTagName ("vm")) {
+    #my $vm = $vms->item ($i);
     my $vmname = $vm->getAttribute ("name");
     my $vmname2 = $vmname;
     $vmname2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
@@ -145,26 +149,29 @@ for (my $i = 0; $i < $n; $i++) {
 #    print "$vmname2 [label=\"$vmname\", shape=\"circle\", fontcolor=\"$fontcolor\", " . 
 #          "colorscheme=\"$colorscheme\", color=\"$vmcolor\", style=\"filled\" ] ;\n" ;
 
-    my $ifs = $vm->getElementsByTagName ("if");
-    my $n = $ifs->getLength;
-    for (my $j = 0; $j < $n; $j++) {
-        my $if = $ifs->item ($j);
+    #my $ifs = $vm->getElementsByTagName ("if");
+    #my $n = $ifs->getLength;
+    #for (my $j = 0; $j < $n; $j++) {
+    foreach my $if ($vm->getElementsByTagName ("if")) {
+        #my $if = $ifs->item ($j);
         my $id = $if->getAttribute ("id");
         my $net = $if->getAttribute ("net");
 	    my $net2 = $net;
     	$net2 =~ tr/-/_/;        
         #print "  if: $id $net \n";
         my $ipaddrs;
-        my $ipv4s = $if->getElementsByTagName ("ipv4");
-        my $n = $ipv4s->getLength;
-        for (my $k = 0; $k < $n; $k++) {
-            my $ipv4 = $ipv4s->item ($k)->getChildNodes->item(0);
+        #my $ipv4s = $if->getElementsByTagName ("ipv4");
+        #my $n = $ipv4s->getLength;
+        #for (my $k = 0; $k < $n; $k++) {
+        foreach my $ipv4s ($if->getElementsByTagName ("ipv4")) {
+            my $ipv4 = $ipv4s->getChildNodes->[0];
             $ipaddrs = $ipaddrs . ' \n' . $ipv4->getNodeValue;
         }
-        my $ipv6s = $if->getElementsByTagName ("ipv6");
-        $n = $ipv6s->getLength;
-        for (my $k = 0; $k < $n; $k++) {
-            my $ipv6 = $ipv6s->item ($k)->getChildNodes->item(0);
+        #my $ipv6s = $if->getElementsByTagName ("ipv6");
+        #$n = $ipv6s->getLength;
+        #for (my $k = 0; $k < $n; $k++) {
+        foreach my $ipv6s ($if->getElementsByTagName ("ipv6")) {
+            my $ipv6 = $ipv6s->getChildNodes->[0];
             $ipaddrs = $ipaddrs . ' \n' . $ipv6->getNodeValue;
         }
         print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
@@ -172,17 +179,18 @@ for (my $i = 0; $i < $n; $i++) {
     }
 }
 
-my $hostifs = $dom->getElementsByTagName ("hostif");
-$n = $hostifs->getLength;
+my @hostifs = $dom->getElementsByTagName ("hostif");
+#$n = @hostifs->getLength;
 
-if ($n > 0) {
+if (@hostifs > 0) {
     print "\n// Host\n" ;
     print "host [label=\"host\", shape=\"box\", fontcolor=\"$fontcolor\", " . 
           "colorscheme=\"$colorscheme\", color=\"$hostcolor\", style=\"filled\" ] ;\n" ;
 }
 
-for (my $j = 0; $j < $n; $j++) {
-    my $hostif = $hostifs->item ($j);
+#for (my $j = 0; $j < $n; $j++) {
+foreach my $hostif (@hostifs) { 
+    #my $hostif = $hostifs->item ($j);
     my $id = $hostif->getAttribute ("id");
     my $net = $hostif->getAttribute ("net");
     my $net2 = $net;
@@ -203,16 +211,18 @@ for (my $j = 0; $j < $n; $j++) {
 =cut
 
     my $ipaddrs;
-    my $ipv4s = $hostif->getElementsByTagName ("ipv4");
-    my $n = $ipv4s->getLength;
-    for (my $k = 0; $k < $n; $k++) {
-        my $ipv4 = $ipv4s->item ($k)->getChildNodes->item(0);
+    #my $ipv4s = $hostif->getElementsByTagName ("ipv4");
+    #my $n = $ipv4s->getLength;
+    #for (my $k = 0; $k < $n; $k++) {
+    foreach my $ipv4s ($hostif->getElementsByTagName ("ipv4")) {    	
+        my $ipv4 = $ipv4s->getChildNodes->[0];
         $ipaddrs = $ipaddrs . ' \n' . $ipv4->getNodeValue;
     }
-    my $ipv6s = $hostif->getElementsByTagName ("ipv6");
-    $n = $ipv6s->getLength;
-    for (my $k = 0; $k < $n; $k++) {
-        my $ipv6 = $ipv6s->item ($k)->getChildNodes->item(0);
+    #my $ipv6s = $hostif->getElementsByTagName ("ipv6");
+    #$n = $ipv6s->getLength;
+    #for (my $k = 0; $k < $n; $k++) {
+    foreach my $ipv6s ($hostif->getElementsByTagName ("ipv6")) {        
+        my $ipv6 = $ipv6s->getChildNodes->[0];
         $ipaddrs = $ipaddrs . ' \n' . $ipv6->getNodeValue;
     }
     print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;

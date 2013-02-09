@@ -66,26 +66,27 @@ sub tundevice_needed {
    my $vmmgmt_type = shift;
    my @machines = @_;
 
-   my $net_list = $dh->get_doc->getElementsByTagName("net");
-   for (my $i = 0; $i < $net_list->getLength; $i++ ) {
-   	  # Get attributes
-   	  my $name = $net_list->item($i)->getAttribute("name");
-   	  my $mode = $net_list->item($i)->getAttribute("mode");
+    #my $net_list = $dh->get_doc->getElementsByTagName("net");
+    #for (my $i = 0; $i < $net_list->getLength; $i++ ) {
+    foreach my $net ($dh->get_doc->getElementsByTagName("net")) {
+        # Get attributes
+        my $name = $net->getAttribute("name");
+        my $mode = $net->getAttribute("mode");
    	  
-   	  if ($mode ne "uml_switch") {
-         # 1. <net mode="virtual_bridge">
-         return 1;
-   	  }
-   	  else {
-         # 2. <net mode="uml_switch"> with connection to the host (-tap is used)
-         return 1 if (&check_net_host_conn($name,$dh->get_doc));
-   	  }
-   }
+        if ($mode ne "uml_switch") {
+            # 1. <net mode="virtual_bridge">
+            return 1;
+        }
+        else {
+            # 2. <net mode="uml_switch"> with connection to the host (-tap is used)
+            return 1 if (&check_net_host_conn($name,$dh->get_doc));
+        }
+    }
    
-   # 2. Management interfaces
-   return 1 if ($vmmgmt_type eq 'private' && &at_least_one_vm_with_mng_if(@machines) ne "");
+    # 2. Management interfaces
+    return 1 if ($vmmgmt_type eq 'private' && &at_least_one_vm_with_mng_if(@machines) ne "");
    
-   return 0;
+    return 0;
 	
 }
 
@@ -98,15 +99,16 @@ sub tundevice_needed {
 #
 sub check_net_host_conn {
 
-   my $net = shift;
-   my $doc = shift;
+    my $net = shift;
+    my $doc = shift;
 
-   my $hostif_list = $doc->getElementsByTagName("hostif");
-   for ( my $i = 0 ; $i < $hostif_list->getLength ; $i++ ) {
-   	  my $net_name = $hostif_list->item($i)->getAttribute("net");
-      return 1 if ($net eq $net_name);
-   }
-   return 0;
+    #my $hostif_list = $doc->getElementsByTagName("hostif");
+    #for ( my $i = 0 ; $i < $hostif_list->getLength ; $i++ ) {
+    foreach my $hostif ($doc->getElementsByTagName("hostif")) {
+   	    my $net_name = $hostif->getAttribute("net");
+        return 1 if ($net eq $net_name);
+    }
+    return 0;
 }
 
 # vnet_exists_br
