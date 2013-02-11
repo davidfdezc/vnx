@@ -207,7 +207,7 @@ sub getFiles{
 	        print CONFIG_FILE "ipaddr=$ipaddr_value\n";
 	        close(CONFIG_FILE);
 	        $cfg_file =~ s#$files_dir/##;  # Eliminate the directory to make the filenames relative         
-	        $files{"/tmp/" . $vm_name . "_cfg_file,vnx,vnx,644"} = $cfg_file;
+	        $files{"/root/" . $vm_name . "_cfg_file.$seq,vnx,vnx,644"} = $cfg_file;
 			
 	    }
     }
@@ -248,10 +248,16 @@ sub getCommands{
     
     unshift( @commands, "" );
         
-    # Get the virtual machine node whose name is $vm_name
-    my $vm = $pcf_dom->findnodes("/$pcf_main/vm[\@name='$vm_name']")->[0];  
-    if ($vm) { 
-		plog (VVV, "getFiles: vm $vm_name found in config file");
+    if (($seq eq "on_boot") || ($seq eq "start")) {
+	        
+	    # Get the virtual machine node whose name is $vm_name
+	    my $vm = $pcf_dom->findnodes("/$pcf_main/vm[\@name='$vm_name']")->[0];  
+	    if ($vm) { 
+			plog (VVV, "getFiles: vm $vm_name found in config file");
+            push (@commands, "touch /root/$vm_name.$seq");
+			
+	    }
+	    
     }
     return @commands;   
 }

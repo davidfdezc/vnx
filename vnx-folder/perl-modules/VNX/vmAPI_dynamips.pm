@@ -131,8 +131,10 @@ sub defineVM {
 	
 	my @vm_ordered = $dh->get_vm_ordered;
 
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parse($vm_doc);
+    my $parser       = XML::LibXML->new();
+    my $dom          = $parser->parse_string($vm_doc);
+	#my $parser       = new XML::DOM::Parser;
+	#my $dom          = $parser->parse($vm_doc);
 	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 	my $virtualm     = $virtualmList->item(0);
@@ -480,8 +482,10 @@ sub create_router_conf {
 	my $doc = do { local $/; <XMLFILE> };
 	close XMLFILE;
 
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parse($doc);
+    my $parser       = XML::LibXML->new();
+    my $dom          = $parser->parse_string($doc);
+	#my $parser       = new XML::DOM::Parser;
+	#my $dom          = $parser->parse($doc);
 	my $vm = $dom->getElementsByTagName("vm")->item(0);
 
     	# Hostname
@@ -672,8 +676,10 @@ sub destroyVM{
 		open XMLFILE, "$vmXMLFile" or $execution->smartdie("can not open $vmXMLFile file");
 		my $doc = do { local $/; <XMLFILE> };
 		close XMLFILE;
-		my $parser       = new XML::DOM::Parser;
-		my $dom          = $parser->parse($doc);
+        my $parser       = XML::LibXML->new();
+        my $dom          = $parser->parse_string($doc);
+		#my $parser       = new XML::DOM::Parser;
+		#my $dom          = $parser->parse($doc);
 		my $vm = $dom->getElementsByTagName("vm")->item(0);
 	
 		#my $ifTagList = $vm->getElementsByTagName("if");
@@ -1293,8 +1299,10 @@ sub get_login_user {
 		return @users;
 	}
 	# Parseamos el fichero.
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($extConfFile);
+    my $parser       = XML::LibXML->new();
+    my $dom          = $parser->parse_string($extConfFile);
+	#my $parser       = new XML::DOM::Parser;
+	#my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	#my $virtualmList = $globalNode->getElementsByTagName("vm");
 		
@@ -1368,8 +1376,10 @@ sub get_enable_pass {
 		return $result;
 	}
 	# Parseamos el fichero.
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($extConfFile);
+    my $parser       = XML::LibXML->new();
+    my $dom          = $parser->parse_string($extConfFile);
+	#my $parser       = new XML::DOM::Parser;
+	#my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	#my $virtualmList = $globalNode->getElementsByTagName("vm");
 		
@@ -1447,8 +1457,10 @@ sub get_simple_conf {
 	}
 	
 	# Parse the extended config file
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($extConfFile);
+    my $parser       = XML::LibXML->new();
+    my $dom          = $parser->parse_string($extConfFile);
+	#my $parser       = new XML::DOM::Parser;
+	#my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	#my $virtualmList = $globalNode->getElementsByTagName("vm");
 			
@@ -1511,8 +1523,10 @@ sub get_router_conf_file {
 		return $result;
 	}
 	# Parseamos el fichero.
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($extConfFile);
+    my $parser       = XML::LibXML->new();
+    my $dom          = $parser->parse_string($extConfFile);
+	#my $parser       = new XML::DOM::Parser;
+	#my $dom          = $parser->parsefile($extConfFile);
 	#my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	#my $virtualmList = $globalNode->getElementsByTagName("vm");
 		
@@ -1588,8 +1602,10 @@ sub get_cards_conf {
 	}
 	
 	# Parseamos el fichero.
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($extConfFile);
+    my $parser       = XML::LibXML->new();
+    my $dom          = $parser->parse_string($extConfFile);
+	#my $parser       = new XML::DOM::Parser;
+	#my $dom          = $parser->parsefile($extConfFile);
 	#my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
 	#my $virtualmList = $globalNode->getElementsByTagName("vm");
 
