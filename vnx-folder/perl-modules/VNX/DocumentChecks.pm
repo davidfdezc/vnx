@@ -46,7 +46,7 @@ use VNX::TextManipulation;
 
 # empty
 #
-# Returs true if the variable passed is defined and has a value different from '' or false in any other cases.
+# Returs false if the variable passed is defined and has a value different from '' or false in any other case.
 #
 sub empty {
   my $var = shift;

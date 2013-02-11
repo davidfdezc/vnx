@@ -192,6 +192,7 @@ sub defineVM {
 
     my $vm = $dh->get_vm_byname ($vm_name);
     wlog (VVV, "---- " . $vm->getAttribute("name"), $logp);
+    wlog (VVV, "---- " . $vm->getAttribute("exec_mode"), $logp);
 
     my $exec_mode   = $dh->get_vm_exec_mode($vm);
     wlog (VVV, "---- vm_exec_mode = $exec_mode", $logp);
@@ -315,8 +316,10 @@ sub defineVM {
 		$execution->execute( $logp, $bd->get_binaries_path_ref->{"mkisofs"} . " -l -R -quiet -o $filesystem_small $sdisk_content" );
 		$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $sdisk_content" );
 
-		my $parser       = new XML::DOM::Parser;
-		my $dom          = $parser->parse($vm_doc);
+	    my $parser       = XML::LibXML->new();
+	    my $dom          = $parser->parse_string($vm_doc);
+		#my $parser       = new XML::DOM::Parser;
+		#my $dom          = $parser->parse($vm_doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
 		my $virtualm     = $virtualmList->item(0);
@@ -694,8 +697,10 @@ sub defineVM {
 		close CONFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
 		# We create the XML libvirt file with virtual machine definition
-		my $parser       = new XML::DOM::Parser;
-		my $dom          = $parser->parse($vm_doc);
+        my $parser       = XML::LibXML->new();
+        my $dom          = $parser->parse_string($vm_doc);
+		#my $parser       = new XML::DOM::Parser;
+		#my $dom          = $parser->parse($vm_doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
 		my $virtualm     = $virtualmList->item(0);
@@ -858,7 +863,7 @@ sub defineVM {
         #   directory, organized in filetree/$num subdirectories, being $num the order of filetrees. 
         #   We move all the files to the shared disk
         
-        # Check if thereis any filetree in $vm_doc
+        # Check if there is any filetree in $vm_doc
         my @filetree_tag_list = $dom->getElementsByTagName("filetree");
         if (@filetree_tag_list > 0) { # At least one filetree defined
             # Copy the files to the shared disk        
@@ -938,7 +943,7 @@ sub defineVM {
 
 			# Ignore loopback interfaces (they are configured by the ACED daemon, but
 			# should not be treated by libvirt)
-			if ($net eq "lo") { next}
+			if (defined($net) && $net eq "lo") { next}
 			 
 			my $interface_tag;
 			if ($id eq 0){
@@ -3196,8 +3201,10 @@ sub get_simple_conf {
 	}
 	
 	# Parse the extended config file
-	my $parser       = new XML::DOM::Parser;
-	my $dom          = $parser->parsefile($extConfFile);
+    my $parser       = XML::LibXML->new();
+    my $dom          = $parser->parse_string($extConfFile);
+	#my $parser       = new XML::DOM::Parser;
+	#my $dom          = $parser->parsefile($extConfFile);
 	my $globalNode   = $dom->getElementsByTagName("vnx_olive")->item(0);
 	#my $virtualmList = $globalNode->getElementsByTagName("vm");
 			

@@ -650,9 +650,14 @@ sub get_vm_exec_mode {
     my $vm   = shift;
 
     my $logp = "get_vm_exec_mode> ";
-    my $type = $vm->getAttribute('type');
-    wlog (VV, "type=" . $vm->getAttribute('type') . ", subtype=" . $vm->getAttribute('subtype') . ", os=" . $vm->getAttribute('os') . ", exec_mode=" . $vm->getAttribute("exec_mode"), $logp);
-    if ( $vm->getAttribute("exec_mode") ne "" ) {
+
+    my $type      = $vm->getAttribute('type');
+    my $subtype   = $vm->getAttribute('subtype');   $subtype='' if (!defined($subtype)); 
+    my $os        = $vm->getAttribute('os');        $os='' if (!defined($os));
+    my $exec_mode = $vm->getAttribute("exec_mode"); $exec_mode='' if (!defined($exec_mode));
+    
+    wlog (VV, "type=$type, subtype=$subtype, os=$os, exec_mode=$exec_mode", $logp);
+    if ( !empty($vm->getAttribute("exec_mode")) ) {
         return $vm->getAttribute("exec_mode");
     }
     else {
@@ -683,7 +688,7 @@ sub get_default_exec_mode {
     my $def_execmode;
    
     my $logp = "get_default_exec_mode> ";
-    wlog (VV, "type=$type, subtype=$subtype, o=$os", $logp);
+    wlog (VV, "type=$type, subtype=$subtype, os=$os", $logp);
     
     if (!$type) { return "ERROR\n"; }
     if ( ($os) && (!$subtype) ) { return "ERROR\n"; }
@@ -709,7 +714,7 @@ sub get_default_exec_mode {
             }
         } 
     }
-    #wlog (VV, "type=$type, def_execmode=$def_execmode", $logp);
+    #wlog (VV, "type=$type, def_execmode=$def_execmode", $logp)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ;
 
     # If no default found in <exec_mode> tags under <vm_defaults>...   
     if (!$def_execmode) {  # ...set the defaults defined in Globals.pm
@@ -719,6 +724,8 @@ sub get_default_exec_mode {
     		wlog (VV, "type=$type, def_execmode=$def_execmode", $logp);
         } elsif ($merged_type eq 'libvirt-kvm-linux') {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_LINUX[0];
+        } elsif ($merged_type eq 'libvirt-kvm-freebsd') {
+            $def_execmode = $EXEC_MODES_LIBVIRT_KVM_FREEBSD[0];
         } elsif ($merged_type eq 'libvirt-kvm-windows') {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_WINDOWS[0];
         } elsif ($merged_type eq 'libvirt-kvm-olive') {
@@ -1688,10 +1695,10 @@ sub get_vm_merged_type {
 	my $merged_type = $type;
 	
     #if (!($subtype eq "")){
-    if (defined($subtype)){
+    if (!empty($subtype)){
 		$merged_type = $merged_type . "-" . $subtype;
         #if (!($os eq "")){
-        if (defined($os)){
+        if (!empty($os)){
 			$merged_type = $merged_type . "-" . $os;
 		}
 	}

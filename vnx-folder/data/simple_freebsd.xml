@@ -29,7 +29,7 @@ SPAIN
     <version>2.0</version>
     <scenario_name>simple_freebsd</scenario_name>
     <automac offset="6"/>
-    <vm_mgmt type="none" />
+    <!--vm_mgmt type="none" /-->
     <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="20">
        <host_mapping />
     </vm_mgmt>     

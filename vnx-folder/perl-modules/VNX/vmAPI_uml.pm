@@ -325,8 +325,10 @@ sub startVM {
 
 	my $vm_doctxt = $dh->get_vm_doctxt($vm_name);  # Content of ${vm_name}_cconf.xml file
 	                                               # created by make_vmAPI_doc
-    my $parser = new XML::DOM::Parser;
-    my $vm_doc = $parser->parse($vm_doctxt);
+    my $parser = XML::LibXML->new();
+    my $vm_doc = $parser->parse_string($vm_doctxt);
+    #my $parser = new XML::DOM::Parser;
+    #my $vm_doc = $parser->parse($vm_doctxt);
 
 	my $global_doc = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
@@ -490,12 +492,14 @@ sub startVM {
 			push( @build_params,
 				"modules=" . $kernel_item->getAttribute("modules") );
 		}
-		if ( $kernel_item->getAttribute("trace") eq "on" ) {
-			wlog (VVV, "UML kernel traces active for VM $virtualm_name", $logp);
-			$kernel_traces = "on";
-			push( @params,       "stderr=1" );
-			push( @build_params, "stderr=1" );
-		}
+        unless ( empty($kernel_item->getAttribute("traces")) ) {
+			if ( $kernel_item->getAttribute("trace") eq "on" ) {
+				wlog (VVV, "UML kernel traces active for VM $virtualm_name", $logp);
+				$kernel_traces = "on";
+				push( @params,       "stderr=1" );
+				push( @build_params, "stderr=1" );
+			}
+        }
 	}
 	else {
 		$kernel = $dh->get_default_kernel;
@@ -611,7 +615,7 @@ sub startVM {
 		#my $ifTag = $ifTagList->item($j);
 
 		my $id  = $if->getAttribute("id");
-		my $net = $if->getAttribute("net");
+		my $net = $if->getAttribute("net"); $net='' if (!defined($net));  # Needed for mgmt if (id=0)
 		my $mac = $if->getAttribute("mac");
 
 		if ( &get_net_by_mode( $net, "uml_switch" ) != 0 ) {
@@ -792,7 +796,7 @@ sub startVM {
 			my $id      = $cons->getAttribute("id");
 			my $display = $cons->getAttribute("display");
        		wlog (VVV, "console: id=$id, display=$display, value=$value", $logp);
-			if ($display ne '') {
+			if (!empty($display)) {
 				if (  $id eq "0" ) {
 					$cons0Display = $display 
 				} elsif ( $id eq "1" ) {
@@ -1016,7 +1020,6 @@ sub destroyVM {
     my $pid_file = $dh->get_vm_run_dir($vm_name) . "/pid";
     wlog (VVV, "pid_file=$pid_file", $logp);
     unless ( !-f $pid_file ) {
-    	print "*******\n";
     	my $command = $bd->get_binaries_path_ref->{"cat"} . " $pid_file";
         chomp( $pid = `$command` );
         wlog (N, "main process pid=$pid", $logp);
@@ -2813,9 +2816,9 @@ sub create_vm_onboot_commands_file {
         #my $filetree_tag = $filetree_taglist->item($j);
         my $seq          = $filetree->getAttribute("seq");
         my $root         = $filetree->getAttribute("root");
-        my $user         = $filetree->getAttribute("user");
-        my $group        = $filetree->getAttribute("group");
-        my $perms        = $filetree->getAttribute("perms");
+        my $user         = $filetree->getAttribute("user");  $user  = '' if (!defined($user));
+        my $group        = $filetree->getAttribute("group"); $group = '' if (!defined($group));
+        my $perms        = $filetree->getAttribute("perms"); $perms = '' if (!defined($perms));
 	    my $filetree_vm = "/mnt/hostfs/filetree/$ftree_num";
 	    
 	    # Copy the files
@@ -2838,9 +2841,9 @@ sub create_vm_onboot_commands_file {
             #if ( $group ne '' ) { $execution->execute($logp,  "chown -vR .$group $root/* >> $uml_log_file", *CONFILE ); }
             #if ( $perms ne '' ) { $execution->execute($logp,  "chmod -vR $perms $root/*  >> $uml_log_file", *CONFILE ); }
             $execution->execute($logp,  "cp -R $filetree_vm/* $root >> $uml_log_file", *CONFILE );
-            if ( $user ne ''  ) { $execution->execute($logp,  "chown -R $user $root/*  >> $uml_log_file",  *CONFILE ); }
-            if ( $group ne '' ) { $execution->execute($logp,  "chown -R .$group $root/* >> $uml_log_file", *CONFILE ); }
-            if ( $perms ne '' ) { $execution->execute($logp,  "chmod -R $perms $root/*  >> $uml_log_file", *CONFILE ); }
+            if ( !empty($user) ) { $execution->execute($logp,  "chown -R $user $root/*  >> $uml_log_file",  *CONFILE ); }
+            if ( !empty($group)) { $execution->execute($logp,  "chown -R .$group $root/* >> $uml_log_file", *CONFILE ); }
+            if ( !empty($perms)) { $execution->execute($logp,  "chmod -R $perms $root/*  >> $uml_log_file", *CONFILE ); }
         } else {
             my $root_dir = dirname($root);
             $execution->execute($logp,  "# Create the directory if it does not exist", *CONFILE );
@@ -2853,9 +2856,9 @@ sub create_vm_onboot_commands_file {
             #if ( $group ne '' ) { $execution->execute($logp,  "chown -vR .$group $root >> $uml_log_file", *CONFILE ); }
             #if ( $perms ne '' ) { $execution->execute($logp,  "chmod -vR $perms $root >> $uml_log_file", *CONFILE );  }
             $execution->execute($logp,  "cp -R $filetree_vm/* $root", *CONFILE );
-            if ( $user ne ''  ) { $execution->execute($logp,  "chown -R $user $root >> $uml_log_file", *CONFILE );   }
-            if ( $group ne '' ) { $execution->execute($logp,  "chown -R .$group $root >> $uml_log_file", *CONFILE ); }
-            if ( $perms ne '' ) { $execution->execute($logp,  "chmod -R $perms $root >> $uml_log_file", *CONFILE );  }
+            if ( !empty($user)  ) { $execution->execute($logp,  "chown -R $user $root >> $uml_log_file", *CONFILE );   }
+            if ( !empty($group) ) { $execution->execute($logp,  "chown -R .$group $root >> $uml_log_file", *CONFILE ); }
+            if ( !empty($perms) ) { $execution->execute($logp,  "chmod -R $perms $root >> $uml_log_file", *CONFILE );  }
         }
         
         $ftree_num++;

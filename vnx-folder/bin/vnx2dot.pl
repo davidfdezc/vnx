@@ -165,14 +165,14 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
         #for (my $k = 0; $k < $n; $k++) {
         foreach my $ipv4s ($if->getElementsByTagName ("ipv4")) {
             my $ipv4 = $ipv4s->getChildNodes->[0];
-            $ipaddrs = $ipaddrs . ' \n' . $ipv4->getNodeValue;
+            $ipaddrs = $ipaddrs . ' \n' . $ipv4->textContent;
         }
         #my $ipv6s = $if->getElementsByTagName ("ipv6");
         #$n = $ipv6s->getLength;
         #for (my $k = 0; $k < $n; $k++) {
         foreach my $ipv6s ($if->getElementsByTagName ("ipv6")) {
             my $ipv6 = $ipv6s->getChildNodes->[0];
-            $ipaddrs = $ipaddrs . ' \n' . $ipv6->getNodeValue;
+            $ipaddrs = $ipaddrs . ' \n' . $ipv6->textContent;
         }
         print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
         print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"9\", style=\"bold\" ];\n" ;
@@ -202,7 +202,7 @@ foreach my $hostif (@hostifs) {
     my $n = $ipv4s->getLength;
     for (my $k = 0; $k < $n; $k++) {
         my $ipv4 = $ipv4s->item ($k)->getChildNodes->item(0);
-        my $ip = $ipv4->getNodeValue;
+        my $ip = $ipv4->textContent;
         # print "    ipv4: $ip\n";
         print "//   if $id with IP address $ip connected to network $net\n" ;
         print "host -- $net2  [ label = \"$ip\", fontsize=\"9\", style=\"bold\" ];\n" ;
@@ -216,14 +216,14 @@ foreach my $hostif (@hostifs) {
     #for (my $k = 0; $k < $n; $k++) {
     foreach my $ipv4s ($hostif->getElementsByTagName ("ipv4")) {    	
         my $ipv4 = $ipv4s->getChildNodes->[0];
-        $ipaddrs = $ipaddrs . ' \n' . $ipv4->getNodeValue;
+        $ipaddrs = $ipaddrs . ' \n' . $ipv4->textContent;
     }
     #my $ipv6s = $hostif->getElementsByTagName ("ipv6");
     #$n = $ipv6s->getLength;
     #for (my $k = 0; $k < $n; $k++) {
     foreach my $ipv6s ($hostif->getElementsByTagName ("ipv6")) {        
         my $ipv6 = $ipv6s->getChildNodes->[0];
-        $ipaddrs = $ipaddrs . ' \n' . $ipv6->getNodeValue;
+        $ipaddrs = $ipaddrs . ' \n' . $ipv6->textContent;
     }
     print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
     print "host -- $net2  [ label = \"$ipaddrs\", fontsize=\"9\", style=\"bold\" ];\n" ;

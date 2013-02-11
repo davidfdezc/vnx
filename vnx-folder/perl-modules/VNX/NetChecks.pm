@@ -261,7 +261,8 @@ sub wait_sock_answer {
         while (1) {
             my $line = <$socket>;
             chomp ($line);
-            wlog (N, "** $line", ""); # if ($exemode == $EXE_VERBOSE)
+            my $pline = $line; $pline =~ s/^[\W]+//; # Eliminate trailing control non ascii characters for printing
+            wlog (N, "** $pline", ""); # if ($exemode == $EXE_VERBOSE)
             last if ( ( $line =~ /^OK/) || ( $line =~ /^NOTOK/) 
                       || ( $line =~ /^finished/)  # for old linux daemons (deprecated)  
                       || ( $line =~ /^1$/));      # for windows ace (deprecated)

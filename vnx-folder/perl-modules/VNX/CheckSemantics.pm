@@ -94,6 +94,7 @@ sub validate_xml {
 	my $schema = XML::LibXML::Schema->new(location => $xsd);
 	my $parser = XML::LibXML->new;
 	my $doc = $parser->parse_file($xmlFile);
+	
 	eval { $schema->validate( $doc ) };
 
 	if ( $@ ) {
@@ -316,11 +317,7 @@ sub check_doc {
    # Hash for duplicated physical interface detection
    my %phyif_names;
 
-    # To get list of defined <net>
-    #my $net_list = $doc->getElementsByTagName("net");
-
-    # To process list
-    #for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
+    # Process <net> list
     foreach my $net ($doc->getElementsByTagName("net")) {
         #my $net = $net_list->item($i);
 
@@ -1050,12 +1047,13 @@ sub check_doc {
             else {
                 $seq_users{$seq} = $user;
             }
-            # 21a. To check that attributes "group" and "perms" of <filetree>'s are only used in linux and Freebsd VMs
+            # 21a. To check that attributes "group" and "perms" of <filetree>'s are only used in linux and FreeBSD VMs
             my $group = $filetree->getAttribute("group");
             my $perms = $filetree->getAttribute("perms");
-            #wlog (VVV, "**** group=$group, perms=$perms\n");
+            #wlog (VVV, "**** group=$group, perms=$perms, merged_type=$merged_type\n");
             return "group and perms attribute of <filetree> tag can only be used in Linux or FreeBSD virtual machines"
-                if ( ( $group ne '' || $perms ne '' ) && ( ( $merged_type ne 'libvirt-kvm-linux') 
+                #if ( ( $group ne '' || $perms ne '' ) && ( ( $merged_type ne 'libvirt-kvm-linux') 
+                if ( ( !empty($group) || !empty($perms) ) && ( ( $merged_type ne 'libvirt-kvm-linux') 
                     && ( $merged_type ne 'libvirt-kvm-freebsd') && ( $merged_type ne 'uml')) ); 
         
    	   }   	   

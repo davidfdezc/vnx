@@ -832,8 +832,9 @@ sub mode_define {
 
 sub define_VMs {
 
-   my @vm_ordered = $dh->get_vm_ordered;
-   my %vm_hash = $dh->get_vm_to_use;
+   #my @vm_ordered = $dh->get_vm_ordered;
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   #my %vm_hash = $dh->get_vm_to_use;
 
    my $dom;
    
@@ -857,9 +858,9 @@ sub define_VMs {
 
       my $vm = $vm_ordered[$i];
       my $vm_name = $vm->getAttribute("name");
-      unless ($vm_hash{$vm_name}){
-         next;       
-      }
+#      unless ($vm_hash{$vm_name}){
+#         next;       
+#      }
 
       my $merged_type = $dh->get_vm_merged_type($vm);
       $curr_uml = $vm_name;
@@ -896,8 +897,10 @@ sub define_VMs {
 }
 
 sub mode_undefine{
-    my @vm_ordered = $dh->get_vm_ordered;
-    my %vm_hash = $dh->get_vm_to_use;
+
+    #my @vm_ordered = $dh->get_vm_ordered;
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # LList of vms to process havin into account -M option
+    #my %vm_hash = $dh->get_vm_to_use;
 	   
     for ( my $i = 0; $i < @vm_ordered; $i++) {
    	
@@ -906,9 +909,9 @@ sub mode_undefine{
         my $vm_name = $vm->getAttribute("name");
         my $merged_type = $dh->get_vm_merged_type($vm);
 
-        unless ($vm_hash{$vm_name}){
-            next;
-        }      
+#        unless ($vm_hash{$vm_name}){
+#            next;
+#        }      
            
         my $status_file = $dh->get_vm_dir($vm_name) . "/status";
         next if (! -f $status_file);
@@ -982,8 +985,9 @@ sub mode_start {
 
 sub start_VMs {
 
-    my @vm_ordered = $dh->get_vm_ordered;
-    my %vm_hash = $dh->get_vm_to_use;
+    #my @vm_ordered = $dh->get_vm_ordered;
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+    #my %vm_hash = $dh->get_vm_to_use;
  
     # If defined screen configuration file, open it
     if (($opts{e}) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
@@ -995,9 +999,9 @@ sub start_VMs {
 
         my $vm = $vm_ordered[$i];
         my $vm_name = $vm->getAttribute("name");
-        unless ($vm_hash{$vm_name}){
-            next;       
-        }
+#        unless ($vm_hash{$vm_name}){
+#            next;       
+#        }
 
         my $merged_type = $dh->get_vm_merged_type($vm);
       
@@ -1068,8 +1072,9 @@ sub start_VMs {
 
 sub mode_reset {
 	
-   my @vm_ordered = $dh->get_vm_ordered;
-   my %vm_hash = $dh->get_vm_to_use;
+   #my @vm_ordered = $dh->get_vm_ordered;
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   #my %vm_hash = $dh->get_vm_to_use;
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
    	
@@ -1078,9 +1083,9 @@ sub mode_reset {
       my $vm_name = $vm->getAttribute("name");
       my $merged_type = $dh->get_vm_merged_type($vm);
       
-      unless ($vm_hash{$vm_name}){
-          next;
-      }
+#      unless ($vm_hash{$vm_name}){
+#          next;
+#      }
       # call the corresponding vmAPI
       my $vm_type = $vm->getAttribute("type");
       wlog (N, "Reseting virtual machine '$vm_name' of type '$merged_type'...");
@@ -1095,8 +1100,9 @@ sub mode_reset {
 
 sub mode_save {
 
-   my @vm_ordered = $dh->get_vm_ordered;
-   my %vm_hash = $dh->get_vm_to_use;
+   #my @vm_ordered = $dh->get_vm_ordered;
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   #my %vm_hash = $dh->get_vm_to_use;
    my $filename;
 
    for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -1106,9 +1112,9 @@ sub mode_save {
       my $vm_name = $vm->getAttribute("name");
       my $merged_type = $dh->get_vm_merged_type($vm);
 
-      unless ($vm_hash{$vm_name}){
-          next;
-      }
+#      unless ($vm_hash{$vm_name}){
+#          next;
+#      }
 
       $filename = $dh->get_vm_dir($vm_name) . "/" . $vm_name . "_savefile";
 
@@ -1126,8 +1132,9 @@ sub mode_save {
 
 sub mode_restore {
 
-   my @vm_ordered = $dh->get_vm_ordered;
-   my %vm_hash = $dh->get_vm_to_use;
+   #my @vm_ordered = $dh->get_vm_ordered;
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   #my %vm_hash = $dh->get_vm_to_use;
    my $filename;
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -1137,9 +1144,9 @@ sub mode_restore {
       my $vm_name = $vm->getAttribute("name");
       my $merged_type = $dh->get_vm_merged_type($vm);
 
-      unless ($vm_hash{$vm_name}){
-          next;
-      }
+#      unless ($vm_hash{$vm_name}){
+#          next;
+#      }
       
       $filename = $dh->get_vm_dir($vm_name) . "/" . $vm_name . "_savefile";
       #     call the corresponding vmAPI
@@ -1156,8 +1163,9 @@ sub mode_restore {
 
 sub mode_suspend {
 
-   my @vm_ordered = $dh->get_vm_ordered;
-   my %vm_hash = $dh->get_vm_to_use;
+   #my @vm_ordered = $dh->get_vm_ordered;
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   #my %vm_hash = $dh->get_vm_to_use;
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
    	
@@ -1166,9 +1174,9 @@ sub mode_suspend {
       my $vm_name = $vm->getAttribute("name");
       my $merged_type = $dh->get_vm_merged_type($vm);
 
-      unless ($vm_hash{$vm_name}){
-          next;
-      }
+#      unless ($vm_hash{$vm_name}){
+#          next;
+#      }
       
       # call the corresponding vmAPI
       my $vm_type = $vm->getAttribute("type");
@@ -1184,8 +1192,9 @@ sub mode_suspend {
 
 sub mode_resume {
 
-   my @vm_ordered = $dh->get_vm_ordered;
-   my %vm_hash = $dh->get_vm_to_use;
+   #my @vm_ordered = $dh->get_vm_ordered;
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   #my %vm_hash = $dh->get_vm_to_use;
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
    	
@@ -1194,9 +1203,9 @@ sub mode_resume {
       my $vm_name = $vm->getAttribute("name");
       my $merged_type = $dh->get_vm_merged_type($vm);
 
-      unless ($vm_hash{$vm_name}){
-          next;
-      }
+#      unless ($vm_hash{$vm_name}){
+#          next;
+#      }
       # call the corresponding vmAPI
       my $vm_type = $vm->getAttribute("type");
       wlog (N, "Resuming virtual machine '$vm_name' of type '$merged_type'...");
@@ -1236,8 +1245,9 @@ sub mode_showmap {
 
 sub mode_console {
 	
-	my @vm_ordered = $dh->get_vm_ordered;
-	my %vm_hash = $dh->get_vm_to_use;
+	#my @vm_ordered = $dh->get_vm_ordered;
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+	#my %vm_hash = $dh->get_vm_to_use;
 
  	my $scename = $dh->get_scename;
 	for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -1245,10 +1255,9 @@ sub mode_console {
 			
 		my $vm_name = $vm->getAttribute("name");
 		
-      	# We have to process it?
-      	unless ($vm_hash{$vm_name}) {
-      		next;
-      	}
+#      	unless ($vm_hash{$vm_name}) {
+#      		next;
+#      	}
 		
 		if ($opts{'console'} eq '') {
             # No console names specified. Start all consoles			
@@ -2524,18 +2533,18 @@ sub mode_execute {
    	}
    
 	# Previous checkings and warnings
-	my @vm_ordered = $dh->get_vm_ordered;
-	my %vm_hash    = $dh->get_vm_to_use; # (@plugins);
+	#my @vm_ordered = $dh->get_vm_ordered;
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+	#my %vm_hash    = $dh->get_vm_to_use; # (@plugins);
 	
 	# First loop: 
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 		my $vm = $vm_ordered[$i];
 		my $vm_name = $vm->getAttribute("name");
 
-		# We have to process it?
-		unless ( $vm_hash{$vm_name} ) {
-			next;
-		}
+#		unless ( $vm_hash{$vm_name} ) {
+#			next;
+#		}
 
         my @plugin_ftree_list = ();
         my @plugin_exec_list = ();
@@ -2612,8 +2621,9 @@ sub mode_shutdown {
     
     my $seq = 'on_shutdown';
 
-    my @vm_ordered = $dh->get_vm_ordered;
-    my %vm_hash = $dh->get_vm_to_use;
+    #my @vm_ordered = $dh->get_vm_ordered;
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+    #my %vm_hash = $dh->get_vm_to_use;
     my $only_vm = "";
    	
     my $num_plugin_ftrees = 0;
@@ -2626,9 +2636,9 @@ sub mode_shutdown {
         my $vm = $vm_ordered[$i];
         my $vm_name = $vm->getAttribute("name");
 
-        unless ($vm_hash{$vm_name}){
-          	next;
-      	}
+#        unless ($vm_hash{$vm_name}){
+#          	next;
+#      	}
 
         my $merged_type = $dh->get_vm_merged_type($vm);
 
@@ -2824,14 +2834,10 @@ sub get_vm_ftrees_and_execs {
     my $merged_type = $dh->get_vm_merged_type($vm);
     
     # Plugin operations:
-    #  1 - for each active plugin, call: $plugin->getBootFiles for define mode
-    #                                    $plugin->getExecFiles for execute mode 
-    #                                    $plugin->getShutdownFiles for shutdown mode 
+    #  1 - for each active plugin, call: $plugin->getFiles
     #  2 - create a list of <filetree> commands to copy all the files 
     #      returned and pass it as a parameter to executeCMD
-    #  3 - for each active plugin, call: $plugin->getBootCommands for define mode
-    #                                    $plugin->getExecCommands for execute mode 
-    #                                    $plugin->getShutdownCommands for shutdown mode 
+    #  3 - for each active plugin, call: $plugin->getCommands
     #  4 - create a list of <exec> command returned 
     #      to pass it as a parameter to executeCMD
         
@@ -2841,10 +2847,10 @@ sub get_vm_ftrees_and_execs {
     # Create the XML doc to store the <filetree>'s and <exec>'s returned
     # by the calls to get*Files and get*Commands
     #my $xdoc = XML::DOM::Document->new;
-    my $xdoc = XML::LibXML->createDocument( "1.0", "UTF-8" );
+    #my $xdoc = XML::LibXML->createDocument( "1.0", "UTF-8" );
 
-    my $plugin_cmds = $xdoc->createElement('plugin_cmds');
-    $xdoc->appendChild($plugin_cmds);
+    #my $plugin_cmds = $xdoc->createElement('plugin_cmds');
+    #$xdoc->appendChild($plugin_cmds);
         
     foreach my $plugin (@plugins) {
             
@@ -2898,8 +2904,9 @@ sub get_vm_ftrees_and_execs {
                 
             # Create the <filetree> tag
             #   Format: <filetree seq="plugin-$plugin" root="$key">$files{$key}</filetree>
-            my $ftree_tag = $xdoc->createElement('filetree');
-            $plugin_cmds->appendChild($ftree_tag);
+            my $ftree_tag = XML::LibXML::Element->new('filetree');
+            #my $ftree_tag = $xdoc->createElement('filetree');
+            #$plugin_cmds->appendChild($ftree_tag);
             $ftree_tag->setAttribute( seq => "$seq");
             if ( -d "$files_dir$files{$key}" )  {   # If $files{$key} is a directory...
                 if ( $merged_type eq "libvirt-kvm-windows" ) { # Windows vm
@@ -2916,7 +2923,8 @@ sub get_vm_ftrees_and_execs {
             } else { # $files{$key} is not a directory...
                 $ftree_tag->setAttribute( root => "$file[0]" );
             }           
-            $ftree_tag->appendChild($xdoc->createTextNode( "$files{$key}" ));
+            #$ftree_tag->appendChild($xdoc->createTextNode( "$files{$key}" ));
+            $ftree_tag->appendTextNode ("$files{$key}");            
             if ($file[1]) {
                 $ftree_tag->setAttribute( user => "$file[1]" );
             }
@@ -2964,12 +2972,14 @@ sub get_vm_ftrees_and_execs {
     
             # Create the <exec> tag
             #   Format: <exec seq="$seq" type="verbatim" ostype="??">$cmd</exec>
-            my $exec_tag = $xdoc->createElement('exec');
-            $plugin_cmds->appendChild($exec_tag);
+            my $exec_tag = XML::LibXML::Element->new('exec');
+            #my $exec_tag = $xdoc->createElement('exec');
+            #$plugin_cmds->appendChild($exec_tag);
             $exec_tag->setAttribute( seq => "$seq");
             $exec_tag->setAttribute( type => "verbatim");
             $exec_tag->setAttribute( ostype => "system");
-            $exec_tag->appendChild($xdoc->createTextNode( "$cmd" ));
+            #$exec_tag->appendChild($xdoc->createTextNode( "$cmd" ));
+            $exec_tag->appendTextNode("$cmd");
            
             # Add the filetree node to the list passed to executeCMD
             push (@{$plugin_exec_list_ref}, $exec_tag);
@@ -2996,12 +3006,15 @@ sub get_vm_ftrees_and_execs {
             if ( $filetree_seq eq $seq ) {
                     
                 # $seq matches, copy the filetree node to the list      
+
+=BEGIN
     # NOTE: This code does not work, probably because we are mixing XML::DOM and XML::LibXML documents
     # TODO: migrate all the code to XML::LibXML
     #           my $filetree_clon = $filetree->cloneNode(1);
     #           $filetree_clon->setOwnerDocument($dom->getOwnerDocument());
     #           $vm_tag->addChild($filetree_clon);
-    
+
+
                 # We copy the node manually...boring
                 # Read values
                 # TODO seq value copied has to be the one in $seq; the value in XML could be a comma separeted list 
@@ -3015,17 +3028,28 @@ sub get_vm_ftrees_and_execs {
                 wlog (VVV, "Creating <filetree> tag for user-defined file/dir '$value'", $logp);
                 
                 # Create new node
-                my $new_filetree = $xdoc->createElement('filetree');
+                my $new_filetree = XML::LibXML::Element->new('filetree');
+                #my $new_filetree = $xdoc->createElement('filetree');
                 #$vm_tag->addChild($new_filetree);
                 $new_filetree->setAttribute( seq => $seq);
                 $new_filetree->setAttribute( root => $root);
                 $new_filetree->setAttribute( user => $user);
                 $new_filetree->setAttribute( group => $group);
                 $new_filetree->setAttribute( perms => $perms);
-                $new_filetree->appendChild($xdoc->createTextNode( $value ));
+                $new_filetree->appendTextNode( $value );
+                #$new_filetree->appendChild($xdoc->createTextNode( $value ));
    
                 # Add the filetree node to the list passed to executeCMD
                 push (@{$ftree_list_ref}, $new_filetree);
+=END
+=cut
+   
+                my $root = $filetree->getAttribute("root");
+                my $value = &text_tag($filetree);
+
+                # Add the filetree node to the list passed to executeCMD
+                my $filetree_clon = $filetree->cloneNode(1);
+                push (@{$ftree_list_ref}, $filetree_clon);
     
                 # Copy the files/dirs to "filetree/$dst_num" dir
                 my $src = &get_abs_path ($value);
@@ -3098,12 +3122,14 @@ sub get_vm_ftrees_and_execs {
                         
                     # Including command "as is"
                     # Create the new node
-                    my $new_exec = $xdoc->createElement('exec');
+                    my $new_exec = XML::LibXML::Element->new('exec');
+                    #my $new_exec = $xdoc->createElement('exec');
                     #$vm_tag->addChild($new_exec);
                     $new_exec->setAttribute( seq => $seq);
                     $new_exec->setAttribute( type => $type);
                     $new_exec->setAttribute( ostype => $ostype);
-                    $new_exec->appendChild($xdoc->createTextNode( $value ));
+                    $new_exec->appendTextNode( $value );
+                    #$new_exec->appendChild($xdoc->createTextNode( $value ));
   
                     # Add the exec node to the list passed to executeCMD
                     push (@{$exec_list_ref}, $new_exec);
@@ -3118,12 +3144,14 @@ sub get_vm_ftrees_and_execs {
                         chomp;
 
                         # Create a new node
-                        my $new_exec = $xdoc->createElement('exec');
+                        my $new_exec = XML::LibXML::Element->new('exec');
+                        #my $new_exec = $xdoc->createElement('exec');
                         #$vm_tag->addChild($new_exec);
                         $new_exec->setAttribute( seq => $seq);
                         $new_exec->setAttribute( type => $type);
                         $new_exec->setAttribute( ostype => $ostype);
-                        $new_exec->appendChild($xdoc->createTextNode( $_ ));
+                        $new_exec->appendTextNode( $_ );
+                        #$new_exec->appendChild($xdoc->createTextNode( $_ ));
         
                         # Add the exec node to the list passed to executeCMD
                         push (@{$exec_list_ref}, $new_exec);
@@ -5198,8 +5226,9 @@ sub make_vmAPI_doc {
     # 1 - Plugins <filetree> tags
     foreach my $filetree (@plugin_ftree_list) {
         # TODO: change all to XML::LibXML for this sentence to work
-        #$vm_tag->addChild($filetree);
+        $vm_tag->addChild($filetree);
 
+=BEGIN
         # Till then, copy the node manually...
         my $seq   = $filetree->getAttribute("seq");
         my $root  = $filetree->getAttribute("root");
@@ -5216,13 +5245,16 @@ sub make_vmAPI_doc {
         $new_filetree->addChild($dom->createAttribute( group => $group));
         $new_filetree->addChild($dom->createAttribute( perms => $perms));
         $new_filetree->addChild($dom->createTextNode($value));
+=END
+=cut
 
         wlog (VVV, "make_vmAPI_doc: adding plugin filetree " . $filetree->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
     foreach my $exec (@plugin_exec_list) {
         # TODO: change all to XML::LibXML for this sentence to work
-        #$vm_tag->addChild($filetree);
+        $vm_tag->addChild($exec);
 
+=BEGIN
         # Till then, copy the node manually...
         my $seq    = $exec->getAttribute("seq");
         my $type   = $exec->getAttribute("type");
@@ -5236,13 +5268,16 @@ sub make_vmAPI_doc {
         $new_exec->addChild($dom->createAttribute( type   => $type));
         $new_exec->addChild($dom->createAttribute( ostype => $ostype));
         $new_exec->addChild($dom->createTextNode($value));
+=END
+=cut
         
         wlog (VVV, "make_vmAPI_doc: adding plugin exec " . $exec->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
     foreach my $filetree (@ftree_list) {
         # TODO: change all to XML::LibXML for this sentence to work
-        #$vm_tag->addChild($filetree);
-        
+        $vm_tag->addChild($filetree);
+
+=BEGIN        
         # Till then, copy the node manually...
         my $seq   = $filetree->getAttribute("seq");
         my $root  = $filetree->getAttribute("root");
@@ -5259,13 +5294,16 @@ sub make_vmAPI_doc {
         $new_filetree->addChild($dom->createAttribute( group => $group));
         $new_filetree->addChild($dom->createAttribute( perms => $perms));
         $new_filetree->addChild($dom->createTextNode($value));
+=END
+=cut
         
         wlog (VVV, "make_vmAPI_doc: adding user defined ftree " . $filetree->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
     foreach my $exec (@exec_list) {
         # TODO: change all to XML::LibXML for this sentence to work
-        #$vm_tag->addChild($filetree);
+        $vm_tag->addChild($exec);
         
+=BEGIN
         # Till then, copy the node manually...
         my $seq    = $exec->getAttribute("seq");
         my $type   = $exec->getAttribute("type");
@@ -5279,6 +5317,8 @@ sub make_vmAPI_doc {
         $new_exec->addChild($dom->createAttribute( type   => $type));
         $new_exec->addChild($dom->createAttribute( ostype => $ostype));
         $new_exec->addChild($dom->createTextNode($value));
+=END
+=cut
         
         wlog (VVV, "make_vmAPI_doc: adding user defined exec " . $exec->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
@@ -5399,8 +5439,9 @@ sub print_consoles_info{
 	my $briefFormat = $opts{b};
 
 	# Print information about vm consoles
-    my @vm_ordered = $dh->get_vm_ordered;
-	my %vm_hash = $dh->get_vm_to_use;
+    #my @vm_ordered = $dh->get_vm_ordered;
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+	#my %vm_hash = $dh->get_vm_to_use;
     
     my $first = 1;
     my $scename = $dh->get_scename;
@@ -5410,9 +5451,9 @@ sub print_consoles_info{
 		my $vm_name = $vm->getAttribute("name");
 
       	# Do we have to process it?
-      	unless ($vm_hash{$vm_name}) {
-      		next;
-      	}    
+#      	unless ($vm_hash{$vm_name}) {
+#      		next;
+#      	}    
 
         my $merged_type = $dh->get_vm_merged_type($vm);
 			
