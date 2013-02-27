@@ -1239,6 +1239,7 @@ sub mode_showmap {
         	         else { $pngViewer="xdg-open" }
     }
    	#$execution->execute($logp, "eog ${scedir}/${scename}.png");
+   	wlog (N, "Using '$pngViewer' to show scenario '${scename}' topology map", "host> ");
    	$execution->execute($logp, "$pngViewer ${scedir}/${scename}.png &");
 
 }

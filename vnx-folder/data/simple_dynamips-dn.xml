@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<vnx_dynamips xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/dynamips.xsd"> 
+<vnx_dynamips xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/dynamips.xsd"> 
 
   <global>
     <sparsemem>true</sparsemem>

@@ -51,9 +51,9 @@
                   <xs:attribute name="user" type="xs:string" />
                 </xs:complexType>
               </xs:element>
-              <xs:element name="enable" minOccurs="0" maxOccurs="unbounded">
+              <xs:element name="enable" minOccurs="0" maxOccurs="1">
                 <xs:complexType>
-                  <xs:attribute name="password" type="xs:string" />
+                  <xs:attribute name="password" type="xs:string" use="required"/>
                 </xs:complexType>
               </xs:element>
             </xs:sequence>

@@ -69,7 +69,7 @@ SPAIN
     <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>
   </vm>
 
-  <vm name="r2" type="uml" subtype="" os="" exec_mode="mconsole">
+  <vm name="r2" type="uml" subtype="" os="" exec_mode="net">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_uml</filesystem>
     <mem>64M</mem>
     <kernel>/usr/share/vnx/kernels/linux</kernel>
@@ -98,7 +98,7 @@ SPAIN
     <route type="ipv6" gw="2001:db8:1::1">default</route>       
   </vm>
 
-  <vm name="h2" type="uml" exec_mode="mconsole">
+  <vm name="h2" type="uml" exec_mode="net">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_uml</filesystem>
     <mem>64M</mem>
     <kernel>/usr/share/vnx/kernels/linux</kernel>
