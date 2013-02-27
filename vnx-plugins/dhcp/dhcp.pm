@@ -63,6 +63,9 @@ use Data::Dumper;
 # DOM tree for Plugin Configuration File (PCF)
 my $pcf_dom;
 
+# Main VNX scenario specification file in DOM format
+my $doc;
+
 # Name of PCF main node tag (ex. ospf_conf, dhcp_conf, etc)
 my $pcf_main = 'dhcp_conf';
 
@@ -135,6 +138,7 @@ sub initPlugin {
     my $self = shift;   
     my $mode = shift;
     my $conf = shift;  # Absolute filename of PCF. Empty if PCF not defined 
+    $doc  = shift; # Save main doc in global variable 
     
     plog (VVV, "initPlugin (mode=$mode; conf=$conf)");
 

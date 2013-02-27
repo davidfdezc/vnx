@@ -40,7 +40,7 @@ SPAIN
 
   <vm name="h1" type="libvirt" subtype="kvm" os="linux">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu-gui</filesystem>
-    <mem>384M</mem>
+    <mem>512M</mem>
     <console id="0" display="yes"/>
     <console id="1" display="no"/>
     <if id="1" net="Net0">

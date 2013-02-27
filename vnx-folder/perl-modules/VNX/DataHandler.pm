@@ -248,22 +248,22 @@ sub new {
    my @vmmgmt_list = $self->{'doc'}->getElementsByTagName("vm_mgmt");
    if (@vmmgmt_list == 1) {
 	  my ($type,$net,$mask,$offset,$hostip,$autoconfigure) = &vmmgmt($self, $vmmgmt_list[0]);
-	  if ($type ne '') {
+	  if (!empty($type)) {
 		  $global_data{'vmmgmt_type'} = $type;
 	  }
-	  if ($net ne '') {
+	  if (!empty($net)) {
 		  $global_data{'vmmgmt_net'} = $net;
 	  }
-	  if ($mask ne '') {
+	  if (!empty($mask)) {
 		  $global_data{'vmmgmt_mask'} = $mask;
 	  }
-	  if ($offset ne '') {
+	  if (!empty($offset)) {
 		  $global_data{'vmmgmt_offset'} = $offset;
 	  }
-	  if ($hostip ne '') {
+	  if (!empty($hostip)) {
 		  $global_data{'vmmgmt_hostip'} = $hostip;
 	  }
-	  if ($autoconfigure ne '') {
+	  if (!empty($autoconfigure)) {
 		  $global_data{'vmmgmt_autoconfigure'} = $autoconfigure;
 	  }
    }

@@ -24,6 +24,9 @@ Address		System				MAC offset 		Mgmt if offset
 10.0.0.17	simple_honeywall		17				64
 10.0.0.18	simple_metasploitable	18				68
 10.0.0.19	simple_caine			19				72
+10.0.0.20   simple_honeyd           20              76
+10.0.0.21         "
+10.0.0.22         "
 
 
 

@@ -115,8 +115,7 @@ sub initPlugin {
 	
 	my $self = shift;	
 	my $mode = shift;
-	my $conf = shift;  # Absolute filename of PCF. Empty if PCF not defined
-	
+	my $conf = shift;  # Absolute filename of PCF. Empty if PCF not defined	
 	$doc  = shift; # Save main doc in global variable 
 	
     plog (VVV, "initPlugin (mode=$mode; conf=$conf)");
