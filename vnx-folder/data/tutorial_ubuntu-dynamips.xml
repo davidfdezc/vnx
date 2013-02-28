@@ -11,10 +11,10 @@ See the tutorial/index.html document for details
     <version>2.0</version>
     <scenario_name>tutorial_ubuntu-dynamips</scenario_name>
     <automac/>
-    <!--vm_mgmt type="none"/-->
-    <vm_mgmt type="private" network="10.250.0.0" mask="24">
+    <vm_mgmt type="none"/>
+    <!--vm_mgmt type="private" network="10.250.0.0" mask="24">
        <host_mapping />
-    </vm_mgmt> 
+    </vm_mgmt--> 
     <vm_defaults>
     	<console id="0" display="no"/>
 	    <console id="1" display="yes"/>

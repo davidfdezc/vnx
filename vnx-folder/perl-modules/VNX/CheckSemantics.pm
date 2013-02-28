@@ -1254,7 +1254,7 @@ sub check_doc {
         #my $exec_list = $vm->getElementsByTagName("exec");
         # For each <exec> in the vm
         #for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
-        foreach my $cmd ($doc->getElementsByTagName("exec")) {
+        foreach my $cmd ($vm->getElementsByTagName("exec")) {
         	#my $cmd = $exec_list->item($j);
             my $cmdMode = $cmd->getAttribute("mode"); # mode attribute eliminated from <exec>
             my $cmdOSType = $cmd->getAttribute("ostype");
