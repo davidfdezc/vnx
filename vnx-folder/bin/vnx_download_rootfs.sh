@@ -78,7 +78,14 @@ function get_link_name {
          echo "rootfs_light"
       fi
    fi
-   if [[ $1 == *ubuntu* ]] ; then
+   
+   if [[ $1 == *ubuntu64* ]] ; then
+      if [[ $1 == *gui* ]] ; then
+         echo "rootfs_ubuntu64-gui"
+      else
+         echo "rootfs_ubuntu64"
+      fi   
+   elif [[ $1 == *ubuntu* ]] ; then
       if [[ $1 == *gui* ]] ; then
          echo "rootfs_ubuntu-gui"
       else
