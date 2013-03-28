@@ -170,9 +170,7 @@ sub main {
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'u=s', '4', '6', 'D', 'no-console|n', 'st-delay=s',
-                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 
-                # deprecated
-                'cid=s'
+                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s' 
     ) or vnx_die("Incorrect usage. Type 'vnx -h' for help"); 
     
    	# FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
@@ -1479,7 +1477,9 @@ sub mode_createrootfs {
     my $h2vm_port;   # host tcp port used to access the the host-to-VM comms channel 
     my $vm_libirt_xml_hdb;
     my $mem;         # Memory assigned to the virtual machine
-    my $default_mem = "512M";
+    my $default_mem  = "512M";
+    my $arch;        # Virtual machine architecture type (32 or 64 bits)
+    my $default_arch = "i686";
  
     my $instal_cdrom = $opts{'install-media'};
     if (! -e $instal_cdrom) {
@@ -1502,7 +1502,15 @@ sub mode_createrootfs {
     } else {
         vnx_die ("Incorrect memory specification ($mem). Use 'M' or 'G' to specify Mbytes or Gbytes. Ej: 512M, 1G ");
     }
-    
+
+    # Set architecture type (32 or 64 bits)
+    if ($opts{'arch'}) {
+        $arch = $opts{'arch'};
+        unless ( $arch eq 'i686' or $arch eq 'x86_64') { vnx_die ("ERROR: Unkwon value ($arch) for --arch option" ) }
+    } else {
+        $arch = $default_arch;
+    }
+
     my $rootfs_name = basename $opts{'create-rootfs'};
     $rootfs_name .= "-" . int(rand(10000));
 
@@ -1537,7 +1545,7 @@ EOF
   <memory>$mem</memory>
   <vcpu>1</vcpu>
   <os>
-    <type arch="i686">hvm</type>
+    <type arch='$arch'>hvm</type>
     <boot dev='cdrom'/>
     <boot dev='hd'/>
   </os>
@@ -1565,6 +1573,11 @@ EOF
      <console type="pty">
       <target port="0"/>
      </console>
+     <serial type="tcp">
+         <source mode="bind" host="127.0.0.1" service="$h2vm_port"/>
+         <protocol type="telnet"/>
+         <target port="1"/>
+     </serial>
   </devices>
 </domain>
 
@@ -1591,6 +1604,8 @@ sub mode_modifyrootfs {
     my $vm_libirt_xml_hdb;
     my $mem;         # Memory assigned to the virtual machine
     my $default_mem = "512M";
+    my $arch;        # Virtual machine architecture type (32 or 64 bits)
+    my $default_arch = "i686";
  
     use constant USE_CDROM_FORMAT => 0;  # 
     
@@ -1609,6 +1624,14 @@ sub mode_modifyrootfs {
         $mem = $mem * 1024 * 1024;
     } else {
     	vnx_die ("Incorrect memory specification ($mem). Use 'M' or 'G' to specify Mbytes or Gbytes. Ej: 512M, 1G ");
+    }
+
+    # Set architecture type (32 or 64 bits)
+    if ($opts{'arch'}) {
+        $arch = $opts{'arch'};
+        unless ( $arch eq 'i686' or $arch eq 'x86_64') { vnx_die ("ERROR: Unkwon value ($arch) for --arch option" ) }
+    } else {
+        $arch = $default_arch;
     }
     
     my $rootfs_name = basename $opts{'modify-rootfs'};
@@ -1786,7 +1809,7 @@ EOF
   <memory>$mem</memory>
   <vcpu>1</vcpu>
   <os>
-    <type arch="i686">hvm</type>
+    <type arch='$arch'>hvm</type>
     <boot dev='hd'/>
     <boot dev='cdrom'/>
   </os>
@@ -1815,8 +1838,8 @@ EOF
       <target port="0"/>
      </console>
      <serial type="tcp">
-         <source mode="bind" host="0.0.0.0" service="$h2vm_port"/>
-         <protocol type="raw"/>
+         <source mode="bind" host="127.0.0.1" service="$h2vm_port"/>
+         <protocol type="telnet"/>
          <target port="1"/>
      </serial>
   </devices>

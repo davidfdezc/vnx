@@ -79,6 +79,9 @@ my $console_ttys;
 
 my $DEBUG;
 my $VERBOSE;
+my $LOGCONSOLE;
+
+my $logp = "~~ vnxaced>"; # log prompt
 
 #~~~~~~ Usage & Version messages ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -142,13 +145,34 @@ for (my $i=0; $i <= $#ARGV; $i++) {
 }
 
 system "mkdir -p /root/.vnx";
-#unless ( -e VNXACED_LOG ) { system "touch " . VNXACED_LOG }
+#unless ( -e VNXACED_LOG )   { system "touch " . VNXACED_LOG }
+
+# Check if status file exists
+my $tout = 30;
+while ( ! (-e VNXACED_STATUS) ) { 
+        # Create status file with default values
+        write_log ("Creating " . VNXACED_STATUS . " \n");
+        system ('echo "verbose=no"    >  ' . VNXACED_STATUS);
+        system ('echo "logconsole=no" >> ' . VNXACED_STATUS);
+        $tout--;
+        if (!$tout) { 
+            vnxaced_die ("Cannot create status file " . VNXACED_STATUS . " \n")
+        }
+        sleep 2;
+}
 
 my $verbose_cfg = get_conf_value (VNXACED_STATUS, 'verbose');
 if ($verbose_cfg eq 'yes') { $VERBOSE = 'true' }
 
 if ($DEBUG) { print "DEBUG mode\n"; }
 if ($VERBOSE) { print "VERBOSE mode\n"; }
+
+my $logconsole_cfg = get_conf_value (VNXACED_STATUS, 'logconsole');
+if ($logconsole_cfg eq 'yes') { $LOGCONSOLE = 'true' }
+
+if ($DEBUG)      { print "DEBUG mode\n"; }
+if ($VERBOSE)    { print "VERBOSE mode\n"; }
+if ($LOGCONSOLE) { print "LOGCONSOLE mode\n"; }
 
 my $os_distro = get_os_distro();
 @platform = split(/,/, $os_distro);
@@ -255,11 +279,14 @@ sub write_log {
     my $msg = shift;
 
     if ($DEBUG) { 
-        print "$msg\n"; 
+        print "$logp $msg\n"; 
+    }
+    if ($LOGCONSOLE) { 
+        write_console ("$logp $msg\r\n"); 
     }
     if (open(LOG, ">>" . VNXACED_LOG)) {
         (*LOG)->autoflush(1);
-        print LOG ("$msg\n");
+        print LOG ("$logp $msg\n");
         close LOG;
     }
 }
@@ -269,7 +296,7 @@ sub write_log {
 sub write_console {
 
     my $msg = shift;
-    system "printf \"$msg\" | tee -a $console_ttys > /dev/null";
+    system "printf \"$logp $msg\" | tee -a $console_ttys > /dev/null";
 
 }
 
@@ -301,7 +328,7 @@ sub exe_mount_cmd {
 
 sub daemonize {
         
-    write_log ("~~ Daemonizing process... ");
+    write_log ("Daemonizing process... ");
 
     # Fork
 #   my $pid = fork;
@@ -338,14 +365,14 @@ sub listen {
     my $on_boot_cmds_pending = get_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending');
     if ($on_boot_cmds_pending eq 'yes') {
  
-        write_log ("~~ Executing on_boot commands if specified");
+        write_log ("Executing on_boot commands if specified");
         # It's pending, generate an 'exeCommand' to 
         my $exec_mode = get_conf_value (VNXACED_STATUS, 'exec_mode');
         process_cmd ( "exeCommand $exec_mode");
  
     } else {
 
-        write_log ("~~ Starting...looking for vnxboot autoconfiguration files...");
+        write_log ("Starting...looking for vnxboot autoconfiguration files...");
 
         #
         # We have just initiated. We check during INIT_DELAY secs whether an
@@ -361,7 +388,7 @@ sub listen {
             my $files_dir = '/mnt/sdisk';
     
             if ($VERBOSE) {
-                my $res=`ls -l $files_dir`; write_log ("\n~~ $files_dir content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
+                my $res=`ls -l $files_dir`; write_log ("\n$files_dir content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
             }
             
             my @files = <$files_dir/*>;
@@ -370,11 +397,11 @@ sub listen {
                 my $fname = basename ($file);
                 if ( ($fname eq "vnxboot") || ($fname eq "vnxboot.xml") && is_new_file($file) ) {
 
-                    write_log ("~~ vnxboot file found...autoconfiguration in progress");
+                    write_log ("vnxboot file found...autoconfiguration in progress");
 
-                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n$fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
                     chomp (my $now = `date`);                       
-                    write_log ("~~ $now:");
+                    write_log ("$now:");
                     write_log ("     configuration file received in $file");
                     set_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending', 'yes');
                     set_conf_value (VNXACED_STATUS, 'exec_mode', 'sdisk');
@@ -389,7 +416,7 @@ sub listen {
             $files_dir = '/media/cdrom';
     
             if ($VERBOSE) {
-                my $res=`ls -l $files_dir`; write_log ("\n~~ $files_dir content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
+                my $res=`ls -l $files_dir`; write_log ("\n$files_dir content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
             }
             
             @files = <$files_dir/*>;
@@ -398,9 +425,9 @@ sub listen {
                 my $fname = basename ($file);
                 if ( ($fname eq "vnxboot") || ($fname eq "vnxboot.xml") && is_new_file($file) ) {
 
-                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n$fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
                     chomp (my $now = `date`);                       
-                    write_log ("~~ $now:");
+                    write_log ("$now:");
                     write_log ("     configuration file received in $file");
                     set_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending', 'yes');
                     set_conf_value (VNXACED_STATUS, 'exec_mode', 'cdrom');
@@ -412,7 +439,7 @@ sub listen {
             
             sleep (2);
         }
-        write_log ("~~ No vnxboot autoconfiguration files found...");
+        write_log ("No vnxboot autoconfiguration files found...");
         
     }
 
@@ -424,10 +451,10 @@ sub listen {
 
         # Open the TTY for reading commands and process them 
         open (VMTTY, "< $vm_tty") or vnxaced_die ("Couldn't open $vm_tty for reading");
-        write_log ("~~ Waiting for commands on serial line...");
+        write_log ("Waiting for commands on serial line...");
         while ( chomp( my $line = <VMTTY> ) ) {
             process_cmd ($line);
-            write_log ("~~ Waiting for commands on serial line...");
+            write_log ("Waiting for commands on serial line...");
         }
     
     } elsif ( H2VM_CHANNEL eq 'SHARED_FILE' ){
@@ -437,7 +464,7 @@ sub listen {
         my $cmd_file_res  = MSG_FILE . '.res';
 
         while (1) {         
-            write_log ("~~ Waiting for commands on shared file ($cmd_file)...");
+            write_log ("Waiting for commands on shared file ($cmd_file)...");
             while ( ! (-e $cmd_file && ! -e $cmd_file_lock ) ) {
                 #print "$cmd_file\n";
                 sleep 1;
@@ -494,7 +521,7 @@ sub process_cmd {
         $cd_dir = FREEBSD_CD_DIR;
     }
 
-    write_log ("~~ Command received: '$line'");
+    write_log ("Command received: '$line'");
         
     my @cmd = split(/ /, $line);
 
@@ -511,7 +538,7 @@ sub process_cmd {
             }
 
             if ($VERBOSE) {
-                my $res=`ls -l $files_dir`; write_log ("\n~~ $cmd[1] content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
+                my $res=`ls -l $files_dir`; write_log ("\n$cmd[1] content: ~~\n$res~~~~~~~~~~~~~~~~~~~~\n")
             }
 
             my @files = <$files_dir/*>;
@@ -523,9 +550,9 @@ sub process_cmd {
                     unless (&is_new_file($file)){
                         next;               
                     }
-                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n$fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
                     chomp (my $now = `date`);                       
-                    write_log ("~~ $now:");
+                    write_log ("$now:");
                     write_log ("     command received in $file");
                     &execute_filetree($file);
                     &execute_commands($file);
@@ -541,7 +568,7 @@ sub process_cmd {
                         # Check if commands with seq="on_boot" have been executed
                         my $on_boot_cmds_pending = get_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending');
                         if ($on_boot_cmds_pending eq 'yes') {
-                            write_log ("~~   executing <filetree> and <exec> commands with seq='on_boot' after restart");
+                            write_log ("   executing <filetree> and <exec> commands with seq='on_boot' after restart");
                             # Execute all <filetree> and <exec> commands in vnxboot file            
                             # Execute <filetree> commands
                             &execute_filetree($file);
@@ -553,9 +580,9 @@ sub process_cmd {
                         next;               
                     }
 
-                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n$fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
                     chomp (my $now = `date`);                       
-                    write_log ("~~ $now:");
+                    write_log ("$now:");
                     write_log ("     configuration file received in $file");
                     set_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending', 'yes');
                     set_conf_value (VNXACED_STATUS, 'exec_mode', $cmd[1]);
@@ -566,9 +593,9 @@ sub process_cmd {
                     unless (&is_new_file($file) eq '1'){
                         next;               
                     }
-                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n~~ $fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
+                    if ($VERBOSE) { my $f=`cat $file`; write_log "\n$fname ~~\n$f~~~~~~~~~~~~~~~~~~~~\n"; }
                     chomp (my $now = `date`);                       
-                    write_log ("~~ $now:");
+                    write_log ("$now:");
                     write_log ("     update files received in $file");
                     #send_cmd_response ('OK');
                     autoupdate ($files_dir);
@@ -778,7 +805,7 @@ sub is_new_file {
     
     if ( ($old_cid ne '') && ($old_cid eq $new_cid)) {
         # file is not new
-        #write_log ("file is not new");
+        write_log ("$file file is not new");
         return "0";
     }
 
@@ -816,7 +843,7 @@ sub exe_cmd {
     my $cmd = shift;
     my $ostype = shift;
 
-    write_log ("~~ Command output:");
+    write_log ("Command output:");
     if ($ostype eq 'system') {
         # Execution mode for commands with no graphical user interface
         if ($DEBUG) {
@@ -918,18 +945,20 @@ sub execute_commands {
 
     my $commands_file = shift;
 
-    my $parser = XML::LibXML->new;
-    my $dom    = $parser->parse_file($commands_file);
-    
-    my $execTagList = $dom->getElementsByTagName("exec");
-    for (my $j = 0 ; $j < $execTagList->size; $j++){
-        # Note DFC 16/12/2012: with LibXML the first element is 1 (not 0)
-        my $execTag    = $execTagList->item($j+1);
-        
-        my $seq        = $execTag->getAttribute("seq");
-        my $type       = $execTag->getAttribute("type");
-        my $ostype     = $execTag->getAttribute("ostype");
-        my $command2   = $execTag->getFirstChild->getData;
+    my $parser       = XML::LibXML->new();
+    my $dom          = $parser->parse_file($commands_file);
+    #my $parser       = new XML::DOM::Parser;
+    #my $dom          = $parser->parsefile($commands_file);
+    #my $execTagList = $dom->getElementsByTagName("exec");
+    #for (my $j = 0 ; $j < $execTagList->getLength; $j++){
+
+    foreach my $exec ($dom->getElementsByTagName("exec")) {
+
+        #my $execTag    = $execTagList->item($j);
+        #my $seq        = $exec->getAttribute("seq");
+        #my $type       = $exec->getAttribute("type");
+        my $ostype     = $exec->getAttribute("ostype");
+        my $command2   = $exec->getFirstChild->getData;
             
         write_log ("     executing: '$command2' in ostype mode: '$ostype'");
         exe_cmd ($command2, $ostype);
@@ -958,9 +987,9 @@ EOF
 
         write_console ("$warn_msg\n");
         my $cmd = "cat " . VNXACED_STATUS; my $status=`$cmd`; 
-        write_console ("-------------------------\r\nvnxaced.status file:\r\n");
-        write_console ("$status\r\n"); 
-        write_console ("-------------------------\r\n"); 
+        write_log ("-------------------------\r\nvnxaced.status file:\r\n");
+        write_log ("$status\r\n"); 
+        write_log ("-------------------------\r\n"); 
         
         if ($platform[1] eq 'Ubuntu') { 
             &autoconfigure_ubuntu ($vnxboot_file)
@@ -984,7 +1013,7 @@ EOF
     write_log ("   rebooting...\n");
     sleep 5;
     system "shutdown -r now '  VNX:  autoconfiguration finished...rebooting'";
-    sleep 100; # wait for system to reboot
+    #sleep 100; # wait for system to reboot
 }
 
 
@@ -994,6 +1023,8 @@ EOF
 sub autoconfigure_ubuntu {
     
     my $vnxboot_file = shift;
+    
+    write_log ("autoconfigure_ubuntu");
 
     my $parser = XML::LibXML->new;
     my $dom    = $parser->parse_file($vnxboot_file);
@@ -1208,6 +1239,8 @@ sub autoconfigure_ubuntu {
 sub autoconfigure_fedora {
 
     my $vnxboot_file = shift;
+
+    write_log ("autoconfigure_fedora");
     
     my $parser = XML::LibXML->new;
     my $dom    = $parser->parse_file($vnxboot_file);
@@ -1471,7 +1504,7 @@ sub autoconfigure_freebsd {
     
     my $vnxboot_file = shift;
 
-    write_log ("~~ autoconfigure_freebsd");
+    write_log ("autoconfigure_freebsd");
 
     my $parser = XML::LibXML->new;
     my $dom    = $parser->parse_file($vnxboot_file);
@@ -1683,7 +1716,7 @@ sub execute_filetree {
     
     my $vopt=''; if ($VERBOSE) { $vopt='-v' };
 
-    write_log ("~~ processing <filetree> tags in file $cmd_file");
+    write_log ("processing <filetree> tags in file $cmd_file");
 
     my $parser = XML::LibXML->new;
     my $dom    = $parser->parse_file($cmd_file);
@@ -1702,28 +1735,28 @@ sub execute_filetree {
         my $source       = $filetree_tag->getFirstChild->getData;
         my $folder = $j + 1;
         my $source_path = $cmd_path . "/filetree/" . $folder . "/";
-        write_log ("~~   processing <filetree> tag: seq=$seq, root=$root, " . 
+        write_log ("   processing <filetree> tag: seq=$seq, root=$root, " . 
                          "user=$user, group=$group, perms=$perms, source_path=$source_path");
 
         my $res=`ls -R $source_path`; write_log ("cdrom content: $res") if ($VERBOSE);
         # Get the number of files in source dir
         my $num_files=`ls -a1 $source_path | wc -l`;
         if ($num_files < 3) { # count "." and ".."
-            write_log ("~~   ERROR in filetree: no files to copy in $source_path (seq=$seq)\n");
+            write_log ("   ERROR in filetree: no files to copy in $source_path (seq=$seq)\n");
             next;
         }
         # Check if files destination (root attribute) is a directory or a file
         my $cmd;
         if ( $root =~ /\/$/ ) {
             # Destination is a directory
-            write_log ("~~   Destination is a directory");
+            write_log ("   Destination is a directory");
             unless (-d $root){
-                write_log ("~~   creating unexisting dir '$root'...");
+                write_log ("   creating unexisting dir '$root'...");
                 system "mkdir -p $root";
             }
 
             $cmd="cp -vR ${source_path}* $root";
-            write_log ("~~   Executing '$cmd' ...");
+            write_log ("   Executing '$cmd' ...");
             $res=`$cmd`;
             write_log ("Copying filetree files ($root):") if ($VERBOSE);
             write_log ("$res") if ($VERBOSE);
@@ -1744,20 +1777,20 @@ sub execute_filetree {
         } else {
             # Destination is a file
             # Check that $source_path contains only one file
-            write_log ("~~   Destination is a file");
-            write_log ("~~       source_path=${source_path}");
-            write_log ("~~       root=${root}");
+            write_log ("   Destination is a file");
+            write_log ("       source_path=${source_path}");
+            write_log ("       root=${root}");
             if ($num_files > 3) { # count "." and ".."
-                write_log ("~~   ERROR in filetree: destination ($root) is a file and there is more than one file in $source_path (seq=$seq)\n");
+                write_log ("   ERROR in filetree: destination ($root) is a file and there is more than one file in $source_path (seq=$seq)\n");
                 next;
             }
             my $file_dir = dirname($root);
             unless (-d $file_dir){
-                write_log ("~~   creating unexisting dir '$file_dir'...");
+                write_log ("   creating unexisting dir '$file_dir'...");
                 system "mkdir -p $file_dir";
             }
             $cmd="cp -v ${source_path}* $root";
-            write_log ("~~   Executing '$cmd' ...");
+            write_log ("   Executing '$cmd' ...");
             $res=`$cmd`;
             write_log ("Copying filetree file ($root):") if ($VERBOSE);
             write_log ("$res") if ($VERBOSE);
@@ -1890,27 +1923,47 @@ sub set_conf_value {
     my $new_value = shift;
     my $param_found;
 
-    open IFILE, "< $cfg_file";
-    open OFILE, "> $cfg_file.new" or return 'ERROR';
-    print "going while...\n";
+    my $tout = 10;
+    {   # Loop till the file system is ready for writing...
+        # It seems that at startup the filesystem is initially mounted read-only, so 
+        # the second open (OFILE) can fail
+        eval {
+            $tout--;
+            open IFILE, "< $cfg_file"     or die "IFILE $!";
+            open OFILE, "> $cfg_file.new" or die "OFILE $!";
+        };
+        last unless $@;
+        if ($@) {
+            write_console "$@\n";
+            if ($tout) {
+                write_console ("Waiting for file $cfg_file to be ready...");
+                sleep 5;
+                redo;
+            } else {
+                return '';
+            }
+        }
+    }
+
     while (my $line = <IFILE>) {
-        print "while $line ...\n";
         if ($line =~ /^$param/) {
             $line =~ s/^$param=.*/$param=$new_value/g;
             $param_found = 'true';
         }
-        print OFILE $line; 
+        print OFILE $line or return ''; 
     }
     unless ($param_found) {
-    print "not found \n";
-        print "$param=$new_value\n";        
-    print OFILE "$param=$new_value\n";
+    #print "not found \n";
+        #print "$param=$new_value\n";        
+    print OFILE "$param=$new_value\n" or return '';
     }
     close IFILE;
     close OFILE;
 
     system ("mv $cfg_file.new $cfg_file");
-    return $new_value;
+    #my $cmd = "cat " . VNXACED_STATUS; my $status=`$cmd`; 
+    #write_console ('-------------------------'); write_console ($status); write_console ('-------------------------');
+    return 'OK';
 }
 
 sub vnxaced_die {
