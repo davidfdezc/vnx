@@ -12,7 +12,7 @@
 # This file is a module part of VNX package.
 #
 # Authors: Jorge Somavilla (somavilla@dit.upm.es), David Fernández (david@dit.upm.es)
-# Copyright (C) 2011,   DIT-UPM
+# Copyright (C) 2013,   DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -587,7 +587,7 @@ sub process_cmd {
                     set_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending', 'yes');
                     set_conf_value (VNXACED_STATUS, 'exec_mode', $cmd[1]);
                     #send_cmd_response ('OK');
-                    &autoconfigure($file);
+                    autoconfigure($file);
     
                 } elsif ($fname eq "vnx_update.xml"){
                     unless (&is_new_file($file) eq '1'){
@@ -991,7 +991,7 @@ EOF
         write_log ("$status\r\n"); 
         write_log ("-------------------------\r\n"); 
         
-        if ($platform[1] eq 'Ubuntu') { 
+        if ( ($platform[1] eq 'Ubuntu') or ($platform[1] eq 'Debian') ) { 
             &autoconfigure_ubuntu ($vnxboot_file)
         
         } elsif ( ($platform[1] eq 'Fedora') or ($platform[1] eq 'CentOS') ) { 
