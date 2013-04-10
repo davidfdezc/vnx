@@ -27,6 +27,9 @@ Address		System				MAC offset 		Mgmt if offset
 10.0.0.20   simple_honeyd           20              76
 10.0.0.21         "
 10.0.0.22         "
+10.0.0.23	simple_kali				23				88
+10.0.0.24	simple_debian			24				92
+10.0.0.25	simple_debian			25				96
 
 
 
