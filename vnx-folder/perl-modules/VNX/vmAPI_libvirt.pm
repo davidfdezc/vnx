@@ -388,17 +388,19 @@ sub defineVM {
 		# <vcpu> tag
 		my $vcpu_tag = $init_xml->createElement('vcpu');
 		$domain_tag->addChild($vcpu_tag);
-		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
+		$vcpu_tag->addChild( $init_xml->createTextNode( $vm->getAttribute("vcpu") ) );
 
         # <os> tag
 		my $os_tag = $init_xml->createElement('os');
 		$domain_tag->addChild($os_tag);
 		my $type_tag = $init_xml->createElement('type');
 		$os_tag->addChild($type_tag);
+		
         my $vm_arch = $vm->getAttribute("arch");
 		unless (empty($vm_arch)) {
 		  $type_tag->addChild( $init_xml->createAttribute( arch => "$vm_arch" ) );	
 		}
+
         # DFC 23/6/2011: Added machine attribute to avoid a problem in CentOS hosts
 		$type_tag->addChild( $init_xml->createAttribute( machine => "pc" ) );
 		$type_tag->addChild( $init_xml->createTextNode("hvm") );
@@ -783,7 +785,7 @@ sub defineVM {
 		# <vcpu> tag
 		my $vcpu_tag = $init_xml->createElement('vcpu');
 		$domain_tag->addChild($vcpu_tag);
-		$vcpu_tag->addChild( $init_xml->createTextNode("1") );
+		$vcpu_tag->addChild( $init_xml->createTextNode( $vm->getAttribute("vcpu") ) );
 
 # 		 Not used anymore. Obsoleted by the use of <qemu:commandline> tag to define
 #		 commandline arguments for kvm (-bios bios-0.10.6)
@@ -800,7 +802,10 @@ sub defineVM {
 		$domain_tag->addChild($os_tag);
 		my $type_tag = $init_xml->createElement('type');
 		$os_tag->addChild($type_tag);
-		$type_tag->addChild( $init_xml->createAttribute( arch => "i686" ) );
+        my $vm_arch = $vm->getAttribute("arch");
+		unless (empty($vm_arch)) {
+		  $type_tag->addChild( $init_xml->createAttribute( arch => "$vm_arch" ) );	
+		}
 		# DFC 23/6/2011: Added machine attribute to avoid a problem in CentOS hosts
 		$type_tag->addChild( $init_xml->createAttribute( machine => "pc" ) );
 		$type_tag->addChild( $init_xml->createTextNode("hvm") );

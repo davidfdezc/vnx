@@ -684,6 +684,24 @@ sub check_doc {
             }
         }
       
+        # vm vcpu attribute only allowed (by now) for libvirt VMs
+        my $vm_vcpu = $vm->getAttribute("vcpu");               
+        unless (empty($vm_vcpu)) { # A value for vcpu is specified
+
+            if ($vm_type eq "libvirt") {
+                if ( ($vm_vcpu < 1) ) {
+                    return "Number of virtual CPUs ($vm_vcpu) specified in vcpu option of VM '$name' must be >=1";
+                }        	
+            } else {
+                return "invalid attribute 'vcpu' in <vm name='$name'> tag. 'vcpu' only allowed for libvirt virtual machines";
+            }
+        } else { # vcpu not specified
+
+            if ($vm_type eq "libvirt") {
+                # set default value to i686
+                $vm->setAttribute( 'vcpu', 1 );
+            }
+        }
     }
 
     #12. To check <filesystem>

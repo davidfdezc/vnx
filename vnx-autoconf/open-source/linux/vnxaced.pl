@@ -1721,11 +1721,14 @@ sub execute_filetree {
     my $parser = XML::LibXML->new;
     my $dom    = $parser->parse_file($cmd_file);
 
-    my $filetree_taglist = $dom->getElementsByTagName("filetree");
-    for (my $j = 0 ; $j < $filetree_taglist->size ; $j++){
+#    my $filetree_taglist = $dom->getElementsByTagName("filetree");
+#    for (my $j = 0 ; $j < $filetree_taglist->size ; $j++){
+#
+#        # Note DFC 16/12/2012: with LibXML the first element is 1 (not 0)
+#        my $filetree_tag = $filetree_taglist->item($j+1);
 
-        # Note DFC 16/12/2012: with LibXML the first element is 1 (not 0)
-        my $filetree_tag = $filetree_taglist->item($j+1);
+    my $j = 0;
+    foreach my $filetree_tag ($dom->getElementsByTagName("filetree")) {
         
         my $seq          = $filetree_tag->getAttribute("seq");
         my $root         = $filetree_tag->getAttribute("root");
@@ -1734,6 +1737,7 @@ sub execute_filetree {
         my $perms        = $filetree_tag->getAttribute("perms");
         my $source       = $filetree_tag->getFirstChild->getData;
         my $folder = $j + 1;
+        $j++;
         my $source_path = $cmd_path . "/filetree/" . $folder . "/";
         write_log ("   processing <filetree> tag: seq=$seq, root=$root, " . 
                          "user=$user, group=$group, perms=$perms, source_path=$source_path");

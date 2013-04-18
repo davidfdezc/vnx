@@ -170,7 +170,7 @@ sub main {
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'u=s', '4', '6', 'D', 'no-console|n', 'st-delay=s',
-                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s' 
+                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s' 
     ) or vnx_die("Incorrect usage. Type 'vnx -h' for help"); 
     
    	# FIXME: as vnumlize process does not work properly in latest kernel/root_fs versions, we disable
@@ -1473,13 +1473,15 @@ sub mode_createrootfs {
     my $tmp_dir = shift;
     my $vnx_dir = shift;
 
-    my $sdisk_fname; # shared disk complete file name 
-    my $h2vm_port;   # host tcp port used to access the the host-to-VM comms channel 
+    my $sdisk_fname;  # shared disk complete file name 
+    my $h2vm_port;    # host tcp port used to access the the host-to-VM comms channel 
     my $vm_libirt_xml_hdb;
-    my $mem;         # Memory assigned to the virtual machine
-    my $default_mem  = "512M";
-    my $arch;        # Virtual machine architecture type (32 or 64 bits)
-    my $default_arch = "i686";
+    my $mem;          # Memory assigned to the virtual machine
+    my $default_mem   = "512M";
+    my $arch;         # Virtual machine architecture type (32 or 64 bits)
+    my $default_arch  = "i686";
+    my $vcpu;         # Number of virtual CPUs 
+    my $default_vcpu = "1";
  
     my $instal_cdrom = $opts{'install-media'};
     if (! -e $instal_cdrom) {
@@ -1509,6 +1511,14 @@ sub mode_createrootfs {
         unless ( $arch eq 'i686' or $arch eq 'x86_64') { vnx_die ("ERROR: Unkwon value ($arch) for --arch option" ) }
     } else {
         $arch = $default_arch;
+    }
+    
+    # Set virtual cpus number (>=1)
+    if ($opts{'vcpu'}) {
+        $vcpu = $opts{'vcpu'};
+        unless ( $vcpu ge 1 ) { vnx_die ("ERROR: Number of virtual CPUs specified in vcpu option must be >=1" ) }
+    } else {
+        $vcpu = $default_vcpu;
     }
 
     my $rootfs_name = basename $opts{'create-rootfs'};
@@ -1543,7 +1553,7 @@ EOF
 <domain type='kvm'>
   <name>$rootfs_name</name>
   <memory>$mem</memory>
-  <vcpu>1</vcpu>
+  <vcpu>$vcpu</vcpu>
   <os>
     <type arch='$arch'>hvm</type>
     <boot dev='cdrom'/>
@@ -1586,6 +1596,7 @@ EOF
     # Create XML file
     open (XMLFILE, "> $vm_xml_fname") or vnx_die ("cannot open file $vm_xml_fname");
     print XMLFILE "$vm_libirt_xml";
+    wlog (VVV, "-- Libvirt XML file:\n$vm_libirt_xml");
     close (XMLFILE); 
 
     wlog (N, "-- Starting a virtual machine with root filesystem $opts{'create-rootfs'}");
@@ -1602,10 +1613,12 @@ sub mode_modifyrootfs {
     my $sdisk_fname; # shared disk complete file name 
     my $h2vm_port;   # host tcp port used to access the the host-to-VM comms channel 
     my $vm_libirt_xml_hdb;
-    my $mem;         # Memory assigned to the virtual machine
-    my $default_mem = "512M";
-    my $arch;        # Virtual machine architecture type (32 or 64 bits)
-    my $default_arch = "i686";
+    my $mem;          # Memory assigned to the virtual machine
+    my $default_mem   = "512M";
+    my $arch;         # Virtual machine architecture type (32 or 64 bits)
+    my $default_arch  = "i686";
+    my $vcpu;        # Number of virtual CPUs 
+    my $default_vcpu = "1";
  
     use constant USE_CDROM_FORMAT => 0;  # 
     
@@ -1632,6 +1645,14 @@ sub mode_modifyrootfs {
         unless ( $arch eq 'i686' or $arch eq 'x86_64') { vnx_die ("ERROR: Unkwon value ($arch) for --arch option" ) }
     } else {
         $arch = $default_arch;
+    }
+
+    # Set virtual cpus number (>=1)
+    if ($opts{'vcpu'}) {
+        $vcpu = $opts{'vcpu'};
+        unless ( $vcpu ge 1 ) { vnx_die ("ERROR: Number of virtual CPUs specified in vcpu option must be >=1" ) }
+    } else {
+        $vcpu = $default_vcpu;
     }
     
     my $rootfs_name = basename $opts{'modify-rootfs'};
@@ -1807,7 +1828,7 @@ EOF
 <domain type='kvm'>
   <name>$rootfs_name</name>
   <memory>$mem</memory>
-  <vcpu>1</vcpu>
+  <vcpu>$vcpu</vcpu>
   <os>
     <type arch='$arch'>hvm</type>
     <boot dev='hd'/>
@@ -1851,6 +1872,7 @@ EOF
     # Create XML file
     open (XMLFILE, "> $vm_xml_fname") or vnx_die ("cannot open file $vm_xml_fname");
     print XMLFILE "$vm_libirt_xml";
+    wlog (VVV, "-- Libvirt XML file:\n$vm_libirt_xml");   
     close (XMLFILE); 
 
     wlog (N, "-- Starting a virtual machine with root filesystem $opts{'modify-rootfs'}");
@@ -5698,6 +5720,7 @@ Console management modes:
 Other modes:
        --show-map      -> shows a map of the network scenarios build using graphviz.
        --exe-info      -> show information about the commands available
+       --create-rootfs -> starts a virtual machine to create a rootfs ()
        --modify-rootfs -> starts a virtual machine running the rootfs specified to modify it
        --clean-host    -> WARNING! WARNING! WARNING!
                           This option completely restarts the host status.
@@ -5727,6 +5750,12 @@ Options:
        -D              -> delete LOCK file
        -n|--no-console -> do not display the console of any vm. To be used with -t|--create options
        -y|--st-delay num -> wait num secs. between virtual machines startup (0 by default)
+
+Options specific to create-rootfs and modify-rootfs modes:
+       --install-media -> install media (iso file) used to create a VM in create-rootfs mode
+       --mem           -> memory to assign to the VM being created or modified (e.g. 512M or 1G)
+       --arch          -> architecture (i686 or x86_64) of the VM being created or modified
+       --vcpu          -> number of virtual cpus to assign to the VM being created or modified (>=1)
 
 EOF
 
