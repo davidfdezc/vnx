@@ -207,8 +207,6 @@ sub check_doc {
 		unless ($dh->get_ssh_version eq '1' || $dh->get_ssh_version eq '2');
 
     # 3. To check <ssh_key>
-    #my $ssh_key_list = $doc->getElementsByTagName("ssh_key");
-    #for (my $i = 0; $i < $ssh_key_list->getLength; $i++) {
     foreach my $ssh_key ($doc->getElementsByTagName("ssh_key")) {
 	   my $ssh_key = &do_path_expansion(&text_tag($ssh_key));
 	   return "$ssh_key is not a valid absolute filename" unless &valid_absolute_filename($ssh_key);
@@ -216,8 +214,6 @@ sub check_doc {
     }
 
     # 4. To check <shell>
-    #my $shell_list = $doc->getElementsByTagName("shell");
-    #for (my $i = 0; $i < $shell_list->getLength; $i++) {
     foreach my $shell ($doc->getElementsByTagName("shell")) {
         my $shell = &do_path_expansion(&text_tag($shell));
         return "$shell (shell) is not a valid absolute filename" unless &valid_absolute_filename($shell);
@@ -242,8 +238,6 @@ sub check_doc {
     }
 
     # 6. To check <basedir>
-    #my $basedir_list = $doc->getElementsByTagName("basedir");
-    #for (my $i = 0; $i < $basedir_list->getLength; $i++) {
     foreach my $basedir ($doc->getElementsByTagName("basedir")) {
         my $basedir = &do_path_expansion(&text_tag($basedir));
         return $basedir . " (basedir) is not a valid absolute directory name" 
@@ -310,16 +304,15 @@ sub check_doc {
 	return "<vm_mgmt> may not have a <host_mapping> child if attribute type=\"none\""
 		if (@vmmgmt_hostmap_list > 0 && $dh->get_vmmgmt_type eq 'none');
 
-   # 8. To check <net>
-   # Hash for duplicated names detection
-   my %net_names;
+    # 8. To check <net>
+    # Hash for duplicated names detection
+    my %net_names;
    
-   # Hash for duplicated physical interface detection
-   my %phyif_names;
+    # Hash for duplicated physical interface detection
+    my %phyif_names;
 
     # Process <net> list
     foreach my $net ($doc->getElementsByTagName("net")) {
-        #my $net = $net_list->item($i);
 
         # To get name attribute
         my $name = $net->getAttribute("name");
@@ -515,11 +508,6 @@ sub check_doc {
       my %if_ids_eth;
       my %if_ids_lo;
 
-        # To get UML's interfaces list
-        #my $if_list = $vm->getElementsByTagName("if");
-
-        # To process list
-        #for ( my $j = 0; $j < $if_list->getLength; $j++) {
         foreach my $if ($vm->getElementsByTagName("if")) {
             #my $if = $if_list->item($j);
 
@@ -589,17 +577,12 @@ sub check_doc {
         }
 
 	  #10. Check users and groups
-      #my $user_list = $vm->getElementsByTagName("user");
-	  #for (my $j = 0; $j < $user_list->getLength; $j++) {
 	  foreach my $user ($vm->getElementsByTagName("user")) {
-		 #my $user = $user_list->item($j);
 		 my $username = $user->getAttribute("username");
 		 my $effective_group = $user->getAttribute("group");
 		 return "Invalid username $username"
 			 unless ($username =~ /[A-Za-z0-9_]+/);
-		 #my $group_list = $user->getElementsByTagName("group");
 		 my %user_groups;
-		 #for (my $k = 0; $k < $group_list->getLength; $k++) {
 		 foreach my $group ($user->getElementsByTagName("group")) {
 			my $group = &text_tag($group);
 			$user_groups{$group} = 1;
@@ -611,10 +594,6 @@ sub check_doc {
 	  }
 
         #11. To check <filetree>
-        #my $filetree_list = $vm->getElementsByTagName("filetree");
-
-        # To process list
-        #for ( my $j = 0; $j < $filetree_list->getLength; $j++) {
         foreach my $ftree ($vm->getElementsByTagName("filetree")) {      	
             my $filetree = &text_tag($ftree);
             my $root = $ftree->getAttribute("root");
@@ -706,8 +685,6 @@ sub check_doc {
 
     #12. To check <filesystem>
     $> = $uid if ($is_root);
-    #my $filesystem_list = $doc->getElementsByTagName("filesystem");
-    #for ( my $i = 0 ; $i < $filesystem_list->getLength; $i++) {
     foreach my $fsystem ($doc->getElementsByTagName("filesystem")) {   	
         my $filesystem = &do_path_expansion(&text_tag($fsystem));
         my $filesystem_type = $fsystem->getAttribute("type");
@@ -744,8 +721,6 @@ sub check_doc {
    }
 
    #13. To check <kernel>
-   #my $kernel_list = $doc->getElementsByTagName("kernel");
-   #for ( my $i = 0 ; $i < $kernel_list->getLength; $i++) {
    foreach my $kernel ($doc->getElementsByTagName("kernel")) {
       #my $kernel = $kernel_list->item(0);
       # 13a. <kernel> are valid, readable/executable files
@@ -773,10 +748,6 @@ sub check_doc {
    $> = 0 if ($is_root);
 
     # 14. To check <hostif>
-    #my $hostif_list = $doc->getElementsByTagName("hostif");
-
-    # To process list
-    #for ( my $i = 0; $i < $hostif_list->getLength; $i++) {
     foreach my $hostif ($doc->getElementsByTagName("hostif")) {
         #my $hostif = $hostif_list->item($i);
 
@@ -796,12 +767,7 @@ sub check_doc {
    my %phyif_names_ipv6;
 
    # To get list of defined <net>
-   #my $phyif_list = $doc->getElementsByTagName("physicalif");
-
-   # To process list
-   #for ( my $i = 0; $i < $phyif_list->getLength; $i++ ) {
    foreach my $phyif ($doc->getElementsByTagName("physicalif")) {
-      #my $phyif = $phyif_list->item($i);
 
       # To get name and type attribute
       my $name = $phyif->getAttribute("name");
@@ -894,8 +860,6 @@ sub check_doc {
    }
 
    # 16. To check IPv4 addresses
-   #my $ipv4_list = $doc->getElementsByTagName("ipv4");
-   #for ( my $i = 0; $i < $ipv4_list->getLength; $i++ ) {
    foreach my $ipv4s ($doc->getElementsByTagName("ipv4")) {
       my $ipv4 = &text_tag($ipv4s);
       my $mask = $ipv4s->getAttribute("mask");
@@ -920,8 +884,6 @@ sub check_doc {
    }
 
    # 17. To check IPv6 addresses
-   #my $ipv6_list = $doc->getElementsByTagName("ipv6");
-   #for ( my $i = 0; $i < $ipv6_list->getLength; $i++ ) {
    foreach my $ipv6s ($doc->getElementsByTagName("ipv6")) {
       my $ipv6 = &text_tag($ipv6s);
       my $mask = $ipv6s->getAttribute("mask");      
@@ -946,8 +908,6 @@ sub check_doc {
    }
 
    # 18. To check addresses related with <route> tag
-   #my $route_list = $doc->getElementsByTagName("route");
-   #for ( my $i = 0; $i < $route_list->getLength; $i++ ) {
    foreach my $route ($doc->getElementsByTagName("route")) {
       my $route_dest = &text_tag($route);
       my $route_gw = $route->getAttribute("gw");
@@ -975,8 +935,6 @@ sub check_doc {
    }
 
    # 19. To check <bw>
-   #my $bw_list = $doc->getElementsByTagName("bw");
-   #for ( my $i = 0; $i < $bw_list->getLength; $i++ ) {
    foreach my $bw_tag ($doc->getElementsByTagName("bw")) {
       my $bw = &text_tag($bw_tag);
       return "<bw> value $bw is not a valid integer number" unless ($bw =~ /^\d+$/);
@@ -986,9 +944,7 @@ sub check_doc {
    # (<vm_defaults>) or <vm>
    my @vm_defaults_list = $doc->getElementsByTagName("vm_defaults");
    if (@vm_defaults_list == 1) {
-   	   #my $console_list = $vm_defaults_list[0]->getElementsByTagName("console");
    	   my %console_ids;
-   	   #for (my $i = 0; $i < $console_list->getLength; $i++) {
    	   foreach my $console ($vm_defaults_list[0]->getElementsByTagName("console")) {
    	   	   my $id = $console->getAttribute("id");
    	   	   if (exists $console_ids{$id} && $console_ids{$id} == 1) {
@@ -999,13 +955,9 @@ sub check_doc {
    	   	   }
    	   }
    }
-   #my $vm_list = $doc->getElementsByTagName("vm");
-   #for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
    foreach my $vm ($doc->getElementsByTagName("vm")) {
    	   my $name = $vm->getAttribute("name");
-   	   #my $console_list = $vm->getElementsByTagName("console");
    	   my %console_ids;
-   	   #for (my $j = 0; $j < $console_list->getLength; $j++) {
        foreach my $console ($vm_defaults_list[0]->getElementsByTagName("console")) {
    	   	   my $id = $console->getAttribute("id");
    	   	   if (exists $console_ids{$id} && $console_ids{$id} == 1) {
@@ -1021,8 +973,6 @@ sub check_doc {
    # has also the same user attribute
    # ELIMINATED
        
-    #$vm_list = $doc->getElementsByTagName("vm");
-    #for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
     foreach my $vm ($doc->getElementsByTagName("vm")) {
    	    my $name = $vm->getAttribute("name");
    	    my %seq_users;
@@ -1034,8 +984,6 @@ sub check_doc {
         my $merged_type = $dh->get_vm_merged_type ($vm);
    	   
    	   # Checks for <exec>
-   	   #my $exec_list = $vm->getElementsByTagName("exec");
-   	   #for (my $j = 0; $j < $exec_list->getLength; $j++) {
    	   foreach my $exec ($vm->getElementsByTagName("exec")) {
    	   	   my $seq = $exec->getAttribute("seq");
    	   	   my $user = $exec->getAttribute("user");
@@ -1051,8 +999,6 @@ sub check_doc {
    	   }
 
         # Checks for <filetree>  	   
-        #my $filetree_list = $vm->getElementsByTagName("filetree");
-        #for (my $j = 0; $j < $filetree_list->getLength; $j++) {
         foreach my $filetree ($vm->getElementsByTagName("filetree")) { 
             my $seq = $filetree->getAttribute("seq");
             my $user = $filetree->getAttribute("user");
@@ -1080,8 +1026,6 @@ sub check_doc {
    # 22. To check user attribute is not used in <exec> within <host>
    my @host_list = $doc->getElementsByTagName("host");
    if (@host_list > 0) {
-      #my $exec_list = $host_list->item(0)->getElementsByTagName("exec");
-      #for (my $i = 0; $i < $exec_list->getLength; $i++) {
       foreach my $exec ($host_list[0]->getElementsByTagName("exec")) {
       	 my $seq = $exec->getAttribute("seq");
          if ($exec->getAttribute("user") ne "") {
@@ -1091,8 +1035,6 @@ sub check_doc {
    }
 
 	# 23. To check that <mem> tag is specified in Megabytes or Gigabytes
-	#my $mem_list = $doc->getElementsByTagName("mem");
-	#for (my $j = 0; $j < $mem_list->getLength; $j++) {
 	foreach my $mem_tag ($doc->getElementsByTagName("mem")) {
       	my $mem = &text_tag($mem_tag);
 		if ( $mem !~ /[MG]$/ ) {
@@ -1103,8 +1045,8 @@ sub check_doc {
 	# DYNAMIPS checks
 
 	# - check that dynamips_ext only appears <=1 times
-   my @dynext_list = $doc->getElementsByTagName("dynamips_ext");
-   if (@dynext_list > 1) {
+    my @dynext_list = $doc->getElementsByTagName("dynamips_ext");
+    if (@dynext_list > 1) {
 			return "duplicated <dynamips_ext> tag. Only one allowed";
    }
    
@@ -1115,8 +1057,6 @@ sub check_doc {
    	#         - the net type is ppp
    	#         - the other end is a dynamips router and the interface connected is also a serial line
 	# Virtual machines loop
-	#$vm_list = $doc->getElementsByTagName ("vm");
-	#for (my $i = 0; $i < $vm_list->getLength; $i++) {
 	foreach my $vm ($doc->getElementsByTagName ("vm")) {
 
 	    #my $vm = $vm_list->item ($i);
@@ -1124,8 +1064,6 @@ sub check_doc {
 	    my $type = $vm->getAttribute ("type");
 		if ( $type eq 'dynamips') {
 			# Network interfaces loop
-	        #my $if_list = $vm->getElementsByTagName ("if");
-	        #for (my $j = 0; $j < $if_list->getLength; $j++) {
 	        foreach my $if ($vm->getElementsByTagName ("if")) {
 	            #my $if = $if_list->item ($j);
 	            my $id = $if->getAttribute ("id");
@@ -1187,10 +1125,7 @@ sub check_doc {
 	}
 	
 	# Check that files specified in <conf> tag exist and are readable
-    #my $conf_list = $doc->getElementsByTagName("conf");
-    #for ( my $i = 0 ; $i < $conf_list->getLength; $i++) {
     foreach my $conf ($doc->getElementsByTagName("conf")) {
-       #my $conf = $conf_list->item(0);
        $conf = &get_abs_path (&text_tag($conf));
        # <conf> are valid, readable/executable files
        return "$conf (conf) does not exist or is not readable/executable (user $uid_name)" unless (-r $conf);
@@ -1198,11 +1133,8 @@ sub check_doc {
 	       
  	# Check exec_mode attribute of <vm> and ostype attribute of <exec> mode in relation with the VM type and set default 
  	# values if not specified in the XML file
-    #$vm_list = $doc->getElementsByTagName("vm");
     # For each virtual machine 
-    #for (my $i = 0 ; $i < $vm_list->getLength; $i++) {
     foreach my $vm ($doc->getElementsByTagName("vm")) {
-        #my $vm = $vm_list->item($i);
         my $vmName = $vm->getAttribute("name");
         my $merged_type = $dh->get_vm_merged_type($vm);
 
@@ -1234,44 +1166,7 @@ sub check_doc {
 	        }
         } 
 
-=BEGIN
-        if ($merged_type eq 'uml') {
-           if ($exec_mode eq '') { # Set default value 
-               $vm->setAttribute( 'exec_mode', "$EXEC_MODES_UML[0]" );
-           } elsif ( "@EXEC_MODES_UML" !~ $exec_mode )  {
-               return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
-        } elsif ($merged_type eq 'libvirt-kvm-linux') {
-           if ($exec_mode eq '') { # Set default value 
-               $vm->setAttribute( 'exec_mode', "$EXEC_MODES_LIBVIRT_KVM_LINUX[0]" );
-           } elsif ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $exec_mode )  {
-               return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
-        } elsif ($merged_type eq 'libvirt-kvm-freebsd') {
-           if ($exec_mode eq '') { # Set default value 
-               $vm->setAttribute( 'exec_mode', "$EXEC_MODES_LIBVIRT_KVM_FREEBSD[0]" );
-           } elsif ( "@EXEC_MODES_LIBVIRT_KVM_FREEBSD" !~ $exec_mode )  {
-               return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
-        } elsif ($merged_type eq 'libvirt-kvm-windows') {
-           if ($exec_mode eq '') { # Set default value 
-               $vm->setAttribute( 'exec_mode', "$EXEC_MODES_LIBVIRT_KVM_WINDOWS[0]" );
-           } elsif ( "@EXEC_MODES_LIBVIRT_KVM_WINDOWS" !~ $exec_mode )  {
-               return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
-        } elsif ($merged_type eq 'libvirt-kvm-olive') {
-           if ($exec_mode eq '') { # Set default value 
-               $vm->setAttribute( 'exec_mode', "$EXEC_MODES_LIBVIRT_KVM_OLIVE[0]" );
-           } elsif ( "@EXEC_MODES_LIBVIRT_KVM_OLIVE" !~ $exec_mode )  {
-               return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
-        } elsif ( ($merged_type eq 'dynamips-3600') or ($merged_type eq 'dynamips-7200') )  {
-           if ($exec_mode eq '') { # Set default value 
-               $vm->setAttribute( 'exec_mode', "$EXEC_MODES_DYNAMIPS[0]" );
-           } elsif ( "@EXEC_MODES_DYNAMIPS" !~ $exec_mode )  {
-               return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
-        }
-=END
-=cut        
-        
-        #my $exec_list = $vm->getElementsByTagName("exec");
         # For each <exec> in the vm
-        #for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
         foreach my $cmd ($vm->getElementsByTagName("exec")) {
         	#my $cmd = $exec_list->item($j);
             my $cmdMode = $cmd->getAttribute("mode"); # mode attribute eliminated from <exec>
@@ -1279,60 +1174,36 @@ sub check_doc {
             #wlog (VVV, "-- vm=$vmName,type=$merged_type, exec_mode=$cmdMode, exec_ostype=$cmdOSType\n");
 
             if ($merged_type eq 'uml') {
-#            	if ($cmdMode eq '') { # Set default value 
-#            		$cmd->setAttribute( 'mode', "$EXEC_MODES_UML[0]" );
-#            	} elsif ( "@EXEC_MODES_UML" !~ $cmdMode )  {
-#       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
             	if (empty($cmdOSType)) { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_UML[0]" );
             	} elsif ( "@EXEC_OSTYPE_UML" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
 
             } elsif ($merged_type eq 'libvirt-kvm-linux') {
-#            	if ($cmdMode eq '') { # Set default value 
-#            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_LINUX[0]" );
-#            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $cmdMode )  {
-#       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
             	if (empty($cmdOSType)) { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_LINUX[0]" );
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_LINUX" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
 
             } elsif ($merged_type eq 'libvirt-kvm-freebsd') {
-#               if ($cmdMode eq '') { # Set default value 
-#                   $cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_LINUX[0]" );
-#               } elsif ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $cmdMode )  {
-#                       return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
                 if (empty($cmdOSType)) { # Set default value 
                     $cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD[0]" );
                 } elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD" !~ $cmdOSType )  {
                     return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
 
             } elsif ($merged_type eq 'libvirt-kvm-windows') {
-#            	if ($cmdMode eq '') { # Set default value 
-#            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_WINDOWS[0]" );
-#            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_WINDOWS" !~ $cmdMode )  {
-#       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
             	if (empty($cmdOSType)) { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS[0]" );
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
 
             } elsif ($merged_type eq 'libvirt-kvm-olive') {
-#            	if ($cmdMode eq '') { # Set default value 
-#            		$cmd->setAttribute( 'mode', "$EXEC_MODES_LIBVIRT_KVM_OLIVE[0]" );
-#            	} elsif ( "@EXEC_MODES_LIBVIRT_KVM_OLIVE" !~ $cmdMode )  {
-#       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
             	if (empty($cmdOSType)) { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_OLIVE[0]" );
             	} elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_OLIVE" !~ $cmdOSType )  {
        				return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
 
             } elsif ( ($merged_type eq 'dynamips-3600') or ($merged_type eq 'dynamips-7200') )  {
-#            	if ($cmdMode eq '') { # Set default value 
-#            		$cmd->setAttribute( 'mode', "$EXEC_MODES_DYNAMIPS[0]" );
-#            	} elsif ( "@EXEC_MODES_DYNAMIPS" !~ $cmdMode )  {
-#       				return "incorrect mode ($cmdMode) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }     	
             	if (empty($cmdOSType)) { # Set default value 
             		$cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_DYNAMIPS[0]" );
             		#wlog (VVV, "-- ostype set to $EXEC_OSTYPE_DYNAMIPS[0]")
@@ -1342,9 +1213,7 @@ sub check_doc {
             }
             
         }               
-	}       
-
-
+	}
    	return 0;
 }
 

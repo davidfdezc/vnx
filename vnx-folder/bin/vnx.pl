@@ -579,12 +579,7 @@ sub main {
  
    	push (@INC, "/usr/share/vnx/plugins");
   
-   	#my @extension_list = $dh->get_doc->getElementsByTagName("extension");
-   	#for ( my $i = 0; $i < @extension_list; $i++ ) {
-
    	foreach my $extension ( $dh->get_doc->getElementsByTagName("extension") ) {
-      	#my $plugin = $extension_list->item($i)->getAttribute("plugin");
-      	#my $plugin_conf = $extension_list->item($i)->getAttribute("conf");
       	my $plugin = $extension->getAttribute("plugin");
       	my $plugin_conf = $extension->getAttribute("conf");
       
@@ -2321,7 +2316,7 @@ sub host_config {
     my $doc = $dh->get_doc;
 
     # If host tag is not present, there is nothing to do
-    return if ($doc->getElementsByTagName("host") eq 0);
+    return if (!$doc->getElementsByTagName("host"));
 
     my $host = $doc->getElementsByTagName("host")->item(0);
 
@@ -2615,7 +2610,7 @@ sub mode_execute {
 	    	my $vm_type = $vm->getAttribute("type");
 	
 	    	my $error = "VNX::vmAPI_$vm_type"->executeCMD(
-	    	                         $merged_type, $seq, $vm, $vm_name, 
+	    	                         $vm_name, $merged_type, $seq, $vm,  
 	    	                         \@plugin_ftree_list, \@plugin_exec_list, 
 	    	                         \@ftree_list, \@exec_list);
 	        if ($error ne 0) {
@@ -2712,7 +2707,7 @@ sub mode_shutdown {
 	            my $vm_type = $vm->getAttribute("type");
                 wlog (N, "Executing '$seq' commands on virtual machine $vm_name of type $merged_type...");
 	            my $error = "VNX::vmAPI_$vm_type"->executeCMD(
-	                                     $merged_type, $seq, $vm, $vm_name, 
+	                                     $vm_name, $merged_type, $seq, $vm,  
 	                                     \@plugin_ftree_list, \@plugin_exec_list, 
 	                                     \@ftree_list, \@exec_list);
                 if ($error ne 0) {
@@ -3052,44 +3047,6 @@ sub get_vm_ftrees_and_execs {
             if ( $filetree_seq eq $seq ) {
                     
                 # $seq matches, copy the filetree node to the list      
-
-=BEGIN
-    # NOTE: This code does not work, probably because we are mixing XML::DOM and XML::LibXML documents
-    # TODO: migrate all the code to XML::LibXML
-    #           my $filetree_clon = $filetree->cloneNode(1);
-    #           $filetree_clon->setOwnerDocument($dom->getOwnerDocument());
-    #           $vm_tag->addChild($filetree_clon);
-
-
-                # We copy the node manually...boring
-                # Read values
-                # TODO seq value copied has to be the one in $seq; the value in XML could be a comma separeted list 
-                #my $seq = $filetree->getAttribute("seq");
-                my $root = $filetree->getAttribute("root");
-                my $user = $filetree->getAttribute("user");
-                my $group = $filetree->getAttribute("group");
-                my $perms = $filetree->getAttribute("perms");
-                my $value = &text_tag($filetree);
-
-                wlog (VVV, "Creating <filetree> tag for user-defined file/dir '$value'", $logp);
-                
-                # Create new node
-                my $new_filetree = XML::LibXML::Element->new('filetree');
-                #my $new_filetree = $xdoc->createElement('filetree');
-                #$vm_tag->addChild($new_filetree);
-                $new_filetree->setAttribute( seq => $seq);
-                $new_filetree->setAttribute( root => $root);
-                $new_filetree->setAttribute( user => $user);
-                $new_filetree->setAttribute( group => $group);
-                $new_filetree->setAttribute( perms => $perms);
-                $new_filetree->appendTextNode( $value );
-                #$new_filetree->appendChild($xdoc->createTextNode( $value ));
-   
-                # Add the filetree node to the list passed to executeCMD
-                push (@{$ftree_list_ref}, $new_filetree);
-=END
-=cut
-   
                 my $root = $filetree->getAttribute("root");
                 my $value = &text_tag($filetree);
 
@@ -3136,11 +3093,7 @@ sub get_vm_ftrees_and_execs {
     wlog (VVV, "temporary filetrees directory content for sequence $seq \n $res");
 
     # <exec>
-    #my $command_list = $vm->getElementsByTagName("exec");
-    #for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
     foreach my $command ($vm->getElementsByTagName("exec")) {
-                
-        #my $command = $command_list->item($j);
     
         # To get attributes
         my $cmd_seq_string = $command->getAttribute("seq");
@@ -3226,7 +3179,7 @@ sub host_unconfig {
    my $doc = $dh->get_doc;
 
    # If host <host> is not present, there is nothing to unconfigure
-   return if ($doc->getElementsByTagName("host") eq 0);
+   return if (!$doc->getElementsByTagName("host"));
 
    # To get <host> tag
    my $host = $doc->getElementsByTagName("host")->item(0);
@@ -4003,7 +3956,7 @@ sub socket_probe {
 # Argument:
 #    the IP hash generated by get_UML_command_ip
 #
-# Result
+# Result:
 #    1 if all the UMLs are ready
 #    0 otherwise
  
@@ -5004,10 +4957,7 @@ sub make_vmAPI_doc {
 		# to specify the name of the mgmt interface with a tag like this:
 		#       <if id="0" net="vm_mgmt" name="e0/0">
    		my $mgmtIfName;
-   		#my $if_list = $vm->getElementsByTagName("if");
-   		#for ( my $j = 0; $j < $if_list->getLength; $j++) {
    		foreach my $if ($vm->getElementsByTagName("if")) {
-      		#my $if = $if_list->item($j);
       		my $id = $if->getAttribute("id");
       		#print "**** If id=$id\n";
       		
@@ -5045,16 +4995,10 @@ sub make_vmAPI_doc {
 	}
    
    	# To process all interfaces
-   	# To get UML's interfaces list
-   	#my $if_list = $vm->getElementsByTagName("if");
-
    	# To process list, we ignore interface zero since it
    	# gets setup as necessary management interface
-   	#for ( my $j = 0; $j < $if_list->getLength; $j++) {
    	foreach my $if ($vm->getElementsByTagName("if")) {
       
-      	#my $if = $if_list->item($j);
-    
       	# To get attributes
       	my $id = $if->getAttribute("id");
       	my $net = $if->getAttribute("net");
@@ -5080,11 +5024,6 @@ sub make_vmAPI_doc {
 	      	}
 	      	else {	  #my @group = getgrnam("@TUN_GROUP@");
 	         	$mac = &automac($vm_order+1, $id);
-	         	# DFC: Moved to automac function 
-	         	#$mac =~ s/,//;
-	         	# expandir mac con ceros a:b:c:d:e:f -> 0a:0b:0c:0d:0e:0f
-	         	#$mac =~ s/(^|:)(?=[0-9a-fA-F](?::|$))/${1}0/g;
-	         	#$mac = "," . $mac;
 	      	}
 	         
 	      	# if tags in dom tree 
@@ -5106,9 +5045,6 @@ sub make_vmAPI_doc {
 	      	# To process interface IPv4 addresses
 	      	# The first address has to be assigned without "add" to avoid creating subinterfaces
 	      	if ($dh->is_ipv4_enabled) {
-	         	#my $ipv4_list = $if->getElementsByTagName("ipv4");
-	         	#my $command = "";
-	         	#for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
 	         	foreach my $ipv4 ($if->getElementsByTagName("ipv4")) {
 	
 	            	my $ip = &text_tag($ipv4);
@@ -5154,8 +5090,6 @@ sub make_vmAPI_doc {
 		     
 		# To process interface IPv6 addresses
 	  	     if ($dh->is_ipv6_enabled) {
-		        #my $ipv6_list = $if->getElementsByTagName("ipv6");
-		        #for ( my $j = 0; $j < $ipv6_list->getLength; $j++) {
 		        foreach my $ipv6 ($if->getElementsByTagName("ipv6")) {
 		           my $ipv6_tag = $dom->createElement('ipv6');
 	               $if_tag->addChild($ipv6_tag);
@@ -5181,7 +5115,7 @@ sub make_vmAPI_doc {
 	}
       
      
- 	#rutas de la máquina.
+ 	# ip routes 
   	my @route_list = $dh->merge_route($vm);
    	foreach my $route (@route_list) {
       	
@@ -5201,7 +5135,6 @@ sub make_vmAPI_doc {
     my @forwarding_list = $vm->getElementsByTagName("forwarding");
     if (@forwarding_list == 1) {
    		$f_type = $forwarding_list[0]->getAttribute("type");
-        #$f_type = "ip" if ($f_type =~ /^$/);
         $f_type = "ip" if (empty($f_type));
   	}
   	if ($f_type ne ""){
@@ -5271,108 +5204,87 @@ sub make_vmAPI_doc {
     # Copy all the <filetree> and <exec> to the create_conf XML document
     # 1 - Plugins <filetree> tags
     foreach my $filetree (@plugin_ftree_list) {
-        # TODO: change all to XML::LibXML for this sentence to work
         $vm_tag->addChild($filetree);
-
-=BEGIN
-        # Till then, copy the node manually...
-        my $seq   = $filetree->getAttribute("seq");
-        my $root  = $filetree->getAttribute("root");
-        my $user  = $filetree->getAttribute("user");
-        my $group = $filetree->getAttribute("group");
-        my $perms = $filetree->getAttribute("perms");
-        my $value = &text_tag($filetree);
-        
-        my $new_filetree = $dom->createElement('filetree');
-        $vm_tag->addChild($new_filetree);
-        $new_filetree->addChild($dom->createAttribute( seq   => $seq));
-        $new_filetree->addChild($dom->createAttribute( root  => $root));
-        $new_filetree->addChild($dom->createAttribute( user  => $user));
-        $new_filetree->addChild($dom->createAttribute( group => $group));
-        $new_filetree->addChild($dom->createAttribute( perms => $perms));
-        $new_filetree->addChild($dom->createTextNode($value));
-=END
-=cut
-
         wlog (VVV, "make_vmAPI_doc: adding plugin filetree " . $filetree->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
     foreach my $exec (@plugin_exec_list) {
-        # TODO: change all to XML::LibXML for this sentence to work
         $vm_tag->addChild($exec);
-
-=BEGIN
-        # Till then, copy the node manually...
-        my $seq    = $exec->getAttribute("seq");
-        my $type   = $exec->getAttribute("type");
-        my $mode   = $exec->getAttribute("mode");
-        my $ostype = $exec->getAttribute("ostype");
-        my $value = &text_tag($exec);
-        
-        my $new_exec = $dom->createElement('exec');
-        $vm_tag->addChild($new_exec);
-        $new_exec->addChild($dom->createAttribute( seq    => $seq));
-        $new_exec->addChild($dom->createAttribute( type   => $type));
-        $new_exec->addChild($dom->createAttribute( ostype => $ostype));
-        $new_exec->addChild($dom->createTextNode($value));
-=END
-=cut
-        
         wlog (VVV, "make_vmAPI_doc: adding plugin exec " . $exec->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
     foreach my $filetree (@ftree_list) {
-        # TODO: change all to XML::LibXML for this sentence to work
         $vm_tag->addChild($filetree);
-
-=BEGIN        
-        # Till then, copy the node manually...
-        my $seq   = $filetree->getAttribute("seq");
-        my $root  = $filetree->getAttribute("root");
-        my $user  = $filetree->getAttribute("user");
-        my $group = $filetree->getAttribute("group");
-        my $perms = $filetree->getAttribute("perms");
-        my $value = &text_tag($filetree);
-        
-        my $new_filetree = $dom->createElement('filetree');
-        $vm_tag->addChild($new_filetree);
-        $new_filetree->addChild($dom->createAttribute( seq   => $seq));
-        $new_filetree->addChild($dom->createAttribute( root  => $root));
-        $new_filetree->addChild($dom->createAttribute( user  => $user));
-        $new_filetree->addChild($dom->createAttribute( group => $group));
-        $new_filetree->addChild($dom->createAttribute( perms => $perms));
-        $new_filetree->addChild($dom->createTextNode($value));
-=END
-=cut
-        
         wlog (VVV, "make_vmAPI_doc: adding user defined ftree " . $filetree->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
     foreach my $exec (@exec_list) {
-        # TODO: change all to XML::LibXML for this sentence to work
         $vm_tag->addChild($exec);
-        
-=BEGIN
-        # Till then, copy the node manually...
-        my $seq    = $exec->getAttribute("seq");
-        my $type   = $exec->getAttribute("type");
-        my $mode   = $exec->getAttribute("mode");
-        my $ostype = $exec->getAttribute("ostype");
-        my $value = &text_tag($exec);
-        
-        my $new_exec = $dom->createElement('exec');
-        $vm_tag->addChild($new_exec);
-        $new_exec->addChild($dom->createAttribute( seq    => $seq));
-        $new_exec->addChild($dom->createAttribute( type   => $type));
-        $new_exec->addChild($dom->createAttribute( ostype => $ostype));
-        $new_exec->addChild($dom->createTextNode($value));
-=END
-=cut
-        
         wlog (VVV, "make_vmAPI_doc: adding user defined exec " . $exec->toString(1) . " to create_conf", "$vm_name> ", $logp);
     }
   
-    # dom es un XML::LibXML::Document; 
-    my $docstring = $dom->toString(1);
+    # <ssh_key> tag
+    my @ssh_key_list = $dh->get_doc->getElementsByTagName("global")->item(0)->getElementsByTagName("ssh_key");
+    unless (@ssh_key_list == 0) {
+	    my $ftree_num = $vm_ftrees+1;
+	    my $ssh_key_dir = $dh->get_vm_tmp_dir($vm_name) . "/on_boot/filetree/$ftree_num";
+	    mkdir $ssh_key_dir or $execution->smartdie ("cannot create directory $ssh_key_dir for storing ssh keys");
+	    # Copy ssh key files content to $ssh_key_dir/ssh_keys file
+	    foreach my $ssh_key (@ssh_key_list) {
+	        my $key_file = do_path_expansion( text_tag( $ssh_key ) );
+	        wlog (N, "ssh key file: $key_file");
+	        $execution->execute( $logp, $bd->get_binaries_path_ref->{"cat"}
+	                             . " $key_file >>" . $ssh_key_dir . "/ssh_keys" );
+	    }
+	    # Add a <filetree> to copy ssh keys
+        my $ftree_tag = XML::LibXML::Element->new('filetree');
+        $ftree_tag->setAttribute( seq => "on_boot");
+        $ftree_tag->setAttribute( root => "/tmp" );
+        $ftree_tag->appendTextNode ("ssh_keys");            
+        $vm_tag->addChild($ftree_tag);
+        # And a <exec> command to add it to authorized_keys file in VM
+        my $exec_tag = XML::LibXML::Element->new('exec');
+        $exec_tag->setAttribute( seq => "on_boot");
+        $exec_tag->setAttribute( type => "verbatim" );
+        $exec_tag->setAttribute( ostype => "system" );
+        $exec_tag->appendTextNode ("cat /tmp/ssh_keys >> /root/.ssh/authorized_keys; rm /tmp/ssh_keys");            
+        $vm_tag->addChild($exec_tag);
+    }
+  
+=BEGIN 
+# Original code of ssh key management
+# TODO: process the ssh keys in <user> tag
 
-    # Save it to .vnx/scenarios/<scenario_name>/vms/$vm_name_cconf.xml
+        # Next install vm-specific keys and add users and groups
+        my @user_list = $dh->merge_user($vm);
+        foreach my $user (@user_list) {
+            my $username      = $user->getAttribute("username");
+            my $initial_group = $user->getAttribute("group");
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"touch"} 
+                  . " $sdisk_content"
+                  . "group_$username" );
+            my $group_list = $user->getElementsByTagName("group");
+            for ( my $k = 0 ; $k < $group_list->getLength ; $k++ ) {
+                my $group = &text_tag( $group_list->item($k) );
+                if ( $group eq $initial_group ) {
+                    $group = "*$group";
+                }
+                $execution->execute( $logp, $bd->get_binaries_path_ref->{"echo"}
+                      . " $group >> $sdisk_content"
+                      . "group_$username" );
+            }
+            my $key_list = $user->getElementsByTagName("ssh_key");
+            for ( my $k = 0 ; $k < $key_list->getLength ; $k++ ) {
+                my $keyfile =
+                  &do_path_expansion( &text_tag( $key_list->item($k) ) );
+                $execution->execute( $logp, $bd->get_binaries_path_ref->{"cat"}
+                      . " $keyfile >> $sdisk_content"
+                      . "keyring_$username" );
+            }
+        }
+=END
+=cut
+  
+    # Save XML document to .vnx/scenarios/<scenario_name>/vms/$vm_name_cconf.xml
+    my $docstring = $dom->toString(1);
+    wlog (VVV, $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xmlfile\n' . $dom->toString(1), $logp);
     open XML_CCFILE, ">" . $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml'
         or $execution->smartdie("can not open " . $dh->get_vm_dir . '/' . $vm_name . '_cconf.xml' )
         unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
@@ -5380,18 +5292,6 @@ sub make_vmAPI_doc {
     close XML_CCFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
     return $docstring;
-}
-
-
-sub para {
-	my $mensaje = shift;
-	my $var = shift;
-	print "************* $mensaje *************\n";
-	if (defined $var){
-	   print $var . "\n";	
-	}
-	print "*********************************\n";
-	<STDIN>;
 }
 
 #
