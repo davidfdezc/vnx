@@ -109,15 +109,9 @@ use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
 use VNX::vmAPICommon;
-
-#needed for create_vm_bootfile
 use File::Basename;
 use File::Path;
-
-#use XML::DOM;
-
 use XML::LibXML;
-#use XML::DOM::ValParser;
 
 
 use IO::Socket;
@@ -136,22 +130,31 @@ my $M_flag;       # passed from createVM to halt
 
 
 
-
+# ---------------------------------------------------------------------------------------
 #
-# Module vmAPI_uml initialization code
+# Module vmAPI_uml initialization code 
 #
+# ---------------------------------------------------------------------------------------
 sub init {
 	my $logp = "uml-init> ";	
 }
 
-
-###################################################################
-#                                                                 #
-#   defineVM                                                      #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
+# ---------------------------------------------------------------------------------------
+#
+# defineVM
+#
+# Defined a virtual machine 
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $vm_doc: XML document describing the virtual machines
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub defineVM {
 
 	my $self   = shift;
@@ -268,15 +271,21 @@ sub defineVM {
 	return $error;
 }
 
-
-
-###################################################################
-#                                                                 #
-#   undefineVM                                                    #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
+# ---------------------------------------------------------------------------------------
+#
+# undefineVM
+#
+# Undefines a virtual machine 
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub undefineVM {
 
 	my $self   = shift;
@@ -296,14 +305,22 @@ sub undefineVM {
 	return $error;
 }
 
-
-###################################################################
-#                                                                 #
-#   startVM                                                       #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
+# ---------------------------------------------------------------------------------------
+#
+# startVM
+#
+# Starts a virtual machine already defined with defineVM
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $no_consoles: if true, virtual machine consoles are not opened
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub startVM {
 
 	my $self    = shift;
@@ -351,25 +368,6 @@ sub startVM {
 		unless ( $name eq $vm_name ) {
 			next;
 		}
-
-=BEGIN Parece que sobra...
-		# To get filesystem and type
-		my $filesystem_type;
-		my $filesystem_list = $vm->getElementsByTagName("filesystem");
-		if ( $filesystem_list->getLength == 1 ) {
-			$filesystem =
-			  &do_path_expansion(
-				&text_tag( $vm->getElementsByTagName("filesystem")->item(0) ) );
-			$filesystem_type =
-			  $vm->getElementsByTagName("filesystem")->item(0)
-			  ->getAttribute("type");
-		}
-		else {
-			$filesystem      = $dh->get_default_filesystem;
-			$filesystem_type = $dh->get_default_filesystem_type;
-		}
-=END
-=cut
 
     	$exec_mode = $dh->get_vm_exec_mode($vm);
 
@@ -447,9 +445,6 @@ sub startVM {
 	$execution->execute($logp, 
 		$bd->get_binaries_path_ref->{"rm"} . " -rf $path" );
 
-
-
-
     my @params;
     my @build_params;
 
@@ -468,26 +463,22 @@ sub startVM {
 	if ( $kernelTag ne 'default' ) {
 		$kernel = $kernelTag;
         wlog (VVV, "kernel tag=" . $kernel_item->toString, $logp);
-        #if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
         unless ( empty($kernel_item->getAttribute("initrd")) ) {
 			push( @params,
 				"initrd=" . $kernel_item->getAttribute("initrd") );
 			push( @build_params,
 				"initrd=" . $kernel_item->getAttribute("initrd") );
 		}
-        #if ( $kernel_item->getAttribute("devfs") !~ /^$/ ) {
         unless ( empty($kernel_item->getAttribute("devfs")) ) {
 			push( @params, "devfs=" . $kernel_item->getAttribute("devfs") );
 			push( @build_params,
 				"devfs=" . $kernel_item->getAttribute("devfs") );
 		}
-        #if ( $kernel_item->getAttribute("root") !~ /^$/ ) {
         unless ( empty($kernel_item->getAttribute("root")) ) {
 			push( @params, "root=" . $kernel_item->getAttribute("root") );
 			push( @build_params,
 				"root=" . $kernel_item->getAttribute("root") );
 		}
-        #if ( $kernel_item->getAttribute("modules") !~ /^$/ ) {
         unless ( empty($kernel_item->getAttribute("modules")) ) {
 			push( @build_params,
 				"modules=" . $kernel_item->getAttribute("modules") );
@@ -606,13 +597,7 @@ sub startVM {
 	push( @params, "mem=" . $mem );
 
 	# Go through each interface
-	#my $ifTagList = $virtualm->getElementsByTagName("if");
-	#my $numif     = $ifTagList->getLength;
-
-	#for ( my $j = 0 ; $j < $numif ; $j++ ) {
 	foreach my $if ($virtualm->getElementsByTagName("if")) {
-
-		#my $ifTag = $ifTagList->item($j);
 
 		my $id  = $if->getAttribute("id");
 		my $net = $if->getAttribute("net"); $net='' if (!defined($net));  # Needed for mgmt if (id=0)
@@ -952,14 +937,21 @@ sub startVM {
     return 0;
 }
 
-
-###################################################################
-#                                                                 #
-#   destroyVM                                                     #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
+# ---------------------------------------------------------------------------------------
+#
+# destroyVM
+#
+# Destroys a virtual machine 
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub destroyVM {
 
 	my $self   = shift;
@@ -1041,14 +1033,21 @@ sub destroyVM {
 
 }
 
-
-###################################################################
-#                                                                 #
-#   shutdownVM                                                    #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
+# ---------------------------------------------------------------------------------------
+#
+# shutdownVM
+#
+# Shutdowns a virtual machine
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub shutdownVM {
 
 	my $self   = shift;
@@ -1070,15 +1069,22 @@ sub shutdownVM {
 
 }
 
-
-
-###################################################################
-#                                                                 #
-#   saveVM                                                        #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
+# ---------------------------------------------------------------------------------------
+#
+# saveVM
+#
+# Stops a virtual machine and saves its status to disk
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $filename: the name of the file to save the VM state to
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub saveVM {
 
 	my $self     = shift;
@@ -1101,15 +1107,22 @@ sub saveVM {
 
 }
 
-
-
-###################################################################
-#                                                                 #
-#   restoreVM                                                     #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
+# ---------------------------------------------------------------------------------------
+#
+# restoreVM
+#
+# Restores the status of a virtual machine from a file previously saved with saveVM
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $filename: the name of the file with the VM state
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub restoreVM {
 
 	my $self     = shift;
@@ -1133,14 +1146,21 @@ sub restoreVM {
 }
 
 
-
-###################################################################
-#                                                                 #
-#   suspendVM                                                     #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
+# ---------------------------------------------------------------------------------------
+#
+# suspendVM
+#
+# Stops a virtual machine and saves its status to memory
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub suspendVM {
 
 	my $self   = shift;
@@ -1163,14 +1183,21 @@ sub suspendVM {
 }
 
 
-
-###################################################################
-#                                                                 #
-#   resumeVM                                                      #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
+# ---------------------------------------------------------------------------------------
+#
+# resumeVM
+#
+# Restores the status of a virtual machine from memory (previously saved with suspendVM)
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub resumeVM {
 
 	my $self   = shift;
@@ -1192,15 +1219,21 @@ sub resumeVM {
 
 }
 
-
-
-###################################################################
-#                                                                 #
-#   rebootVM                                                      #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
+# ---------------------------------------------------------------------------------------
+#
+# rebootVM
+#
+# Reboots a virtual machine
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub rebootVM {
 
 	my $self   = shift;
@@ -1222,15 +1255,21 @@ sub rebootVM {
 
 }
 
-
-
-###################################################################
-#                                                                 #
-#   resetVM                                                       #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
+# ---------------------------------------------------------------------------------------
+#
+# resetVM
+#
+# Restores the status of a virtual machine form a file previously saved with saveVM
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub resetVM {
 
 	my $self   = shift;
@@ -1364,15 +1403,36 @@ sub resetVM {
 
 
 
-###################################################################
+# ---------------------------------------------------------------------------------------
 #
+# executeCMD
+#
+# Executes a set of <filetree> and <exec> commands in a virtual mchine
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $seq: the sequence tag of commands to execute
+#   - $vm: the virtual machine XML definition node
+#   - $seq: the sequence tag of commands to execute
+#   - $plugin_ftree_list_ref: a reference to an array with the plugin <filetree> commands
+#   - $plugin_exec_list_ref: a reference to an array with the plugin <exec> commands
+#   - $ftree_list_ref: a reference to an array with the user-defined <filetree> commands
+#   - $exec_list_ref: a reference to an array with the user-defined <exec> commands
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
+
 sub executeCMD {
 
 	my $self = shift;
+    my $vm_name = shift;
 	my $merged_type = shift;
 	my $seq  = shift;
 	my $vm    = shift;
-	my $vm_name = shift;
     my $plugin_ftree_list_ref = shift;
     my $plugin_exec_list_ref  = shift;
     my $ftree_list_ref        = shift;
@@ -1536,13 +1596,8 @@ sub executeCMD {
 			        if ( $root =~ /\/$/ ) {
 			            $execution->execute($logp,  "# Create the directory if it does not exist", *COMMAND_FILE );
 			            $execution->execute($logp,  "if [ -d $root ]; then", *COMMAND_FILE );
-	                    #$execution->execute($logp,  "    mkdir -vp $root >> $uml_log_file", *COMMAND_FILE );
 	                    $execution->execute($logp,  "    mkdir -p $root >> $uml_log_file", *COMMAND_FILE );
 			            $execution->execute($logp,  "fi", *COMMAND_FILE );
-	                    #$execution->execute($logp,  "cp -Rv $filetree_vm/* $root >> $uml_log_file", *COMMAND_FILE );
-	                    #if ( $user ne ''  ) { $execution->execute($logp,  "chown -vR $user $root/*  >> $uml_log_file",  *COMMAND_FILE ); }
-	                    #if ( $group ne '' ) { $execution->execute($logp,  "chown -vR .$group $root/* >> $uml_log_file", *COMMAND_FILE ); }
-	                    #if ( $perms ne '' ) { $execution->execute($logp,  "chmod -vR $perms $root/*  >> $uml_log_file", *COMMAND_FILE ); }
 	                    $execution->execute($logp,  "cp -R $filetree_vm/* $root >> $uml_log_file", *COMMAND_FILE );
 	                    if ( $user ne ''  ) { $execution->execute($logp,  "chown -R $user $root/*  >> $uml_log_file",  *COMMAND_FILE ); }
 	                    if ( $group ne '' ) { $execution->execute($logp,  "chown -R .$group $root/* >> $uml_log_file", *COMMAND_FILE ); }
@@ -1551,13 +1606,8 @@ sub executeCMD {
 			            my $root_dir = dirname($root);
 			            $execution->execute($logp,  "# Create the directory if it does not exist", *COMMAND_FILE );
 			            $execution->execute($logp,  "if [ -d $root_dir ]; then", *COMMAND_FILE );
-	                    #$execution->execute($logp,  "    mkdir -vp $root_dir >> $uml_log_file", *COMMAND_FILE );
 	                    $execution->execute($logp,  "    mkdir -p $root_dir >> $uml_log_file", *COMMAND_FILE );
 			            $execution->execute($logp,  "fi", *COMMAND_FILE );
-	                    #$execution->execute($logp,  "cp -Rv $filetree_vm/* $root", *COMMAND_FILE );
-	                    #if ( $user ne ''  ) { $execution->execute($logp,  "chown -vR $user $root >> $uml_log_file", *COMMAND_FILE );   }
-	                    #if ( $group ne '' ) { $execution->execute($logp,  "chown -vR .$group $root >> $uml_log_file", *COMMAND_FILE ); }
-	                    #if ( $perms ne '' ) { $execution->execute($logp,  "chmod -vR $perms $root >> $uml_log_file", *COMMAND_FILE );  }
 	                    $execution->execute($logp,  "cp -R $filetree_vm/* $root", *COMMAND_FILE );
 	                    if ( $user ne ''  ) { $execution->execute($logp,  "chown -R $user $root >> $uml_log_file", *COMMAND_FILE );   }
 	                    if ( $group ne '' ) { $execution->execute($logp,  "chown -R .$group $root >> $uml_log_file", *COMMAND_FILE ); }
@@ -1672,28 +1722,7 @@ sub executeCMD {
 	    $execution->execute($logp,  "echo 'Commands executed on \$DATE:' >> $uml_log_file",*COMMAND_FILE );
 	    $execution->execute($logp,  "echo \"\$CMDS\" >> $uml_log_file",*COMMAND_FILE );
 	    $execution->execute($logp,  "touch /mnt/hostfs/$cmd_file_bname.done",*COMMAND_FILE );
-	
-=BEGIN Moved to vnx
-		# Plugin operation
-		# $execution->execute($logp, "# commands generated by plugins",*COMMAND_FILE);
-		foreach my $plugin (@plugins) {
-	
-			# contemplar que ahora la string seq puede contener
-			# varios seq separados por espacios
-			my @commands = $plugin->execCommands( $vm_name, $seq );
-	
-			my $error = shift(@commands);
-			if ( $error ne "" ) {
-				$execution->smartdie("plugin $plugin execCommands($vm_name,$seq) error: $error");
-			}
-			foreach my $cmd (@commands) {
-				$execution->execute($logp,  $cmd, *COMMAND_FILE );
-			}
-	
-		}
-=END
-=cut	
-	
+		
 		# We close file and mark it executable
 		close COMMAND_FILE
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );

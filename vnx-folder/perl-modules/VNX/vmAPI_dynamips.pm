@@ -80,10 +80,11 @@ use File::Spec;
 my $dynamipsHost;
 my $dynamipsPort;
 
-
+# ---------------------------------------------------------------------------------------
 #
-# Module vmAPI_uml initialization code
+# Module vmAPI_dynamips initialization code 
 #
+# ---------------------------------------------------------------------------------------
 sub init {      
 	
 	my $logp = "dynamips-init> ";
@@ -95,16 +96,22 @@ sub init {
 	#print "*** dynamipsPort = $dynamipsPort \n";
 }    
 
-
-
-####################################################################
-##                                                                 #
-##   defineVM                                                      #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# ---------------------------------------------------------------------------------------
 #
+# defineVM
+#
+# Defined a virtual machine 
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $vm_doc: XML document describing the virtual machines
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub defineVM {
 	
 	my $self   = shift;
@@ -135,11 +142,8 @@ sub defineVM {
     #wlog (VVV, "Before parsing...", "$logp");
     my $dom          = $parser->parse_string($vm_doc);
     wlog (VVV, "...2", "$logp");
-	#my $parser       = new XML::DOM::Parser;
-	#my $dom          = $parser->parse($vm_doc);
 	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
     wlog (VVV, "...3", "$logp");
-    #my $globalNode   = $dom->findnodes("/create_conf")->[0];  
 	my $virtualmList = $globalNode->getElementsByTagName("vm");
 	my $virtualm     = $virtualmList->item(0);
     wlog (VVV, "...4", "$logp");
@@ -229,15 +233,11 @@ sub defineVM {
 	# In Dynamips, only con1 (console port, for all routers) and 
 	# con2 (aux port, only for c7200) are allowed
 	# 
-	#my $consTagList = $virtualm->getElementsByTagName("console");
-	#my $numcons     = $consTagList->getLength;
     my $consType;
     my %consPortDefInXML = (1,'',2,'');     # % means that consPortDefInXML is a perl associative array 
     my %consDisplayDefInXML = (1,$CONS_DISPLAY_DEFAULT,2,$CONS_DISPLAY_DEFAULT); 
     #print "** $vm_name: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
-	#for ( my $j = 0 ; $j < $numcons ; $j++ ) {
 	foreach my $cons ($virtualm->getElementsByTagName("console")) {
-		#my $consTag = $consTagList->item($j);
    		my $value = &text_tag($cons);
 		my $id    = $cons->getAttribute("id");        # mandatory
 		my $display = $cons->getAttribute("display"); # optional
@@ -324,7 +324,6 @@ sub defineVM {
     }
     
     # Set IDLEPC
-    #my $idlepc = get_idle_pc_conf($vm_name);
     my $imgName = basename ($filesystem);
     # Look for a specific idle_pc value for this image
     my $idlepc = &get_conf_value ($vnxConfigFile, 'dynamips', "idle_pc-$imgName");
@@ -369,10 +368,7 @@ sub defineVM {
     }
     
     # Connect virtual networks to host interfaces
-    #$ifTagList = $virtualm->getElementsByTagName("if");
-	#for ( my $j = 0 ; $j < $ifTagList->getLength; $j++ ) {
 	foreach my $if ($virtualm->getElementsByTagName("if")) {
-		#my $ifTag = $ifTagList->item($j);
 		my $name  = $if->getAttribute("name");
 		my $id    = $if->getAttribute("id");
 		my $net   = $if->getAttribute("net");
@@ -493,11 +489,9 @@ sub create_router_conf {
 
     my $parser       = XML::LibXML->new();
     my $dom          = $parser->parse_string($doc);
-	#my $parser       = new XML::DOM::Parser;
-	#my $dom          = $parser->parse($doc);
 	my $vm = $dom->getElementsByTagName("vm")->item(0);
 
-    	# Hostname
+   	# Hostname
 	push (@routerConf,  "hostname " . $vm_name ."\n");
 
 	# Enable IPv4 and IPv6 routing
@@ -505,7 +499,6 @@ sub create_router_conf {
 	push (@routerConf,  "ipv6 unicast-routing\n");	
 
 	# Network interface configuration
-	#my $ifTagList = $vm->getElementsByTagName("if");
 	# P.ej:
 	# 	interface e0/0
 	# 	 mac-address fefd.0003.0101
@@ -515,9 +508,7 @@ sub create_router_conf {
 	# 	 ipv6 address 2001:db8::1/64
 	# 	 ipv6 address 2001:db9::1/64
 	# 	 no shutdown
- 	#for ( my $j = 0 ; $j < $ifTagList->getLength ; $j++ ) {
  	foreach my $if ($vm->getElementsByTagName("if")) {
- 		#my $ifTag = $ifTagList->item($j);
 		my $id    = $if->getAttribute("id");
 		my $net   = $if->getAttribute("net");
 		my $mac   = $if->getAttribute("mac");
@@ -556,10 +547,7 @@ sub create_router_conf {
 		push (@routerConf,  " no shutdown\n");		
  	}
  	# IP route configuration
- 	#my $routeTagList = $vm->getElementsByTagName("route");
- 	#for ( my $j = 0 ; $j < $routeTagList->getLength ; $j++ ) {
  	foreach my $route ($vm->getElementsByTagName("route")) {
- 		#my $routeTag = 	$routeTagList->item($j);
  		my $gw = $route->getAttribute("gw");
  		my $destination = $route->getFirstChild->getData;
  		my $maskdestination = "";
@@ -608,17 +596,21 @@ sub create_router_conf {
 	return @routerConf;
 }
 
-
+# ---------------------------------------------------------------------------------------
 #
+# undefineVM
 #
-####################################################################
-##                                                                 #
-##   undefineVM                                                    #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# Undefines a virtual machine 
 #
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub undefineVM{
 
 	my $self   = shift;
@@ -644,15 +636,21 @@ sub undefineVM{
     return $error;
 }
 
+# ---------------------------------------------------------------------------------------
 #
-####################################################################
-##                                                                 #
-##   destroyVM                                                     #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# destroyVM
 #
+# Destroys a virtual machine 
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub destroyVM{
 
 	my $self   = shift;
@@ -687,12 +685,8 @@ sub destroyVM{
 		close XMLFILE;
         my $parser       = XML::LibXML->new();
         my $dom          = $parser->parse_string($doc);
-		#my $parser       = new XML::DOM::Parser;
-		#my $dom          = $parser->parse($doc);
 		my $vm = $dom->getElementsByTagName("vm")->item(0);
 	
-		#my $ifTagList = $vm->getElementsByTagName("if");
-	 	#for ( my $j = 0 ; $j < $ifTagList->getLength ; $j++ ) {
 	 	foreach my $if ($vm->getElementsByTagName("if")) {
 	 		#my $ifTag  = $ifTagList->item($j);
 			my $ifName = $if->getAttribute("name");
@@ -720,16 +714,22 @@ sub destroyVM{
 	
 }
 
+# ---------------------------------------------------------------------------------------
 #
+# startVM
 #
-####################################################################
-##                                                                 #
-##   startVM                                                       #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# Starts a virtual machine already defined with defineVM
 #
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $no_consoles: if true, virtual machine consoles are not opened
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub startVM {
 
 	my $self    = shift;
@@ -784,17 +784,21 @@ sub startVM {
     return $error;
 }
 
-
+# ---------------------------------------------------------------------------------------
 #
+# shutdownVM
 #
-####################################################################
-##                                                                 #
-##   shutdownVM                                                    #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# Shutdowns a virtual machine
 #
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub shutdownVM{
 	my $self   = shift;
 	my $vm_name = shift;
@@ -832,16 +836,22 @@ sub shutdownVM{
 	return $error;
 }
 
+# ---------------------------------------------------------------------------------------
 #
+# saveVM
 #
-####################################################################
-##                                                                 #
-##   saveVM                                                        #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# Stops a virtual machine and saves its status to disk
 #
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $filename: the name of the file to save the VM state to
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub saveVM{
 	
 	my $self     = shift;
@@ -866,15 +876,22 @@ sub saveVM{
     return $error;	
 }
 
+# ---------------------------------------------------------------------------------------
 #
-####################################################################
-##                                                                 #
-##   restoreVM                                                     #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# restoreVM
 #
+# Restores the status of a virtual machine from a file previously saved with saveVM
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $filename: the name of the file with the VM state
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub restoreVM{
 	
 	my $self     = shift;
@@ -904,16 +921,21 @@ sub restoreVM{
     	
 }
 
+# ---------------------------------------------------------------------------------------
 #
+# suspendVM
 #
-####################################################################
-##                                                                 #
-##   suspendVM                                                     #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# Stops a virtual machine and saves its status to memory
 #
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub suspendVM{
 
 	my $self   = shift;
@@ -937,15 +959,21 @@ sub suspendVM{
     return $error;	
 }
 
+# ---------------------------------------------------------------------------------------
 #
-####################################################################
-##                                                                 #
-##   resumeVM                                                      #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# resumeVM
 #
+# Restores the status of a virtual machine from memory (previously saved with suspendVM)
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub resumeVM{
 
 	my $self   = shift;
@@ -968,14 +996,21 @@ sub resumeVM{
     return $error;	
 }
 
-####################################################################
-##                                                                 #
-##   rebootVM                                                      #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# ---------------------------------------------------------------------------------------
 #
+# rebootVM
+#
+# Reboots a virtual machine
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub rebootVM{
 	my $self   = shift;
 	my $vm_name = shift;
@@ -1003,14 +1038,21 @@ sub rebootVM{
 
 }
 
-####################################################################
-##                                                                 #
-##   resetVM                                                       #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# ---------------------------------------------------------------------------------------
 #
+# resetVM
+#
+# Restores the status of a virtual machine form a file previously saved with saveVM
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub resetVM{
 	my $self   = shift;
 	my $vm_name = shift;
@@ -1038,21 +1080,36 @@ sub resetVM{
     	
 }
 
-####################################################################
-##                                                                 #
-##   executeCMD                                                    #
-##                                                                 #
-##                                                                 #
-##                                                                 #
-####################################################################
+# ---------------------------------------------------------------------------------------
 #
+# executeCMD
+#
+# Executes a set of <filetree> and <exec> commands in a virtual mchine
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $seq: the sequence tag of commands to execute
+#   - $vm: the virtual machine XML definition node
+#   - $seq: the sequence tag of commands to execute
+#   - $plugin_ftree_list_ref: a reference to an array with the plugin <filetree> commands
+#   - $plugin_exec_list_ref: a reference to an array with the plugin <exec> commands
+#   - $ftree_list_ref: a reference to an array with the user-defined <filetree> commands
+#   - $exec_list_ref: a reference to an array with the user-defined <exec> commands
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
+
 sub executeCMD{
 
 	my $self        = shift;
+    my $vm_name      = shift;
 	my $merged_type = shift;
 	my $seq         = shift;
 	my $vm          = shift;
-	my $vm_name      = shift;
 
     my $logp = "dynamips-executeCMD-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type ...)", "$logp");
@@ -1092,11 +1149,8 @@ sub executeCMD{
     #   <exec seq="brief" type="verbatim" mode="telnet" ostype="load">conf/r1.conf</exec>
 
 	# Loop through all vm <exec> tags 
-	#my $command_list = $vm->getElementsByTagName("exec");
 	my $countcommand = 0;
-	#for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
 	foreach my $command ($vm->getElementsByTagName("exec")) {
-		#my $command = $command_list->item($j);	
 		my $cmd_seq_string = $command->getAttribute("seq");
 		# JSF 02/12/10: we accept several commands in the same seq tag,
 		# separated by commas
@@ -1441,53 +1495,6 @@ sub merge_simpleconf {
 
         return $result;
     } 
-
-=BEGIN
-		
-	# If the extended config file is not defined, return default value 
-	if ($extConfFile eq '0'){
-		return "$result\n";
-	}
-	
-	# Parse the extended config file
-    my $parser       = XML::LibXML->new();
-    my $dom          = $parser->parse_file($extConfFile);
-	my $globalNode   = $dom->getElementsByTagName("vnx_dynamips")->item(0);
-			
-	# First, we look for a definition in the $vm_name <vm> section 
-	#for ( my $j = 0 ; $j < $virtualmList->getLength ; $j++ ) {
-    foreach my $virtualm ($globalNode->getElementsByTagName("vm")) {		
-	 	# We get name attribute
-	 	#my $virtualm = $virtualmList->item($j);
-		my $name = $virtualm->getAttribute("name");
-		if ( $name eq $vm_name ) {
-			my @tag_list = $virtualm->getElementsByTagName("$tagName");
-			if (@tag_list gt 0){
-				my $tag = $tag_list[0];
-				$result = &text_tag($tag);
-	 			$global_tag = 0;
-	            print "*** vmName = $name, specific entry found ($result)\n";
-			}
-			last;
-		}
-	}
-	# Then, if a virtual machine specific definition was not found, 
-	# have a look in the <global> section
-	if ($global_tag eq 1){
-		my @globalList = $globalNode->getElementsByTagName("global");
-		if (@globalList gt 0){
-			my $globaltag = $globalList[0];
-			my @tag_gl_list = $globaltag->getElementsByTagName("$tagName");
-			if (@tag_gl_list gt 0){
-				my $tag_gl = $tag_gl_list[0];
-				$result = &text_tag($tag_gl);
-                print "*** vmName = $vm_name, global entry found ($result)\n";
-			}
-		}	
-	}
-	return $result;
-=END
-=cut
 
 }
 

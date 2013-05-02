@@ -65,20 +65,19 @@ use VNX::FileChecks;
 use VNX::DocumentChecks;
 use VNX::IPChecks;
 use VNX::vmAPICommon;
-#needed for UML_bootfile
 use File::Basename;
-#use XML::DOM;
 use XML::LibXML;
-#use XML::DOM::ValParser;
 use IO::Socket::UNIX qw( SOCK_STREAM );
 
 
 use constant USE_UNIX_SOCKETS => 0;  # Use unix sockets (1) or TCP (0) to communicate with virtual machine 
 
 
+# ---------------------------------------------------------------------------------------
 #
-# Module vmAPI_libvirt initialization code
+# Module vmAPI_libvirt initialization code 
 #
+# ---------------------------------------------------------------------------------------
 sub init {
 
     my $logp = "libvirt-init> ";
@@ -86,7 +85,6 @@ sub init {
 	# get hypervisor from config file
 	$hypervisor = &get_conf_value ($vnxConfigFile, 'libvirt', 'hypervisor');
 	if (!defined $hypervisor) { $hypervisor = $LIBVIRT_DEFAULT_HYPERVISOR };
-	#print "*** hypervisor = $hypervisor \n";
 	
 	# load kvm modules
 	# TODO: it should be done only if
@@ -144,16 +142,22 @@ sub init {
 
 }
 
-
-
-###################################################################
-#                                                                 #
-#   defineVM                                                      #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# defineVM
+#
+# Defined a virtual machine 
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $vm_doc: XML document describing the virtual machines
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub defineVM {
 
 	my $self    = shift;
@@ -176,20 +180,6 @@ sub defineVM {
 	my $filesystem;
 	my $con;
 
-=BEGIN
-	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-
-		my $vm = $vm_ordered[$i];
-
-		# We get name attribute
-		my $name = $vm->getAttribute("name");
-
-		unless ( $name eq $vm_name ) {
-			next;
-		}
-=END
-=cut
-
     my $vm = $dh->get_vm_byname ($vm_name);
     wlog (VVV, "---- " . $vm->getAttribute("name"), $logp);
     wlog (VVV, "---- " . $vm->getAttribute("exec_mode"), $logp);
@@ -202,7 +192,6 @@ sub defineVM {
     }       
 
     if ($exec_mode eq "cdrom") {
-    #if ($type ne "libvirt-kvm-olive") {
         # Create a temporary directory to store vnxboot file and filetree files
         if ( $execution->get_exe_mode() ne $EXE_DEBUG ) {
             my $command =
@@ -234,57 +223,6 @@ sub defineVM {
         $execution->execute( $logp, "mkdir -p $sdisk_content/config");        	
     }		
 
-#		$filesystem = $dh->get_vm_fs_dir($name) . "/opt_fs";
-
-
-
-
-=BEGIN Esto hay que adaptarlo para copiar las claves ssh con libvirt
-		# Install global public ssh keys in the UML
-		my $global_list = $global_doc->getElementsByTagName("global");
-		my $key_list = $global_list->item(0)->getElementsByTagName("ssh_key");
-
-		# If tag present, add the key
-		for ( my $j = 0 ; $j < $key_list->getLength ; $j++ ) {
-			my $keyfile =
-			  &do_path_expansion( &text_tag( $key_list->item($j) ) );
-			$execution->execute( $logp, $bd->get_binaries_path_ref->{"cat"}
-				  . " $keyfile >> $sdisk_content"
-				  . "keyring_root" );
-		}
-
-		# Next install vm-specific keys and add users and groups
-		my @user_list = $dh->merge_user($vm);
-		foreach my $user (@user_list) {
-			my $username      = $user->getAttribute("username");
-			my $initial_group = $user->getAttribute("group");
-			$execution->execute( $logp, $bd->get_binaries_path_ref->{"touch"} 
-				  . " $sdisk_content"
-				  . "group_$username" );
-			my $group_list = $user->getElementsByTagName("group");
-			for ( my $k = 0 ; $k < $group_list->getLength ; $k++ ) {
-				my $group = &text_tag( $group_list->item($k) );
-				if ( $group eq $initial_group ) {
-					$group = "*$group";
-				}
-				$execution->execute( $logp, $bd->get_binaries_path_ref->{"echo"}
-					  . " $group >> $sdisk_content"
-					  . "group_$username" );
-			}
-			my $key_list = $user->getElementsByTagName("ssh_key");
-			for ( my $k = 0 ; $k < $key_list->getLength ; $k++ ) {
-				my $keyfile =
-				  &do_path_expansion( &text_tag( $key_list->item($k) ) );
-				$execution->execute( $logp, $bd->get_binaries_path_ref->{"cat"}
-					  . " $keyfile >> $sdisk_content"
-					  . "keyring_$username" );
-			}
-		}
-=END
-=cut
-
-#	}
-	
 	#
 	# Read extended configuration files
 	#
@@ -298,9 +236,9 @@ sub defineVM {
 	}
 
 
-	###################################################################
-	#                  defineVM for libvirt-kvm-windows               #
-	###################################################################
+	#
+	# defineVM for libvirt-kvm-windows
+	#
 	if ( $type eq "libvirt-kvm-windows" ) {
 
 		#Save xml received in vnxboot, for the autoconfiguration
@@ -470,14 +408,10 @@ sub defineVM {
 		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
 
         # network <interface> tags
-		#my $ifTagList = $virtualm->getElementsByTagName("if");
-		#my $numif     = $ifTagList->getLength;
 		my $mng_if_exists = 0;
 		my $mng_if_mac;
 
-		#for ( my $j = 0 ; $j < $numif ; $j++ ) {
 		foreach my $if ($virtualm->getElementsByTagName("if")) {
-			#my $ifTag = $ifTagList->item($j);
 			my $id  = $if->getAttribute("id");
 			my $net = $if->getAttribute("net");
 			my $mac = $if->getAttribute("mac");
@@ -542,12 +476,8 @@ sub defineVM {
 		open (CONS_FILE, "> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
 
 		# Go through <consoles> tag list to get attributes (display, port) and value  
-		#my $consTagList = $virtualm->getElementsByTagName("console");
-		#my $numcons     = $consTagList->getLength;
         my $cons0Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
-		#for ( my $j = 0 ; $j < $numcons ; $j++ ) {
 		foreach my $cons ($virtualm->getElementsByTagName("console")) {
-			#my $consTag = $consTagList->item($j);
        		my $value   = &text_tag($cons);
 			my $id      = $cons->getAttribute("id");
 			my $display = $cons->getAttribute("display");
@@ -684,25 +614,26 @@ sub defineVM {
 
 	}
 	
-	###################################################################
-	# defineVM for libvirt-kvm-linux/freebsd/olive                    #
-	###################################################################
+	#
+	# defineVM for libvirt-kvm-linux/freebsd/olive
+	#
 	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")||
 	        ($type eq "libvirt-kvm-olive") ) {
 
-		#print "*** $sdisk_content\n" if ($exemode == $EXE_VERBOSE); 
-		open CONFILE, "> $sdisk_content" . "vnxboot.xml"
-		  or $execution->smartdie("can not open ${sdisk_content}vnxboot: $!")
-		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		#$execution->execute( $logp, $vm_doc ,*CONFILE);
-		print CONFILE "$vm_doc\n";
-		close CONFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+        # Create vnxboot.xml file under $sdisk_content directory
+        unless ( $execution->get_exe_mode() eq $EXE_DEBUG ) {
+            open CONFILE, ">$sdisk_content" . "vnxboot.xml"
+                or $execution->smartdie("can not open ${sdisk_content}vnxboot: $!");
+            print CONFILE "$vm_doc\n";
+            close CONFILE;
+        }
 
-		# We create the XML libvirt file with virtual machine definition
+        #        
+		# We create the XML libvirt virtual machine specification file starting from the VNX XML 
+		# virtual machine definition received in $vm_doc
+		# 
         my $parser       = XML::LibXML->new();
         my $dom          = $parser->parse_string($vm_doc);
-		#my $parser       = new XML::DOM::Parser;
-		#my $dom          = $parser->parse($vm_doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
 		my $virtualm     = $virtualmList->item(0);
@@ -713,10 +644,8 @@ sub defineVM {
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
 
 		if ( $filesystem_type eq "cow" ) {
-
      		# Create the COW filesystem if it does not exist
 			if ( !-f $dh->get_vm_fs_dir($vm_name) . "/root_cow_fs" ) {
-
 				$execution->execute( $logp, "qemu-img"
 					  . " create -b $filesystem -f qcow2 "
 					  . $dh->get_vm_fs_dir($vm_name)
@@ -738,13 +667,12 @@ sub defineVM {
 			wlog (VVV, "vm_name configuration file: $confFile", $logp);
         }
 
-		# create the vm description in XML for libvirt
+		# create the XML VM specification document for libvirt
 		my $init_xml;
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 		my $domain_tag = $init_xml->createElement('domain');
 		$init_xml->addChild($domain_tag);
-		# $domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-		# DFC: changed the first line to 
+		# Note: changed the first line to 
 		# <domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
 		# to allow the use of <qemu:commandline> tag to especify the bios in Olive routers
 		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
@@ -787,16 +715,6 @@ sub defineVM {
 		$domain_tag->addChild($vcpu_tag);
 		$vcpu_tag->addChild( $init_xml->createTextNode( $vm->getAttribute("vcpu") ) );
 
-# 		 Not used anymore. Obsoleted by the use of <qemu:commandline> tag to define
-#		 commandline arguments for kvm (-bios bios-0.10.6)
-#        # DFC: Add <biosfile> tag for Olive routers 
-#        if ($type eq "libvirt-kvm-olive") {
-#			my $biosfile_tag = $init_xml->createElement('biosfile');
-#			$domain_tag->addChild($biosfile_tag);
-#			#biosfile
-#			$biosfile_tag->addChild( $init_xml->createTextNode("bios-0.10.6.bin") );
-#        }
-        
         # <os> tag
 		my $os_tag = $init_xml->createElement('os');
 		$domain_tag->addChild($os_tag);
@@ -862,13 +780,15 @@ sub defineVM {
 
         # secondary <disk> tag --> cdrom or disk for autoconfiguration or command execution
 
-        # Filetree files:
-        #   Each file created when calling plugin->getBootFiles or specified in <filetrees> 
+        # Processing <filetree> tags:
+        #
+        # Files:
+        #   Each file created when calling plugin->getBootFiles or specified in <filetree>'s 
         #   with seq='on_boot' has been copied to $dh->get_vm_tmp_dir($vm_name) . "/on_boot" 
         #   directory, organized in filetree/$num subdirectories, being $num the order of filetrees. 
         #   We move all the files to the shared disk
         
-        # Check if there is any filetree in $vm_doc
+        # Check if there is any <filetree> tag in $vm_doc
         my @filetree_tag_list = $dom->getElementsByTagName("filetree");
         if (@filetree_tag_list > 0) { # At least one filetree defined
             # Copy the files to the shared disk        
@@ -879,7 +799,6 @@ sub defineVM {
         }
     
         if ($exec_mode eq "cdrom") {
-        #if ($type ne "libvirt-kvm-olive") {
 
 			# Create the iso filesystem for the cdrom
 			my $filesystem_small = $dh->get_vm_fs_dir($vm_name) . "/opt_fs.iso";
@@ -887,7 +806,7 @@ sub defineVM {
 				  . " -l -R -quiet -o $filesystem_small $sdisk_content" );
 			$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $sdisk_content" );
 
-			# Create the cdrom definition
+			# Create the cdrom definition in libvirt XML doc
        		my $disk2_tag = $init_xml->createElement('disk');
 			$devices_tag->addChild($disk2_tag);
 			$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
@@ -904,18 +823,22 @@ sub defineVM {
 
 			# Copy autoconfiguration (vnxboot.xml) file to shared disk
 			#$execution->execute( $logp, $bd->get_binaries_path_ref->{"cp"} . " $sdisk_content/vnxboot $sdisk_content/vnxboot.xml" );
-			# Copy initial router configuration if defined 
-			#print "****    confFile = $confFile\n";
+
+			# If defined in a <config> tag, copy the configuration file specified to shared disk 
 			if ($confFile ne '') {
-                #$execution->execute( $logp, "mkdir $sdisk_content/config" );
                 $execution->execute( $logp, $bd->get_binaries_path_ref->{"cp"} . " $confFile $sdisk_content/config" );
 			}
 
-			#$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $sdisk_content" );
 			# Dismount shared disk
-			$execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
+			# Note: under some systems this umount fails. In that case, we wait and retry 3 times...
+            my $retry=3;
+			while ( $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content ) ) {
+                $retry--; last if $retry == 0;  
+                wlog (N, "umount $sdisk_content failed. Retrying...", "");			
+                sleep (1);
+			}
 
-			# Create the shared <disk> definition
+			# Create the shared <disk> definition in libvirt XML document
        		my $disk2_tag = $init_xml->createElement('disk');
 			$devices_tag->addChild($disk2_tag);
 			$disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
@@ -930,24 +853,19 @@ sub defineVM {
 			# Testing Fedora 17 problem with shared disk...
 			#$target2_tag->addChild( $init_xml->createAttribute( cache => 'none' ) );
 			
-        	
         }
         
         # network <interface> tags linux
-		#my $ifTagList = $virtualm->getElementsByTagName("if");
-		#my $numif     = $ifTagList->getLength;
 		my $mng_if_exists = 0;
 		my $mng_if_mac;
 
-		#for ( my $j = 0 ; $j < $numif ; $j++ ) {
 		foreach my $if ($virtualm->getElementsByTagName("if")) {
-			#my $ifTag = $ifTagList->item($j);
 			my $id    = $if->getAttribute("id");
 			my $net   = $if->getAttribute("net");
             my $mac   = $if->getAttribute("mac");
 
-			# Ignore loopback interfaces (they are configured by the ACED daemon, but
-			# should not be treated by libvirt)
+			# Ignore loopback interfaces (they are configured by the ACED daemon and
+			# should not be processed by libvirt)
 			if (defined($net) && $net eq "lo") { next}
 			 
 			my $interface_tag;
@@ -956,22 +874,7 @@ sub defineVM {
 				$mng_if_exists = 1;
 				$mac =~ s/,//;
 				$mng_if_mac = $mac;		
-				#$interface_tag->addChild(
-				#$init_xml->createAttribute( type => 'network' ) );
-				#$interface_tag->addChild(
-				#$init_xml->createAttribute( name => "eth" . $id ) );
-				#$interface_tag->addChild(
-				#$init_xml->createAttribute( onboot => "yes" ) );
-			    #my $source_tag = $init_xml->createElement('source');
-			    #$interface_tag->addChild($source_tag);
-			    #$source_tag->addChild(
-				#$init_xml->createAttribute( network => 'default') );
-				#my $mac_tag = $init_xml->createElement('mac');
-			    #$interface_tag->addChild($mac_tag);
-			    #$mac =~ s/,//;
-			    #$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
 			}else{
-				
 				$interface_tag = $init_xml->createElement('interface');
                 $devices_tag->addChild($interface_tag);
 				
@@ -1004,7 +907,7 @@ sub defineVM {
 			}			
 
 			# DFC: set interface model to 'i82559er' in olive router interfaces.
-			#      Using e1000 the interfaces are not created correctly (to further investigate) 
+			#      If using e1000 instead, the interfaces are not created correctly (to further investigate) 
 			if ($type eq "libvirt-kvm-olive") {
                 # TODO: check that all olive interfaces have a correct name attribute
                 my $if_name = $if->getAttribute("name");
@@ -1022,15 +925,6 @@ sub defineVM {
 			
 		}
 		
-#		# configuracion de la interfaz de gestion
-#		my $mngifTagList = $virtualm->getElementsByTagName("mng_if");
-#		my $mngifTag     = $mngifTagList->item(0);
-#		my $mngid    = $mngifTag->getAttribute("id");
-#		my $mngnet   = $mngifTag->getAttribute("net");
-#		my $mngmac   = $mngifTag->getAttribute("mac");
-		#
-		
-
     	#
 		# VM CONSOLES
 		# 
@@ -1052,19 +946,15 @@ sub defineVM {
 		open (CONS_FILE, "> $consFile") || $execution->smartdie ("ERROR: Cannot open file $consFile");
 
 		# Go through <consoles> tag list to get attributes (display, port) and value  
-		#my $consTagList = $virtualm->getElementsByTagName("console");
-		#my $numcons     = $consTagList->getLength;
         my $consType = $VNX::Globals::CONS1_DEFAULT_TYPE;
         my $cons0Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
         my $cons1Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
         my $cons1Port = '';
-		#for ( my $j = 0 ; $j < $numcons ; $j++ ) {
 		foreach my $cons ($virtualm->getElementsByTagName("console")) {
-			#my $consTag = $consTagList->item($j);
        		my $value   = &text_tag($cons);
 			my $id      = $cons->getAttribute("id");
 			my $display = $cons->getAttribute("display");
-       		#print "** console: id=$id, value=$value\n" if ($exemode == $EXE_VERBOSE);
+       		wlog (VVV, "console: id=$id, value=$value", $logp);
 			if (  $id eq "0" ) {
                 #if ($display ne '') { $cons0Display = $display }
 				unless (empty($display)) { $cons0Display = $display }
@@ -1087,7 +977,6 @@ sub defineVM {
 			my $graphics_tag = $init_xml->createElement('graphics');
 			$devices_tag->addChild($graphics_tag);
 			$graphics_tag->addChild( $init_xml->createAttribute( type => 'vnc' ) );
-			#falta ip host
 			my $ip_host = "";
 			$graphics_tag->addChild(
 				$init_xml->createAttribute( listen => $ip_host ) );
@@ -1095,11 +984,11 @@ sub defineVM {
 			# We do not know yet the vnc display (known when the machine is started in startVM)
 			# By now, we just write 'UNK_VNC_DISPLAY'
 			print CONS_FILE "con0=$cons0Display,vnc_display,UNK_VNC_DISPLAY\n";
-			#print "$consFile: con0=$cons0Display,vnc_display,UNK_VNC_DISPLAY\n" if ($exemode == $EXE_VERBOSE);
+			wlog (VVV, "$consFile: con0=$cons0Display,vnc_display,UNK_VNC_DISPLAY", $logp);
 		}
 				     
         # Text console: <console id="1"> 
-		#print "** console #1 type: $consType (port=$cons1Port)\n";
+		wlog (VVV, "console #1 type: $consType (port=$cons1Port)", $logp);
 
 		if ($consType eq "pts") {
         
@@ -1128,7 +1017,7 @@ sub defineVM {
 			# We do not know yet the pts device assigned (known when the machine is started in startVM)
 			# By now, we just write 'UNK_PTS_DEV'
 			print CONS_FILE "con1=$cons1Display,libvirt_pts,UNK_PTS_DEV\n";
-			#print "$consFile: con1=$cons1Display,libvirt_pts,UNK_PTS_DEV\n" if ($exemode == $EXE_VERBOSE);
+			wlog (VVV, "$consFile: con1=$cons1Display,libvirt_pts,UNK_PTS_DEV", $logp);
 			
 		} elsif ($consType eq "telnet") {
 
@@ -1270,48 +1159,22 @@ sub defineVM {
 				
 		}
 		
-=BEGIN		
-		# TEST, TEST, TEST
-		# Nested virtualization test (12/10/12)
-		my $qemucommandline_tag = $init_xml->createElement('qemu:commandline');
-        $domain_tag->addChild($qemucommandline_tag);
-                
-        my $qemuarg_tag = $init_xml->createElement('qemu:arg');
-        $qemucommandline_tag->addChild($qemuarg_tag);
-        $qemuarg_tag->addChild( $init_xml->createAttribute( value => "-cpu" ) );
-                
-        my $qemuarg_tag2 = $init_xml->createElement('qemu:arg');
-        $qemucommandline_tag->addChild($qemuarg_tag2);
-        $qemuarg_tag2->addChild( $init_xml->createAttribute( value => "qemu32,+vmx" ) );
-=END
-=cut		
-		     
-#   ############<graphics type='sdl' display=':0.0'/>
-#      my $graphics_tag2 = $init_xml->createElement('graphics');
-#      $devices_tag->addChild($graphics_tag2);
-#      $graphics_tag2->addChild( $init_xml->createAttribute( type => 'sdl'));
-#      # DFC  $graphics_tag2->addChild( $init_xml->createAttribute( display =>':0.0'));
-#      $disp = $ENV{'DISPLAY'};
-#      $graphics_tag2->addChild( $init_xml->createAttribute( display =>$disp));
-#   ############
-
 		# We connect with libvirt to define the virtual machine
-		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
+		wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
-		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
+		else    { wlog (V, "OK", $logp); }
 
-		my $format    = 1;
-		my $xmlstring = $init_xml->toString($format);
-		
-		# Save the XML libvirt file to .vnx/scenarios/<vscenario_name>/vms/$vm_name
-		open XML_FILE, ">" . $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_libvirt.xml'
-		  or $execution->smartdie(
-			"can not open " . $dh->get_vm_dir . '/' . $vm_name . '_libvirt.xml' )
-		    unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		print XML_FILE "$xmlstring\n";
-		close XML_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+        my $format    = 1;
+        my $xmlstring = $init_xml->toString($format);
+
+        # Save the XML libvirt file to .vnx/scenarios/<vscenario_name>/vms/$vm_name
+        unless ( $execution->get_exe_mode() eq $EXE_DEBUG ) {
+	        open XML_FILE, ">" . $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_libvirt.xml'
+	          or $execution->smartdie("can not open " . $dh->get_vm_dir . '/' . $vm_name . '_libvirt.xml' );
+	        print XML_FILE "$xmlstring\n";
+	        close XML_FILE;
+        }
 
         # check that the domain is not already defined or started
         my @doms = $con->list_defined_domains();
@@ -1330,27 +1193,35 @@ sub defineVM {
 				return $error;
 			}
 		}
-		my $domain = $con->define_domain($xmlstring);
+        
+        # Define the new virtual machine
+        unless ( $execution->get_exe_mode() eq $EXE_DEBUG ) {
+		  my $domain = $con->define_domain($xmlstring);
+        }
 		
 		return $error;
 
-	}
-
-	else {
-		$error = "Define for type $type not implemented yet.\n";
+	} else {
+		$error = "defineVM for type $type not implemented yet.\n";
 		return $error;
 	}
 }
 
-
-###################################################################
-#                                                                 #
-#   undefineVM                                                    #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# undefineVM
+#
+# Undefines a virtual machine 
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub undefineVM {
 
 	my $self   = shift;
@@ -1363,16 +1234,13 @@ sub undefineVM {
 	my $error;
 	my $con;
 
-
-	###################################################################
-	# undefineVM for libvirt-kvm-windows/linux/freebsd/olive          #
-	###################################################################
+	#
+	# undefineVM for libvirt-kvm-windows/linux/freebsd/olive
+	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1382,10 +1250,12 @@ sub undefineVM {
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vm_name ) {
-				$listDom->undefine();
-				print "Domain undefined.\n" if ($exemode == $EXE_VERBOSE);
-				$error = 0;
-				return $error;
+				unless ( $execution->get_exe_mode() eq $EXE_DEBUG ) {
+				    $listDom->undefine();
+				}
+                print "Domain undefined.\n" if ($exemode == $EXE_VERBOSE);
+                $error = 0;
+                return $error;
 			}
 		}
 		$error = "Domain $vm_name does not exist.\n";
@@ -1398,16 +1268,21 @@ sub undefineVM {
 	}
 }
 
-
-
-###################################################################
-#                                                                 #
-#   destroyVM                                                     #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# destroyVM
+#
+# Destroys a virtual machine 
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub destroyVM {
 
 	my $self   = shift;
@@ -1421,15 +1296,13 @@ sub destroyVM {
 	my $con;
 	
 	
-	###################################################################
-	#                  destroyVM for libvirt-kvm-windows/linux/freebsd#
-	###################################################################
+	#
+	# destroyVM for libvirt-kvm-windows/linux/freebsd
+	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1460,16 +1333,22 @@ sub destroyVM {
 	}
 }
 
-
-
-###################################################################
-#                                                                 #
-#   startVM                                                       #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# startVM
+#
+# Starts a virtual machine already defined with defineVM
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $no_consoles: if true, virtual machine consoles are not opened
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub startVM {
 
 	my $self   = shift;
@@ -1483,14 +1362,13 @@ sub startVM {
 	my $error;
 	my $con;
 	
-	###################################################################
-	# startVM for libvirt-kvm-windows/linux/freebsd/olive             #
-	###################################################################
+	#
+	# startVM for libvirt-kvm-windows/linux/freebsd/olive
+	#
 	if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
 	        ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
@@ -1502,64 +1380,6 @@ sub startVM {
 			if ( $dom_name eq $vm_name ) {
 				$listDom->create();
 				print "Domain started\n" if ($exemode == $EXE_VERBOSE);
-
-=BEGIN
-                sleep (2);
-		        # Send the exeCommand order to the virtual machine using the socket
-                my $vm = $dh->get_vm_byname ($vm_name);
-                my $exec_mode   = $dh->get_vm_exec_mode($vm);
-                wlog (VVV, "---- vm_exec_mode = $exec_mode");
-                
-                my $vmsocket;
-                if (USE_UNIX_SOCKETS == 1) { # Use a UNIX socket
-
-	                #my $socket_fh = "/var/run/libvirt/vnx/" . $dh->get_scename . "/${vm_name}_socket";
-	                #my $socket_fh = $dh->get_tmp_dir . "/.vnx/" . $dh->get_scename . "/${vm_name}_socket";
-	                my $socket_fh = $dh->get_vm_dir($vm_name). '/run/' . $vm_name . '_socket';
-	
-	                $vmsocket = IO::Socket::UNIX->new(
-	                   Type => SOCK_STREAM,
-	                   Peer => $socket_fh,
-	                ) or $execution->smartdie("Can't connect to server: $!\n");
-
-                } else {  # Use TCP
-
-		            # Add it to h2vm_port file
-                    my $h2vm_fname = $dh->get_vm_dir . "/$vm_name/run/h2vm_port";
-		            open H2VMFILE, "< $h2vm_fname"
-		                or $execution->smartdie("can not open $h2vm_fname\n")
-		                unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		            my $h2vm_port = <H2VMFILE>;
-
-                    wlog (VV, "port $h2vm_port used for $vm_name H2VM channel");
-
-                    $vmsocket = IO::Socket::INET->new(
-                        Proto    => "tcp",
-                        PeerAddr => "localhost",
-                        PeerPort => "$h2vm_port",
-                    ) or $execution->smartdie("Can't connect to $vm_name H2VM port: $!\n");
-
-                }
-                
-                #sleep 30;
-                # We send some nop (no operation) commands before sending the real command
-                # This is to avoid the loose of the first characters sent through the serial line
-                sleep (1);
-                print $vmsocket "nop\n";     
-                print $vmsocket "nop\n";     
-                print $vmsocket "nop\n";     
-                # Now we send the real command
-                print $vmsocket "exeCommand $exec_mode\n";     
-
-				# save pid in run dir
-				my $uuid = $listDom->get_uuid_string();
-				$execution->execute( $logp, "ps aux | grep kvm | grep " 
-					  . $uuid
-					  . " | grep -v grep | awk '{print \$2}' > "
-					  . $dh->get_vm_run_dir($vm_name)
-					  . "/pid" );
-=END
-=cut
 				
 				#		
 			    # Console management
@@ -1658,20 +1478,26 @@ sub startVM {
 
 
 
-###################################################################
-#                                                                 #
-#   shutdownVM                                                    #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# shutdownVM
+#
+# Shutdowns a virtual machine
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub shutdownVM {
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
-	my $F_flag = shift; # Not used here, only in vmAPI_uml
 
     my $logp = "libvirt-shutdownVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
@@ -1682,9 +1508,9 @@ sub shutdownVM {
 	# Sample code
 	print "Shutting down vm $vm_name of type $type\n" if ($exemode == $EXE_VERBOSE);
 
-   	###################################################################
-	#                 shutdownVM for libvirt-kvm-windows/linux/freebsd#
-	###################################################################
+   	#
+	# shutdownVM for libvirt-kvm-windows/linux/freebsd#
+	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
@@ -1722,19 +1548,26 @@ sub shutdownVM {
 }
 
 
-
-###################################################################
-#                                                                 #
-#   saveVM                                                        #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# saveVM
+#
+# Stops a virtual machine and saves its status to disk
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $filename: the name of the file to save the VM state to
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub saveVM {
 
 	my $self     = shift;
-	my $vm_name   = shift;
+	my $vm_name  = shift;
 	my $type     = shift;
 	my $filename = shift;
 
@@ -1772,9 +1605,9 @@ sub saveVM {
 		return $error;
 
 	}
-	###################################################################
-	#                  saveVM for libvirt-kvm-windows/linux/freebsd   #
-	###################################################################
+	#
+	# saveVM for libvirt-kvm-windows/linux/freebsd
+	#
     elsif ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
              ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") )   {
 
@@ -1805,16 +1638,22 @@ sub saveVM {
 	}
 }
 
-
-
-###################################################################
-#                                                                 #
-#   restoreVM                                                     #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# restoreVM
+#
+# Restores the status of a virtual machine from a file previously saved with saveVM
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $filename: the name of the file with the VM state
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub restoreVM {
 
 	my $self     = shift;
@@ -1831,9 +1670,9 @@ sub restoreVM {
 	print
 	  "restoreVM: restoring vm $vm_name of type $type from file $filename\n";
 
- 	###################################################################
-	#                  restoreVM for libvirt-kvm-windows/linux/freebsd#
-	###################################################################
+ 	#
+	# restoreVM for libvirt-kvm-windows/linux/freebsd#
+	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) 
     {
@@ -1856,16 +1695,21 @@ sub restoreVM {
 	}
 }
 
-
-
-###################################################################
-#                                                                 #
-#   suspendVM                                                     #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# suspendVM
+#
+# Stops a virtual machine and saves its status to memory
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub suspendVM {
 
 	my $self   = shift;
@@ -1878,13 +1722,12 @@ sub suspendVM {
 	my $error = 0;
 	my $con;
 
-	###################################################################
-	#                  suspendVM for libvirt-kvm-windows/linux/freebsd#
-	###################################################################
+	#
+	# suspendVM for libvirt-kvm-windows/linux/freebsd
+	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
@@ -1910,16 +1753,21 @@ sub suspendVM {
 	}
 }
 
-
-
-###################################################################
-#                                                                 #
-#   resumeVM                                                      #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# resumeVM
+#
+# Restores the status of a virtual machine from memory (previously saved with suspendVM)
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub resumeVM {
 
 	my $self   = shift;
@@ -1935,9 +1783,9 @@ sub resumeVM {
 	# Sample code
 	print "resumeVM: resuming vm $vm_name\n" if ($exemode == $EXE_VERBOSE);
 
-	###################################################################
-	#                  resumeVM for libvirt-kvm-windows/linux/freebsd #
-	###################################################################
+	#
+	# resumeVM for libvirt-kvm-windows/linux/freebsd
+	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
@@ -1967,16 +1815,21 @@ sub resumeVM {
 	}
 }
 
-
-
-###################################################################
-#                                                                 #
-#   rebootVM                                                      #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# rebootVM
+#
+# Reboots a virtual machine
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub rebootVM {
 
 	my $self   = shift;
@@ -1989,9 +1842,9 @@ sub rebootVM {
 	my $error = 0;
 	my $con;
 
-	###################################################################
-	#                  rebootVM for libvirt-kvm-windows/linux/freebsd #
-	###################################################################
+	#
+	# rebootVM for libvirt-kvm-windows/linux/freebsd #
+	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
@@ -2022,16 +1875,21 @@ sub rebootVM {
 
 }
 
-
-
-###################################################################
-#                                                                 #
-#   resetVM                                                       #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# resetVM
+#
+# Restores the status of a virtual machine form a file previously saved with saveVM
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub resetVM {
 
 	my $self   = shift;
@@ -2047,13 +1905,12 @@ sub resetVM {
 	# Sample code
 	print "resetVM: reseting vm $vm_name\n" if ($exemode == $EXE_VERBOSE);
 
-	###################################################################
-	#                  resetVM for libvirt-kvm-windows/linux/freebsd  #
-	###################################################################
+	#
+	# resetVM for libvirt-kvm-windows/linux/freebsd
+	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
@@ -2079,23 +1936,35 @@ sub resetVM {
 	}
 }
 
-
-
-###################################################################
-#                                                                 #
-#   executeCMD                                                    #
-#                                                                 #
-#                                                                 #
-#                                                                 #
-###################################################################
-
+# ---------------------------------------------------------------------------------------
+#
+# executeCMD
+#
+# Executes a set of <filetree> and <exec> commands in a virtual mchine
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
+#   - $seq: the sequence tag of commands to execute
+#   - $vm: the virtual machine XML definition node
+#   - $seq: the sequence tag of commands to execute
+#   - $plugin_ftree_list_ref: a reference to an array with the plugin <filetree> commands
+#   - $plugin_exec_list_ref: a reference to an array with the plugin <exec> commands
+#   - $ftree_list_ref: a reference to an array with the user-defined <filetree> commands
+#   - $exec_list_ref: a reference to an array with the user-defined <exec> commands
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
 sub executeCMD {
 
 	my $self    = shift;
+    my $vm_name = shift;
 	my $merged_type = shift;
 	my $seq     = shift;
 	my $vm      = shift;
-	my $vm_name = shift;
 	my $plugin_ftree_list_ref = shift;
 	my $plugin_exec_list_ref  = shift;
     my $ftree_list_ref        = shift;
@@ -2459,10 +2328,9 @@ sub executeCMD {
 		}
 
 		
-	###########################################
-	#   executeCMD for LINUX & FREEBSD        #
-	###########################################
-
+	#
+	# executeCMD for LINUX & FREEBSD
+	#
 	} elsif ( ($merged_type eq "libvirt-kvm-linux")   || 
 	          ($merged_type eq "libvirt-kvm-freebsd") || 
 	          ($merged_type eq "libvirt-kvm-olive") )    {
@@ -2499,6 +2367,7 @@ sub executeCMD {
 	        # Mount the shared disk to copy command.xml and filetree files
 	        $sdisk_fname  = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
 	        $sdisk_content = $dh->get_vm_hostfs_dir($vm_name);
+	        # Umount first (just in case it was mounted by error)
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
 	        # Delete the previous content of the shared disk (although it is done at 
@@ -2710,7 +2579,14 @@ sub executeCMD {
 
         } elsif ($exec_mode eq "sdisk") {
 
-            $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
+            # Dismount shared disk
+            # Note: under some systems this umount fails. In that case, we wait and retry 3 times...
+            my $retry=3;
+            while ( $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content ) ) {
+                $retry--; last if $retry == 0;  
+                wlog (N, "umount $sdisk_content failed. Retrying...", "");          
+                sleep (1);
+            }
 	        
 	        # Send the exeCommand order to the virtual machine using the socket
             my $vmsocket;
@@ -2774,7 +2650,7 @@ sub executeCMD {
     my $doc = $dh->get_doc;
     
     # If host <host> is not present, there is nothing to do
-    return if ( $doc->getElementsByTagName("host") eq 0 );
+    return if ( !$doc->getElementsByTagName("host") );
     
     # To get <host> tag
     my $host = $doc->getElementsByTagName("host")->item(0);
@@ -2820,23 +2696,6 @@ sub executeCMD {
     return $error;
 }
 
-=BEGIN
-sub readSocketResponse 
-{
-	my $socket = shift;
-        #print "readResponse\n";
-	while (1) {
-		my $line = <$socket>;
-		#chomp ($line);		
-		print "** $line"; # if ($exemode == $EXE_VERBOSE);
-		last if ( ( $line =~ /^OK/) || ( $line =~ /^NOTOK/) );
-	}
-
-	print "----------------------------\n" if ($exemode == $EXE_VERBOSE);
-
-}
-=END
-=cut
 
 ###################################################################
 #                                                                 
@@ -2857,105 +2716,6 @@ sub change_vm_status {
 			$bd->get_binaries_path_ref->{"echo"} . " $status > $status_file" );
 	}
 }
-
-=BEGIN
-###################################################################
-#
-sub UML_plugins_conf {
-
-	my $path   = shift;
-	my $vm     = shift;
-	my $number = shift;
-
-	my $basename = basename $0;
-
-	my $name = $vm->getAttribute("name");
-
-	open CONFILE, ">$path" . "plugins_conf.sh"
-	  or $execution->smartdie("can not open ${path}plugins_conf.sh: $!")
-	  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-	my $verb_prompt_bk = $execution->get_verb_prompt();
-
-# FIXME: consider to use a different new VNX::Execution object to perform this
-# actions (avoiding this nasty verb_prompt backup)
-	$execution->set_verb_prompt("$name> ");
-
-	# We begin plugin configuration script
-	my $shell      = $dh->get_default_shell;
-	my $shell_list = $vm->getElementsByTagName("shell");
-	if ( $shell_list->getLength == 1 ) {
-		$shell = &text_tag( $shell_list->item(0) );
-	}
-	my $command = $bd->get_binaries_path_ref->{"date"};
-	chomp( my $now = `$command` );
-	$execution->execute( $logp, "#!" . $shell, *CONFILE );
-	$execution->execute( $logp, 
-		"# plugin configuration script generated by $basename at $now",
-		*CONFILE );
-	$execution->execute( $logp, "UTILDIR=/mnt/vnx", *CONFILE );
-
-	my $at_least_one_file = "0";
-	foreach my $plugin (@plugins) {
-		my %files = $plugin->getBootFiles($name);
-
-		if ( defined( $files{"ERROR"} ) && $files{"ERROR"} ne "" ) {
-			$execution->smartdie(
-				"plugin $plugin getBootFiles($name) error: "
-				  . $files{"ERROR"} );
-		}
-
-		foreach my $key ( keys %files ) {
-
-			# Create the directory to hold de file (idempotent operation)
-			my $dir = dirname($key);
-			mkpath( "$path/plugins_root/$dir", { verbose => 0 } );
-			$execution->set_verb_prompt($verb_prompt_bk);
-			$execution->execute( $logp, $bd->get_binaries_path_ref->{"cp"}
-				  . " $files{$key} $path/plugins_root/$key" );
-			$execution->set_verb_prompt("$name(plugins)> ");
-
-			# Remove the file in the host (this is part of the plugin API)
-			$execution->execute( $logp, 
-				$bd->get_binaries_path_ref->{"rm"} . " $files{$key}" );
-
-			$at_least_one_file = 1;
-
-		}
-
-		my @commands = $plugin->getBootCommands($name);
-
-		my $error = shift(@commands);
-		if ( $error ne "" ) {
-			$execution->smartdie(
-				"plugin $plugin getBootCommands($name) error: $error");
-		}
-
-		foreach my $cmd (@commands) {
-			$execution->execute( $logp, $cmd, *CONFILE );
-		}
-	}
-
-	if ($at_least_one_file) {
-
-		# The last commands in plugins_conf.sh is to push plugin_root/ to vm /
-		$execution->execute( $logp, 
-			"# Generated by $basename to push files generated by plugins",
-			*CONFILE );
-		$execution->execute( $logp, "cp -r \$UTILDIR/plugins_root/* /", *CONFILE );
-	}
-
-	# Close file and restore prompting method
-	$execution->set_verb_prompt($verb_prompt_bk);
-	close CONFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-
-	# Configuration file must be executable
-	$execution->execute( $logp, $bd->get_binaries_path_ref->{"chmod"}
-		  . " a+x $path"
-		  . "plugins_conf.sh" );
-
-}
-=END
-=cut
 
 
 ###################################################################
@@ -3180,6 +2940,7 @@ sub filetree_wait {
 	return 0;
 }
 
+=BEGIN
 
 #
 # Get the value of a simple tag in extended configuration file
@@ -3246,19 +3007,8 @@ sub get_simple_conf {
 	}
 	return $result;
 }
-
-
-sub para {
-	my $mensaje = shift;
-	my $var = shift;
-	print "************* $mensaje *************\n";
-	if (defined $var){
-	   print $var . "\n";	
-	}
-	print "*********************************\n";
-	<STDIN>;
-}
-
+=END
+=cut
 
 1;
 
