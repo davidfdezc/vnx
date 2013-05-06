@@ -3,7 +3,7 @@
 # This file is a module part of VNUML package.
 #
 # Author: Fermin Galan Marquez (galan@dit.upm.es)
-# Copyright (C) 2005, 	DIT-UPM
+# Copyright (C) 2005-2013, 	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN
@@ -25,7 +25,7 @@
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 
 # DocumentChecks implementes several functions related with checks in the XML VNUML
-# document
+# document as well as other auxiliar functions
 
 package VNX::DocumentChecks;
 
@@ -35,6 +35,7 @@ use Exporter;
 
 our @ISA = qw(Exporter);
 our @EXPORT = qw( empty
+              str
               vm_has_tag 
               num_tags_in_vm
               at_least_one_vm_without_mng_if 
@@ -46,12 +47,22 @@ use VNX::TextManipulation;
 
 # empty
 #
-# Returs false if the variable passed is defined and has a value different from '' or false in any other case.
+# Returns false if the variable passed is defined and has a value different from '' or false in any other case.
 #
 sub empty {
   my $var = shift;
   return ( !defined($var) or $var =~ /^$/ );
 }
+
+# str
+#
+# Returns the same string passed as a parameter if defined; 'undef' if the variable passed is undefined
+#
+sub str {
+  my $var = shift;
+  return ( !defined($var) or $var =~ /^$/ );
+}
+
 
 # vm_has_tag
 #

@@ -44,15 +44,19 @@ our @EXPORT = qw(
 	$execution
 	$dh
 	$bd
-	$args
+	%opts
 	@plugins
 	$exemode
 	$hypervisor
 	$vnxConfigFile
+    $uid
+    $uid_name
+    $vmfs_on_tmp
 
     $VNX_INSTALL_DIR
 	$DEFAULT_TMP_DIR
 	$DEFAULT_VNX_DIR
+	$DEFAULT_VMFS_ON_TMP
 	$DEFAULT_CONF_FILE
 	$DEFAULT_CLUSTER_CONF_FILE
     $EDIV_SEG_ALGORITHMS_DIR
@@ -116,20 +120,28 @@ our $branch;
 our $execution;     # the VNX::Execution object
 our $dh;            # the VNX::DataHandler object
 our $bd;            # the VNX::BinariesData object
-our $args;          # the VNX::Arguments object
+#our $args;          # the VNX::Arguments object
+our %opts = ();     # Command line options hash
+
 our @plugins;       # plugins array
 our $exemode;       # Execution mode. It stores the value of $execution->get_exe_mode()
                     # Used just to shorter the print sentences:
                     #    print "..." if ($exemode == $EXE_VERBOSE)
 our $hypervisor;    # Hypervisor used for libvirt 	
 our $vnxConfigFile; # VNX Configuration file 
-
+our $uid;           # User id of the user that issue the "sudo vnx..." command 
+our $uid_name;      # User name associated to $uid 
+our $vmfs_on_tmp;   # Loads the value of vmfs_on_tmp global config value
+                    # Used to move the cow and sdisk filesystems to the tmp directory
+                    # (used to solve a problem in DIT-UPM laboratories, where root user 
+                    # cannot write to network-mounted user directories)  
 
 # Configuration files and directories
 Readonly::Scalar our $VNX_INSTALL_DIR => '/usr/share/vnx';
 Readonly::Scalar our $DEFAULT_TMP_DIR => '/tmp';
 Readonly::Scalar our $DEFAULT_CONF_FILE => '/etc/vnx.conf';
 Readonly::Scalar our $DEFAULT_VNX_DIR => '~/.vnx';
+Readonly::Scalar our $DEFAULT_VMFS_ON_TMP => 'no';
 Readonly::Scalar our $DEFAULT_CLUSTER_CONF_FILE => '/etc/vnx.conf';  # '/etc/ediv/cluster.conf';
 Readonly::Scalar our $EDIV_SEG_ALGORITHMS_DIR => '/usr/share/vnx/lib/seg-alg';
 Readonly::Scalar our $EDIV_LOGS_DIR => '/var/log/vnx';

@@ -38,7 +38,7 @@ use POSIX qw(setsid setuid setgid);	# Needed in deamonize subrutine
 use Term::ReadKey;
 
 our @ISA    = qw(Exporter);
-our @EXPORT = qw( wlog press_any_key pak );
+our @EXPORT = qw( wlog press_any_key pak change_to_root back_to_user);
 
 
 
@@ -330,6 +330,28 @@ sub execute_mconsole {
   
 }
 
+sub change_to_root {
+    $>=0;    wlog (VVV, "-- Changed to root", "");
+}
+
+sub back_to_user {
+    $>=$uid; wlog (VVV, "-- Back to user $uid_name", "");
+}
+
+sub execute_root {
+    my $self = shift;
+    change_to_root();
+    execute ($self, @_);
+    back_to_user();
+}
+
+sub execute_bg_root {
+    my $self = shift;
+    change_to_root();
+    execute_bg ($self, @_);
+    back_to_user();
+}
+
 # smartdie
 #
 # Wrapper of die Perl function, releasing previously global lock
@@ -492,6 +514,5 @@ sub print_log {
     }
     close (LOG_FILE);
 }
-
 
 1;

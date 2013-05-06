@@ -232,6 +232,7 @@ sub vnet_ifs {
 
 sub get_next_free_port {
 
+change_to_root();
     my $port_ref = shift;   
     my $port;
     while ( !system("fuser -s -v -n tcp $$port_ref") ) {
@@ -241,6 +242,8 @@ sub get_next_free_port {
     $port = $$port_ref;
     $$port_ref++;
     #wlog (VV, "get_next_free_port: using port $$port_ref");
+back_to_user();    
+    
     return $port;
 }
 

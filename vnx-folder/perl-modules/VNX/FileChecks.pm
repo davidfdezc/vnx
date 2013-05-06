@@ -102,7 +102,10 @@ sub valid_absolute_filename {
 #
 
 sub do_path_expansion {
-	my @list = bsd_glob(shift, GLOB_TILDE | GLOB_NOCHECK | GLOB_ERR );
+    my $fname = shift;
+    $fname =~ s#~/#~$uid_name/#;
+    my @list = bsd_glob($fname, GLOB_TILDE | GLOB_NOCHECK | GLOB_ERR );	
+#	my @list = bsd_glob(shift, GLOB_TILDE | GLOB_NOCHECK | GLOB_ERR );
 	return $list[0];
 }
 
@@ -127,14 +130,20 @@ sub do_path_expansion {
 # - confFile: confifuration file
 # - section:  the section name where the parameter is ('' if global parameter)
 # - param:    the parameter name
+# - root:     if defined, we change to root user before reading the config file 
 #
 sub get_conf_value {
 
     my $confFile = shift;
     my $section  = shift;
     my $param    = shift;
+    my $root     = shift;
 
     my $result;
+
+if (defined($root)) {
+	change_to_root();
+}
 
 	sub error_management {
 		#print "** error reading config value: $section $param\n";
@@ -153,11 +162,18 @@ sub get_conf_value {
 
 	# read the vnx config file
 	$vnx_config->file($confFile);
+if (defined($root)) {
+    back_to_user();
+}
 	if ($section eq '' ) {
     	return $result = $vnx_config->get($param);	
 	} else {
     	return $result = $vnx_config->get($section . "_" . $param );			
 	}
+
+
+
+
 =BEGIN
 	#unless(-e $confFile){ return $result }
 	open FILE, "< $confFile" or $execution->smartdie("$confFile not found");

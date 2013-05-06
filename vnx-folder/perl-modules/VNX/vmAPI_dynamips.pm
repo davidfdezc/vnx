@@ -56,8 +56,6 @@ our @EXPORT = qw(
   
 #use feature qw(switch);
 use XML::LibXML;
-#use XML::DOM;
-#use XML::DOM::ValParser;
 use VNX::Globals;
 use VNX::Execution;
 use VNX::BinariesData;
@@ -72,7 +70,6 @@ use VNX::CiscoConsMgmt;
 use VNX::vmAPICommon;
 use Net::Telnet;
 use NetAddr::IP;
-#use Net::IP;
 use File::Basename;
 use File::Spec;
 
@@ -91,7 +88,7 @@ sub init {
 	
 	$dynamipsHost = "localhost";
 	#my $dynamipsPort=get_dynamips_port_conf();
-	$dynamipsPort = &get_conf_value ($vnxConfigFile, 'dynamips', 'port');
+	$dynamipsPort = &get_conf_value ($vnxConfigFile, 'dynamips', 'port', 'root');
 	if (!defined $dynamipsPort) { $dynamipsPort = $DYNAMIPS_DEFAULT_PORT };
 	#print "*** dynamipsPort = $dynamipsPort \n";
 }    
@@ -326,10 +323,10 @@ sub defineVM {
     # Set IDLEPC
     my $imgName = basename ($filesystem);
     # Look for a specific idle_pc value for this image
-    my $idlepc = &get_conf_value ($vnxConfigFile, 'dynamips', "idle_pc-$imgName");
+    my $idlepc = &get_conf_value ($vnxConfigFile, 'dynamips', "idle_pc-$imgName", 'root');
     if (!defined $idlepc) { 
     	# Look for a generic idle_pc value 
-    	$idlepc = &get_conf_value ($vnxConfigFile, 'dynamips', 'idle_pc');   
+    	$idlepc = &get_conf_value ($vnxConfigFile, 'dynamips', 'idle_pc', 'root');   
 	    if (!defined $idlepc) { 
     		# Use default value in VNX::Globals
     		$idlepc = $DYNAMIPS_DEFAULT_IDLE_PC;

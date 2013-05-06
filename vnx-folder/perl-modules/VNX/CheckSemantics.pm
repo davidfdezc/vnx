@@ -210,7 +210,13 @@ sub check_doc {
     foreach my $ssh_key ($doc->getElementsByTagName("ssh_key")) {
 	   my $ssh_key = &do_path_expansion(&text_tag($ssh_key));
 	   return "$ssh_key is not a valid absolute filename" unless &valid_absolute_filename($ssh_key);
-	   return "$ssh_key (ssh key file) does not exist or is not readable" unless (-r $ssh_key);
+	   unless (-r $ssh_key) {
+	       change_to_root();
+	       if (-r $ssh_key) {
+                return "$ssh_key (ssh key file) does not exist or is not readable" unless (-r $ssh_key);
+	       }	
+	       back_to_user();
+	   }
     }
 
     # 4. To check <shell>
@@ -1168,7 +1174,6 @@ sub check_doc {
 
         # For each <exec> in the vm
         foreach my $cmd ($vm->getElementsByTagName("exec")) {
-        	#my $cmd = $exec_list->item($j);
             my $cmdMode = $cmd->getAttribute("mode"); # mode attribute eliminated from <exec>
             my $cmdOSType = $cmd->getAttribute("ostype");
             #wlog (VVV, "-- vm=$vmName,type=$merged_type, exec_mode=$cmdMode, exec_ostype=$cmdOSType\n");

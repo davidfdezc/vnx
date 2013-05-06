@@ -344,8 +344,6 @@ sub startVM {
 	                                               # created by make_vmAPI_doc
     my $parser = XML::LibXML->new();
     my $vm_doc = $parser->parse_string($vm_doctxt);
-    #my $parser = new XML::DOM::Parser;
-    #my $vm_doc = $parser->parse($vm_doctxt);
 
 	my $global_doc = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
