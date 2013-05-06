@@ -83,9 +83,11 @@ sub init {
     my $logp = "libvirt-init> ";
 
 	# get hypervisor from config file
-	$hypervisor = &get_conf_value ($vnxConfigFile, 'libvirt', 'hypervisor');
+	$hypervisor = &get_conf_value ($vnxConfigFile, 'libvirt', 'hypervisor', 'root');
 	if (!defined $hypervisor) { $hypervisor = $LIBVIRT_DEFAULT_HYPERVISOR };
 	
+change_to_root();
+
 	# load kvm modules
 	# TODO: it should be done only if
 	#   - not previously load
@@ -93,10 +95,12 @@ sub init {
 	#
     if ( $dh->any_kvm_vm eq 'true' ) {
 
-        system("kvm-ok");
+        system("kvm-ok > /dev/null");
         if ( $? == -1 ) {
-        	$execution->smartdie ("The scenario contains KVM virtual machines, but the system does not have virtualization support.")
+        	system("kvm-ok"); # To show command output on screen
+        	$execution->smartdie ("The scenario contains KVM virtual machines, but the host does not have virtualization support.")
         } else {
+        	wlog (N, "  KVM acceleration supported", "");
         	# Check if KVM module is loaded and load it if needed
         	my $res = `cat /proc/modules | grep 'kvm '`;
         	if (!$res) {
@@ -114,7 +118,7 @@ sub init {
 			    }			
                 $res = `cat /sys/module/kvm_intel/parameters/nested`; chomp ($res);
                 if ($res eq 'Y') {
-                    wlog (V, "Nested virtualization supported", $logp);                                    	
+                    wlog (N, "  KVM nested virtualization supported", "");                                    	
                 } else {
                     wlog (V, "Nested virtualization not enabled.", $logp);
                     wlog (V, "If supported, add 'options kvm_intel nested=1' to file /etc/modprobe.d/kvm_intel.conf", $logp);                                                    	
@@ -128,7 +132,7 @@ sub init {
                 }           
                 $res = `cat /sys/module/kvm_amd/parameters/nested`; chomp ($res);
                 if ($res eq 'Y') {
-                    wlog (V, "Nested virtualization supported", $logp);                                     
+                    wlog (N, "  KVM nested virtualization supported", "");                                     
                 } else {
                     wlog (V, "Nested virtualization not enabled.", $logp);
                     wlog (V, "If supported, add 'options kvm_amd nested=1' to file /etc/modprobe.d/kvm_amd.conf", $logp);                                                       
@@ -139,6 +143,8 @@ sub init {
     } else {
     	wlog (VVV, "No KVM virtual machines. Skipping load of KVM kernel modules", "host> ");
     }       
+
+back_to_user();
 
 }
 
@@ -209,7 +215,13 @@ sub defineVM {
 
     } elsif ($exec_mode eq "sdisk") {
         # Create the shared filesystem 
-        $sdisk_fname = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
+        wlog (VVV, "vmfs_on_tmp=$vmfs_on_tmp", $logp);
+        if ($vmfs_on_tmp eq 'yes') {
+            $sdisk_fname = $dh->get_vm_fs_dir_ontmp($vm_name) . "/sdisk.img";
+        } else {
+            $sdisk_fname = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
+        }                
+        
         # qemu-img create jconfig.img 12M
         # TODO: change the fixed 50M to something configurable
         $execution->execute( $logp, $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
@@ -217,7 +229,7 @@ sub defineVM {
         $execution->execute( $logp, $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
         # Mount the shared disk to copy filetree files
         $sdisk_content = $dh->get_vm_hostfs_dir($vm_name) . "/";
-        $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
         # Create filetree and config dirs in the shared disk
         $execution->execute( $logp, "mkdir -p $sdisk_content/filetree");
         $execution->execute( $logp, "mkdir -p $sdisk_content/config");        	
@@ -256,8 +268,6 @@ sub defineVM {
 
 	    my $parser       = XML::LibXML->new();
 	    my $dom          = $parser->parse_string($vm_doc);
-		#my $parser       = new XML::DOM::Parser;
-		#my $dom          = $parser->parse($vm_doc);
 		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
 		my $virtualmList = $globalNode->getElementsByTagName("vm");
 		my $virtualm     = $virtualmList->item(0);
@@ -574,12 +584,12 @@ sub defineVM {
 				
 		}
 
-
-
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
-		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
+		else    { print "OK\n" if ($exemode == $EXE_VERBOSE); }
+back_to_user();
 
 		my $format    = 1;
 		my $xmlstring = $init_xml->toString($format);
@@ -592,11 +602,13 @@ sub defineVM {
 		close XML_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
 		# check that the domain is not already defined or started
+change_to_root();
         my @doms = $con->list_defined_domains();
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vm_name ) {
 				$error = "Domain $vm_name already defined\n";
+back_to_user();
 				return $error;
 			}
 		}
@@ -605,10 +617,12 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vm_name ) {
 				$error = "Domain $vm_name already defined and started\n";
+back_to_user();
 				return $error;
 			}
 		}
 		my $domain = $con->define_domain($xmlstring);
+back_to_user();
 
 		return $error;
 
@@ -642,16 +656,21 @@ sub defineVM {
 		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		my $filesystem        = $filesystemTag->getFirstChild->getData;
-
-		if ( $filesystem_type eq "cow" ) {
+        if ( $filesystem_type eq "cow" ) {
+			
+			my $cow_fs;
+            if ($vmfs_on_tmp eq 'yes') {
+                $cow_fs = $dh->get_vm_fs_dir_ontmp($vm_name) . "/root_cow_fs";
+            } else {
+                $cow_fs = $dh->get_vm_fs_dir($vm_name) . "/root_cow_fs";
+            }
+            wlog (V, "cow_fs=$cow_fs", $logp);
      		# Create the COW filesystem if it does not exist
-			if ( !-f $dh->get_vm_fs_dir($vm_name) . "/root_cow_fs" ) {
-				$execution->execute( $logp, "qemu-img"
-					  . " create -b $filesystem -f qcow2 "
-					  . $dh->get_vm_fs_dir($vm_name)
-					  . "/root_cow_fs" );
+			if ( !-f $cow_fs ) {
+				$execution->execute( $logp, "qemu-img create -b $filesystem -f qcow2 $cow_fs");
 			}
-			$filesystem = $dh->get_vm_fs_dir($vm_name) . "/root_cow_fs";
+			$filesystem = $cow_fs;
+
 		}
 
 		# memory
@@ -801,7 +820,13 @@ sub defineVM {
         if ($exec_mode eq "cdrom") {
 
 			# Create the iso filesystem for the cdrom
-			my $filesystem_small = $dh->get_vm_fs_dir($vm_name) . "/opt_fs.iso";
+			my $filesystem_small;
+            if ($vmfs_on_tmp eq 'yes') {
+                $filesystem_small = $dh->get_vm_fs_dir_ontmp($vm_name) . "/opt_fs.iso";
+            } else {
+                $filesystem_small = $dh->get_vm_fs_dir($vm_name) . "/opt_fs.iso";
+            }                
+                			
 			$execution->execute( $logp, $bd->get_binaries_path_ref->{"mkisofs"}
 				  . " -l -R -quiet -o $filesystem_small $sdisk_content" );
 			$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $sdisk_content" );
@@ -830,12 +855,13 @@ sub defineVM {
 			}
 
 			# Dismount shared disk
-			# Note: under some systems this umount fails. In that case, we wait and retry 3 times...
+			# Note: under some systems this umount fails. We sleep for a while and, in case it fails, we wait and retry 3 times...
+            Time::HiRes::sleep(0.2);
             my $retry=3;
 			while ( $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content ) ) {
                 $retry--; last if $retry == 0;  
                 wlog (N, "umount $sdisk_content failed. Retrying...", "");			
-                sleep (1);
+                Time::HiRes::sleep(0.2);
 			}
 
 			# Create the shared <disk> definition in libvirt XML document
@@ -958,12 +984,14 @@ sub defineVM {
 			if (  $id eq "0" ) {
                 #if ($display ne '') { $cons0Display = $display }
 				unless (empty($display)) { $cons0Display = $display }
+                else                     { $cons0Display = '' }
 			}
 			if ( $id eq "1" ) {
 				if ( $value eq "pts" || $value eq "telnet" ) { $consType = $value; }
 				$cons1Port = $cons->getAttribute("port");
 				#if ($display ne '') { $cons1Display = $display }
                 unless (empty($display)) { $cons1Display = $display }
+                else                     { $cons1Display = '' }
 			}
 			if ( $id > 1 ) {
 				print "WARNING (vm=$vm_name): only consoles with id='0' or id='1' allowed for libvirt virtual machines. Tag ignored.\n"
@@ -988,7 +1016,7 @@ sub defineVM {
 		}
 				     
         # Text console: <console id="1"> 
-		wlog (VVV, "console #1 type: $consType (port=$cons1Port)", $logp);
+		wlog (VVV, "console #1 type: $consType (port=" . str($cons1Port) . ")", $logp);
 
 		if ($consType eq "pts") {
         
@@ -1158,12 +1186,14 @@ sub defineVM {
             $qemuarg_tag4->addChild( $init_xml->createAttribute( value => "tap,id=mgmtif0,ifname=$vm_name-e0,script=no" ) );
 				
 		}
-		
+
+change_to_root();
 		# We connect with libvirt to define the virtual machine
 		wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    { wlog (V, "OK", $logp); }
+back_to_user();
 
         my $format    = 1;
         my $xmlstring = $init_xml->toString($format);
@@ -1176,12 +1206,14 @@ sub defineVM {
 	        close XML_FILE;
         }
 
+change_to_root();
         # check that the domain is not already defined or started
         my @doms = $con->list_defined_domains();
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vm_name ) {
 				$error = "Domain $vm_name already defined\n";
+back_to_user();
 				return $error;
 			}
 		}
@@ -1190,6 +1222,7 @@ sub defineVM {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vm_name ) {
 				$error = "Domain $vm_name already defined and started\n";
+back_to_user();
 				return $error;
 			}
 		}
@@ -1199,6 +1232,7 @@ sub defineVM {
 		  my $domain = $con->define_domain($xmlstring);
         }
 		
+back_to_user();
 		return $error;
 
 	} else {
@@ -1240,6 +1274,7 @@ sub undefineVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
@@ -1255,10 +1290,12 @@ sub undefineVM {
 				}
                 print "Domain undefined.\n" if ($exemode == $EXE_VERBOSE);
                 $error = 0;
+back_to_user();
                 return $error;
 			}
 		}
 		$error = "Domain $vm_name does not exist.\n";
+back_to_user();
 		return $error;
 	}
 
@@ -1302,6 +1339,7 @@ sub destroyVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
@@ -1324,6 +1362,7 @@ sub destroyVM {
 
 		# Remove vm fs directory (cow and iso filesystems)
 		$execution->execute( $logp, "rm " . $dh->get_vm_fs_dir($vm_name) . "/*" );
+back_to_user();
 		return $error;
 
 	}
@@ -1368,12 +1407,14 @@ sub startVM {
 	if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
 	        ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_defined_domains();
+back_to_user();
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1438,7 +1479,7 @@ sub startVM {
 					    		
                 
                 # If host_mapping is in use and the vm has a management interface, 
-                # then we have to add an entry for this vm in /etc/hosts
+                # then we have to add an entry for this vm in $dh->get_sim_dir/hostlines file
                 if ( $dh->get_host_mapping ) {
 	                my @vm_ordered = $dh->get_vm_ordered;
 	                for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
@@ -1514,17 +1555,18 @@ sub shutdownVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+back_to_user();
+
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
-			#print "**** dom_name=$dom_name\n";
+			print "**** dom_name=$dom_name\n";
 			if ( $dom_name eq $vm_name ) {
 				$listDom->shutdown();
 				&change_vm_status( $vm_name, "REMOVE" );
@@ -1582,14 +1624,14 @@ sub saveVM {
 
 	if ( $type eq "libvirt-kvm" ) {
 
-		#my $hypervisor = "qemu:///system";
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
-		#my $con;
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+back_to_user();
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1611,13 +1653,14 @@ sub saveVM {
     elsif ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
              ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") )   {
 
-		#my $hypervisor = "qemu:///system";
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+change_to_root();
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1677,13 +1720,15 @@ sub restoreVM {
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) 
     {
 	    
-		#my $hypervisor = "qemu:///system";
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my $dom = $con->restore_domain($filename);
+back_to_user();
+
 		print("Domain restored from file $filename\n");
 		&change_vm_status( $vm_name, "running" );
 		return $error;
@@ -1728,12 +1773,14 @@ sub suspendVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+back_to_user();
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1789,13 +1836,14 @@ sub resumeVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+back_to_user();
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
@@ -1848,18 +1896,21 @@ sub rebootVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
-		#my $hypervisor = "qemu:///system";
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+back_to_user();
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vm_name ) {
+change_to_root();
 				$listDom->reboot(&Sys::Virt::Domain::REBOOT_RESTART);
+back_to_user();
 				print "Domain rebooting\n" if ($exemode == $EXE_VERBOSE);
 				return $error;
 			}
@@ -1911,17 +1962,21 @@ sub resetVM {
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
 
+change_to_root();
 		print "Connecting to $hypervisor hypervisor..." if ($exemode == $EXE_VERBOSE);
 		eval { $con = Sys::Virt->new( address => $hypervisor, readonly => 0 ) };
 		if ($@) { $execution->smartdie ("error connecting to $hypervisor hypervisor.\n" . $@->stringify() ); }
 		else    {print "OK\n" if ($exemode == $EXE_VERBOSE); }
 
 		my @doms = $con->list_domains();
+back_to_user();
 
 		foreach my $listDom (@doms) {
 			my $dom_name = $listDom->get_name();
 			if ( $dom_name eq $vm_name ) {
+change_to_root();
 				$listDom->reboot(&Sys::Virt::Domain::REBOOT_DESTROY);
+back_to_user();
 				print "Domain reset" if ($exemode == $EXE_VERBOSE);
 				$error = 0;
 				return $error;
@@ -2176,9 +2231,7 @@ sub executeCMD {
 #		$execution->execute( $logp, "<id>" . $fileid ."</id>", *COMMAND_FILE );
 
 		my $countcommand = 0;
-		#for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
 		foreach my $command ($vm->getElementsByTagName("exec")) {
-			#my $command = $command_list->item($j);	
 			# To get attributes
 			my $cmd_seq_string = $command->getAttribute("seq");
 			
@@ -2343,10 +2396,12 @@ sub executeCMD {
 		#        $basedir = &text_tag($basedir_list->item(0));
 		#}
 
+
+
         my $sdisk_content;
         my $sdisk_fname;
         
-        my $user   = &get_user_in_seq( $vm, $seq );
+        my $user   = get_user_in_seq( $vm, $seq );
         my $exec_mode   = $dh->get_vm_exec_mode($vm);
         wlog (VVV, "---- vm_exec_mode = $exec_mode", $logp);
 
@@ -2354,7 +2409,6 @@ sub executeCMD {
             return "execution mode $exec_mode not supported for VM of type $merged_type";
         }       
 
-        #if ($merged_type ne "libvirt-kvm-olive") {
         if ($exec_mode eq "cdrom") {
             # Create a temporary directory to store command.xml file and filetree files
 	        my $command =  $bd->get_binaries_path_ref->{"mktemp"} . " -d -p " . $dh->get_vm_tmp_dir($vm_name)  . " filetree.XXXXXX";
@@ -2365,11 +2419,15 @@ sub executeCMD {
 
         } elsif ($exec_mode eq "sdisk") {
 	        # Mount the shared disk to copy command.xml and filetree files
-	        $sdisk_fname  = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
+            if ($vmfs_on_tmp eq 'yes') {
+                $sdisk_fname = $dh->get_vm_fs_dir_ontmp($vm_name) . "/sdisk.img";
+            } else {
+                $sdisk_fname = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
+            }                
 	        $sdisk_content = $dh->get_vm_hostfs_dir($vm_name);
 	        # Umount first (just in case it was mounted by error)
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
-            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
 	        # Delete the previous content of the shared disk (although it is done at 
 	        # the end of this sub, we do it again here just in case...) 
 	        $execution->execute( $logp, "rm -rf $sdisk_content/filetree/*");
@@ -2388,7 +2446,7 @@ sub executeCMD {
         	# ...retrying inmediately seems to solve the problem...
             $retry--; wlog (VVV, "open failed for file $sdisk_content/command.xml...retrying", $logp);
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
-            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
             if ( $retry ==  0 ) {
                 $execution->smartdie("cannot open " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml $!" ) 
                 unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
@@ -2408,9 +2466,7 @@ sub executeCMD {
 		my $fileid = $vm_name . "-" . &generate_random_string(6);
 		$execution->execute( $logp, "<id>" . $fileid ."</id>", *COMMAND_FILE );
 		my $dst_num = 1;
-		
-#pak "pak1";
-		
+			
 		#		
 		# Process of <filetree> tags
 		#
@@ -2502,8 +2558,6 @@ sub executeCMD {
 		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 		$execution->pop_verb_prompt();
 		
-#pak "pak2";
-
 		# Print command.xml file content to log if VVV
 		open FILE, "< $sdisk_content/command.xml";
 		my $cmd_file = do { local $/; <FILE> };
@@ -2511,8 +2565,6 @@ sub executeCMD {
 		wlog (VVV, "command.xml file passed to vm $vm_name: \n$cmd_file", $logp);
         # Save a copy of the last command.xml vm main dir 
         $execution->execute( $logp, "cp " . "$sdisk_content/command.xml " . $dh->get_vm_dir($vm_name) . "/${vm_name}_command.xml" );
-
-#pak "pak3";
 
         if ($exec_mode eq "cdrom") {
         #if ($merged_type ne "libvirt-kvm-olive") {
@@ -2570,7 +2622,6 @@ sub executeCMD {
 			$execution->execute( $logp, "touch $empty_iso_disk");
 			$execution->execute( $logp, "virsh -c qemu:///system 'attach-disk \"$vm_name\" $empty_iso_disk hdb --mode readonly --type cdrom'");
 			sleep 1;
-#pak "pak4";
 
 		   	# Cleaning
 	        $execution->execute( $logp, "rm $iso_disk $empty_iso_disk");
@@ -2580,12 +2631,13 @@ sub executeCMD {
         } elsif ($exec_mode eq "sdisk") {
 
             # Dismount shared disk
-            # Note: under some systems this umount fails. In that case, we wait and retry 3 times...
+            # Note: under some systems this umount fails. We sleep for a while and, in case it fails, we wait and retry 3 times...
+            Time::HiRes::sleep(0.2);
             my $retry=3;
             while ( $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content ) ) {
                 $retry--; last if $retry == 0;  
                 wlog (N, "umount $sdisk_content failed. Retrying...", "");          
-                sleep (1);
+                Time::HiRes::sleep(0.2);
             }
 	        
 	        # Send the exeCommand order to the virtual machine using the socket
@@ -2633,16 +2685,14 @@ sub executeCMD {
             wait_sock_answer ($vmsocket);
             $vmsocket->close();	        
 	        #readSocketResponse ($vmsocket);
-#pak "pak4";
             # Cleaning
-            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
             $execution->execute( $logp, "rm -rf $sdisk_content/filetree/*");
             $execution->execute( $logp, "rm -rf $sdisk_content/*.xml");
             $execution->execute( $logp, "rm -rf $sdisk_content/config/*");
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
 	    }
 
-#pak "pak5";
 	} 
 
     ################## EXEC_COMMAND_HOST ########################3

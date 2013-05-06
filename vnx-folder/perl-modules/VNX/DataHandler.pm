@@ -1089,6 +1089,20 @@ sub get_vm_fs_dir {
    return $self->get_vm_dir($name) . "/fs";
 }
 
+# get_vm_fs_dir_ontmp
+#
+# Arguments:
+#
+# - the name of the vm
+#
+# Returns the directory containing the filesystems for a particular vm when using --vmfs-tmp option
+#
+sub get_vm_fs_dir_ontmp {
+   my $self = shift;
+   my $name = shift;
+   return $self->get_tmp_dir() . "/.vnx/" . $self->get_scename . "/vms/" . $name . "/fs";
+}
+
 # get_vm_hostfs_dir
 #
 # Arguments:

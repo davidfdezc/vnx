@@ -129,13 +129,13 @@ sub open_console {
 
 	my $command;
 	if ($consType eq 'vnc_display') {
-		$execution->execute( $logp, "virt-viewer -c $hypervisor $vm_name &");
+		$execution->execute_root( $logp, "virt-viewer -c $hypervisor $vm_name &");
 		return;  			
    	} elsif ($consType eq 'libvirt_pts') {
 		$command = "virsh -c $hypervisor console $vm_name";
         unless (defined $getLineOnly) {
             # Kill the console if already opened
-            print "`ps uax | grep \"virsh -c $hypervisor console $vm_name\" | awk '{ print \$2 }'`\n";
+            #print "`ps uax | grep \"virsh -c $hypervisor console $vm_name\" | awk '{ print \$2 }'`\n";
             my $pids = `ps uax | grep "virsh -c $hypervisor console $vm_name" | grep -v grep | awk '{ print \$2 }'`;
             $pids =~ s/\R/ /g;
             if ($pids) {
@@ -186,7 +186,7 @@ sub open_console {
 		wlog (N, "WARNING (vm=$vm_name): unknown console type ($consType)");
 	}
 	
-	my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term');
+	my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term', 'root');
 	my $exeLine;
 	wlog (VVV, "$vm_name $command console_term = $console_term", $logp);
 	if ($console_term eq 'gnome-terminal') {
@@ -200,8 +200,10 @@ sub open_console {
 	} else {
 		$execution->smartdie ("unknown value ($console_term) of console_term parameter in $vnxConfigFile");
 	}
-	unless (defined $getLineOnly) {
-		$execution->execute( $logp, $exeLine .  ">/dev/null 2>&1 &");
+    wlog (VVV, "exeLine=$exeLine", $logp);
+	unless (defined($getLineOnly)) {
+        $execution->execute_root($logp, $exeLine .  ">/dev/null 2>&1 &");
+		#$execution->execute( $logp, $exeLine .  ">/dev/null 2>&1 &");
 	}
 	return $exeLine;
 }
