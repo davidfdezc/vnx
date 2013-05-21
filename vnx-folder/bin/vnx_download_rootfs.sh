@@ -92,13 +92,21 @@ function get_link_name {
          echo "rootfs_ubuntu"
       fi
    fi
-   if [[ $1 == *freebsd* ]] ; then
-      if [ $1 == *gui* ] ; then
+
+   if [[ $1 == *freebsd64* ]] ; then
+      if [[ $1 == *gui* ]] ; then
+         echo "rootfs_freebsd64-gui"
+      else
+         echo "rootfs_freebsd64"
+      fi   
+   elif [[ $1 == *freebsd* ]] ; then
+      if [[ $1 == *gui* ]] ; then
          echo "rootfs_freebsd-gui"
       else
          echo "rootfs_freebsd"
       fi
    fi
+
    if [[ $1 == *fedora* ]] ; then
       if [[ $1 == *gui* ]] ; then
          echo "rootfs_fedora-gui"
@@ -106,6 +114,7 @@ function get_link_name {
          echo "rootfs_fedora"
       fi
    fi
+
    if [[ $1 == *centos* ]] ; then
       if [[ $1 == *gui* ]] ; then
          echo "rootfs_centos-gui"
@@ -113,12 +122,15 @@ function get_link_name {
          echo "rootfs_centos"
       fi
    fi
+
    if [[ $1 == *honeywall* ]] ; then
       echo "rootfs_honeywall"
    fi
+
    if [[ $1 == *metasploitable* ]] ; then
       echo "rootfs_metasploitable"
    fi
+
    if [[ $1 == *caine* ]] ; then
       echo "rootfs_caine"
    fi

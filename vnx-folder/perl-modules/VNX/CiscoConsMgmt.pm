@@ -50,6 +50,7 @@ my $bad_passwds ='% Bad passwords';
 #
 # Arguments:
 #
+# - tmp_dir
 # - host
 # - port
 # - login
@@ -62,6 +63,7 @@ sub new {
     bless $self;
 
     #print "-- new called (host\n";
+    $self->{'tmp_dir'} = shift;
     $self->{'host'} = shift;
     $self->{'port'} = shift;
     $self->{'login'} = shift;
@@ -109,17 +111,17 @@ sub open {
                                 Timeout => 3,
                                 -cmd_remove_mode => 1,
                                 -output_record_separator => "\r",
-                                Input_log => "input.log", 
-                                Output_log => "output.log", 
-                                Dump_Log => "dump.log",
+                                Input_log => $self->{'tmp_dir'} . "/input.log", 
+                                Output_log => $self->{'tmp_dir'} . "/output.log", 
+                                Dump_Log => $self->{'tmp_dir'} . "/dump.log",
                                 Timeout => 3,
                                 Errmode => 'return');
         $res = 1;
 
     } else {
 
-        $self->{'session'} = new Net::Telnet ( Input_log => "input.log", 
-                                    Output_log => "output.log", 
+        $self->{'session'} = new Net::Telnet ( Input_log => $self->{'tmp_dir'} . "/input.log", 
+                                    Output_log => $self->{'tmp_dir'} . "/output.log", 
                                     Timeout => 3,
                                     Errmode => 'return');
 

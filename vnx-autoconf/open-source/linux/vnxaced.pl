@@ -1509,200 +1509,191 @@ sub autoconfigure_freebsd {
     my $parser = XML::LibXML->new;
     my $dom    = $parser->parse_file($vnxboot_file);
     
-    my $global_node   = $dom->getElementsByTagName("create_conf")->item(0);
-    my $virtualmTagList = $global_node->getElementsByTagName("vm");
-    my $virtualmTag     = $virtualmTagList->item(0);
-    my $vm_name       = $virtualmTag->getAttribute("name");
+    my $global_node = $dom->getElementsByTagName("create_conf")->item(0);
+    my $virtualmTag = $global_node->getElementsByTagName("vm")->item(0);
+    my $vm_name     = $virtualmTag->getAttribute("name");
 
     my $hostname_vm = `hostname -s`;
     $hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
     $vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 
-    # IF names
-    my $IFPREFIX="em";  # Prefix of names assigned to interfaces of  
-                        # type e1000 (default used by VNX) by FreeBSD   
+    # IF prefix names assigned to interfaces  
+    my $IF_MGMT_PREFIX="re";    # type rtl8139 for management if    
+    my $IF_PREFIX="em";         # type e1000 for the rest of ifs   
     
-    # Files modified
+    # Files to modify
     my $hosts_file = "/etc/hosts";
     my $hostname_file = "/etc/hostname";
     my $rc_file = "/etc/rc.conf";
 
-# Not needed anymore. Check is done in 'is_new_file'
-    # If the vm doesn't have the correct name,
-    # start autoconfiguration process
-#   if (!($hostname_vm eq $vm_name)){
-#       write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
-        my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
+    my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
-        # before the loop, backup /etc/rc.conf
-        my $command;
-        write_log ("   configuring /etc/rc.conf...");
-        $command = "cp $rc_file $rc_file.backup";
-        system $command;
+    # before the loop, backup /etc/rc.conf
+    my $command;
+    write_log ("   configuring /etc/rc.conf...");
+    $command = "cp $rc_file $rc_file.backup";
+    system $command;
 
-        open RC, ">>" . $rc_file or write_log ("error opening $rc_file");
+    open RC, ">>" . $rc_file or write_log ("error opening $rc_file");
 
-        chomp (my $now = `date`);
+    chomp (my $now = `date`);
 
-        print RC "\n";
-        print RC "#\n";
-        print RC "# VNX Autoconfiguration commands ($now)\n";
-        print RC "#\n";
-        print RC "\n";
+    print RC "\n";
+    print RC "#\n";
+    print RC "# VNX Autoconfiguration commands ($now)\n";
+    print RC "#\n";
+    print RC "\n";
 
-        print RC "hostname=\"$vm_name\"\n";
-        print RC "sendmail_enable=\"NONE\"\n"; #avoids some startup errors
+    print RC "hostname=\"$vm_name\"\n";
+    print RC "sendmail_enable=\"NONE\"\n"; #avoids some startup errors
 
-        # Network interfaces configuration: <if> tags
-        my $numif = $ifTaglist->size;
-        for (my $i = 0 ; $i < $numif ; $i++){
-            my $ifTag = $ifTaglist->item($i);
-            my $id    = $ifTag->getAttribute("id");
-            my $net   = $ifTag->getAttribute("net");
-            my $mac   = $ifTag->getAttribute("mac");
-            $mac =~ s/,//g;
+    # Network interfaces configuration: <if> tags
+    my $k = 0; # Index to the next $IF_PREFIX interface to be used
+    my $numif = $ifTaglist->size;
+    for (my $i = 0 ; $i < $numif ; $i++){
+        my $ifTag = $ifTaglist->item($i);
+        my $id    = $ifTag->getAttribute("id");
+        my $net   = $ifTag->getAttribute("net");
+        my $mac   = $ifTag->getAttribute("mac");
+        $mac =~ s/,//g; 
+        
+        # IF names
+        my $if_orig_name;
+        my $if_new_name;
+        if ($id eq 0) { # Management interface 
+            $if_orig_name = $IF_MGMT_PREFIX . "0";    
+        	$if_new_name = "eth0";
+        } else { 
+        	my $if_num = $k;
+        	$k++;
+            $if_orig_name = $IF_PREFIX . $if_num;    
+            $if_new_name = "eth" . $id;
+        }
 
-            print RC "ifconfig_" . $IFPREFIX . $i . "_name=\"eth" . $id . "\"\n";
+        print RC "ifconfig_" . $if_orig_name . "_name=\"" . $if_new_name . "\"\n";
 #           print RC "ifconfig_net" . $id . "=\"inet " . $ip . " netmask " . $mask . " ether " . $mac . "\"\n";
             #system "echo 'ifconfig net$id ether $mask' > /etc/start_if.net$id";
     
-            my $alias_num=-1;
+        my $alias_num=-1;
                 
-            # IPv4 addresses
-            my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
-            for ( my $j = 0 ; $j < $ipv4Taglist->size ; $j++ ) {
+        # IPv4 addresses
+        my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
+        for ( my $j = 0 ; $j < $ipv4Taglist->size ; $j++ ) {
 
-                my $ipv4Tag = $ipv4Taglist->item($j);
-                my $mask    = $ipv4Tag->getAttribute("mask");
-                my $ip      = $ipv4Tag->getFirstChild->getData;
+            my $ipv4Tag = $ipv4Taglist->item($j);
+            my $mask    = $ipv4Tag->getAttribute("mask");
+            my $ip      = $ipv4Tag->getFirstChild->getData;
 
-                if ($alias_num == -1) {
-                    print RC "ifconfig_eth" . $id . "=\"inet " . $ip . " netmask " . $mask . "\"\n";
+            if ($alias_num == -1) {
+                print RC "ifconfig_" . $if_new_name . "=\"inet " . $ip . " netmask " . $mask . "\"\n";
+            } else {
+                print RC "ifconfig_" . $if_new_name . "_alias" . $alias_num . "=\"inet " . $ip . " netmask " . $mask . "\"\n";
+            }
+            $alias_num++;
+        }
+
+        # IPv6 addresses
+        my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
+        for ( my $j = 0 ; $j < $ipv6Taglist->size ; $j++ ) {
+
+            my $ipv6Tag = $ipv6Taglist->item($j);
+            my $ip    = $ipv6Tag->getFirstChild->getData;
+            my $mask = $ip;
+            $mask =~ s/.*\///;
+            $ip =~ s/\/.*//;
+
+            if ($alias_num == -1) {
+                print RC "ifconfig_" . $if_new_name . "=\"inet6 " . $ip . " prefixlen " . $mask . "\"\n";
+            } else {
+                print RC "ifconfig_" . $if_new_name . "_alias" . $alias_num . "=\"inet6 " . $ip . " prefixlen " . $mask . "\"\n";
+            }
+            $alias_num++;
+        }
+    }
+        
+    # Network routes configuration: <route> tags
+    my $routeTaglist       = $virtualmTag->getElementsByTagName("route");
+    my $numroute        = $routeTaglist->size;
+
+    # Example content:
+    #     static_routes="r1 r2"
+    #     ipv6_static_routes="r3 r4"
+    #     default_router="10.0.1.2"
+    #     route_r1="-net 10.1.1.0/24 10.0.0.3"
+    #     route_r2="-net 10.1.2.0/24 10.0.0.3"
+    #     ipv6_default_router="2001:db8:1::1"
+    #     ipv6_route_r3="2001:db8:7::/3 2001:db8::2"
+    #     ipv6_route_r4="2001:db8:8::/64 2001:db8::2"
+    my @routeCfg;           # Stores the route_* lines 
+    my $static_routes;      # Stores the names of the ipv4 routes
+    my $ipv6_static_routes; # Stores the names of the ipv6 routes
+    my $i = 1;
+    for (my $j = 0 ; $j < $numroute ; $j++){
+        my $routeTag = $routeTaglist->item($j);
+        if (defined($routeTag)){
+            my $routeType = $routeTag->getAttribute("type");
+            my $routeGw   = $routeTag->getAttribute("gw");
+            my $route     = $routeTag->getFirstChild->getData;
+
+            if ($routeType eq 'ipv4') {
+                if ($route eq 'default'){
+                    push (@routeCfg, "default_router=\"$routeGw\"\n");
                 } else {
-                    print RC "ifconfig_eth" . $id . "_alias" . $alias_num . "=\"inet " . $ip . " netmask " . $mask . "\"\n";
+                    push (@routeCfg, "route_r$i=\"-net $route $routeGw\"\n");
+                    $static_routes = ($static_routes eq '') ? "r$i" : "$static_routes r$i";
+                    $i++;
                 }
-                $alias_num++;
-            }
-
-            # IPv6 addresses
-            my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
-            for ( my $j = 0 ; $j < $ipv6Taglist->size ; $j++ ) {
-
-                my $ipv6Tag = $ipv6Taglist->item($j);
-                my $ip    = $ipv6Tag->getFirstChild->getData;
-                my $mask = $ip;
-                $mask =~ s/.*\///;
-                $ip =~ s/\/.*//;
-
-                if ($alias_num == -1) {
-                    print RC "ifconfig_eth" . $id . "=\"inet6 " . $ip . " prefixlen " . $mask . "\"\n";
+            } elsif ($routeType eq 'ipv6') {
+                if ($route eq 'default'){
+                    push (@routeCfg, "ipv6_default_router=\"$routeGw\"\n");
                 } else {
-                    print RC "ifconfig_eth" . $id . "_alias" . $alias_num . "=\"inet6 " . $ip . " prefixlen " . $mask . "\"\n";
-                }
-                $alias_num++;
-            }
-        }
-        
-        # Network routes configuration: <route> tags
-        my $routeTaglist       = $virtualmTag->getElementsByTagName("route");
-        my $numroute        = $routeTaglist->size;
-
-        # Example content:
-        #     static_routes="r1 r2"
-        #     ipv6_static_routes="r3 r4"
-        #     default_router="10.0.1.2"
-        #     route_r1="-net 10.1.1.0/24 10.0.0.3"
-        #     route_r2="-net 10.1.2.0/24 10.0.0.3"
-        #     ipv6_default_router="2001:db8:1::1"
-        #     ipv6_route_r3="2001:db8:7::/3 2001:db8::2"
-        #     ipv6_route_r4="2001:db8:8::/64 2001:db8::2"
-        my @routeCfg;           # Stores the route_* lines 
-        my $static_routes;      # Stores the names of the ipv4 routes
-        my $ipv6_static_routes; # Stores the names of the ipv6 routes
-        my $i = 1;
-        for (my $j = 0 ; $j < $numroute ; $j++){
-            my $routeTag = $routeTaglist->item($j);
-            if (defined($routeTag)){
-                my $routeType = $routeTag->getAttribute("type");
-                my $routeGw   = $routeTag->getAttribute("gw");
-                my $route     = $routeTag->getFirstChild->getData;
-
-                if ($routeType eq 'ipv4') {
-                    if ($route eq 'default'){
-                        push (@routeCfg, "default_router=\"$routeGw\"\n");
-                    } else {
-                        push (@routeCfg, "route_r$i=\"-net $route $routeGw\"\n");
-                        $static_routes = ($static_routes eq '') ? "r$i" : "$static_routes r$i";
-                        $i++;
-                    }
-                } elsif ($routeType eq 'ipv6') {
-                    if ($route eq 'default'){
-                        push (@routeCfg, "ipv6_default_router=\"$routeGw\"\n");
-                    } else {
-                        push (@routeCfg, "ipv6_route_r$i=\"$route $routeGw\"\n");
-                        $ipv6_static_routes = ($ipv6_static_routes eq '') ? "r$i" : "$ipv6_static_routes r$i";
-                        $i++;                   
-                    }
+                    push (@routeCfg, "ipv6_route_r$i=\"$route $routeGw\"\n");
+                    $ipv6_static_routes = ($ipv6_static_routes eq '') ? "r$i" : "$ipv6_static_routes r$i";
+                    $i++;                   
                 }
             }
         }
-        unshift (@routeCfg, "ipv6_static_routes=\"$ipv6_static_routes\"\n");
-        unshift (@routeCfg, "static_routes=\"$static_routes\"\n");
-        print RC @routeCfg;
+    }
+    unshift (@routeCfg, "ipv6_static_routes=\"$ipv6_static_routes\"\n");
+    unshift (@routeCfg, "static_routes=\"$static_routes\"\n");
+    print RC @routeCfg;
 
-        # Packet forwarding: <forwarding> tag
-        my $ipv4Forwarding = 0;
-        my $ipv6Forwarding = 0;
-        my $forwardingTaglist = $virtualmTag->getElementsByTagName("forwarding");
-        my $numforwarding = $forwardingTaglist->size;
-        for (my $j = 0 ; $j < $numforwarding ; $j++){
-            my $forwardingTag   = $forwardingTaglist->item($j);
-            my $forwarding_type = $forwardingTag->getAttribute("type");
-            if ($forwarding_type eq "ip"){
-                $ipv4Forwarding = 1;
-                $ipv6Forwarding = 1;
-            } elsif ($forwarding_type eq "ipv4"){
-                $ipv4Forwarding = 1;
-            } elsif ($forwarding_type eq "ipv6"){
-                $ipv6Forwarding = 1;
-            }
+    # Packet forwarding: <forwarding> tag
+    my $ipv4Forwarding = 0;
+    my $ipv6Forwarding = 0;
+    my $forwardingTaglist = $virtualmTag->getElementsByTagName("forwarding");
+    my $numforwarding = $forwardingTaglist->size;
+    for (my $j = 0 ; $j < $numforwarding ; $j++){
+        my $forwardingTag   = $forwardingTaglist->item($j);
+        my $forwarding_type = $forwardingTag->getAttribute("type");
+        if ($forwarding_type eq "ip"){
+            $ipv4Forwarding = 1;
+            $ipv6Forwarding = 1;
+        } elsif ($forwarding_type eq "ipv4"){
+            $ipv4Forwarding = 1;
+        } elsif ($forwarding_type eq "ipv6"){
+            $ipv6Forwarding = 1;
         }
-        if ($ipv4Forwarding == 1) {
-            write_log ("   configuring ipv4 forwarding...");
-            print RC "gateway_enable=\"YES\"\n";
-        }
-        if ($ipv6Forwarding == 1) {
-            write_log ("   configuring ipv6 forwarding...");
-            print RC "ipv6_gateway_enable=\"YES\"\n";
-        }
+    }
+    if ($ipv4Forwarding == 1) {
+        write_log ("   configuring ipv4 forwarding...");
+        print RC "gateway_enable=\"YES\"\n";
+    }
+    if ($ipv6Forwarding == 1) {
+        write_log ("   configuring ipv6 forwarding...");
+        print RC "ipv6_gateway_enable=\"YES\"\n";
+    }
+       
+    # Configuring /etc/hosts and /etc/hostname
+    write_log ("   configuring $hosts_file");
+    $command = "cp $hosts_file $hosts_file.backup";
+    system $command;
+
+    system "echo '127.0.0.1 $vm_name    localhost.localdomain   localhost' > $hosts_file";
+    system "echo '127.0.1.1 $vm_name' >> $hosts_file";
+
+    close RC;
         
-        # Configuring /etc/hosts and /etc/hostname
-        write_log ("   configuring $hosts_file");
-        $command = "cp $hosts_file $hosts_file.backup";
-        system $command;
-
-        system "echo '127.0.0.1 $vm_name    localhost.localdomain   localhost' > $hosts_file";
-        system "echo '127.0.1.1 $vm_name' >> $hosts_file";
-
-        close RC;
-        
-        #/etc/hosts: insert the new first line
-#       system "sed '1i\ 127.0.0.1  $vm_name    localhost.localdomain   localhost' $hosts_file > /tmp/hosts.tmp";
-#       system "mv /tmp/hosts.tmp $hosts_file";
-#   
-#       #/etc/hosts: and delete the second line (former first line)
-#       system "sed '2 d' $hosts_file > /tmp/hosts.tmp";
-#       system "mv /tmp/hosts.tmp $hosts_file";
-#   
-#       #/etc/hosts: insert the new second line
-#       system "sed '2i\ 127.0.1.1  $vm_name' $hosts_file > /tmp/hosts.tmp";
-#       system "mv /tmp/hosts.tmp $hosts_file";
-#   
-#       #/etc/hosts: and delete the third line (former second line)
-#       system "sed '3 d' $hosts_file > /tmp/hosts.tmp";
-#       system "mv /tmp/hosts.tmp $hosts_file";
-#   }
-    
 }
 
 

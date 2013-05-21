@@ -1548,8 +1548,8 @@ EOF
     #  $vm_libirt_xml_hdb;
 
     my $vm_libirt_xml = <<EOF;
-
-<domain type='kvm'>
+<?xml version="1.0" encoding="UTF-8"?>
+<domain type="kvm" xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">
   <name>$rootfs_name</name>
   <memory>$mem</memory>
   <vcpu>$vcpu</vcpu>
@@ -1825,8 +1825,8 @@ EOF
     #  $vm_libirt_xml_hdb;
 
     my $vm_libirt_xml = <<EOF;
-
-<domain type='kvm'>
+<?xml version="1.0" encoding="UTF-8"?>
+<domain type="kvm" xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">
   <name>$rootfs_name</name>
   <memory>$mem</memory>
   <vcpu>$vcpu</vcpu>
@@ -3736,49 +3736,49 @@ change_to_root();
    open THIRD, ">" . $dh->get_tmp_dir . "/hostfile.3"
       or $execution->smartdie ("can not open " . $dh->get_vnx_dir . "/hostfile.3 for writting: $!");
 
-   # Status list:
-   # 
-   # 0 -> before VNUML section
-   # 1 -> inside VNUML section, before scenario subsection
-   # 2 -> inside simultaion subsection
-   # 3 -> after scenario subsection, inside VNUML section
-   # 4 -> after VNUML section
-   my $status = 0;
+    # Status list:
+    # 
+    # 0 -> before VNUML section
+    # 1 -> inside VNUML section, before scenario subsection
+    # 2 -> inside simultaion subsection
+    # 3 -> after scenario subsection, inside VNUML section
+    # 4 -> after VNUML section
+    my $status = 0;
 
-   while (<HOST_FILE>) {
-      # DEBUG
-      #print "$_";
-      #print "--status: $status\n";
-      if ($status == 0) {
-         print FIRST $_;
-	 $status = 1 if (/^\# VNX BEGIN/);
-      }
-      elsif ($status == 1) {
-         if (/^\# BEGIN: $sim_name$/) {
-	    $status = 2;
-	 }
-	 elsif (/^\# VNX END/) {
-	    $status = 4;
-	    print THIRD $_;
-	 }
-	 else {
+    while (<HOST_FILE>) {
+        # DEBUG
+        #print "$_";
+        #print "--status: $status\n";
+        if ($status == 0) {
             print FIRST $_;
-	 }
-      }
-      elsif ($status == 2) {
-         if (/^\# END: $sim_name$/) {
-	    $status = 3;
-	 }
-      }
-      elsif ($status == 3) {
-         print THIRD $_;
-	 $status = 4 if (/^\# VNX END/);
-      }
-      elsif ($status == 4) {
-         print THIRD $_;
-      }
-   }
-   close HOST_FILE;
+            $status = 1 if (/^\# VNX BEGIN/);
+        }
+        elsif ($status == 1) {
+            if (/^\# BEGIN: $sim_name$/) {
+                $status = 2;
+            }
+            elsif (/^\# VNX END/) {
+                $status = 4;
+                print THIRD $_;
+            }
+            else {
+                print FIRST $_;
+            }
+        }
+        elsif ($status == 2) {
+            if (/^\# END: $sim_name$/) {
+                $status = 3;
+            }
+        }
+        elsif ($status == 3) {
+            print THIRD $_;
+            $status = 4 if (/^\# VNX END/);
+        }
+        elsif ($status == 4) {
+            print THIRD $_;
+        }
+    }
+    close HOST_FILE;
 
    # Check the final status when the hosts file has ended
    if ($status == 0) {

@@ -709,20 +709,24 @@ back_to_user();
         #   <feature policy='optional' name='vmx'/>
         #   <feature policy='optional' name='svm'/>
 		# </cpu>
-        my $cpu_tag = $init_xml->createElement('cpu');
-        $domain_tag->addChild($cpu_tag);
-        $cpu_tag->addChild( $init_xml->createAttribute( match => "minimum" ) );
-        my $model_tag = $init_xml->createElement('model');
-        $cpu_tag->addChild($model_tag);
-        $model_tag->addChild( $init_xml->createTextNode("pentiumpro") );
-        my $feature1_tag = $init_xml->createElement('feature');
-        $cpu_tag->addChild($feature1_tag);
-        $feature1_tag->addChild( $init_xml->createAttribute( policy => "optional" ) );
-        $feature1_tag->addChild( $init_xml->createAttribute( name => "vmx" ) );
-        my $feature2_tag = $init_xml->createElement('feature');
-        $cpu_tag->addChild($feature2_tag);
-        $feature2_tag->addChild( $init_xml->createAttribute( policy => "optional" ) );
-        $feature2_tag->addChild( $init_xml->createAttribute( name => "svm" ) );
+		# Note 21/5/20013: this block prevents freebsd 64 bits to start. 
+		#                  We eliminate it in that case. 
+		unless ( ($type eq "libvirt-kvm-freebsd") & ($vm->getAttribute("arch") eq "x86_64" ) ) {
+	        my $cpu_tag = $init_xml->createElement('cpu');
+	        $domain_tag->addChild($cpu_tag);
+	        $cpu_tag->addChild( $init_xml->createAttribute( match => "minimum" ) );
+	        my $model_tag = $init_xml->createElement('model');
+	        $cpu_tag->addChild($model_tag);
+	        $model_tag->addChild( $init_xml->createTextNode("pentiumpro") );
+	        my $feature1_tag = $init_xml->createElement('feature');
+	        $cpu_tag->addChild($feature1_tag);
+	        $feature1_tag->addChild( $init_xml->createAttribute( policy => "optional" ) );
+	        $feature1_tag->addChild( $init_xml->createAttribute( name => "vmx" ) );
+	        my $feature2_tag = $init_xml->createElement('feature');
+	        $cpu_tag->addChild($feature2_tag);
+	        $feature2_tag->addChild( $init_xml->createAttribute( policy => "optional" ) );
+	        $feature2_tag->addChild( $init_xml->createAttribute( name => "svm" ) );			
+		}
 
 		# <memory> tag
 		my $memory_tag = $init_xml->createElement('memory');

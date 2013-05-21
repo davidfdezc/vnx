@@ -27,6 +27,9 @@ SPAIN
     <scenario_name>tutorial_ubuntu</scenario_name>
     <automac/>
     <vm_mgmt type="none" />
+    <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="200">
+       <host_mapping />
+    </vm_mgmt-->
     <vm_defaults>
 	    <console id="0" display="no"/>
 	    <console id="1" display="yes"/>
