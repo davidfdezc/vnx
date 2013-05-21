@@ -1,3 +1,37 @@
+6/5/2013:
+- vnx help simplified and updated
+
+- User VNX is executed as: -u option implemented 
+  '-u user' or '--user user' option is use to defines the user VNX is 
+  (mostly) run as. By now, VNX has to be run with root priviledges 
+  (from a root shell or sudoed) for creating virtual machines and 
+  manipulate bridges and network interfaces.
+  Present behaviour (provisional):
+   '-u root' or '-u' option absent 
+     -> VNX runs completely as root
+   '-u' 
+     -> VNX runs (mostly) as default user (the user from which sudo 
+        was issued) 
+    '-u user' (NOT implemented yet)     
+     -> VNX runs (mostly) as 'user'
+
+- New general config parameter in /etc/vnx.conf: vmfs_on_tmp
+  Added to solve the DIT-UPM laboratories problem. As user accounts 
+  are network mounted, root user has no permissions to write in users  
+  directories. So, as libvirt runs as root, the cowfs and sdisk 
+  filesystems are changed to root owner when the virtual machine 
+  starts, and root has no permissions to write on them when the 
+  vnxdir is located in user directory. When vmfs_on_tmp=yes, these two 
+  files are moved to tmp directory, independently of where the vnx_dir 
+  directory is located.
+
+- perl-modules-old directory created: Arguments.pm and CiscoExeCmd.pm 
+  modules not used anymore moved to it.
+
+- Old commented code remove and some function headers added.
+
+
+
 11/01/2012:
 
 - VNX:

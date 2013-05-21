@@ -289,7 +289,7 @@ sub wait_sock_answer {
 sub recv_sock {
 
     my $socket = shift;
-    my $timeout = 30;
+    my $timeout = 15;
     my $line;
     
     wlog (VVV, "recv_sock called... $socket");

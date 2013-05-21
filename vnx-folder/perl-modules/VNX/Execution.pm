@@ -224,15 +224,18 @@ sub execute {
         elsif ($exe_mode == $EXE_NORMAL) {
             # system "$command > /dev/null"; # redirection eliminated to avoid problems with commands of type "echo XXXX > file"
             # 
-            # Trick to avoid problems with "echo .... > file" commands
-            #print "command=$command\n";
-            if ($command =~ m/echo/ ) {
+#            # Trick to avoid problems with "echo .... > file" commands
+#            #print "command=$command\n";
+#            if ($command =~ m/echo/ ) {
             	#print "echo\n";
-                system "$command";
-            } else {
-                #print "NO echo\n";
-                system "$command > /dev/null 2>&1";
-            }
+#                system "$command";
+#            } else {
+#                #print "NO echo\n";
+                # We add parenthesys "()" to the command to avoid 
+                # problems in case the command includes i/o redirections
+                # (e.g.:    echo ... > file )
+                system "( $command ) > /dev/null 2>&1";
+#            }
             $retval = $?;
             if ($exe_interactive) {
                 &press_any_key;

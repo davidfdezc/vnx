@@ -946,34 +946,34 @@ sub check_doc {
       return "<bw> value $bw is not a valid integer number" unless ($bw =~ /^\d+$/);
    }
    
-   # 20. To check uniqueness of <console> id attribute in the same scope
-   # (<vm_defaults>) or <vm>
-   my @vm_defaults_list = $doc->getElementsByTagName("vm_defaults");
-   if (@vm_defaults_list == 1) {
-   	   my %console_ids;
-   	   foreach my $console ($vm_defaults_list[0]->getElementsByTagName("console")) {
-   	   	   my $id = $console->getAttribute("id");
-   	   	   if (exists $console_ids{$id} && $console_ids{$id} == 1) {
-   	   	      return "console id $id duplicated in <vm_defaults>";
-   	   	   }
-   	   	   else {
-   	   	      $console_ids{$id} = 1;
-   	   	   }
-   	   }
-   }
-   foreach my $vm ($doc->getElementsByTagName("vm")) {
-   	   my $name = $vm->getAttribute("name");
-   	   my %console_ids;
-       foreach my $console ($vm_defaults_list[0]->getElementsByTagName("console")) {
-   	   	   my $id = $console->getAttribute("id");
-   	   	   if (exists $console_ids{$id} && $console_ids{$id} == 1) {
-   	   	      return "console id $id duplicated in virtual machine $name";
-   	   	   }
-   	   	   else {
-   	   	      $console_ids{$id} = 1;
-   	   	   }
-   	   }
-   }
+    # 20. To check uniqueness of <console> id attribute in the same scope
+    # (<vm_defaults>) or <vm>
+    my @vm_defaults_list = $doc->getElementsByTagName("vm_defaults");
+    if (@vm_defaults_list == 1) {
+        my %console_ids;
+        foreach my $console ($vm_defaults_list[0]->getElementsByTagName("console")) {
+            my $id = $console->getAttribute("id");
+            if (exists $console_ids{$id} && $console_ids{$id} == 1) {
+                return "console id $id duplicated in <vm_defaults>";
+            } else {
+                $console_ids{$id} = 1;
+            }
+        }
+    }
+    if (@vm_defaults_list == 1) {
+        foreach my $vm ($doc->getElementsByTagName("vm")) {
+            my $name = $vm->getAttribute("name");
+            my %console_ids;
+            foreach my $console ($vm_defaults_list[0]->getElementsByTagName("console")) {
+                my $id = $console->getAttribute("id");
+                if (exists $console_ids{$id} && $console_ids{$id} == 1) {
+                    return "console id $id duplicated in virtual machine $name";
+                } else {
+                    $console_ids{$id} = 1;
+                }
+            }
+        }
+    }
 
    # 21. To check all the <exec> and <filetree> with the same seq attribute 
    # has also the same user attribute

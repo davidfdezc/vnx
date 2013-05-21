@@ -1179,7 +1179,7 @@ sub executeCMD{
 						# Get enable password
  						my $enablepass = merge_enablepass($extConfFile, $vm_name);
 						# create CiscoConsMgmt object to connect to router console
-						my $sess = new VNX::CiscoConsMgmt ('localhost', $port, $user, $pass, $enablepass);
+						my $sess = new VNX::CiscoConsMgmt ($dh->get_tmp_dir, 'localhost', $port, $user, $pass, $enablepass);
 						# Connect to console
 						my $res = $sess->open;
 						if (!$res) { $execution->smartdie("ERROR: cannot connect to ${vm_name}'s console at port $port.\n" .
@@ -1272,7 +1272,7 @@ sub executeCMD{
 						# Get enable password
 						my $enablepass = merge_enablepass($extConfFile, $vm_name);
 						# create CiscoConsMgmt object to connect to router console
-						my $sess = new VNX::CiscoConsMgmt ('localhost', $port, $user, $pass, $enablepass);
+						my $sess = new VNX::CiscoConsMgmt ($dh->get_tmp_dir, 'localhost', $port, $user, $pass, $enablepass);
 						# Connect to console
 						my $res = $sess->open;
 						if (!$res) { $execution->smartdie("ERROR: cannot connect to ${vm_name}'s console at port $port.\n" .
