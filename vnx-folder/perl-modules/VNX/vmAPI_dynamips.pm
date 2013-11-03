@@ -59,7 +59,7 @@ use XML::LibXML;
 use VNX::Globals;
 use VNX::Execution;
 use VNX::BinariesData;
-use VNX::Arguments;
+#use VNX::Arguments;
 use VNX::CheckSemantics;
 use VNX::TextManipulation;
 use VNX::NetChecks;

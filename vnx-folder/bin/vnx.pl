@@ -81,6 +81,7 @@ use VNX::vmAPICommon;
 use VNX::vmAPI_uml;
 use VNX::vmAPI_libvirt;
 use VNX::vmAPI_dynamips;
+use VNX::vmAPI_lxc;
 
 use Error qw(:try);
 use Exception::Class ( "Vnx::Exception" =>
@@ -691,6 +692,7 @@ back_to_user();
     VNX::vmAPI_uml->init;
     VNX::vmAPI_libvirt->init;
     VNX::vmAPI_dynamips->init;
+    VNX::vmAPI_lxc->init;
     pre_wlog ($hline)  if (!$opts{b});
 
 
@@ -1530,6 +1532,24 @@ sub mode_createrootfs {
     my $cdrom_fname  = `readlink -f $opts{'install-media'}`; chomp ($cdrom_fname);
     my $vm_xml_fname = "$base_dir/${rootfs_name}.xml";
 
+    # Get a free port for h2vm channel
+    $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);    
+
+    if (! -e $rootfs_fname) {
+        vnx_die ("root filesystem file ($rootfs_name) not found.\n" .
+                 "Create it first with 'qemu-img' command, e.g:\n" .
+                 "  qemu-img create -f qcow2 rootfs_file.qcow2 8G");
+    }
+        
+=BEGIN   
+    # virt-install -n freebsd -r 512 --vcpus=1 --accelerate -v -c /almacen/iso/FreeBSD-9.1-RELEASE-amd64-disc1.iso -w bridge:virbr0 --vnc --disk path=vnx_rootfs_kvm_freebsd64-9.1-v025m3.qcow2,size=12,format=qcow2 --arch x86_64
+    my $cmd = "virt-install --connect $hypervisor -n $rootfs_name -r $mem --vcpus=$vcpu " .
+              "--arch $arch --accelerate -v -c $cdrom_fname -w network=default --vnc " .
+              "--disk path=$rootfs_fname,format=qcow2 --arch x86_64 " . 
+              "--serial pty --serial tcp,host=:$h2vm_port,mode=bind,protocol=telnet";
+=END
+=cut
+
     $vm_libirt_xml_hdb =  <<EOF;
 <disk type='file' device='cdrom'>
     <source file='$cdrom_fname'/>
@@ -1537,8 +1557,6 @@ sub mode_createrootfs {
 </disk>
 EOF
 
-    # Get a free port for h2vm channel
-    $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);    
 
     # Create the VM libvirt XML
     #
@@ -2161,9 +2179,9 @@ sub configure_virtual_bridged_networks {
             my $net = $if->getAttribute("net");
 
             # Only TUN/TAP for interfaces attached to bridged networks
-            # We do not create tap interfaces for libvirt VMs. It is done by libvirt 
+            # We do not create tap interfaces for libvirt or LXC VMs. It is done by libvirt/lxc 
             #if (&check_net_br($net)) {
-            if ( ($vm_type ne 'libvirt') && ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
+            if ( ($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
             #if ( ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
 
                 # We build TUN device name
@@ -5137,7 +5155,7 @@ sub make_vmAPI_doc {
     unless (@ssh_key_list == 0) {
 	    my $ftree_num = $vm_ftrees+1;
 	    my $ssh_key_dir = $dh->get_vm_tmp_dir($vm_name) . "/on_boot/filetree/$ftree_num";
-	    mkdir $ssh_key_dir or $execution->smartdie ("cannot create directory $ssh_key_dir for storing ssh keys");
+        $execution->execute($logp,  "mkdir -p $ssh_key_dir"); # or $execution->smartdie ("cannot create directory $ssh_key_dir for storing ssh keys");
 	    # Copy ssh key files content to $ssh_key_dir/ssh_keys file
 	    foreach my $ssh_key (@ssh_key_list) {
 	        my $key_file = do_path_expansion( text_tag( $ssh_key ) );
@@ -5250,6 +5268,8 @@ sub print_console_table_entry {
 				    	my $conLine = VNX::vmAPICommon->open_console ($vm_name, $con, $consField[1], $consField[2], 'yes');
 		 				#push (@consDesc, "$con:  '$console_term -T $vm_name -e screen -t $vm_name $consField[2]'");
 		 				push (@consDesc, "$con,$conLine");
+                    } elsif ($consField[1] eq "lxc") {
+                        push (@consDesc, "$con:  'lxc-console -n $vm_name'");                                                       
 				    } else {
 				    	wlog (N, "ERROR: unknown console type ($consField[1]) in $consFile");
 				    }
@@ -5266,6 +5286,8 @@ sub print_console_table_entry {
 				    	my $conLine = VNX::vmAPICommon->open_console ($vm_name, $con, $consField[1], $consField[2], 'yes');
 		 				#push (@consDesc, "$con:  '$console_term -T $vm_name -e screen -t $vm_name $consField[2]'");
 		 				push (@consDesc, "$con:  '$conLine'");
+                    } elsif ($consField[1] eq "lxc") {
+                        push (@consDesc, "$con:  'lxc-console -n $vm_name'");                               		 				
 				    } else {
 				    	wlog (N, "ERROR: unknown console type ($consField[1]) in $consFile");
 				    }

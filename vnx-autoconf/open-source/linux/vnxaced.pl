@@ -992,17 +992,17 @@ EOF
         write_log ("-------------------------\r\n"); 
         
         if ( ($platform[1] eq 'Ubuntu') or ($platform[1] eq 'Debian') ) { 
-            &autoconfigure_ubuntu ($vnxboot_file)
+            autoconfigure_ubuntu ($vnxboot_file)
         
         } elsif ( ($platform[1] eq 'Fedora') or ($platform[1] eq 'CentOS') ) { 
-            &autoconfigure_fedora ($vnxboot_file)
+            autoconfigure_fedora ($vnxboot_file)
         }
     }
     # autoconfigure for FreeBSD
     elsif ($platform[0] eq 'FreeBSD') {
         #write_log ("calling autoconfigure_freebsd");
         write_console ("$warn_msg\n");
-        &autoconfigure_freebsd ($vnxboot_file)
+        autoconfigure_freebsd ($vnxboot_file)
     }
     
     # Change the message of the day (/etc/motd) to eliminate the
@@ -1039,7 +1039,6 @@ sub autoconfigure_ubuntu {
     $vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 
     # Files modified
-    # Files modified
     my $interfaces_file = "/etc/network/interfaces";
     my $sysctl_file     = "/etc/sysctl.conf";
     my $hosts_file      = "/etc/hosts";
@@ -1047,188 +1046,180 @@ sub autoconfigure_ubuntu {
     my $resolv_file     = "/etc/resolv.conf";
     my $rules_file      = "/etc/udev/rules.d/70-persistent-net.rules";
     
-# Not needed anymore. Check is done in 'is_new_file'
-    # If the vm doesn't have the correct name,
-    # start autoconfiguration process
-#   if (!($hostname_vm eq $vm_name)){
-#       write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
+    my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
-        my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
-
-        # Backup and delete /etc/resolv.conf file
-        system "cp $resolv_file ${resolv_file}.bak";
-        system "rm -f $resolv_file";
+    # Backup and delete /etc/resolv.conf file
+    system "cp $resolv_file ${resolv_file}.bak";
+    system "rm -f $resolv_file";
         
-        # before the loop, backup /etc/udev/...70
-        # and /etc/network/interfaces
-        # and erase their contents
-        write_log ("   configuring $rules_file and $interfaces_file...");
-        system "cp $rules_file $rules_file.backup";
-        system "echo \"\" > $rules_file";
-        open RULES, ">" . $rules_file or print "error opening $rules_file";
-        system "cp $interfaces_file $interfaces_file.backup";
-        system "echo \"\" > $interfaces_file";
-        open INTERFACES, ">" . $interfaces_file or print "error opening $interfaces_file";
+    # before the loop, backup /etc/udev/...70
+    # and /etc/network/interfaces
+    # and erase their contents
+    write_log ("   configuring $rules_file and $interfaces_file...");
+    system "cp $rules_file $rules_file.backup";
+    system "echo \"\" > $rules_file";
+    open RULES, ">" . $rules_file or print "error opening $rules_file";
+    system "cp $interfaces_file $interfaces_file.backup";
+    system "echo \"\" > $interfaces_file";
+    open INTERFACES, ">" . $interfaces_file or print "error opening $interfaces_file";
 
-        print INTERFACES "\n";
-        print INTERFACES "auto lo\n";
-        print INTERFACES "iface lo inet loopback\n";
+    print INTERFACES "\n";
+    print INTERFACES "auto lo\n";
+    print INTERFACES "iface lo inet loopback\n";
 
-        # Network routes configuration: <route> tags
-        my @ip_routes;   # Stores the route configuration lines
-
-        my $routeTaglist = $virtualmTag->getElementsByTagName("route");
-        my $numRoutes    = $routeTaglist->size;
-        for (my $j = 0 ; $j < $numRoutes ; $j++){
-            my $routeTag = $routeTaglist->item($j);
-            my $routeType = $routeTag->getAttribute("type");
-            my $routeGw   = $routeTag->getAttribute("gw");
-            my $route     = $routeTag->getFirstChild->getData;
-            if ($routeType eq 'ipv4') {
-                if ($route eq 'default') {
-                    push (@ip_routes, "   up route add -net default gw " . $routeGw . "\n");
-                    #print INTERFACES "   up route add -net default gw " . $routeGw . "\n";
-                } else {
-                    push (@ip_routes, "   up route add -net $route gw " . $routeGw . "\n");
-                    #print INTERFACES "   up route add -net $route gw " . $routeGw . "\n";
-                }
-            } elsif ($routeType eq 'ipv6') {
-                if ($route eq 'default') {
-                    push (@ip_routes, "   up route -A inet6 add default gw " . $routeGw . "\n");
-                    #print INTERFACES "   up route -A inet6 add default gw " . $routeGw . "\n";
-                } else {
-                    push (@ip_routes, "   up route -A inet6 add $route gw " . $routeGw . "\n");
-                    #print INTERFACES "   up route -A inet6 add $route gw " . $routeGw . "\n";
-                }
-            }
-        }   
-
-        # Network interfaces configuration: <if> tags
-        my $numif        = $ifTaglist->size;
-        for (my $j = 0 ; $j < $numif ; $j++){
-            my $ifTag = $ifTaglist->item($j);
-            my $id    = $ifTag->getAttribute("id");
-            my $net   = $ifTag->getAttribute("net");
-            my $mac   = $ifTag->getAttribute("mac");
-            $mac =~ s/,//g;
-
-            my $ifName;
-            # Special case: loopback interface
-            if ( $net eq "lo" ) {
-                $ifName = "lo:" . $id;
+    # Network routes configuration: <route> tags
+    my @ip_routes;   # Stores the route configuration lines
+    my $routeTaglist = $virtualmTag->getElementsByTagName("route");
+    my $numRoutes    = $routeTaglist->size;
+    for (my $j = 0 ; $j < $numRoutes ; $j++){
+        my $routeTag = $routeTaglist->item($j);
+        my $routeType = $routeTag->getAttribute("type");
+        my $routeGw   = $routeTag->getAttribute("gw");
+        my $route     = $routeTag->getFirstChild->getData;
+        if ($routeType eq 'ipv4') {
+            if ($route eq 'default') {
+                push (@ip_routes, "   up route add -net default gw " . $routeGw . "\n");
+                #print INTERFACES "   up route add -net default gw " . $routeGw . "\n";
             } else {
-                $ifName = "eth" . $id;
+                push (@ip_routes, "   up route add -net $route gw " . $routeGw . "\n");
+                #print INTERFACES "   up route add -net $route gw " . $routeGw . "\n";
             }
-
-            print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac .  "\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
-            #print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
-            print INTERFACES "auto " . $ifName . "\n";
-
-            my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
-            my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
-
-            if ( ($ipv4Taglist->size == 0 ) && ( $ipv6Taglist->size == 0 ) ) {
-                # No addresses configured for the interface. We include the following commands to 
-                # have the interface active on start
-                print INTERFACES "iface " . $ifName . " inet manual\n";
-                print INTERFACES "  up ifconfig " . $ifName . " 0.0.0.0 up\n";
+        } elsif ($routeType eq 'ipv6') {
+            if ($route eq 'default') {
+                push (@ip_routes, "   up route -A inet6 add default gw " . $routeGw . "\n");
+                #print INTERFACES "   up route -A inet6 add default gw " . $routeGw . "\n";
             } else {
-                # Config IPv4 addresses
-                for ( my $j = 0 ; $j < $ipv4Taglist->size ; $j++ ) {
-
-                    my $ipv4Tag = $ipv4Taglist->item($j);
-                    my $mask    = $ipv4Tag->getAttribute("mask");
-                    my $ip      = $ipv4Tag->getFirstChild->getData;
-
-                    if ($j == 0) {
-                        print INTERFACES "iface " . $ifName . " inet static\n";
-                        print INTERFACES "   address " . $ip . "\n";
-                        print INTERFACES "   netmask " . $mask . "\n";
-                    } else {
-                        print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet add " . $ip . " netmask " . $mask . "\n";
-                    }
-                }
-                # Config IPv6 addresses
-                for ( my $j = 0 ; $j < $ipv6Taglist->size ; $j++ ) {
-
-                    my $ipv6Tag = $ipv6Taglist->item($j);
-                    my $ip    = $ipv6Tag->getFirstChild->getData;
-                    my $mask = $ip;
-                    $mask =~ s/.*\///;
-                    $ip =~ s/\/.*//;
-
-                    if ($j == 0) {
-                        print INTERFACES "iface " . $ifName . " inet6 static\n";
-                        print INTERFACES "   address " . $ip . "\n";
-                        print INTERFACES "   netmask " . $mask . "\n\n";
-                    } else {
-                        print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet6 add " . $ip . "/" . $mask . "\n";
-                    }
-                }
-                # TODO: To simplify and avoid the problems related with some routes not being installed 
-                                # due to the interfaces start order, we add all routes to all interfaces. This should be 
-                                # refined to add only the routes going to each interface
-                print INTERFACES @ip_routes;
-
+                push (@ip_routes, "   up route -A inet6 add $route gw " . $routeGw . "\n");
+                #print INTERFACES "   up route -A inet6 add $route gw " . $routeGw . "\n";
             }
         }
-        
-        close RULES;
-        close INTERFACES;
-        
-        # Packet forwarding: <forwarding> tag
-        my $ipv4Forwarding = 0;
-        my $ipv6Forwarding = 0;
-        my $forwardingTaglist = $virtualmTag->getElementsByTagName("forwarding");
-        my $numforwarding = $forwardingTaglist->size;
-        for (my $j = 0 ; $j < $numforwarding ; $j++){
-            my $forwardingTag   = $forwardingTaglist->item($j);
-            my $forwarding_type = $forwardingTag->getAttribute("type");
-            if ($forwarding_type eq "ip"){
-                $ipv4Forwarding = 1;
-                $ipv6Forwarding = 1;
-            } elsif ($forwarding_type eq "ipv4"){
-                $ipv4Forwarding = 1;
-            } elsif ($forwarding_type eq "ipv6"){
-                $ipv6Forwarding = 1;
-            }
+    }   
+
+    # Network interfaces configuration: <if> tags
+    my $numif        = $ifTaglist->size;
+    for (my $j = 0 ; $j < $numif ; $j++){
+        my $ifTag = $ifTaglist->item($j);
+        my $id    = $ifTag->getAttribute("id");
+        my $net   = $ifTag->getAttribute("net");
+        my $mac   = $ifTag->getAttribute("mac");
+        $mac =~ s/,//g;
+
+        my $ifName;
+        # Special case: loopback interface
+        if ( $net eq "lo" ) {
+            $ifName = "lo:" . $id;
+        } else {
+            $ifName = "eth" . $id;
         }
-        write_log ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in $sysctl_file...");
-        system "echo >> $sysctl_file ";
-        system "echo '# Configured by VNXACED' >> $sysctl_file ";
-        system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> $sysctl_file ";
-        system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> $sysctl_file ";
 
-        # Configuring /etc/hosts and /etc/hostname
-        write_log ("   configuring $hosts_file and /etc/hostname...");
-        system "cp $hosts_file $hosts_file.backup";
+        print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac .  "\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
+        #print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
+        print INTERFACES "auto " . $ifName . "\n";
 
-        #/etc/hosts: insert the new first line
-        system "sed '1i\ 127.0.0.1  $vm_name    localhost.localdomain   localhost' $hosts_file > /tmp/hosts.tmp";
-        system "mv /tmp/hosts.tmp $hosts_file";
+        my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
+        my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
 
-        #/etc/hosts: and delete the second line (former first line)
-        system "sed '2 d' $hosts_file > /tmp/hosts.tmp";
-        system "mv /tmp/hosts.tmp $hosts_file";
+        if ( ($ipv4Taglist->size == 0 ) && ( $ipv6Taglist->size == 0 ) ) {
+            # No addresses configured for the interface. We include the following commands to 
+            # have the interface active on start
+            print INTERFACES "iface " . $ifName . " inet manual\n";
+            print INTERFACES "  up ifconfig " . $ifName . " 0.0.0.0 up\n";
+        } else {
+            # Config IPv4 addresses
+            for ( my $j = 0 ; $j < $ipv4Taglist->size ; $j++ ) {
 
-        #/etc/hosts: insert the new second line
-        system "sed '2i\ 127.0.1.1  $vm_name' $hosts_file > /tmp/hosts.tmp";
-        system "mv /tmp/hosts.tmp $hosts_file";
+                my $ipv4Tag = $ipv4Taglist->item($j);
+                my $mask    = $ipv4Tag->getAttribute("mask");
+                my $ip      = $ipv4Tag->getFirstChild->getData;
 
-        #/etc/hosts: and delete the third line (former second line)
-        system "sed '3 d' $hosts_file > /tmp/hosts.tmp";
-        system "mv /tmp/hosts.tmp $hosts_file";
+                if ($j == 0) {
+                    print INTERFACES "iface " . $ifName . " inet static\n";
+                    print INTERFACES "   address " . $ip . "\n";
+                    print INTERFACES "   netmask " . $mask . "\n";
+                } else {
+                    print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet add " . $ip . " netmask " . $mask . "\n";
+                }
+            }
+            # Config IPv6 addresses
+            for ( my $j = 0 ; $j < $ipv6Taglist->size ; $j++ ) {
 
-        #/etc/hostname: insert the new first line
-        system "sed '1i\ $vm_name' $hostname_file > /tmp/hostname.tpm";
-        system "mv /tmp/hostname.tpm $hostname_file";
+                my $ipv6Tag = $ipv6Taglist->item($j);
+                my $ip    = $ipv6Tag->getFirstChild->getData;
+                my $mask = $ip;
+                $mask =~ s/.*\///;
+                $ip =~ s/\/.*//;
 
-        #/etc/hostname: and delete the second line (former first line)
-        system "sed '2 d' $hostname_file > /tmp/hostname.tpm";
-        system "mv /tmp/hostname.tpm $hostname_file";
+                if ($j == 0) {
+                    print INTERFACES "iface " . $ifName . " inet6 static\n";
+                    print INTERFACES "   address " . $ip . "\n";
+                    print INTERFACES "   netmask " . $mask . "\n\n";
+                } else {
+                    print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet6 add " . $ip . "/" . $mask . "\n";
+                }
+            }
+            # TODO: To simplify and avoid the problems related with some routes not being installed 
+                            # due to the interfaces start order, we add all routes to all interfaces. This should be 
+                            # refined to add only the routes going to each interface
+            print INTERFACES @ip_routes;
 
-        system "hostname $vm_name";
-#   }
+        }
+    }
+        
+    close RULES;
+    close INTERFACES;
+        
+    # Packet forwarding: <forwarding> tag
+    my $ipv4Forwarding = 0;
+    my $ipv6Forwarding = 0;
+    my $forwardingTaglist = $virtualmTag->getElementsByTagName("forwarding");
+    my $numforwarding = $forwardingTaglist->size;
+    for (my $j = 0 ; $j < $numforwarding ; $j++){
+        my $forwardingTag   = $forwardingTaglist->item($j);
+        my $forwarding_type = $forwardingTag->getAttribute("type");
+        if ($forwarding_type eq "ip"){
+            $ipv4Forwarding = 1;
+            $ipv6Forwarding = 1;
+        } elsif ($forwarding_type eq "ipv4"){
+            $ipv4Forwarding = 1;
+        } elsif ($forwarding_type eq "ipv6"){
+            $ipv6Forwarding = 1;
+        }
+    }
+    write_log ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in $sysctl_file...");
+    system "echo >> $sysctl_file ";
+    system "echo '# Configured by VNXACED' >> $sysctl_file ";
+    system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> $sysctl_file ";
+    system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> $sysctl_file ";
+
+    # Configuring /etc/hosts and /etc/hostname
+    write_log ("   configuring $hosts_file and /etc/hostname...");
+    system "cp $hosts_file $hosts_file.backup";
+
+    #/etc/hosts: insert the new first line
+    system "sed '1i\ 127.0.0.1  $vm_name    localhost.localdomain   localhost' $hosts_file > /tmp/hosts.tmp";
+    system "mv /tmp/hosts.tmp $hosts_file";
+
+    #/etc/hosts: and delete the second line (former first line)
+    system "sed '2 d' $hosts_file > /tmp/hosts.tmp";
+    system "mv /tmp/hosts.tmp $hosts_file";
+
+    #/etc/hosts: insert the new second line
+    system "sed '2i\ 127.0.1.1  $vm_name' $hosts_file > /tmp/hosts.tmp";
+    system "mv /tmp/hosts.tmp $hosts_file";
+
+    #/etc/hosts: and delete the third line (former second line)
+    system "sed '3 d' $hosts_file > /tmp/hosts.tmp";
+    system "mv /tmp/hosts.tmp $hosts_file";
+
+    #/etc/hostname: insert the new first line
+    system "sed '1i\ $vm_name' $hostname_file > /tmp/hostname.tpm";
+    system "mv /tmp/hostname.tpm $hostname_file";
+
+    #/etc/hostname: and delete the second line (former first line)
+    system "sed '2 d' $hostname_file > /tmp/hostname.tpm";
+    system "mv /tmp/hostname.tpm $hostname_file";
+
+    system "hostname $vm_name";
     
 }
 
@@ -1245,10 +1236,9 @@ sub autoconfigure_fedora {
     my $parser = XML::LibXML->new;
     my $dom    = $parser->parse_file($vnxboot_file);
     
-    my $global_node   = $dom->getElementsByTagName("create_conf")->item(0);
-    my $virtualmTagList = $global_node->getElementsByTagName("vm");
-    my $virtualmTag     = $virtualmTagList->item(0);
-    my $vm_name       = $virtualmTag->getAttribute("name");
+    my $global_node = $dom->getElementsByTagName("create_conf")->item(0);
+    my $virtualmTag = $global_node->getElementsByTagName("vm")->item(0);
+    my $vm_name     = $virtualmTag->getAttribute("name");
 
     my $hostname_vm = `hostname`;
     $hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
@@ -1263,237 +1253,223 @@ sub autoconfigure_fedora {
     my $sysconfnet_file ="/etc/sysconfig/network";
     my $rules_file = "/etc/udev/rules.d/70-persistent-net.rules";
 
-# Not needed anymore. Check is done in 'is_new_file'
-    # If the vm doesn't have the correct name,
-    # start autoconfiguration process
-#   if (!($hostname_vm eq $vm_name)){
-#       write_log ("   host name ($hostname_vm) and name in vnxboot file ($vm_name) are different. starting autoconfiguration...");
+    my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
 
-        my $ifTaglist       = $virtualmTag->getElementsByTagName("if");
+    # Delete /etc/resolv.conf file
+    system "cp $resolv_file ${resolv_file}.bak";
+    system "rm -f $resolv_file";
 
-        # Delete /etc/resolv.conf file
-        system "cp $resolv_file ${resolv_file}.bak";
-        system "rm -f $resolv_file";
+    system "mv $sysconfnet_file ${sysconfnet_file}.bak";
+    system "cat ${sysconfnet_file}.bak | grep -v 'NETWORKING=' | grep -v 'NETWORKING_IPv6=' > $sysconfnet_file";
+    system "echo NETWORKING=yes >> $sysconfnet_file";
+    system "echo NETWORKING_IPV6=yes >> $sysconfnet_file";
 
-        system "mv $sysconfnet_file ${sysconfnet_file}.bak";
-        system "cat ${sysconfnet_file}.bak | grep -v 'NETWORKING=' | grep -v 'NETWORKING_IPv6=' > $sysconfnet_file";
-        system "echo NETWORKING=yes >> $sysconfnet_file";
-        system "echo NETWORKING_IPV6=yes >> $sysconfnet_file";
+    system "cp $rules_file $rules_file.backup";
+    system "echo \"\" > $rules_file";
 
-        # before the loop, backup /etc/udev/...70
-        # and erase their contents
-#       if ($platform[1] eq 'Fedora') { 
-            system "cp $rules_file $rules_file.backup";
-            system "echo \"\" > $rules_file";
+    write_log ("   configuring $rules_file...");
+    open RULES, ">" . $rules_file or print "error opening $rules_file";
 
-        write_log ("   configuring $rules_file...");
-        open RULES, ">" . $rules_file or print "error opening $rules_file";
-#       } elsif ($platform[1] eq 'CentOS') { 
-#           $rules_file = "/etc/udev/rules.d/60-net.rules";
-#           system "cp $rules_file $rules_file.backup";
-#       }
-
-        # Delete ifcfg and route files
-        system "rm -f /etc/sysconfig/network-scripts/ifcfg-Auto_eth*"; 
-        system "rm -f /etc/sysconfig/network-scripts/ifcfg-eth*"; 
-        system "rm -f /etc/sysconfig/network-scripts/route-Auto*"; 
-        system "rm -f /etc/sysconfig/network-scripts/route6-Auto*"; 
+    # Delete ifcfg and route files
+    system "rm -f /etc/sysconfig/network-scripts/ifcfg-Auto_eth*"; 
+    system "rm -f /etc/sysconfig/network-scripts/ifcfg-eth*"; 
+    system "rm -f /etc/sysconfig/network-scripts/route-Auto*"; 
+    system "rm -f /etc/sysconfig/network-scripts/route6-Auto*"; 
         
-        # Network interfaces configuration: <if> tags
-        my $numif        = $ifTaglist->size;
-        #my $firstIf;
-        my $firstIPv4If;
-        my $firstIPv6If;
+    # Network interfaces configuration: <if> tags
+    my $numif        = $ifTaglist->size;
+    my $firstIPv4If;
+    my $firstIPv6If;
         
-        for (my $i = 0 ; $i < $numif ; $i++){
-            my $ifTag = $ifTaglist->item($i);
-            my $id    = $ifTag->getAttribute("id");
-            my $net   = $ifTag->getAttribute("net");
-            my $mac   = $ifTag->getAttribute("mac");
-            $mac =~ s/,//g;
-            #if ($i == 0) { $firstIf = "eth$id"};
+    for (my $i = 0 ; $i < $numif ; $i++){
+        my $ifTag = $ifTaglist->item($i);
+        my $id    = $ifTag->getAttribute("id");
+        my $net   = $ifTag->getAttribute("net");
+        my $mac   = $ifTag->getAttribute("mac");
+        $mac =~ s/,//g;
             
-            my $ifName;
-            # Special case: loopback interface
-            if ( $net eq "lo" ) {
-                $ifName = "lo:" . $id;
-            } else {
-                $ifName = "eth" . $id;
-            }
+        my $ifName;
+        # Special case: loopback interface
+        if ( $net eq "lo" ) {
+            $ifName = "lo:" . $id;
+        } else {
+            $ifName = "eth" . $id;
+        }
             
-            if ($platform[1] eq 'Fedora') { 
-                print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac .  "\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
-                #print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
+        if ($platform[1] eq 'Fedora') { 
+            print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac .  "\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
+            #print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
 
-            } elsif ($platform[1] eq 'CentOS') { 
-#               print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"" . $ifName . "\"\n\n";
-            }
+        } elsif ($platform[1] eq 'CentOS') { 
+#           print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"" . $ifName . "\"\n\n";
+        }
 
-            my $ifFile;
-            if ($platform[1] eq 'Fedora') { 
-                $ifFile = "/etc/sysconfig/network-scripts/ifcfg-Auto_$ifName";
-            } elsif ($platform[1] eq 'CentOS') { 
-                $ifFile = "/etc/sysconfig/network-scripts/ifcfg-$ifName";
-            }
-            system "echo \"\" > $ifFile";
-            open IF_FILE, ">" . $ifFile or print "error opening $ifFile";
+        my $ifFile;
+        if ($platform[1] eq 'Fedora') { 
+           $ifFile = "/etc/sysconfig/network-scripts/ifcfg-Auto_$ifName";
+        } elsif ($platform[1] eq 'CentOS') { 
+            $ifFile = "/etc/sysconfig/network-scripts/ifcfg-$ifName";
+        }
+        system "echo \"\" > $ifFile";
+        open IF_FILE, ">" . $ifFile or print "error opening $ifFile";
     
-            if ($platform[1] eq 'CentOS') { 
-                print IF_FILE "DEVICE=$ifName\n";
-            }
-            print IF_FILE "HWADDR=$mac\n";
-            print IF_FILE "TYPE=Ethernet\n";
-            #print IF_FILE "BOOTPROTO=none\n";
-            print IF_FILE "ONBOOT=yes\n";
-            if ($platform[1] eq 'Fedora') { 
-                print IF_FILE "NAME=\"Auto $ifName\"\n";
-            } elsif ($platform[1] eq 'CentOS') { 
-                print IF_FILE "NAME=\"$ifName\"\n";
-            }
+        if ($platform[1] eq 'CentOS') { 
+            print IF_FILE "DEVICE=$ifName\n";
+        }
+        print IF_FILE "HWADDR=$mac\n";
+        print IF_FILE "TYPE=Ethernet\n";
+        #print IF_FILE "BOOTPROTO=none\n";
+        print IF_FILE "ONBOOT=yes\n";
+        if ($platform[1] eq 'Fedora') { 
+            print IF_FILE "NAME=\"Auto $ifName\"\n";
+        } elsif ($platform[1] eq 'CentOS') { 
+            print IF_FILE "NAME=\"$ifName\"\n";
+        }
 
-            print IF_FILE "IPV6INIT=yes\n";
+        print IF_FILE "IPV6INIT=yes\n";
             
-            my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
-            my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
+        my $ipv4Taglist = $ifTag->getElementsByTagName("ipv4");
+        my $ipv6Taglist = $ifTag->getElementsByTagName("ipv6");
 
-            # Config IPv4 addresses
-            for ( my $j = 0 ; $j < $ipv4Taglist->size ; $j++ ) {
+        # Config IPv4 addresses
+        for ( my $j = 0 ; $j < $ipv4Taglist->size ; $j++ ) {
 
-                my $ipv4Tag = $ipv4Taglist->item($j);
-                my $mask    = $ipv4Tag->getAttribute("mask");
-                my $ip      = $ipv4Tag->getFirstChild->getData;
+            my $ipv4Tag = $ipv4Taglist->item($j);
+            my $mask    = $ipv4Tag->getAttribute("mask");
+            my $ip      = $ipv4Tag->getFirstChild->getData;
 
-                $firstIPv4If = "$ifName" if $firstIPv4If==''; 
+            $firstIPv4If = "$ifName" if $firstIPv4If==''; 
 
-                if ($j == 0) {
-                    print IF_FILE "IPADDR=$ip\n";
-                    print IF_FILE "NETMASK=$mask\n";
-                } else {
-                    my $num = $j+1;
-                    print IF_FILE "IPADDR$num=$ip\n";
-                    print IF_FILE "NETMASK$num=$mask\n";
-                }
+            if ($j == 0) {
+                print IF_FILE "IPADDR=$ip\n";
+                print IF_FILE "NETMASK=$mask\n";
+            } else {
+                my $num = $j+1;
+                print IF_FILE "IPADDR$num=$ip\n";
+                print IF_FILE "NETMASK$num=$mask\n";
             }
-            # Config IPv6 addresses
-            my $ipv6secs;
-            for ( my $j = 0 ; $j < $ipv6Taglist->size ; $j++ ) {
-
-                my $ipv6Tag = $ipv6Taglist->item($j);
-                my $ip    = $ipv6Tag->getFirstChild->getData;
-
-                $firstIPv6If = "$ifName" if $firstIPv6If==''; 
-
-                if ($j == 0) {
-                    print IF_FILE "IPV6_AUTOCONF=no\n";
-                    print IF_FILE "IPV6ADDR=$ip\n";
-                } else {
-                    $ipv6secs .= " $ip" if $ipv6secs ne '';
-                    $ipv6secs .= "$ip" if $ipv6secs eq '';
-                }
-            }
-            if ($ipv6secs ne '') {
-                print IF_FILE "IPV6ADDR_SECONDARIES=\"$ipv6secs\"\n";
-            }
-            close IF_FILE;
         }
-        close RULES;
+        # Config IPv6 addresses
+        my $ipv6secs;
+        for ( my $j = 0 ; $j < $ipv6Taglist->size ; $j++ ) {
 
-        # Network routes configuration: <route> tags
-        my $routeFile = "/etc/sysconfig/network-scripts/route-Auto_$firstIPv4If";
-        system "echo \"\" > $routeFile";
-        open ROUTE_FILE, ">" . $routeFile or print "error opening $routeFile";
-        my $route6File = "/etc/sysconfig/network-scripts/route6-Auto_$firstIPv6If";
-        system "echo \"\" > $route6File";
-        open ROUTE6_FILE, ">" . $route6File or print "error opening $route6File";
+            my $ipv6Tag = $ipv6Taglist->item($j);
+            my $ip    = $ipv6Tag->getFirstChild->getData;
+
+            $firstIPv6If = "$ifName" if $firstIPv6If==''; 
+
+            if ($j == 0) {
+                print IF_FILE "IPV6_AUTOCONF=no\n";
+                print IF_FILE "IPV6ADDR=$ip\n";
+            } else {
+                $ipv6secs .= " $ip" if $ipv6secs ne '';
+                $ipv6secs .= "$ip" if $ipv6secs eq '';
+            }
+        }
+        if ($ipv6secs ne '') {
+            print IF_FILE "IPV6ADDR_SECONDARIES=\"$ipv6secs\"\n";
+        }
+        close IF_FILE;
+    }
+    close RULES;
+
+    # Network routes configuration: <route> tags
+    my $routeFile = "/etc/sysconfig/network-scripts/route-Auto_$firstIPv4If";
+    system "echo \"\" > $routeFile";
+    open ROUTE_FILE, ">" . $routeFile or print "error opening $routeFile";
+    my $route6File = "/etc/sysconfig/network-scripts/route6-Auto_$firstIPv6If";
+    system "echo \"\" > $route6File";
+    open ROUTE6_FILE, ">" . $route6File or print "error opening $route6File";
         
-        my $routeTaglist = $virtualmTag->getElementsByTagName("route");
-        my $numRoutes    = $routeTaglist->size;
-        for (my $j = 0 ; $j < $numRoutes ; $j++){
-            my $routeTag = $routeTaglist->item($j);
-            my $routeType = $routeTag->getAttribute("type");
-            my $routeGw   = $routeTag->getAttribute("gw");
-            my $route     = $routeTag->getFirstChild->getData;
-            if ($routeType eq 'ipv4') {
-                if ($route eq 'default') {
-                    print ROUTE_FILE "ADDRESS$j=0.0.0.0\n";
-                    print ROUTE_FILE "NETMASK$j=0\n";
-                    print ROUTE_FILE "GATEWAY$j=$routeGw\n";
-                } else {
-                    my $mask = $route;
-                    $mask =~ s/.*\///;
-                    $mask = cidr_to_mask ($mask);
-                    $route =~ s/\/.*//;
-                    print ROUTE_FILE "ADDRESS$j=$route\n";
-                    print ROUTE_FILE "NETMASK$j=$mask\n";
-                    print ROUTE_FILE "GATEWAY$j=$routeGw\n";
-                }
-            } elsif ($routeType eq 'ipv6') {
-                if ($route eq 'default') {
-                    print ROUTE6_FILE "2000::/3 via $routeGw metric 0\n";
-                } else {
-                    print ROUTE6_FILE "$route via $routeGw metric 0\n";
-                }
+    my $routeTaglist = $virtualmTag->getElementsByTagName("route");
+    my $numRoutes    = $routeTaglist->size;
+    for (my $j = 0 ; $j < $numRoutes ; $j++){
+        my $routeTag = $routeTaglist->item($j);
+        my $routeType = $routeTag->getAttribute("type");
+        my $routeGw   = $routeTag->getAttribute("gw");
+        my $route     = $routeTag->getFirstChild->getData;
+        if ($routeType eq 'ipv4') {
+            if ($route eq 'default') {
+                #print ROUTE_FILE "ADDRESS$j=0.0.0.0\n";
+                #print ROUTE_FILE "NETMASK$j=0\n";
+                #print ROUTE_FILE "GATEWAY$j=$routeGw\n";
+                # Define the default route in $sysconfnet_file
+                system "echo GATEWAY=$routeGw >> $sysconfnet_file"; 
+            } else {
+                my $mask = $route;
+                $mask =~ s/.*\///;
+                $mask = cidr_to_mask ($mask);
+                $route =~ s/\/.*//;
+                print ROUTE_FILE "ADDRESS$j=$route\n";
+                print ROUTE_FILE "NETMASK$j=$mask\n";
+                print ROUTE_FILE "GATEWAY$j=$routeGw\n";
+            }
+        } elsif ($routeType eq 'ipv6') {
+            if ($route eq 'default') {
+                print ROUTE6_FILE "2000::/3 via $routeGw metric 0\n";
+            } else {
+                print ROUTE6_FILE "$route via $routeGw metric 0\n";
             }
         }
-        close ROUTE_FILE;
-        close ROUTE6_FILE;
+    }
+    close ROUTE_FILE;
+    close ROUTE6_FILE;
         
-        # Packet forwarding: <forwarding> tag
-        my $ipv4Forwarding = 0;
-        my $ipv6Forwarding = 0;
-        my $forwardingTaglist = $virtualmTag->getElementsByTagName("forwarding");
-        my $numforwarding = $forwardingTaglist->size;
-        for (my $j = 0 ; $j < $numforwarding ; $j++){
-            my $forwardingTag   = $forwardingTaglist->item($j);
-            my $forwarding_type = $forwardingTag->getAttribute("type");
-            if ($forwarding_type eq "ip"){
-                $ipv4Forwarding = 1;
-                $ipv6Forwarding = 1;
-            } elsif ($forwarding_type eq "ipv4"){
-                $ipv4Forwarding = 1;
-            } elsif ($forwarding_type eq "ipv6"){
-                $ipv6Forwarding = 1;
-            }
+    # Packet forwarding: <forwarding> tag
+    my $ipv4Forwarding = 0;
+    my $ipv6Forwarding = 0;
+    my $forwardingTaglist = $virtualmTag->getElementsByTagName("forwarding");
+    my $numforwarding = $forwardingTaglist->size;
+    for (my $j = 0 ; $j < $numforwarding ; $j++){
+        my $forwardingTag   = $forwardingTaglist->item($j);
+        my $forwarding_type = $forwardingTag->getAttribute("type");
+        if ($forwarding_type eq "ip"){
+            $ipv4Forwarding = 1;
+            $ipv6Forwarding = 1;
+        } elsif ($forwarding_type eq "ipv4"){
+            $ipv4Forwarding = 1;
+        } elsif ($forwarding_type eq "ipv6"){
+            $ipv6Forwarding = 1;
         }
-        write_log ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in $sysctl_file...");
-        system "echo >> $sysctl_file ";
-        system "echo '#### vnxdaemon ####' >> $sysctl_file ";
-        system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> $sysctl_file ";
-        system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> $sysctl_file ";
+    }
+    write_log ("   configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in $sysctl_file...");
+    system "echo >> $sysctl_file ";
+    system "echo '#### vnxdaemon ####' >> $sysctl_file ";
+    system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> $sysctl_file ";
+    system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> $sysctl_file ";
 
-        # Configuring /etc/hosts and /etc/hostname
-        write_log ("   configuring /etc/hosts and /etc/hostname...");
-        system "cp $hosts_file $hosts_file.backup";
+    # Configuring /etc/hosts and /etc/hostname
+    write_log ("   configuring /etc/hosts and /etc/hostname...");
+    system "cp $hosts_file $hosts_file.backup";
 
-        #/etc/hosts: insert the new first line
-        system "sed '1i\ 127.0.0.1  $vm_name    localhost.localdomain   localhost' $hosts_file > /tmp/hosts.tmp";
-        system "mv /tmp/hosts.tmp $hosts_file";
+    #/etc/hosts: insert the new first line
+    system "sed '1i\ 127.0.0.1  $vm_name    localhost.localdomain   localhost' $hosts_file > /tmp/hosts.tmp";
+    system "mv /tmp/hosts.tmp $hosts_file";
 
-        #/etc/hosts: and delete the second line (former first line)
-        system "sed '2 d' $hosts_file > /tmp/hosts.tmp";
-        system "mv /tmp/hosts.tmp $hosts_file";
+    #/etc/hosts: and delete the second line (former first line)
+    system "sed '2 d' $hosts_file > /tmp/hosts.tmp";
+    system "mv /tmp/hosts.tmp $hosts_file";
 
-        #/etc/hosts: insert the new second line
-        system "sed '2i\ 127.0.1.1  $vm_name' $hosts_file > /tmp/hosts.tmp";
-        system "mv /tmp/hosts.tmp $hosts_file";
+    #/etc/hosts: insert the new second line
+    system "sed '2i\ 127.0.1.1  $vm_name' $hosts_file > /tmp/hosts.tmp";
+    system "mv /tmp/hosts.tmp $hosts_file";
 
-        #/etc/hosts: and delete the third line (former second line)
-        system "sed '3 d' $hosts_file > /tmp/hosts.tmp";
-        system "mv /tmp/hosts.tmp $hosts_file";
+    #/etc/hosts: and delete the third line (former second line)
+    system "sed '3 d' $hosts_file > /tmp/hosts.tmp";
+    system "mv /tmp/hosts.tmp $hosts_file";
 
-        #/etc/hostname: insert the new first line
-        system "sed '1i\ $vm_name' $hostname_file > /tmp/hostname.tpm";
-        system "mv /tmp/hostname.tpm $hostname_file";
+    #/etc/hostname: insert the new first line
+    system "sed '1i\ $vm_name' $hostname_file > /tmp/hostname.tpm";
+    system "mv /tmp/hostname.tpm $hostname_file";
 
-        #/etc/hostname: and delete the second line (former first line)
-        system "sed '2 d' $hostname_file > /tmp/hostname.tpm";
-        system "mv /tmp/hostname.tpm $hostname_file";
+    #/etc/hostname: and delete the second line (former first line)
+    system "sed '2 d' $hostname_file > /tmp/hostname.tpm";
+    system "mv /tmp/hostname.tpm $hostname_file";
 
-        system "hostname $vm_name";
-        system "mv /etc/sysconfig/network /etc/sysconfig/network.bak";
-        system "cat /etc/sysconfig/network.bak | grep -v HOSTNAME > /etc/sysconfig/network";
-        system "echo HOSTNAME=$vm_name >> /etc/sysconfig/network";
-#   }
+    system "hostname $vm_name";
+    system "mv /etc/sysconfig/network /etc/sysconfig/network.bak";
+    system "cat /etc/sysconfig/network.bak | grep -v HOSTNAME > /etc/sysconfig/network";
+    system "echo HOSTNAME=$vm_name >> /etc/sysconfig/network";
     
 }
 

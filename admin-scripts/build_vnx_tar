@@ -226,8 +226,9 @@ cd ../distrib
 #
 # Create a symbolic link named vnx-latest.tgz to the new version
 # 
-rm vnx-latest.tgz
-ln -s ${FNAME}.tgz vnx-latest.tgz
+echo "**   Creating vnx-latest.tgz symbolic link..."
+rm -v vnx-latest.tgz
+ln -vs ${FNAME}.tgz vnx-latest.tgz
 # rm -rf tmp/*
 cd ..
 
@@ -241,6 +242,7 @@ echo "** "
 HNAME=$( hostname -f )
 #echo "$HNAME..."
 if [ $UPDATEIDEFIX ]; then
+    #echo "Update idefix..."
 	if [ $HNAME = 'idefix.dit.upm.es' -o $HNAME = 'idefix' ]; then
 	  if [ -d /var/www/download/vnx ]; then 
 	    echo "Copying new version to http://idefix.dit.upm.es/download/vnx..."
