@@ -121,17 +121,17 @@ sub open_console {
 	my $self        = shift;
 	my $vm_name      = shift;
 	my $con_id      = shift;
-	my $consType    = shift;
+	my $cons_type    = shift;
 	my $consPar     = shift;
 	my $getLineOnly = shift;
 
     my $logp = "open_console-$vm_name> ";
 
 	my $command;
-	if ($consType eq 'vnc_display') {
+	if ($cons_type eq 'vnc_display') {
 		$execution->execute_root( $logp, "virt-viewer -c $hypervisor $vm_name &");
 		return;  			
-   	} elsif ($consType eq 'libvirt_pts') {
+   	} elsif ($cons_type eq 'libvirt_pts') {
 		$command = "virsh -c $hypervisor console $vm_name";
         unless (defined $getLineOnly) {
             # Kill the console if already opened
@@ -146,7 +146,7 @@ sub open_console {
                 wlog (V, "no previous consoles found", $logp);
             }
         }
-   	} elsif ($consType eq 'uml_pts') {
+   	} elsif ($cons_type eq 'uml_pts') {
         #$command = "screen -t $vm_name $consPar";
         #$command = "microcom -p $consPar";
         #$command = "picocom --noinit $consPar";
@@ -180,10 +180,14 @@ sub open_console {
             #system "$command";
 	        
         }
-   	} elsif ($consType eq 'telnet') {
-		$command = "telnet localhost $consPar";						
+   	} elsif ($cons_type eq 'telnet') {
+		$command = "telnet localhost $consPar";		
+		
+    } elsif ($cons_type eq 'lxc') {
+        $command = "lxc-console -n $vm_name";
+						
 	} else {
-		wlog (N, "WARNING (vm=$vm_name): unknown console type ($consType)");
+		wlog (N, "WARNING (vm=$vm_name): unknown console type ($cons_type)");
 	}
 	
 	my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term', 'root');

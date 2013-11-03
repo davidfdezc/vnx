@@ -1,3 +1,7 @@
+
+
+- attribute 'gui' in <exec> tags eliminated (obsoleted) 
+
 6/5/2013:
 - vnx help simplified and updated
 

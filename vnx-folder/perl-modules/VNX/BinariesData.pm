@@ -134,10 +134,15 @@ sub add_additional_xterm_binaries {
 	          $xterm = &text_tag($xterm_list[0]);
            }
 		   else {
-		      # If <xterm> has been specified in <vm_defaults> use that value
-			  if ((@vm_defaults_list == 1) && ($vm_defaults_list[0]->getElementsByTagName("xterm") eq 1)) {
-			     $xterm = &text_tag($vm_defaults_list[0]->getElementsByTagName("xterm")->[0]);
-			  }
+              # If <xterm> has been specified in <vm_defaults> use that value
+              if (@vm_defaults_list == 1) {
+                 foreach my $xterm_tag ($vm_defaults_list[0]->getElementsByTagName("xterm")) {
+                    $xterm = &text_tag($xterm_tag);
+                 }
+                 if (!$xterm) {
+                    $xterm = "xterm,-T,-e";
+                 }
+              }
 			  else {			
 			     # Get the default xterm for the kernel
 			     my $kernel = $dh->get_default_kernel;

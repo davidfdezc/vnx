@@ -57,7 +57,7 @@ use VNX::Globals;
 use VNX::DataHandler;
 use VNX::Execution;
 use VNX::BinariesData;
-use VNX::Arguments;
+#use VNX::Arguments;
 use VNX::CheckSemantics;
 use VNX::TextManipulation;
 use VNX::NetChecks;
@@ -2704,7 +2704,7 @@ sub executeCMD {
     my $doc = $dh->get_doc;
     
     # If host <host> is not present, there is nothing to do
-    return if ( !$doc->getElementsByTagName("host") );
+    return $error if ( !$doc->getElementsByTagName("host") );
     
     # To get <host> tag
     my $host = $doc->getElementsByTagName("host")->item(0);
