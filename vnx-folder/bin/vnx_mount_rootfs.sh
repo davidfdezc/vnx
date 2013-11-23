@@ -33,6 +33,9 @@
 #
 # Constant and variables
 #
+VNXACED_VER='MM.mm.rrrr'
+VNXACED_BUILT='DD/MM/YYYY'
+
 USAGE="
 Usage: 
   - Mount disk image:
@@ -51,6 +54,8 @@ Options:  -t <type>       -> type of image: raw or qcow2
 HEADER1="
 ----------------------------------------------------------------------------------
 Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx@dit.upm.es
+Version: $VNXACED_VER ($VNXACED_BUILT)
+
 vnx_mount_rootfs: (um)mount raw and qcow2 root filesystems
 ----------------------------------------------------------------------------------"
 

@@ -1,5 +1,9 @@
 
 
+17/11/2013:
+- vnx_mount_rootfs tools added
+
+
 - attribute 'gui' in <exec> tags eliminated (obsoleted) 
 
 6/5/2013:

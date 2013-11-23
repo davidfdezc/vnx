@@ -169,6 +169,7 @@ sed --in-place -e "s%DD/MM/YYYY%$RELDATE%" tmp/${FNAME}/bin/ediv_ctl_vnx.pl
 sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/${FNAME}/bin/ediv_ctl_vnx.pl
 sed --in-place -e "s%DD/MM/YYYY%$RELDATE%"     tmp/${FNAME}/bin/vnx_download_rootfs.sh
 sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/${FNAME}/bin/vnx_download_rootfs.sh
+sed --in-place -e "s%MM.mm.rrrr%$VNX_VERSION%" tmp/${FNAME}/bin/vnx_mount_rootfs.sh
 
 
 # 
