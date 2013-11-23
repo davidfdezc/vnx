@@ -154,6 +154,7 @@ cp $VERBOSE bin/vnx_update.sh /usr/share/vnx/bin/vnx_update
 cp $VERBOSE bin/vnx_update_host.sh /usr/share/vnx/bin/vnx_update_host
 cp $VERBOSE bin/vnx_set_def_rootfs.pl /usr/share/vnx/bin/vnx_set_def_rootfs
 cp $VERBOSE bin/vnx_download_rootfs.sh /usr/share/vnx/bin/vnx_download_rootfs
+cp $VERBOSE bin/vnx_mount_rootfs.sh /usr/share/vnx/bin/vnx_mount_rootfs
 chmod 755 /usr/share/vnx/bin/*
 
 #

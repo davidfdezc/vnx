@@ -6,7 +6,7 @@
 #
 # Author: David Fernández (david@dit.upm.es), based on a previous version for VNUML
 #         made by Francisco J. Monserrat (RedIRIS)
-# Copyright (C) 2011, 	DIT-UPM
+# Copyright (C) 2011,2013	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN
@@ -142,7 +142,10 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "olive")) { 
         $ctype="olive";
         $legend{"olive"} = "libvirt kvm Olive router"       
-    } 
+    } elsif ($type eq "lxc") { 
+        $ctype=$type;
+        $legend{"lxc"} = "Linux Containers"
+    }       
     print "\n// Virtual machine $vmname\n" ;
     print "$vmname2 [label=\"$vmname \\n($ctype)\", shape=\"circle\", fontcolor=\"$fontcolor\", " . 
           "colorscheme=\"$colorscheme\", color=\"$vmcolor\", style=\"filled\", margin=\"0\" ] ;\n" ;

@@ -108,7 +108,7 @@ sub defineVM {
 
     my $logp = "lxc-defineVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-pak ("lxc-define...");   
+#pak ("lxc-define...");   
     my $error = 0;
     my $extConfFile;
     
@@ -117,7 +117,6 @@ pak ("lxc-define...");
     my @vm_ordered = $dh->get_vm_ordered;
 
     my $filesystem;
-    my $con;
 
     my $vm = $dh->get_vm_byname ($vm_name);
     wlog (VVV, "---- " . $vm->getAttribute("name"), $logp);
@@ -497,7 +496,7 @@ sub undefineVM {
     my $logp = "lxc-undefineVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error;
+    my $error = 0;
     my $con;
 
     #
@@ -560,7 +559,7 @@ sub destroyVM {
 
         # Delete COW files directory
         my $vm_cow_dir = $dh->get_vm_dir($vm_name);
-        $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf" . $vm_cow_dir . "/fs/*" );
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $vm_cow_dir . "/fs/*" );
 
         return $error;
 
@@ -651,7 +650,6 @@ sub shutdownVM {
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
-    my $con;
 
     # Sample code
     print "Shutting down vm $vm_name of type $type\n" if ($exemode == $EXE_VERBOSE);
@@ -700,7 +698,6 @@ sub saveVM {
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
-    my $con;
 
     # Sample code
     print "saveVM: saving vm $vm_name of type $type\n" if ($exemode == $EXE_VERBOSE);
@@ -738,7 +735,6 @@ sub restoreVM {
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
-    my $con;
 
     print
       "restoreVM: restoring vm $vm_name of type $type from file $filename\n";
@@ -782,7 +778,6 @@ sub suspendVM {
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
-    my $con;
 
     #
     # suspendVM for lxc
@@ -823,7 +818,6 @@ sub resumeVM {
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
-    my $con;
 
     # Sample code
     print "resumeVM: resuming vm $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -867,7 +861,6 @@ sub rebootVM {
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
-    my $con;
 
     #
     # rebootVM for lxc
@@ -909,7 +902,6 @@ sub resetVM {
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error;
-    my $con;
 
     # Sample code
     print "resetVM: reseting vm $vm_name\n" if ($exemode == $EXE_VERBOSE);

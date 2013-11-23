@@ -3449,12 +3449,11 @@ sub mode_destroy {
     }
     if ( ($vm_left eq 0) && (!$opts{M} ) ) {
         # 3. Delete supporting scenario files...
-	#    ...but only if -M option is not active (DFC 27/01/2010)
+        #    ...but only if -M option is not active (DFC 27/01/2010)
 
-        $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_sim_dir . "/*");
-
-        #$execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . "/var/run/libvirt/vnx/" . $dh->get_scename);
-        #$execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_tmp_dir . "/.vnx/" . $dh->get_scename);
+        # Delete all files in scenario but the scenario map (<scename>.png) 
+        #$execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_sim_dir . "/*");
+        $execution->execute($logp, $bd->get_binaries_path_ref->{"find"} . " " . $dh->get_sim_dir . "/* ! -name *.png -delete");
 
         if ($vmfs_on_tmp eq 'yes') {
                 $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " 
