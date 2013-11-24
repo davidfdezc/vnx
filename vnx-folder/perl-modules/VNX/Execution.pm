@@ -192,7 +192,9 @@ sub execute {
 
     my $retval = 0;	# By default, all right
     if ((my ($command, $CMD_OUT) = @_) == 1) {
+        #
         # Direct mode
+        #
         if ($exe_mode == $EXE_DEBUG) {
             #print "D-" . $verb_prompt . "$command\n";
             $command =~ s/\n/\\n/g;
@@ -243,9 +245,11 @@ sub execute {
         }
     }
     else {
-        wlog (VVV, "command=$command");
-        wlog (VVV, "CMD_OUT=$CMD_OUT");
+		#
         # Recording mode
+        #
+        wlog (VVV, "command=$command", $verb_prompt);
+        #wlog (VVV, "CMD_OUT=$CMD_OUT", $verb_prompt);
         if ($exe_mode == $EXE_DEBUG) {
             #print "D-" . $verb_prompt . "$command\n";
             print sprintf("D-%-8s %s", $verb_prompt, "$command\n");

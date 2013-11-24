@@ -119,7 +119,7 @@ SPAIN
     </if>
     <route type="ipv4" gw="10.0.2.1">default</route>
     <!-- Copy the files under conf/tutorial_ubuntu/h3 to vm /var/www directory -->
-    <filetree seq="start-www" root="/var/www">conf/tutorial_ubuntu/h3</filetree>
+    <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h3</filetree>
     <!-- Start/stop apache www server -->
     <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
     <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
@@ -134,7 +134,7 @@ SPAIN
     </if>
     <route type="ipv4" gw="10.0.2.1">default</route>    
     <!-- Copy the files under conf/tutorial_ubuntu/h4 to vm /var/www directory -->
-    <filetree seq="start-www" root="/var/www">conf/tutorial_ubuntu/h4</filetree>
+    <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h4</filetree>
     <!-- Start/stop apache www server -->
     <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
     <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>

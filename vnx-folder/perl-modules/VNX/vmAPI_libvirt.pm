@@ -1020,7 +1020,7 @@ back_to_user();
 		}
 				     
         # Text console: <console id="1"> 
-		wlog (VVV, "console #1 type: $consType (port=" . str($cons1Port) . ")", $logp);
+		wlog (VVV, "console #1 type: $consType (port=" . str2($cons1Port) . ")", $logp);
 
 		if ($consType eq "pts") {
         

@@ -177,58 +177,112 @@ sub vnet_exists_sw {
 # Returns a list in which each element is one of the interfaces (TUN/TAP devices
 # or host OS physical interfaces) of the virtual network given as argument.
 #
-# It based in `brctl show` parsing.
+# It based in `brctl show` parsing. Rewritten on 24/11/2013 to avoid problems 
+# with regular expressions.
+#
 sub vnet_ifs {
 
-   my $vnet_name = shift;
-   my @if_list;
+    my $vnet_name = shift;
+    my @if_list;
 
-   # To get `brctl show`
-   my @brctlshow;
-   my $line = 0;
-   my $pipe = $bd->get_binaries_path_ref->{"brctl"} . " show |";
-   open BRCTLSHOW, "$pipe";
-   while (<BRCTLSHOW>) {
-      chomp;
-      $brctlshow[$line++] = $_;
-   }
-   close BRCTLSHOW;
+    # Load the list of bridges
+    my $bridges_list = `brctl show | tail -n +2 | sed -n '/^\\w/p' | awk '{print \$1}'`;
+    $bridges_list =~ s/\R/ /g; # Change newlines to spaces
+    my @bridges = split(' ', $bridges_list);
+    #print "bridges_list=$bridges_list\n";
 
-   # To look for virtual network processing the list
-   # Note that we skip the first line (due to this line is the header of
-   # brctl show: bridge name, brige id, etc.)
-   for ( my $i = 1; $i < $line; $i++) {
-      $_ = $brctlshow[$i];
-      # Some brctl versions seems to show a different message when no
-      # interface is used in a virtual bridge. Skip those
-      unless (/Function not implemented/) {
-         # We are interestend only in the first and last "word" of the line
-         /^(\S+)\s.*\s(\S+)$/;
-         if (defined($1) && ($1 eq $vnet_name) ) {
-            # To push interface into the list
-            push (@if_list,$2);
+    # Load the list of bridges + interfaces
+    my $bridges_and_ifs_list = `brctl show | tail -n +2 | awk '{ print \$1; if (\$4!="") print \$4 }'`; 
+    $bridges_and_ifs_list =~ s/\R/ /g; # Change newlines to spaces
+    my @bridges_and_ifs = split(' ', $bridges_and_ifs_list);
+    #print "bridges_and_ifs_list=$bridges_and_ifs_list\n";
 
-            # Internal loop (it breaks when a line not only with the interface name is found)
-            for ( my $j = $i+1; $j < $line; $j++) {
-               $_ = $brctlshow[$j];
-               if (/^(\S+)\s.*\s(\S+)$/) {
-                  last;
-               }
-               # To push interface into the list
-               /.*\s(\S+)$/;
-               push (@if_list,$1);
-            }
-            
-            # The end...
-            last;
-         }       
-      }
-   }
+    # Fill a hash table with the names of the bridges
+    my %hbridges = ();
+    foreach $b (@bridges) {
+      #print "$b\n";
+      $hbridges{$b}='yes';
+    } 
 
-   # To return list
-   return @if_list;
-
+    my $found = 'false';
+    foreach my $s (@bridges_and_ifs) {
+      	if ( $found eq 'true' ) {
+        	if ( $hbridges{$s} ) { last }
+        	else                 { push (@if_list,$s); }
+      	}
+      	if ($s eq $vnet_name) { $found = 'true' }
+    }
+    return @if_list;
 }
+
+=BEGIN
+sub vnet_ifs {
+
+	my $vnet_name = shift;
+	my @if_list;
+
+	# To get `brctl show`
+	my @brctlshow;
+	my $line = 0;
+	my $pipe = $bd->get_binaries_path_ref->{"brctl"} . " show |";
+	open BRCTLSHOW, "$pipe";
+	while (<BRCTLSHOW>) {
+		chomp;
+		$brctlshow[$line++] = $_;
+	}
+	close BRCTLSHOW;
+
+	for ( my $i = 1; $i < $line; $i++) {
+		wlog (VVV, "lines$i= $brctlshow[$i]");
+	}
+
+	# To look for virtual network processing the list
+	# Note that we skip the first line (due to this line is the header of
+	# brctl show: bridge name, brige id, etc.)
+	for ( my $i = 1; $i < $line; $i++) {
+		wlog (VVV, "line $i = $brctlshow[$i]");
+		#$_ = $brctlshow[$i];
+		$_ = $brctlshow[$i];
+		# Some brctl versions seems to show a different message when no
+		# interface is used in a virtual bridge. Skip those
+		unless (/Function not implemented/) {
+			# We are interestend only in the first and last "word" of the line
+			/^(\S+)\s.*\s(\S+)$/;
+			wlog (VVV, "line=$i, first=$1, last=$2");
+			wlog (VVV, "nextline=$brctlshow[$i+1]");
+			if (defined($1) && ($1 eq $vnet_name) ) {
+            	# To push interface into the list
+            	wlog (VVV, "match");
+            	push (@if_list,$2);
+
+            	# Internal loop (it breaks when a line with bridge name is found)
+				for ( my $j = $i+1; $j < $line; $j++) {
+					wlog (VVV, "line $j = $brctlshow[$j]");
+					$_ = $brctlshow[$j];
+					wlog (VVV, "\$_= $_");
+					
+					/^(\S+)\s.*\s(\S+)$/;
+					wlog (VVV, "line $j = $brctlshow[$j]");
+					wlog (VVV, "line=$j, first=$1, last=$2");
+					#if (/^(\S+)\s.*\s(\S+)$/) 
+					if (defined($1)) {
+						last;
+					}
+					# To push interface into the list
+					/.*\s(\S+)$/;
+					push (@if_list,$1);
+				}
+            
+				# The end...
+				last;
+         	}       
+		}
+	}
+	# To return list
+	return @if_list;
+}
+=END
+=cut
 
 sub get_next_free_port {
 
