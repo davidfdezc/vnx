@@ -51,7 +51,7 @@ SPAIN
     
     <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
-    <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
+    <filetree seq="start-www" root="/var/www/">conf/txtfile</filetree>
 
     <!-- Start xeyes application -->
     <exec seq="xeyes"     type="verbatim" ostype="xexec">xeyes</exec>

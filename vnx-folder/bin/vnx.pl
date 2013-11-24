@@ -557,8 +557,6 @@ back_to_user();
 	}
 
    	# Create DOM tree
-	#my $parser = new XML::DOM::Parser;
-	# TODO: migrate to XML::LibXML (XML::DOM developmentd seems to be stopped)
 	my $parser = XML::LibXML->new();
     my $doc = $parser->parse_file($input_file);
     
@@ -2314,9 +2312,9 @@ sub tun_connect {
             my $net = $if->getAttribute("net");
 	 
             # Only TUN/TAP for interfaces attached to bridged networks
-            # We do not add tap interfaces for libvirt VMs. It is done by libvirt 
+            # We do not add tap interfaces for libvirt or lxc VMs. It is done by libvirt/lxc 
             #if (&check_net_br($net)) {
-            if (($vm_type ne 'libvirt') && ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
+            if (($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
             #if ( ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
 	 
                 my $net_if = $vm_name . "-e" . $id;
@@ -3396,11 +3394,16 @@ sub bridges_destroy {
         my $net_name = $net->getAttribute("name");
         my $mode = $net->getAttribute("mode");
 
+    	wlog (VVV, "net=$net_name", $logp);
+    	
         # This function only processes uml_switch networks
         if ($mode ne "uml_switch") {
 
             # Set bridge down and remove it only in the case there isn't any associated interface 
             my @br_ifs =&vnet_ifs($net_name);   
+
+	    	wlog (VVV, "br_ifs=@br_ifs", $logp);
+
             if ( (@br_ifs == 1) && ( $br_ifs[0] eq "${net_name}-e00" ) ) {
          	
                 # Destroy the tap associated with the bridge

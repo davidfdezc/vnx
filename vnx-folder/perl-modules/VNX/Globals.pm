@@ -94,6 +94,7 @@ our @EXPORT = qw(
 	@EXEC_MODES_LIBVIRT_KVM_WINDOWS
 	@EXEC_MODES_LIBVIRT_KVM_OLIVE
 	@EXEC_MODES_DYNAMIPS
+	@EXEC_MODES_LXC
 
 	@EXEC_OSTYPE_UML
     @EXEC_OSTYPE_LIBVIRT_KVM_LINUX  
@@ -181,7 +182,7 @@ use constant VV  => 2;
 use constant VVV => 3;
 
 
-# Allowed and default modes in <exec> and <filetree> tags for each virtual machine type
+# Allowed and default modes in exec_mode attribute of <vm> tag for each virtual machine type
 # Default mode is always the first value in array
 our @EXEC_MODES_UML                 = qw( mconsole net sdisk);
 our @EXEC_MODES_LIBVIRT_KVM_LINUX   = qw( sdisk cdrom net );
@@ -189,6 +190,7 @@ our @EXEC_MODES_LIBVIRT_KVM_FREEBSD = qw( sdisk cdrom net );
 our @EXEC_MODES_LIBVIRT_KVM_WINDOWS = qw( cdrom sdisk );
 our @EXEC_MODES_LIBVIRT_KVM_OLIVE   = qw( sdisk net );
 our @EXEC_MODES_DYNAMIPS            = qw( telnet );
+our @EXEC_MODES_LXC            		= qw( lxc-attach );
 
 # Allowed and default ostypes in <exec> tags for each virtual machine type
 # Default mode is always the first value in array
