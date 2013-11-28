@@ -50,7 +50,6 @@ our @EXPORT = qw(
   executeCMD
   );
 
-
 use Sys::Virt;
 use Sys::Virt::Domain;
 use VNX::Globals;
@@ -893,6 +892,7 @@ back_to_user();
 			my $id    = $if->getAttribute("id");
 			my $net   = $if->getAttribute("net");
             my $mac   = $if->getAttribute("mac");
+            my $netType = $if->getAttribute("netType");
 
 			# Ignore loopback interfaces (they are configured by the ACED daemon and
 			# should not be processed by libvirt)
@@ -908,22 +908,29 @@ back_to_user();
 				$interface_tag = $init_xml->createElement('interface');
                 $devices_tag->addChild($interface_tag);
 				
-                # <interface type='bridge' name='eth1' onboot='yes'>
+                # Ex: <interface type='bridge' name='eth1' onboot='yes'>
 				$interface_tag->addChild( $init_xml->createAttribute( type => 'bridge' ) );
 				$interface_tag->addChild( $init_xml->createAttribute( name => "eth" . $id ) );
 				$interface_tag->addChild( $init_xml->createAttribute( onboot => "yes" ) );
 
-			 	# <source bridge="Net0"/>
+			 	# Ex: <source bridge="Net0"/>
 			    my $source_tag = $init_xml->createElement('source');
 			    $interface_tag->addChild($source_tag);
 			    $source_tag->addChild( $init_xml->createAttribute( bridge => $net ) );
 
-                # <target dev="vm1-e1"/>
+                # Ex: <virtualport type="openvswitch"/>
+                if ($netType eq "openvswitch"){
+                    my $virtualswitch_tag = $init_xml->createElement('virtualport');
+                    $interface_tag->addChild($virtualswitch_tag);
+                    $virtualswitch_tag->addChild($init_xml->createAttribute( type => 'openvswitch' ) );
+                }
+
+                # Ex: <target dev="vm1-e1"/>
                 my $target_tag = $init_xml->createElement('target');
                 $interface_tag->addChild($target_tag);
                 $target_tag->addChild( $init_xml->createAttribute( dev => "$vm_name-e$id" ) );
 
-				# <mac address="02:fd:00:04:01:00"/>
+				# Ex: <mac address="02:fd:00:04:01:00"/>
 				my $mac_tag = $init_xml->createElement('mac');
 			    $interface_tag->addChild($mac_tag);
 			    $mac =~ s/,//;

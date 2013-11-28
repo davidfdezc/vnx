@@ -187,12 +187,15 @@ e-mail: vnx@dit.upm.es
   <xs:element name="if">
     <xs:complexType>
       <xs:sequence>
+        <xs:element minOccurs="0" ref="vlan"/>	
         <xs:element minOccurs="0" ref="mac"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="ipv4"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="ipv6"/>
+
       </xs:sequence>
       <xs:attribute name="net" type="xs:string" use="required"/>
       <xs:attribute name="id" type="xs:string" use="required"/>
+
       <xs:attribute name="name" type="xs:string"/>
     </xs:complexType>
   </xs:element>
@@ -207,6 +210,21 @@ e-mail: vnx@dit.upm.es
   <xs:element name="ipv6">
     <xs:complexType mixed="true">
       <xs:attribute name="mask" type="xs:string" use="optional"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="vlan">
+    <xs:complexType>
+     <xs:sequence>
+        <xs:element maxOccurs="unbounded" minOccurs="0" ref="tag"/>	
+     </xs:sequence>
+    <xs:attribute name="trunk" type="xs:string" use="optional"/>
+    </xs:complexType>
+  </xs:element>
+
+ <xs:element name="tag">
+    <xs:complexType>
+      <xs:attribute name="id" type="xs:string" use="required"/>
     </xs:complexType>
   </xs:element>
 
@@ -254,10 +272,18 @@ e-mail: vnx@dit.upm.es
     <xs:complexType mixed="true"/>
   </xs:element>
 
+  <xs:element name="connection">
+    <xs:complexType>
+      <xs:attribute name="net" type="xs:string" use="required"/>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
   <xs:element name="net">
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" ref="bw"/>
+        <xs:element  minOccurs="0" ref="bw"/>
+        <xs:element maxOccurs="unbounded" minOccurs="0" ref="connection"/>
       </xs:sequence>
       <xs:attribute name="capture_dev" type="xs:string" use="optional"/>
       <xs:attribute name="sock" type="xs:string" use="optional"/>
@@ -265,11 +291,13 @@ e-mail: vnx@dit.upm.es
       <xs:attribute name="uml_switch_binary" type="xs:string" use="optional"/>
       <xs:attribute name="vlan" type="xs:string" use="optional"/>
       <xs:attribute name="capture_file" type="xs:string" use="optional"/>
+      <xs:attribute name="controller" type="xs:string" use="optional"/>
       <xs:attribute name="mode" use="required">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
             <xs:enumeration value="virtual_bridge"/>
             <xs:enumeration value="uml_switch"/>
+	    <xs:enumeration value="openvswitch"/>
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>

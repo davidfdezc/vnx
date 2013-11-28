@@ -991,6 +991,7 @@ sub mode_start {
 #        &xauth_add;
 
         start_VMs();
+        set_vlan_links();
          
         # If <host_mapping> is in use and not in debug mode, process /etc/hosts
         my $lines = join "\n", @host_lines;
@@ -1027,6 +1028,43 @@ sub mode_start {
 	   wlog (N,  "ERROR: " . $E->text . " at " . $E->file . ", line " .$E->line);
 	   wlog (N,  $E->stringify);
     }
+}
+
+sub set_vlan_links {
+
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
+        my $vm_name = $vm->getAttribute("name");
+        foreach my $if ($vm->getElementsByTagName("if")){
+            if ( (get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0)&& $if->getElementsByTagName("vlan")) {
+                my $if_id = $if->getAttribute("id");
+                my @vlan=$if->getElementsByTagName("vlan");
+                my $vlantag= $vlan[0];                          
+                my $trunk = $vlantag->getAttribute("trunk");
+                my $port_name="$vm_name"."-e"."$if_id";
+                my $tagConcatenation="";
+                my $vlan_number=0;
+                foreach my $tag ($vlantag->getElementsByTagName("tag")){
+                    my $tag_id=$tag->getAttribute("id");
+                    $tagConcatenation.="$tag_id".",";
+                    $vlan_number=$vlan_number+1;    
+                }
+                        
+                if ($trunk eq 'yes'){
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."trunk=$tagConcatenation");
+                } else {
+                    if($vlan_number eq 1){
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."tag=$tagConcatenation");
+                    } else {  
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."trunk=$tagConcatenation");
+                    }
+
+                                
+                }
+            }
+        }
+     }
 }
 
 sub start_VMs {
@@ -2170,6 +2208,184 @@ sub configure_virtual_bridged_networks {
         }
 
         # To get interfaces list
+        foreach my $if ($vm->getElementsByTagName("if")) {          
+
+            # We get attribute
+            my $id = $if->getAttribute("id");
+            my $net = $if->getAttribute("net");
+
+            # Only TUN/TAP for interfaces attached to bridged networks
+            # We do not create tap interfaces for libvirt VMs. It is done by libvirt 
+            #if (&check_net_br($net)) {
+            if ( ($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ( &get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
+
+                # We build TUN device name
+                my $tun_if = $vm_name . "-e" . $id;
+
+                # To create TUN device
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
+
+                # To set up device
+                #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if 0.0.0.0 " . $dh->get_promisc . " up");
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $tun_if up");
+                        
+            }
+        }
+    }
+   
+   # 2. Create bridges
+      
+     # To process list
+    foreach my $net ($doc->getElementsByTagName("net")) {
+
+      # We get name attribute
+      my $net_name    = $net->getAttribute("name");
+      my $mode        = $net->getAttribute("mode");
+      my $external_if = $net->getAttribute("external");
+      my $vlan        = $net->getAttribute("vlan");
+
+      # This function only processes virtual_bridge networks
+        #Carlos modifications(añadido parametro de entrada mode)
+      unless (&vnet_exists_br($net_name,$mode)) {
+        if ($mode eq "virtual_bridge") {
+         # If bridged does not exists, we create and set up it
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addbr $net_name");
+            if ($dh->get_stp) {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name on");
+            }else {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
+            }
+
+       }elsif ($mode eq "openvswitch") {
+         # If bridged does not exists, we create and set up it
+    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-br $net_name");
+        if($net->getAttribute("controller") ){
+            my $controller = $net->getAttribute("controller");
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set-controller $net_name $controller");
+            }
+        
+    }
+      sleep 1;    # needed in SuSE 8.2
+            
+            #
+            # Create a tap interface with a "low" mac address and join it to the bridge to 
+            # obligue the bridge to use that mac address.
+            # See http://backreference.org/2010/07/28/linux-bridge-mac-addresses-and-dynamic-ports/
+            #
+            # Generate a random mac address under prefix 02:00:00 
+            my @chars = ( "a" .. "f", "0" .. "9");
+            my $brtap_mac = "020000" . join("", @chars[ map { rand @chars } ( 1 .. 6 ) ]);
+            $brtap_mac =~ s/(..)/$1:/g;
+            chop $brtap_mac;                       
+            # Create tap interface
+            my $brtap_name = "$net_name-e00";
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $brtap_name -f " . $dh->get_tun_device);
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name address $brtap_mac");                       
+            # Join the tap interface to bridge
+            #Carlos modifications
+            if ($mode eq "virtual_bridge") {
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $brtap_name");
+        }elsif ($mode eq "openvswitch") {
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name $brtap_name");
+        }
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name up");                       
+            
+            # Bring the bridge up
+            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");         
+         }
+        
+         # Is there an external interface associated with the network?
+         #unless ($external_if =~ /^$/) {
+         unless (empty($external_if)) {
+            # If there is an external interface associate, to check if VLAN is being used
+            #unless ($vlan =~ /^$/ ) {
+            unless (empty($vlan) ) {
+               # If there is not any configured VLAN at this interface, we have to enable it
+               unless (&check_vlan($external_if,"*")) {
+                  #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
+                  $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
+               }
+               # If VLAN is already configured at this interface, we haven't to configure it
+               unless (&check_vlan($external_if,$vlan)) {
+                  $execution->execute_root($logp, $bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
+                  $execution->execute_root($logp, $bd->get_binaries_path_ref->{"vconfig"} . " set_name_type DEV_PLUS_VID_NO_PAD");
+                  $execution->execute_root($logp, $bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
+               }
+               $external_if .= ".$vlan";
+               #$external_if .= ":$vlan";
+            }
+         
+            # If the interface is already added to the bridge, we haven't to add it
+        #Carlos modifications(añadido parametro de entrada mode)
+            my @if_list = &vnet_ifs($net_name,$mode);
+            wlog (VVV, "vnet_ifs returns @if_list", $logp);
+            $_ = "@if_list";
+            unless (/\b($external_if)\b/) {
+               $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
+               #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
+        #Carlos modifications
+        if ($mode eq "virtual_bridge") {
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $external_if");
+        }elsif ($mode eq "openvswitch") {
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name $external_if");
+            }
+        }
+            # We increase interface use counter
+            &inc_cter($external_if);
+         }
+      
+   }
+    #Wait until all the openvswitches are created, then establish all the declared links between those switches
+    foreach my $net ($doc->getElementsByTagName("net")) {
+        my $net_name    = $net->getAttribute("name");
+        foreach my $connection ($net->getElementsByTagName("connection")) {
+            my $net_to_connect=$connection->getAttribute("net");
+            my $interfaceName=$connection->getAttribute("name");
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name $interfaceName"."1-0");
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set interface $interfaceName"."1-0 type=patch options:peer=$interfaceName"."0-1");
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port  $net_to_connect $interfaceName"."0-1");
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set interface $interfaceName"."0-1 type=patch options:peer=$interfaceName"."1-0");
+        }
+    }
+}
+
+=BEGIN
+#
+# configure_virtual_bridged_networks
+#
+# To create TUN/TAP devices
+sub configure_virtual_bridged_networks {
+
+    # TODO: to considerate "external" atribute when network is "ppp"
+
+    my $doc = $dh->get_doc;
+    my @vm_ordered = $dh->get_vm_ordered;
+
+    # 1. Set up tun devices
+
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
+
+        # We get name and type attribute
+        my $vm_name = $vm->getAttribute("name");
+        my $vm_type = $vm->getAttribute("type");
+
+        # Only one modprobe tun in the same execution: after checking tun_device_needed. See mode_t subroutine
+        # -----------------------
+        # To start tun module
+        #!$execution->execute( $logp, $bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
+     
+        # To create management device (id 0), if needed
+        # The name of the if is: $vm_name . "-e0"
+        my $mng_if_value = &mng_if_value($vm);
+      
+        if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
+            my $tun_if = $vm_name . "-e0";
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
+        }
+
+        # To get interfaces list
         foreach my $if ($vm->getElementsByTagName("if")) {      	
 
             # We get attribute
@@ -2198,10 +2414,7 @@ sub configure_virtual_bridged_networks {
    
    # 2. Create bridges
       
-    #my $net_list = $doc->getElementsByTagName("net");
-
     # To process list
-    #for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
    	foreach my $net ($doc->getElementsByTagName("net")) {
 
       # We get name attribute
@@ -2211,10 +2424,11 @@ sub configure_virtual_bridged_networks {
       my $vlan        = $net->getAttribute("vlan");
 
       # This function only processes virtual_bridge networks
-      if ($mode ne "uml_switch") {
+        unless (&vnet_exists_br($net_name), $mode) {
+
+            if ($mode eq "virtual_bridge") {
 
          # If bridged does not exists, we create and set up it
-         unless (&vnet_exists_br($net_name)) {
             $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addbr $net_name");
 	        if ($dh->get_stp) {
                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name on");
@@ -2222,7 +2436,16 @@ sub configure_virtual_bridged_networks {
 	        else {
                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
 	        }
-	        sleep 1;    # needed in SuSE 8.2
+        } elsif ($mode eq "openvswitch") {
+            # If bridged does not exists, we create and set up it
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-br $net_name");
+            if($net->getAttribute("controller") ){
+                my $controller = $net->getAttribute("controller");
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set-controller $net_name $controller");
+            }
+        }
+        
+        sleep 1;    # needed in SuSE 8.2
             
             #
             # Create a tap interface with a "low" mac address and join it to the bridge to 
@@ -2283,6 +2506,10 @@ sub configure_virtual_bridged_networks {
       }
    }
 }
+=END
+=cut
+
+
 
 ######################################################
 # To link TUN/TAP to the bridges
@@ -2320,7 +2547,13 @@ sub tun_connect {
                 my $net_if = $vm_name . "-e" . $id;
 
                 # We link TUN/TAP device 
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
+                #$execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
+                if (get_net_by_mode($net,"virtual_bridge") != 0) {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
+                } elsif (get_net_by_mode($net,"openvswitch") != 0) {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net $net_if");
+                }
+                
             }
 
         }
@@ -3260,11 +3493,17 @@ sub external_if_remove {
 
         # To decrease use counter
         &dec_cter($external_if);
-
+        
+        my $mode = $net->getAttribute("mode");
         # To clean up not in use physical interfaces
         if (&get_cter($external_if) == 0) {
             #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");         
+            #$execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");         
+            if ($mode eq "virtual_bridge") {
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " delif $net_name $external_if");
+            } elsif ($mode eq "openvswitch") {         
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " del-port $net_name $external_if");
+            }
             $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " delif $net_name $external_if");
             unless (empty($vlan)) {
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"vconfig"} . " rem $external_if");
@@ -3400,8 +3639,8 @@ sub bridges_destroy {
         if ($mode ne "uml_switch") {
 
             # Set bridge down and remove it only in the case there isn't any associated interface 
-            my @br_ifs =&vnet_ifs($net_name);   
-
+            my @br_ifs =&vnet_ifs($net_name,$mode);  
+            wlog (N, "OVS a eliminar @br_ifs", $logp);
 	    	wlog (VVV, "br_ifs=@br_ifs", $logp);
 
             if ( (@br_ifs == 1) && ( $br_ifs[0] eq "${net_name}-e00" ) ) {
@@ -3413,7 +3652,12 @@ sub bridges_destroy {
                 # Destroy the bridge
                 #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name down");
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name down");
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " delbr $net_name");
+                #$execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " delbr $net_name");
+                if ($mode eq "virtual_bridge") {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " delbr  $net_name");
+                } elsif ($mode eq "openvswitch") {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " del-br $net_name");
+                }
             }
         }
     }
@@ -4964,6 +5208,13 @@ sub make_vmAPI_doc {
 	      	$if_tag->addChild( $dom->createAttribute( id => $id));
 	      	$if_tag->addChild( $dom->createAttribute( net => $net));
 	      	$if_tag->addChild( $dom->createAttribute( mac => $mac));
+            
+            if (get_net_by_mode($net,"virtual_bridge") != 0){
+                $if_tag->addChild( $dom->createAttribute( netType => "virtual_bridge"));
+            } elsif(get_net_by_mode($net,"openvswitch") != 0){
+                $if_tag->addChild( $dom->createAttribute( netType => "openvswitch"));
+            }
+
 	      	try {
 	      		my $name = $if->getAttribute("name");
 	      		unless (empty($name)) { 

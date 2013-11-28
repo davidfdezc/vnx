@@ -253,11 +253,12 @@ sub add_additional_bridge_binaries {
     my $self = shift;
    
     my @list = ();
-    #my $net_list = $dh->get_doc->getElementsByTagName("net");
-    #for (my $i = 0; $i < $net_list->getLength; $i++) {
     foreach my $net ($dh->get_doc->getElementsByTagName("net")) {
         if ($net->getAttribute("mode") eq "virtual_bridge") {
             push (@list, "brctl");
+            last;
+        } elsif($net->getAttribute("mode") eq "openvswitch") {
+            push (@list, "ovs-vsctl");
             last;
         }
     }   
