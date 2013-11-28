@@ -120,11 +120,17 @@ sub check_net_host_conn {
 sub vnet_exists_br {
 
    my $vnet_name = shift;
+   my $mode = shift;
+   my $pipe;
 
    # To get `brctl show`
    my @brctlshow;
    my $line = 0;
-   my $pipe = $bd->get_binaries_path_ref->{"brctl"} . " show |";
+   if ($mode eq "virtual_bridge"){
+        $pipe = $bd->get_binaries_path_ref->{"brctl"} . " show |";
+   } elsif($mode eq "openvswitch"){
+        $pipe = $bd->get_binaries_path_ref->{"ovs-vsctl"} . " show |";
+   }
    open BRCTLSHOW, "$pipe";
    while (<BRCTLSHOW>) {
       chomp;
@@ -183,36 +189,61 @@ sub vnet_exists_sw {
 sub vnet_ifs {
 
     my $vnet_name = shift;
+    my $mode = shift;
     my @if_list;
 
-    # Load the list of bridges
-    my $bridges_list = `brctl show | tail -n +2 | sed -n '/^\\w/p' | awk '{print \$1}'`;
-    $bridges_list =~ s/\R/ /g; # Change newlines to spaces
-    my @bridges = split(' ', $bridges_list);
-    #print "bridges_list=$bridges_list\n";
+    if ($mode eq "virtual_bridge"){
 
-    # Load the list of bridges + interfaces
-    my $bridges_and_ifs_list = `brctl show | tail -n +2 | awk '{ print \$1; if (\$4!="") print \$4 }'`; 
-    $bridges_and_ifs_list =~ s/\R/ /g; # Change newlines to spaces
-    my @bridges_and_ifs = split(' ', $bridges_and_ifs_list);
-    #print "bridges_and_ifs_list=$bridges_and_ifs_list\n";
-
-    # Fill a hash table with the names of the bridges
-    my %hbridges = ();
-    foreach $b (@bridges) {
-      #print "$b\n";
-      $hbridges{$b}='yes';
-    } 
-
-    my $found = 'false';
-    foreach my $s (@bridges_and_ifs) {
-      	if ( $found eq 'true' ) {
-        	if ( $hbridges{$s} ) { last }
-        	else                 { push (@if_list,$s); }
-      	}
-      	if ($s eq $vnet_name) { $found = 'true' }
+	    # Load the list of bridges
+	    my $bridges_list = `brctl show | tail -n +2 | sed -n '/^\\w/p' | awk '{print \$1}'`;
+	    $bridges_list =~ s/\R/ /g; # Change newlines to spaces
+	    my @bridges = split(' ', $bridges_list);
+	    #print "bridges_list=$bridges_list\n";
+	
+	    # Load the list of bridges + interfaces
+	    my $bridges_and_ifs_list = `brctl show | tail -n +2 | awk '{ print \$1; if (\$4!="") print \$4 }'`; 
+	    $bridges_and_ifs_list =~ s/\R/ /g; # Change newlines to spaces
+	    my @bridges_and_ifs = split(' ', $bridges_and_ifs_list);
+	    #print "bridges_and_ifs_list=$bridges_and_ifs_list\n";
+	
+	    # Fill a hash table with the names of the bridges
+	    my %hbridges = ();
+	    foreach $b (@bridges) {
+	      #print "$b\n";
+	      $hbridges{$b}='yes';
+	    } 
+	
+	    my $found = 'false';
+	    foreach my $s (@bridges_and_ifs) {
+	      	if ( $found eq 'true' ) {
+	        	if ( $hbridges{$s} ) { last }
+	        	else                 { push (@if_list,$s); }
+	      	}
+	      	if ($s eq $vnet_name) { $found = 'true' }
+	    }
+	    return @if_list;
+    } elsif ($mode eq "openvswitch") {
+        my $pipe;
+        my @brctlshow;
+        my $line = 0;
+        
+        $pipe = $bd->get_binaries_path_ref->{"ovs-vsctl"} . " show |";
+        open BRCTLSHOW, "$pipe";
+        while (<BRCTLSHOW>) {
+            chomp;
+            $brctlshow[$line++] = $_;
+        }
+        close BRCTLSHOW; 
+        wlog (V, "*************** @brctlshow");  	
+        for ( my $i = 1; $i < $line; $i++) {
+            $_ = $brctlshow[$i];
+            /^ *Bridge "(\S+)"$/;
+            if (defined($1) && ($1 eq $vnet_name)) {
+                # To push interface into the list
+                push (@if_list,$1."-e00");
+            }
+        }
     }
-    return @if_list;
 }
 
 =BEGIN
