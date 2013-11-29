@@ -245,8 +245,10 @@ sub defineVM {
             $execution->execute( $logp, "echo '# ifname on the host' >> $vm_lxc_config" );
             $execution->execute( $logp, "echo 'lxc.network.veth.pair=$vm_name-e$id' >> $vm_lxc_config" );
             $execution->execute( $logp, "echo 'lxc.network.hwaddr=$mac' >> $vm_lxc_config" );
-            $execution->execute( $logp, "echo '# bridge if connects to' >> $vm_lxc_config" );
-            $execution->execute( $logp, "echo 'lxc.network.link=$net' >> $vm_lxc_config" );
+            if ($id != 0) {
+	            $execution->execute( $logp, "echo '# bridge if connects to' >> $vm_lxc_config" );
+	            $execution->execute( $logp, "echo 'lxc.network.link=$net' >> $vm_lxc_config" );
+            }
             $execution->execute( $logp, "echo 'lxc.network.flags=up' >> $vm_lxc_config" );
 
             #

@@ -134,9 +134,6 @@ my $input_file;
 # Just a line...
 my $hline = "----------------------------------------------------------------------------------";
 
-# Command line options hash
-#my %opts = ();
-
 # host log prompt
 my $logp = "host> ";
 
@@ -462,7 +459,6 @@ $>=$uid;
 
     # Build the VNX::Execution object
     $execution = new VNX::Execution($vnx_dir,$exemode,"host> ",$exeinteractive,$uid,$opts{o});
-    #$execution->set_verb_prompt("host> ");
 
     #
     # Process pseudomodes (modes that do not need a scenario file)
@@ -1120,9 +1116,10 @@ sub start_VMs {
             #$execution->execute($logp,  $bd->get_binaries_path_ref->{"ifconfig"}
             #    . " $vm_name-e0 " . $net{'host'}->addr() . " netmask " . $net{'host'}->mask() . " up" );
             my $ip_addr = NetAddr::IP->new($net{'host'}->addr(),$net{'host'}->mask());
+
 change_to_root();
-            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $vm_name-e0 up");
-            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $vm_name-e0");
+			$execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $vm_name-e0 up");
+			$execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $vm_name-e0");
 back_to_user();               
         }
 
@@ -2202,7 +2199,7 @@ sub configure_virtual_bridged_networks {
         # The name of the if is: $vm_name . "-e0"
         my $mng_if_value = &mng_if_value($vm);
       
-        if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
+        if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") && ($vm_type ne 'lxc')) {
             my $tun_if = $vm_name . "-e0";
             $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
         }
@@ -3576,14 +3573,15 @@ sub tun_destroy {
     for ( my $i = 0; $i < @vm_ordered; $i++) {
         my $vm = $vm_ordered[$i];
 
-        # To get name attribute
+        # To get name and type attribute
         my $vm_name = $vm->getAttribute("name");
+        my $vm_type = $vm->getAttribute("type");
 
         # To throw away and remove management device (id 0), if neeed
         #my $mng_if_value = &mng_if_value($dh,$vm);
         my $mng_if_value = &mng_if_value($vm);
       
-        if ($dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no") {
+        if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") && ($vm_type ne 'lxc')) {
             my $tun_if = $vm_name . "-e0";
             #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
             $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
