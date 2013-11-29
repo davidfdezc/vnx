@@ -668,6 +668,30 @@ sub startVM {
 
         }
 		
+        # If host_mapping is in use and the vm has a management interface, 
+        # then we have to add an entry for this vm in $dh->get_sim_dir/hostlines file
+        if ( $dh->get_host_mapping ) {
+        	my @vm_ordered = $dh->get_vm_ordered;
+	        for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+	        	my $vm = $vm_ordered[$i];
+	            my $name = $vm->getAttribute("name");
+	            unless ( $name eq $vm_name ) { next; }
+						    		
+				# Check whether the vm has a management interface enabled
+				my $mng_if_value = &mng_if_value($vm);
+				unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
+                            
+                 	# Get the vm management ip address 
+                    my %net = &get_admin_address( 'file', $vm_name );
+                    # Add it to hostlines file
+                    open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
+                        or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
+                        unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+                    print HOSTLINES $net{'vm'}->addr() . " $vm_name\n";
+                    close HOSTLINES;
+                }	    		
+            }
+        }
         
         return $error;
 

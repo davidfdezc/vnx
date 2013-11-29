@@ -2009,7 +2009,7 @@ sub get_seq_desc {
 sub configure_switched_networks {
 
     my $doc = $dh->get_doc;
-    my $sim_name = $dh->get_scename;
+    my $scename = $dh->get_scename;
 
 	# Create the symbolic link to the management switch
 	if ($dh->get_vmmgmt_type eq 'net') {
@@ -2085,7 +2085,7 @@ sub configure_switched_networks {
                     }
 				
 				    if ($capture_dev || $capture_file) {
-				       $extra = $extra . " -scenario_name $sim_name $net_name";
+				       $extra = $extra . " -scenario_name $scename $net_name";
 				    }
 				
 					if (!$command){
@@ -2128,7 +2128,7 @@ sub configure_switched_networks {
                     }
 
                     if ($capture_dev || $capture_file) {
-                       $extra = $extra . " -scenario_name $sim_name $net_name";
+                       $extra = $extra . " -scenario_name $scename $net_name";
                     }
 
                     if (!$command){
@@ -3858,13 +3858,14 @@ sub get_kernel_pids {
 sub host_mapping_patch {
 
 #   my $lines = shift;
-   my $sim_name = shift;
+   my $scename = shift;
    my $file_name = shift;
 
    # DEBUG
-   #print "--filename: $file_name\n";
-   #print "--scename:  $scename\n";
-
+   my $logp = "host_mapping_patch";
+   wlog (VVV, "--filename: $file_name", $logp);
+   wlog (VVV, "--scename:  $scename", $logp);
+	
 change_to_root();
    # Openning files
    open HOST_FILE, "$file_name"
@@ -3894,7 +3895,7 @@ change_to_root();
 	     $status = 1 if (/^\# VNX BEGIN/);
       }
       elsif ($status == 1) {
-         if (/^\# BEGIN: $sim_name$/) {
+         if (/^\# BEGIN: $scename$/) {
 	    $status = 2;
 	 }
 	 elsif (/^\# VNX END/) {
@@ -3906,7 +3907,7 @@ change_to_root();
 	 }
       }
       elsif ($status == 2) {
-         if (/^\# END: $sim_name$/) {
+         if (/^\# END: $scename$/) {
 	    $status = 3;
 	 }
       }
@@ -3952,10 +3953,10 @@ change_to_root();
    chomp (my $lines = `$command`);
    $command = $bd->get_binaries_path_ref->{"date"};
    chomp (my $now = `$command`);
-   print SECOND "\# BEGIN: $sim_name\n";
+   print SECOND "\# BEGIN: $scename\n";
    print SECOND "\# topology built: $now\n";
    print SECOND "$lines\n";
-   print SECOND "\# END: $sim_name\n";
+   print SECOND "\# END: $scename\n";
    
    # Append of fragments
    close FIRST;
@@ -3968,7 +3969,6 @@ change_to_root();
    my $file_bk = "$dir_name/$basename.vnx.old";
    $execution->execute($logp, $bd->get_binaries_path_ref->{"mv"} . " $file_name $file_bk");
    $execution->execute($logp, $bd->get_binaries_path_ref->{"cat"} . " " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3 > $file_name");
-
    $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/hostfile.1 " . $dh->get_tmp_dir . "/hostfile.2 " . $dh->get_tmp_dir . "/hostfile.3");
 back_to_user();
 }
@@ -3983,7 +3983,7 @@ back_to_user();
 #    
 sub host_mapping_unpatch {
 
-   my $sim_name = shift;
+   my $scename = shift;
    my $file_name = shift;
 
 change_to_root();
@@ -4016,7 +4016,7 @@ change_to_root();
             $status = 1 if (/^\# VNX BEGIN/);
         }
         elsif ($status == 1) {
-            if (/^\# BEGIN: $sim_name$/) {
+            if (/^\# BEGIN: $scename$/) {
                 $status = 2;
             }
             elsif (/^\# VNX END/) {
@@ -4028,7 +4028,7 @@ change_to_root();
             }
         }
         elsif ($status == 2) {
-            if (/^\# END: $sim_name$/) {
+            if (/^\# END: $scename$/) {
                 $status = 3;
             }
         }
@@ -4072,9 +4072,9 @@ change_to_root();
    # Second fragment
    my $command = $bd->get_binaries_path_ref->{"date"};
    chomp (my $now = `$command`);
-   print SECOND "\# BEGIN: $sim_name\n";
+   print SECOND "\# BEGIN: $scename\n";
    print SECOND "\# topology destroyed: $now\n";
-   print SECOND "\# END: $sim_name\n";
+   print SECOND "\# END: $scename\n";
    
    # Append of fragments
    close FIRST;
