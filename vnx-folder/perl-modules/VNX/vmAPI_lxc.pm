@@ -317,7 +317,7 @@ sub defineVM {
 	    # Network interfaces configuration: <if> tags
         foreach my $if ($vm->getElementsByTagName("if")) {
 	        my $id    = $if->getAttribute("id");
-	        my $net   = $if->getAttribute("net");
+	        my $net   = str($if->getAttribute("net"));
 	        my $mac   = $if->getAttribute("mac");
 	        $mac =~ s/,//g;
 	

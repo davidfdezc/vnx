@@ -681,8 +681,8 @@ sub get_default_exec_mode {
 
     my $self    = shift;    
     my $type    = shift;
-    my $subtype = shift;
-    my $os      = shift;
+    my $subtype = str(shift);
+    my $os      = str(shift);
    
     my $merged_type;
     my $def_execmode;
