@@ -924,7 +924,7 @@ sub define_VMs {
          $mngt_ip_data = $mngt_ip_counter;
       }
       
-      $docstring = &make_vmAPI_doc($vm,$i,$mngt_ip_data); 
+      $docstring = &make_vmAPI_doc($vm,$mngt_ip_data); 
            
       # call the corresponding vmAPI->defineVM
       my $vm_type = $vm->getAttribute("type");
@@ -4962,7 +4962,6 @@ sub build_topology{
 #
 # Arguments:
 # - $vm_name, the virtual machine name
-# - $vm_order, the order number of the vm (used to generate mac addresses)
 # - $mngt_ip_data, passed to get_admin_address
 #
 # Returns:
@@ -4971,7 +4970,6 @@ sub build_topology{
 sub make_vmAPI_doc {
 	
    	my $vm           = shift;
-   	my $vm_order     = shift;
    	my $mngt_ip_data = shift;
 
    	my $dom;
@@ -4983,6 +4981,7 @@ sub make_vmAPI_doc {
    
    	# We get name attribute
    	my $vm_name = $vm->getAttribute("name");
+   	my $vm_order = $dh->get_vm_order($vm_name);
 
    	# Insert random id number
    	my $fileid_tag = $dom->createElement('id');
@@ -5149,7 +5148,7 @@ sub make_vmAPI_doc {
     	my $mng_if_tag = $dom->createElement('if');
     	$vm_tag->addChild($mng_if_tag);
 
-      	my $mac = &automac($vm_order+1, 0);
+      	my $mac = &automac($vm_order, 0);
         $mng_if_tag->addChild( $dom->createAttribute( mac => $mac));
 
 		if (defined $mgmtIfName) {
@@ -5198,7 +5197,7 @@ sub make_vmAPI_doc {
 	         	#$mac = "," . &text_tag($mac_list->item(0));
 	      	}
 	      	else {	  #my @group = getgrnam("@TUN_GROUP@");
-	         	$mac = &automac($vm_order+1, $id);
+	         	$mac = &automac($vm_order, $id);
 	      	}
 	         
 	      	# if tags in dom tree 

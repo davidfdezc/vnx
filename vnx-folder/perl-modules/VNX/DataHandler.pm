@@ -796,6 +796,28 @@ sub get_vm_byname {
 }
 
 
+# get_vm_order
+#
+# Returns the order of a vm in the scenario
+#
+# Used mainly by automac fumction to associate always the same 
+# mac address to every vm
+#
+sub get_vm_order {
+    my $self = shift;
+    my $vm_name = shift;
+
+    my @vm_ordered = $dh->get_vm_ordered;
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
+
+		if ( $vm->getAttribute("name") eq $vm_name ) {
+			return $i;			
+		}
+    }
+	$self->{'execution'}->smartdie("ERROR in get_vm_ordered, vm $vm_name not found in vm list")   
+}
+
 # get_vm_ordered
 #
 # Returns a list of vm nodes, ordered based on "order" number
@@ -893,8 +915,8 @@ sub get_vm_to_use_ordered {
 # get_vm_to_use
 #
 # Returns a hash with the vm names of the scenario to be used for each mode. 
-# For all modes except "execution", it returns all the vms defined in the VNX source file, except when the -M switch. 
-# is in use.
+# For all modes except "execution", it returns all the vms defined in the VNX 
+# source file, except when the -M switch is in use.
 #
 #  my @vm_ordered = $dh->get_vm_ordered;
 #  my %vm_hash = $dh->get_vm_to_use;
