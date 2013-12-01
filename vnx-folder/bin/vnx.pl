@@ -5,8 +5,9 @@
 #
 # Authors:    Fermin Galan Marquez (galan@dit.upm.es), David Fernández (david@dit.upm.es),
 #             Jorge Somavilla (somavilla@dit.upm.es), Jorge Rodriguez (jrodriguez@dit.upm.es), 
+#             Carlos González (carlosgonzalez@dit.upm.es)
 # Coordinated by: David Fernández (david@dit.upm.es)
-# Copyright (C) 2005-2012 DIT-UPM
+# Copyright (C) 2005-2013 DIT-UPM
 #                         Departamento de Ingenieria de Sistemas Telematicos
 #                         Universidad Politecnica de Madrid
 #                         SPAIN
@@ -4316,8 +4317,8 @@ sub get_UML_command_ip {
 # $automac_offset is used to complete MAC address
 sub automac {
 
-      my $ante_lower = shift;
-      my $lower = shift;
+      my $ante_lower = sprintf("%x", shift);
+      my $lower = sprintf("%x", shift);
 
       my $doc = $dh->get_doc;
 
