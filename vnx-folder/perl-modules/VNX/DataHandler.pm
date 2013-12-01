@@ -1403,6 +1403,19 @@ sub merge_filetree {
     return @list;
 }
 
+sub merge_shell {
+	
+    my $self = shift;
+    my $vm = shift;
+
+	my $shell      = $dh->get_default_shell;
+	my @shell_list = $vm->getElementsByTagName("shell");
+	if ( @shell_list == 1 ) {
+		$shell = &text_tag( $shell_list[0] );
+	}
+	return $shell;	
+}
+
 ###########################################################################
 # PRIVATE METHODS (it only must be used from this class itsefl)
 

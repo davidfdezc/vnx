@@ -1143,8 +1143,21 @@ sub executeCMD {
             
             my $command = $cmd->getFirstChild->getData;
         	my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
+        	
+        	#
+        	# We execute the command inside a shell using:
+        	#   sh -c 'command'
+        	# to avoid problems with complex commands made of several lines or including 
+        	# input/output redirection. We have to scape "'" inside the command changing
+        	# each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
+        	# 
+        	# The shell type (sh, bashc, etc) can be changed with the <shell> tag inside <vm>
+        	#
+        	my $shell = $dh->merge_shell ($vm);
+        	$command =~ s/'/'\\''/g;
+        	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
             wlog (V, "executeCMD: executing user defined exec command '$command'", $logp);
-        	$execution->execute( $logp, "lxc-attach -n $vm_name -- $command");
+        	$execution->execute( $logp, "lxc-attach -n $vm_name -- $shell -c '$command'");
         }
 
         # We close file and mark it executable
