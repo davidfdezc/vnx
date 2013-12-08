@@ -193,7 +193,7 @@ sub execute {
     my $retval = 0;	# By default, all right
     if ((my ($command, $CMD_OUT) = @_) == 1) {
         #
-        # Direct mode
+        # Direct mode: Direct mode: command execution throught perl system function.
         #
         if ($exe_mode == $EXE_DEBUG) {
             #print "D-" . $verb_prompt . "$command\n";
@@ -203,7 +203,10 @@ sub execute {
         elsif ($exe_mode == $EXE_VERBOSE) {
             #print $verb_prompt . "$command\n";
             my $cmd_line = $command; $cmd_line =~ s/\n/\\n/g;
-            print_log ($cmd_line, $verb_prompt);      
+            #if ( $EXE_VERBOSITY_LEVEL >= VV ) { 
+                print_log ($cmd_line, $verb_prompt);
+            #}      
+
 #            if ($execution->get_logfile()) { 
 #                open LOG_FILE, ">> " . $execution->get_logfile() 
 #                    or $execution->smartdie( "can not open log file (" . $execution->get_logfile . ") for writting" );
@@ -236,8 +239,11 @@ sub execute {
                 # We add parenthesys "()" to the command to avoid 
                 # problems in case the command includes i/o redirections
                 # (e.g.:    echo ... > file )
-                system "( $command ) > /dev/null 2>&1";
+
+#                system "( $command ) > /dev/null 2>&1";
 #            }
+
+            system "( $command ) > /dev/null 2>&1";
             $retval = $?;
             if ($exe_interactive) {
                 &press_any_key;
@@ -246,7 +252,7 @@ sub execute {
     }
     else {
 		#
-        # Recording mode
+        # Recording mode: dumping commands to a file, that will be executed in another moment 
         #
         wlog (VVV, "command=$command", $verb_prompt);
         #wlog (VVV, "CMD_OUT=$CMD_OUT", $verb_prompt);
@@ -257,7 +263,9 @@ sub execute {
         elsif ($exe_mode == $EXE_VERBOSE) {
             #print $verb_prompt . "$command\n";
             print $CMD_OUT "$command\n";
-            print_log ($command, $verb_prompt);      
+            if ( $EXE_VERBOSITY_LEVEL >= VV ) { 
+                print_log ($command, $verb_prompt);
+            }      
 #            if ($execution->get_logfile()) { 
 #                open LOG_FILE, ">> " . $execution->get_logfile() 
 #                    or $execution->smartdie( "can not open log file (" . $execution->get_logfile . ") for writting" );
@@ -337,6 +345,57 @@ sub execute_mconsole {
   
 }
 
+# execute_getting_output
+#
+# Shell commands execution interface. This functions is
+# similar to 'execute' but it returns the command output instead
+# of the command return value ($?)
+#
+# It only implements the Direct Mode: command execution throught 
+# backticks (`') Perl functionality.
+#
+# Interactive mode can be used in addition to direct mode ($exe_interactive)
+#
+# Verbose output (when $exe_mode has EXE_DEBUG or EXE_VERBOSE)
+# goes to standard output. It is prefixed with $verb_prompt
+# and, in addition, with D- in debug mode
+
+sub execute_getting_output {
+    my $self = shift;
+    my $verb_prompt = shift;
+    my $command = shift;
+   
+    my $exe_mode = $self->{'exe_mode'};
+    my $exe_interactive = $self->{'exe_interactive'};
+
+    my $retval = '';	# By default, all right
+
+    if ($exe_mode == $EXE_DEBUG) {
+        $command =~ s/\n/\\n/g;
+        print sprintf("D-%-8s %s", $verb_prompt, "$command\n");
+    }
+    elsif ($exe_mode == $EXE_VERBOSE) {
+        my $cmd_line = $command; $cmd_line =~ s/\n/\\n/g;
+        print_log ($cmd_line, $verb_prompt);      
+
+        $retval = `( $command ) 2>&1`;
+        if ( $execution->get_logfile() ) { # Send output to log file if defined
+            system "echo $retval >> " . $execution->get_logfile();
+        }
+        if ($exe_interactive) {
+            &press_any_key;
+        }
+    }
+    elsif ($exe_mode == $EXE_NORMAL) {
+        system "( $command ) > /dev/null 2>&1";
+        $retval = '';
+        if ($exe_interactive) {
+            &press_any_key;
+        }
+    }
+    return $retval;
+}
+
 sub change_to_root {
     $>=0;    wlog (VVV, "-- Changed to root", "");
 }
@@ -378,6 +437,100 @@ sub smartdie {
    printf "%s (%s): %s \n", (caller(1))[3], (caller(0))[2], $mess;
    print "-------------------------------------------------------------------------------\n";
    exit 1; 
+}
+
+
+sub press_any_key {
+	
+    my $msg = shift;
+    
+    my $hline = "----------------------------------------------------------------------------------";
+    
+    print "$hline\n";
+    if ($msg) { print "Execution paused ($msg)\n" }	
+    print "Press any key to continue...\n";
+    
+    # Copy-paste from http://perlmonks.thepen.com/33566.html
+    # A simpler alternative to this code is <>, but that is ugly :)
+
+    my $key;
+    ReadMode 4; # Turn off controls keys
+    while (not defined ($key = ReadKey(1))) {
+        # No key yet
+    }
+    ReadMode 0; # Reset tty mode before exiting
+    print "$hline\n";
+
+}
+
+sub pak { 
+
+    my $msg = shift;
+    press_any_key ($msg);
+	
+}
+
+# wlog 
+#
+# Write log message depending on the verbosity level ($execution->get_exe_mode()).
+# Adds a "\n" to the end of the message. Uses the $execution object, so it cannot be
+# called before $execution is initialized.
+# 
+# Call with: 
+#    wlog (N, "log message")  
+#    wlog (V, "log message", "prompt> ")  
+#    wlog (VV, "log message", "prompt> ")  
+#    wlog (VVV, "log message", "prompt> ")
+#  
+sub wlog {
+	
+	my $msg_level = shift;   # Posible values: V, VV, VVV
+	my $msg       = shift;
+	my $prompt    = shift;
+
+    unless ( defined($prompt) or ($msg_level == N) ) {
+    	#$prompt = "vnx-log-$EXE_VERBOSITY_LEVEL>";  
+    	$prompt = $execution->get_verb_prompt();
+    }
+
+    my $exe_mode = $execution->get_exe_mode();
+	
+	#print "~~ wlog: msg_level=$msg_level, exe_mode=$exe_mode, EXE_VERBOSITY_LEVEL=$EXE_VERBOSITY_LEVEL\n";		
+    if ($msg_level == N) {
+        print "$msg\n"; 
+        if ($execution->get_logfile()) { print_log ($msg, ""); }
+    } elsif ( ($exe_mode == $EXE_DEBUG) || ( ($exe_mode == $EXE_VERBOSE) && ( $msg_level <= $EXE_VERBOSITY_LEVEL ) ) ) { 
+		#print "$prompt$msg\n";		
+		print_log ($msg, $prompt);		
+#        if ($execution->get_logfile() && ($exe_mode != $EXE_DEBUG)) { 
+#            print LOG_FILE sprintf("%-10s %s", $prompt, "$msg\n");
+#        } else {
+#            print sprintf("%-10s %s", $prompt, "$msg\n");
+#        }
+	}  
+	close (LOG_FILE);
+	
+}
+
+sub print_log {
+
+    my $msg = shift;
+    my $prompt = shift;
+    my $line;
+
+    if ($prompt ne "") {
+    	$line = sprintf("%-10s %s", $prompt, "$msg");
+    } else {
+    	$line = $msg;
+    }
+    if ($execution->get_logfile() && ($execution->get_exe_mode() != $EXE_DEBUG) ) { 
+        open LOG_FILE, ">> " . $execution->get_logfile() 
+            or $execution->smartdie( "cannot open log file (" . $execution->get_logfile . ") for writting" );
+        print LOG_FILE "$line\n";
+    } else {
+        print "$line\n";
+    }
+    close (LOG_FILE);
 }
 
 ###########################################################################
@@ -426,100 +579,6 @@ sub daemonize {
 
    exec $command;
    die "Could not execute $command!";
-}
-
-sub press_any_key {
-	
-    my $msg = shift;
-    
-    my $hline = "----------------------------------------------------------------------------------";
-    
-    print "$hline\n";
-    if ($msg) { print "Execution paused ($msg)\n" }	
-    print "Press any key to continue...\n";
-    
-    # Copy-paste from http://perlmonks.thepen.com/33566.html
-    # A simpler alternative to this code is <>, but that is ugly :)
-
-    my $key;
-    ReadMode 4; # Turn off controls keys
-    while (not defined ($key = ReadKey(1))) {
-        # No key yet
-    }
-    ReadMode 0; # Reset tty mode before exiting
-    print "$hline\n";
-
-}
-
-sub pak { 
-
-    my $msg = shift;
-    press_any_key ($msg);
-	
-}
-
-# wlog 
-#
-# Write log message depending on the verbosity level ($execution->get_exe_mode()).
-# Adds a "\n" to the end of the message. Uses the $execution object, so it has to
-# initialized before calling it.
-# 
-# Call with: 
-#    wlog (N, "log message")  
-#    wlog (V, "log message", "prompt> ")  
-#    wlog (VV, "log message", "prompt> ")  
-#    wlog (VVV, "log message", "prompt> ")
-#  
-sub wlog {
-	
-	my $msg_level = shift;   # Posible values: V, VV, VVV
-	my $msg       = shift;
-	my $prompt    = shift;
-
-    unless ( defined($prompt) or ($msg_level == N) ) {
-    	#$prompt = "vnx-log-$EXE_VERBOSITY_LEVEL>";  
-    	$prompt = $execution->get_verb_prompt();
-    	
-    }
-
-    my $exe_mode = $execution->get_exe_mode();
-	
-	#print "~~ wlog: msg_level=$msg_level, exe_mode=$exe_mode, EXE_VERBOSITY_LEVEL=$EXE_VERBOSITY_LEVEL\n";		
-    if ($msg_level == N) {
-        print "$msg\n"; 
-        if ($execution->get_logfile()) { print_log ($msg, ""); }
-    } elsif ( ($exe_mode == $EXE_DEBUG) || ( ($exe_mode == $EXE_VERBOSE) && ( $msg_level <= $EXE_VERBOSITY_LEVEL ) ) ) { 
-		#print "$prompt$msg\n";		
-		print_log ($msg, $prompt);		
-#        if ($execution->get_logfile() && ($exe_mode != $EXE_DEBUG)) { 
-#            print LOG_FILE sprintf("%-10s %s", $prompt, "$msg\n");
-#        } else {
-#            print sprintf("%-10s %s", $prompt, "$msg\n");
-#        }
-	}  
-	close (LOG_FILE);
-	
-}
-
-sub print_log {
-
-    my $msg = shift;
-    my $prompt = shift;
-    my $line;
-
-    if ($prompt ne "") {
-    	$line = sprintf("%-10s %s", $prompt, "$msg");
-    } else {
-    	$line = $msg;
-    }
-    if ($execution->get_logfile() && ($execution->get_exe_mode() != $EXE_DEBUG) ) { 
-        open LOG_FILE, ">> " . $execution->get_logfile() 
-            or $execution->smartdie( "can not open log file (" . $execution->get_logfile . ") for writting" );
-        print LOG_FILE "$line\n";
-    } else {
-        print "$line\n";
-    }
-    close (LOG_FILE);
 }
 
 1;

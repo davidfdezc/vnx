@@ -171,7 +171,6 @@ sub defineVM {
         my $vm_lxc_config="${vm_lxc_dir}/config";
         my $vm_lxc_fstab="${vm_lxc_dir}/fstab";
 
-
         # Configure /etc/hostname and /etc/hosts files in VM
         # echo lxc1 > /var/lib/lxc/lxc1/rootfs/etc/hostname
         $execution->execute( $logp, "echo $vm_name > ${vm_lxc_rootfs}/etc/hostname" ); 
@@ -182,25 +181,29 @@ sub defineVM {
         # Backup config file just in case...
         $execution->execute( $logp, "cp $vm_lxc_config $vm_lxc_config" . ".bak" ); 
 
-        # vm name
-        # Set lxc.utsname = $vm_name
         # Delete lines with "lxc.utsname" 
         $execution->execute( $logp, "sed -i -e '/lxc.utsname/d' $vm_lxc_config" ); 
-        # Add new line: lxc.utsname = $vm_name
-        $execution->execute( $logp, "echo '' >> $vm_lxc_config" );
-        $execution->execute( $logp, "echo 'lxc.utsname = $vm_name' >> $vm_lxc_config" );
-        
-        # Set lxc.rootfs
         # Delete lines with "lxc.rootfs" 
         $execution->execute( $logp, "sed -i -e '/lxc.rootfs/d' $vm_lxc_config" ); 
-        # Add new line: lxc.rootfs = $vm_lxc_dir/rootfs
-        $execution->execute( $logp, "echo 'lxc.rootfs = $vm_lxc_dir/rootfs' >> $vm_lxc_config" );
-        
-        # Set lxc.mount  = /var/lib/lxc/lxc1/fstab
         # Delete lines with "lxc.fstab" 
         $execution->execute( $logp, "sed -i -e '/lxc.mount/d' $vm_lxc_config" ); 
-        # Add new line: lxc.mount = $vm_lxc_dir/fstab
-        $execution->execute( $logp, "echo 'lxc.mount = $vm_lxc_dir/fstab' >> $vm_lxc_config" );
+        # Delete lines with "lxc.network" 
+        $execution->execute( $logp, "sed -i -e '/lxc.network/d' $vm_lxc_config" ); 
+
+        # Open LXC vm config file
+        open CONFIG_FILE, ">> $vm_lxc_config" 
+            or  $execution->smartdie("cannot open $vm_lxc_config file $!" ) 
+            unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+                          
+        # Set vm name: lxc.utsname = $vm_name
+        $execution->execute( $logp, "", *CONFIG_FILE );
+        $execution->execute( $logp, "lxc.utsname = $vm_name", *CONFIG_FILE );
+        
+        # Set lxc.rootfs: lxc.rootfs = $vm_lxc_dir/rootfs
+        $execution->execute( $logp, "lxc.rootfs = $vm_lxc_dir/rootfs", *CONFIG_FILE );
+        
+        # Set lxc.mount: lxc.mount = $vm_lxc_dir/fstab
+        $execution->execute( $logp, "lxc.mount = $vm_lxc_dir/fstab", *CONFIG_FILE );
         
         #
         # Configure network interfaces
@@ -216,10 +219,7 @@ sub defineVM {
 		#    # bridge if connects to
 		#    lxc.network.link=lxcbr0
 		#    lxc.network.flags=up        
-
-        # Delete lines with "lxc.network" 
-        $execution->execute( $logp, "sed -i -e '/lxc.network/d' $vm_lxc_config" ); 
-        
+       
         my $mng_if_exists = 0;
         my $mng_if_mac;
 
@@ -237,19 +237,19 @@ sub defineVM {
             my $mac   = $if->getAttribute("mac");
             $mac =~ s/,//; # TODO: why is there a comma before mac addresses?
 
-            $execution->execute( $logp, "echo '' >> $vm_lxc_config" );
-            $execution->execute( $logp, "echo '# interface eth$id' >> $vm_lxc_config" );
-            $execution->execute( $logp, "echo 'lxc.network.type=veth' >> $vm_lxc_config" );
-            $execution->execute( $logp, "echo '# ifname inside VM' >> $vm_lxc_config" );
-            $execution->execute( $logp, "echo 'lxc.network.name=eth$id' >> $vm_lxc_config" );
-            $execution->execute( $logp, "echo '# ifname on the host' >> $vm_lxc_config" );
-            $execution->execute( $logp, "echo 'lxc.network.veth.pair=$vm_name-e$id' >> $vm_lxc_config" );
-            $execution->execute( $logp, "echo 'lxc.network.hwaddr=$mac' >> $vm_lxc_config" );
+            $execution->execute( $logp, "", *CONFIG_FILE );
+            $execution->execute( $logp, "# interface eth$id", *CONFIG_FILE );
+            $execution->execute( $logp, "lxc.network.type=veth", *CONFIG_FILE );
+            $execution->execute( $logp, "# ifname inside VM", *CONFIG_FILE );
+            $execution->execute( $logp, "lxc.network.name=eth$id", *CONFIG_FILE );
+            $execution->execute( $logp, "# ifname on the host", *CONFIG_FILE );
+            $execution->execute( $logp, "lxc.network.veth.pair=$vm_name-e$id", *CONFIG_FILE );
+            $execution->execute( $logp, "lxc.network.hwaddr=$mac", *CONFIG_FILE );
             if ($id != 0) {
-	            $execution->execute( $logp, "echo '# bridge if connects to' >> $vm_lxc_config" );
-	            $execution->execute( $logp, "echo 'lxc.network.link=$net' >> $vm_lxc_config" );
+	            $execution->execute( $logp, "# bridge if connects to", *CONFIG_FILE );
+	            $execution->execute( $logp, "lxc.network.link=$net", *CONFIG_FILE );
             }
-            $execution->execute( $logp, "echo 'lxc.network.flags=up' >> $vm_lxc_config" );
+            $execution->execute( $logp, "lxc.network.flags=up", *CONFIG_FILE );
 
             #
             # Add interface to /etc/network/interfaces
@@ -258,6 +258,7 @@ sub defineVM {
               
 
         }                       
+        close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
         #
         # VM autoconfiguration 
@@ -643,6 +644,10 @@ sub startVM {
 			    }
 			}
 			
+			# Get shell to use to execute commands on the vm
+           	# The shell type (sh, bashc, etc) can be changed with the <shell> tag inside <vm>
+			my $shell = $dh->merge_shell ($doc);
+			
 			my $dst_num = 1;
 			foreach my $filetree ($doc->getElementsByTagName("filetree")) {
 				
@@ -650,7 +655,7 @@ sub startVM {
 				wlog (VVV, "$seq filetree: " . $filetree->toString(1), $logp );
 
    				my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num/"; 
-				execute_filetree ($vm_name, $filetree, "$files_dir");
+				execute_filetree ($vm_name, $filetree, "$files_dir", $shell);
             	$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir" );
             	$dst_num++;            
 			}
@@ -662,8 +667,19 @@ sub startVM {
 
             	my $command = $exec->getFirstChild->getData;
         		my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
+
+	        	#
+	        	# We execute the command inside a shell using:
+	        	#   sh -c 'command'
+	        	# to avoid problems with complex commands made of several lines or including 
+	        	# input/output redirection. We have to scape "'" inside the command changing
+	        	# each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
+	        	# 
+	        	$command =~ s/'/'\\''/g;
+	        	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
             	wlog (V, "executing '$seq' user defined exec command '$command'", $logp);
-        		$execution->execute( $logp, "lxc-attach -n $vm_name -- $command");
+	        	my $cmd_output = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$command'");
+                wlog (N, "$cmd_output", '') if ($cmd_output ne '');
 			}
 
         }
@@ -1044,7 +1060,7 @@ sub executeCMD {
     if ($merged_type eq "lxc")    {
         
         my $user   = get_user_in_seq( $vm, $seq );
-        # exec_mode should always be 'lxc-attach' ...TODO: check on CheckSemantics
+        # exec_mode should always be 'lxc-attach' 
         my $exec_mode   = $dh->get_vm_exec_mode($vm);
         wlog (VVV, "---- vm_exec_mode = $exec_mode", $logp);
 
@@ -1071,6 +1087,10 @@ sub executeCMD {
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
         my $vm_lxc_rootfs="${vm_lxc_dir}/rootfs";
         
+        # Get shell to use to execute commands on the vm
+        # The shell type (sh, bashc, etc) can be changed with the <shell> tag inside <vm>
+        my $shell = $dh->merge_shell ($vm);
+        
         #       
         # Process of <filetree> tags
         #
@@ -1085,7 +1105,7 @@ sub executeCMD {
             wlog (VVV, "executeCMD: adding plugin filetree \"$filetree_txt\" to command.xml", $logp);
 
    			my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
-			execute_filetree ($vm_name, $filetree, "$files_dir/filetree/$dst_num/");
+			execute_filetree ($vm_name, $filetree, "$files_dir/filetree/$dst_num/", $shell);
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
 			
             $dst_num++;          
@@ -1101,7 +1121,7 @@ sub executeCMD {
             wlog (VVV, "executeCMD: adding user defined filetree \"$filetree_txt\" to command.xml", $logp);
    
    			my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
-			execute_filetree ($vm_name, $filetree, "$files_dir/filetree/$dst_num/");
+			execute_filetree ($vm_name, $filetree, "$files_dir/filetree/$dst_num/", $shell);
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
 			
             $dst_num++;            
@@ -1128,8 +1148,20 @@ sub executeCMD {
 
             my $command = $cmd->getFirstChild->getData;
         	my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
-            wlog (V, "executeCMD: executing user defined exec command '$command'", $logp);
-        	$execution->execute( $logp, "lxc-attach -n $vm_name -- $command");
+
+        	#
+        	# We execute the command inside a shell using:
+        	#   sh -c 'command'
+        	# to avoid problems with complex commands made of several lines or including 
+        	# input/output redirection. We have to scape "'" inside the command changing
+        	# each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
+        	# 
+        	$command =~ s/'/'\\''/g;
+        	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
+            wlog (V, "executing user defined exec command '$command'", $logp);
+        	my $cmd_output = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$command'");
+            wlog (N, "$cmd_output", '') if ($cmd_output ne '');
+        	
         }
 
         # 2 - User defined <exec> tags
@@ -1151,13 +1183,11 @@ sub executeCMD {
         	# input/output redirection. We have to scape "'" inside the command changing
         	# each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
         	# 
-        	# The shell type (sh, bashc, etc) can be changed with the <shell> tag inside <vm>
-        	#
-        	my $shell = $dh->merge_shell ($vm);
         	$command =~ s/'/'\\''/g;
         	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
-            wlog (V, "executeCMD: executing user defined exec command '$command'", $logp);
-        	$execution->execute( $logp, "lxc-attach -n $vm_name -- $shell -c '$command'");
+            wlog (V, "executing user defined exec command '$command'", $logp);
+        	my $cmd_output = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$command'");
+            wlog (N, "$cmd_output", '') if ($cmd_output ne '');
         }
 
         # We close file and mark it executable
@@ -1187,6 +1217,8 @@ sub execute_filetree {
     my $vm_name = shift;
     my $filetree_tag = shift;
     my $source_path = shift;
+   	my $shell = shift;
+
 
     my $logp = "lxc-execute_filetree-$vm_name> ";
 
@@ -1204,9 +1236,6 @@ sub execute_filetree {
     # Add vm rootfs location to filtree files destination ($root) 
     $root = $vm_lxc_rootfs . $root;
     
-    #my $folder = $j + 1;
-    #$j++;
-    #my $source_path = $cmd_path . "/filetree/" . $folder . "/";
     wlog (VVV, "   processing " . $filetree_tag->toString(1), $logp ) ;
     wlog (VVV, "      seq=$seq, root=$root, user=$user, group=$group, perms=$perms, source_path=$source_path", $logp);
 
@@ -1239,11 +1268,20 @@ sub execute_filetree {
             my $fname = basename ($file);
             wlog (VVV, $file . "," . $fname, $logp);
             if ( $user ne ''  ) {
-                $res=`chown -R $user $root/$fname`; wlog(VVV, $res, $logp); }
+                my $cmd="chown -R $user $root/$fname"; 
+                my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+                wlog(VVV, $res, $logp) if ($res ne ''); 
+            }
             if ( $group ne '' ) {
-                $res=`chown -R .$group $root/$fname`; wlog(VVV, $res, $logp); }
+                my $cmd="chown -R .$group $root/$fname"; 
+                my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+                wlog(VVV, $res, $logp) if ($res ne ''); 
+            }
             if ( $perms ne '' ) {
-                $res=`chmod -R $perms $root/$fname`; wlog(VVV, $res, $logp); }
+                my $cmd="chmod -R $perms $root/$fname"; 
+                my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+                wlog(VVV, $res, $logp) if ($res ne ''); 
+            }
         }
             
     } else {
@@ -1269,13 +1307,19 @@ sub execute_filetree {
         # Change owner and permissions of file $root if specified in <filetree>
         if ( $user ne ''  ) {
             $cmd="chown -R $user $root";
-            $res=`$cmd`; wlog(VVV, $cmd . "/n" . $res, $logp); }
+            my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+            wlog(VVV, $res, $logp) if ($res ne ''); 
+        }
         if ( $group ne '' ) {
             $cmd="chown -R .$group $root";
-            $res=`$cmd`; wlog(VVV, $cmd . "/n" . $res, $logp); }
+            my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+            wlog(VVV, $res, $logp) if ($res ne ''); 
+        }
         if ( $perms ne '' ) {
             $cmd="chmod -R $perms $root";
-            $res=`$cmd`; wlog(VVV, $cmd . "/n" . $res, $logp); }
+            my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+            wlog(VVV, $res, $logp) if ($res ne ''); 
+        }
     }
 }
 
@@ -1522,76 +1566,6 @@ sub filetree_wait {
     } while (1);
     return 0;
 }
-
-=BEGIN
-
-#
-# Get the value of a simple tag in extended configuration file
-# 
-# Returns the value of the parameter or the default value if not found 
-# 
-sub get_simple_conf {
-
-    my $extConfFile = shift;
-    my $vm_name      = shift;
-    my $tagName     = shift;
-    
-    my $global_tag = 1;
-    my $result;
-    
-    #if     ($tagName eq 'sparsemem') { $result = 'true'; }
-    #elsif  ($tagName eq 'ghostios')  { $result = 'false'; }
-    #elsif  ($tagName eq 'npe')       { $result = '200'; }
-    #elsif  ($tagName eq 'chassis')   { $result = '3640'; }
-        
-    # If the extended config file is not defined, return default value 
-    if ($extConfFile eq '0'){
-        return "$result\n";
-    }
-    
-    # Parse the extended config file
-    my $parser       = XML::LibXML->new();
-    my $dom          = $parser->parse_string($extConfFile);
-    #my $parser       = new XML::DOM::Parser;
-    #my $dom          = $parser->parsefile($extConfFile);
-    my $global_node   = $dom->getElementsByTagName("vnx_olive")->item(0);
-    #my $virtualmList = $global_node->getElementsByTagName("vm");
-            
-    # First, we look for a definition in the $vm_name <vm> section 
-    #for ( my $j = 0 ; $j < $virtualmList->getLength ; $j++ ) {
-    foreach my $vm ($global_node->getElementsByTagName("vm")) {
-        # We get name attribute
-        #my $vm = $virtualmList->item($j);
-        my $name = $vm->getAttribute("name");
-        if ( $name eq $vm_name ) {
-            my $tag_list = $vm->getElementsByTagName("$tagName");
-            if ($tag_list->getLength gt 0){
-                my $tag = $tag_list->item(0);
-                $result = &text_tag($tag);
-                $global_tag = 0;
-                            print "*** vmName = $name, specific entry found ($result)\n";
-            }
-            last;
-        }
-    }
-    # Then, if a virtual machine specific definition was not found, 
-    # have a look in the <global> section
-    if ($global_tag eq 1){
-        my @globalList = $global_node->getElementsByTagName("global");
-        if (@globalList gt 0){
-            my $globaltag = $globalList[0];
-            my @tag_gl_list = $globaltag->getElementsByTagName("$tagName");
-            if (@tag_gl_list gt 0){
-                my $tag_gl = $tag_gl_list[0];
-                $result = &text_tag($tag_gl);
-                print "*** vmName = $vm_name, global entry found ($result)\n";
-            }
-        }   
-    }
-    return $result;
-}
-=END
-=cut
 
 1;
 

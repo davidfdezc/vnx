@@ -426,7 +426,7 @@ sub create_config_files {
     	   print ZEBRA " ip address " . $ip_address_tag->textContent() . "\n";
     	}
     }
-    print "\n";
+    print ZEBRA "\n";
     #
     #
     ################################################
@@ -456,9 +456,9 @@ sub create_config_files {
         foreach my $ip_ospf_tag ($if->findnodes('ip_ospf')) {
     	   print OSPFD " ip ospf " . $ip_ospf_tag->textContent() . "\n";
         }
-        print "!\n";
+        print OSPFD "!\n";
     }
-    print "!\n";
+    print OSPFD "!\n";
     #
     #
     ################################################

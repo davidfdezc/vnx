@@ -924,7 +924,7 @@ sub define_VMs {
          $mngt_ip_data = $mngt_ip_counter;
       }
       
-      $docstring = &make_vmAPI_doc($vm,$mngt_ip_data); 
+      $docstring = make_vmAPI_doc($vm,$mngt_ip_data); 
            
       # call the corresponding vmAPI->defineVM
       my $vm_type = $vm->getAttribute("type");
@@ -3639,7 +3639,7 @@ sub bridges_destroy {
 
             # Set bridge down and remove it only in the case there isn't any associated interface 
             my @br_ifs =&vnet_ifs($net_name,$mode);  
-            wlog (N, "OVS a eliminar @br_ifs", $logp);
+            #wlog (N, "OVS a eliminar @br_ifs", $logp);
 	    	wlog (VVV, "br_ifs=@br_ifs", $logp);
 
             if ( (@br_ifs == 1) && ( $br_ifs[0] eq "${net_name}-e00" ) ) {
@@ -4678,7 +4678,6 @@ sub get_cter {
 #
 sub change_vm_status {
 
-#   my $dh = shift;
    my $vm = shift;
    my $status = shift;
 
@@ -4710,8 +4709,6 @@ sub get_user_in_seq {
     my $username = "";
 
     # Lookinf for in <exec>   
-    #my $exec_list = $vm->getElementsByTagName("exec");
-    #for (my $i = 0 ; $i < $exec_list->getLength; $i++) {
     foreach my $exec ($vm->getElementsByTagName("exec")) {
         if ($exec->getAttribute("seq") eq $seq) {
             if ($exec->getAttribute("user") ne "") {
@@ -4723,8 +4720,6 @@ sub get_user_in_seq {
 
     # If not found in <exec>, try with <filetree>   
     if ($username eq "") {
-        #my $filetree_list = $vm->getElementsByTagName("filetree");
-        #for (my $i = 0 ; $i < $filetree_list->getLength; $i++) {
         foreach my $filetree ($vm->getElementsByTagName("filetree")) {
             if ($filetree->getAttribute("seq") eq $seq) {
                 if ($filetree->getAttribute("user") ne "") {
@@ -5269,7 +5264,7 @@ sub make_vmAPI_doc {
 	            }
 			}
 		     
-		# To process interface IPv6 addresses
+		      # To process interface IPv6 addresses
 	  	     if ($dh->is_ipv6_enabled) {
 		        foreach my $ipv6 ($if->getElementsByTagName("ipv6")) {
 		           my $ipv6_tag = $dom->createElement('ipv6');
