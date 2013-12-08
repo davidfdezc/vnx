@@ -1,0 +1,227 @@
+#!/bin/sh
+
+# vnxolived
+#
+# This file is part of VNX project (http://www.dit.upm.es/vnx)         
+#
+# Author: David Fernandez Cambronero (david@dit.upm.es)
+# Copyright (C) 2011, 	DIT-UPM
+# 			Departamento de Ingenieria de Sistemas Telematicos
+#			Universidad Politecnica de Madrid
+#			SPAIN
+#			
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+# An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
+
+VNXACED_VER='MM.mm.rrrr'
+VNXACED_BUILT='DD/MM/YYYY'
+
+SERIAL=/dev/cuad2
+LOGFILE=/var/log/vnxolived.log
+MNTDIR=/mnt
+
+#
+# IO Redirection
+#
+exec > $LOGFILE    # redirect standard output to logfile
+exec 2> $LOGFILE   # redirect error output to logfile
+exec 3<>$SERIAL    # set file descriptor 3 to serial line
+
+#
+# Alias for sending commands to juniper cli
+# TODO: These alias do not work in this script as they do in vnx-jconfig.
+#       To further investigate...the problem is related with the "cat $CMDFILE | grep "</filetree>" | while read LINE"
+#       line used. The while read LINE is executed as a subshell and therefore has no access to the alias defined...
+#alias ExeShowCmd='echo "$CMD" | /usr/sbin/cli > /var/tmp/cmdoutput.tmp; cat /var/tmp/cmdoutput.tmp'
+#alias ExeSetCmd='{ echo "configure"; echo "$CMD"; echo "commit check"; echo "commit"; echo "exit"; } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp; cat /var/tmp/cmdoutput.tmp'
+
+DATE=`date`
+echo "--------------------------------------------------------------------" 
+echo "-- vnxolive daemon version $VNXACED_VER (built on $VNXACED_BUILT)"
+echo "-- started at $DATE"
+echo "--------------------------------------------------------------------"
+
+# Check if vnxolived is already running and kill other copies in that case
+PROCESSES=`ps uaxw"`
+PIDS=`echo "$PROCESSES" | grep "sh /usr/local/sbin/vnxolived" | grep -v awk | grep -v "grep" | awk '{print $2}'`
+MYPID=$$
+#echo MYPID=$MYPID
+#echo PIDS=$PIDS
+for PID in $PIDS
+do
+    if [ "$PID" != "$MYPID" ]
+    then
+        echo "Stopping vnxolived running process ($PID)"
+        kill $PID
+    fi
+done
+
+#
+# Initial autoconfiguration phase
+#
+# We wait until we find a valid vnxboot.xml autoconf file in the
+# shared disk:
+#   - If found, we execute vnx-jconfig external script to configure 
+#     the router. 
+#   - If not, we end autoconf phase and pass to next phase (waiting for
+#     commands on serial line
+# 
+
+TOUT=1
+
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  echo "-- $i: Initial autoconfiguration phase"
+  /sbin/mount_msdosfs /dev/ad1 $MNTDIR
+     #ls $MNTDIR
+  if [ -e $MNTDIR/vnxboot.xml ]; then
+     echo "--"
+     echo "-- Processing vnxboot.xml file..."
+     echo "--"
+     ls $MNTDIR
+     cat $MNTDIR/vnxboot.xml
+     sh /usr/local/sbin/vnx-jconfig $MNTDIR/vnxboot.xml
+     umount $MNTDIR
+     echo "--"
+     echo "-- Configuration done (see results on $LOGFILE)"
+     echo "--"
+     break
+  else
+     umount $MNTDIR
+     if [ "$i" = "10" ]; then 
+         echo "-- ERROR: vnxboot.xml file not found...router not configured"
+         break
+     else 
+         echo "-- vnxboot.xml file not found...retrying in $TOUT seconds"
+         sleep 1 
+     fi
+  fi
+done
+
+
+#
+# Main loop: read commands from the serial line and try to execute them
+#
+while :
+do
+  echo "-- Waiting for commands (/dev/cuad2)"
+  read command <&3
+  echo "-- Command received: $command " 
+
+  case $command in
+   "exeCommand")
+          # Mount shared filesystem
+          /sbin/mount_msdosfs /dev/ad1 $MNTDIR
+          echo "-- ls -R $MNTDIR"
+          ls -R $MNTDIR | sed -e 's/\(.\)/    \1/'
+          #cat $MNTDIR/juniper.conf
+
+          # we process command.xml file
+	  	  CMDFILE=$MNTDIR/command.xml
+          echo "-- command.xml received"
+          cat $CMDFILE | sed -e 's/\(.\)/    \1/'
+          echo "-----------------------"
+
+          # First, we process filetree commands
+          echo "-- processing filetree commands: "
+          count=0
+          cat $CMDFILE | grep "</filetree>" | while read LINE
+          do
+            count=`expr $count + 1`
+            echo "    -- filetree line $count: "
+            SEQ=`echo $LINE | sed -e 's/.* seq\s*=\s*"\([^"]*\)".*/\1/'`
+            ROOT=`echo $LINE | sed -e 's/.* root\s*=\s*"\([^"]*\)".*/\1/'`
+            DIRS=`echo $LINE | sed -e 's/.*<filetree[^>]*>//' -e 's/<\/filetree>//'`
+            echo "    seq=$SEQ type=$ROOT"
+            echo "    dirs=$DIRS"
+            # Copy the files indicated in filetree command
+            cp -vr $MNTDIR/destination/$count/* $ROOT
+            ls $ROOT
+          done
+
+          # Then, we process exec commands
+          echo "-- processing exec commands: "
+          count=0
+          cat $CMDFILE |  grep "</exec>" | while read LINE
+          do
+              count=`expr $count + 1`
+              echo "    -- exec line $count: "
+              SEQ=`echo $LINE | sed -e 's/.* seq\s*=\s*"\([^"]*\)".*/\1/'`
+              TYPE=`echo $LINE | sed -e 's/.* type\s*=\s*"\([^"]*\)".*/\1/'`
+              MODE=`echo $LINE | sed -e 's/.* mode\s*=\s*"\([^"]*\)".*/\1/'`
+              OSTYPE=`echo $LINE | sed -e 's/.* ostype\s*=\s*"\([^"]*\)".*/\1/'`
+              CMD=`echo $LINE | sed -e 's/.*<exec[^>]*>//' -e 's/<\/exec>//'`
+              echo "      seq=$SEQ type=$TYPE mode=$MODE ostype=$OSTYPE"
+              echo "      cmd=$CMD"
+              # we execute the command
+              case $OSTYPE in
+                  "system")
+                      echo "    Executing "system" command"
+                      sh -c "$CMD"  > /var/tmp/cmdoutput.tmp
+                      cat /var/tmp/cmdoutput.tmp >&3
+                      ;;
+                  "show")
+                      echo "    Executing "show" command"
+                      echo "$CMD" | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
+                      cat /var/tmp/cmdoutput.tmp >&3
+                      #ExeShowCmd
+                      ;;
+                  "set")
+                      echo "    Executing "set" command"
+                      {   echo "configure"
+                          echo "$CMD" 
+                          echo "commit check"
+                          echo "commit"
+                          echo "exit"
+                      } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
+                      cat /var/tmp/cmdoutput.tmp >&3
+                      #ExeSetCmd
+                      ;;
+                  "load")
+                      echo "    Executing "load" command"
+                      LOADOPT=`echo $CMD | awk '{print $1}'`
+                      CONFFILE=`echo $CMD | awk '{print $2}'`
+                      CONFFILE=`basename $CONFFILE`
+                      CMD="load $LOADOPT $MNTDIR/config/$CONFFILE"
+                      {   echo "configure"
+                          echo "$CMD"
+                          echo "commit check"
+                          echo "commit"
+                          echo "exit"
+                      } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
+                      cat /var/tmp/cmdoutput.tmp >&3
+                      #ExeSetCmd
+                      ;;
+                  *)
+                      echo "      Unknown OSTYPE ($OSTYPE)"
+                      ;;
+              esac
+          done
+
+          umount $MNTDIR
+          echo "OK" >&3
+          echo "OK" 
+          ;;
+
+   *)     echo "Unknown command" >&3
+          echo "Unknown command"
+          echo "NOTOK" >&3
+          echo "NOTOK" 
+          ;;
+  esac
+
+done
+

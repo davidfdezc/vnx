@@ -1,0 +1,36 @@
+Changelog for ediv 0.9.4 (18/03/2009)
+-------------------------------------
+
+Changes since 0.9.3:
+  
+  + fixed minor bug at getSegmentationModules subroutine of ediv_ctl.pl
+  + default_segmentation tag of cluster.conf file updated
+  + Bug fixed: weighted_round_robin.pm defaults correctly to round_robin algorithm when the cluster cpu load is low.
+
+Changes since 0.9.2:
+
+  + splitter dispatcher integrated into ediv_ctl.pl (splitter.pm removed)
+  + implemented round_robin.pm and weighted_round_robin.pm as external modules
+  + improved Makefile 
+
+Changes since 0.9.1:
+
+  + improved Makefile
+
+Changes since 0.9:
+
+  + improved the documentation tree under /doc/html
+
+Changes since 0.3:
+
+  + including documentation in the software pacakge (from Wiki snapshoot)
+
+Changes since 0.2:
+
+  + cluster configuration option inmproved
+  + fixed ssh commands
+
+Changes since 0.1:
+
+  + /usr/local/etc/ediv/cluster.conf is tryed as default configuration
+    file when /etc/ediv/cluster.conf is not found.

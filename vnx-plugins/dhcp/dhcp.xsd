@@ -1,0 +1,126 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<!--
+
+VNX DHCP Plugin Definition Language v1.0
+
+Virtual Networks over LinuX (VNX) Project 
+www:    http://www.dit.upm.es/vnx 
+e-mail: vnx@dit.upm.es 
+
+-->
+
+ <xs:element name='dhcp_conf'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='vm' maxOccurs='unbounded'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='vm'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='server' minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='relay' minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='client' minOccurs='0' maxOccurs='1'/>
+   </xs:sequence>
+   <xs:attribute name='name' type='xs:string' use='required'/>
+   <xs:attribute name='type' type='xs:string' use='required'/>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='server'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='subnet' maxOccurs='unbounded'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='subnet'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='network' />
+    <xs:element ref='range' minOccurs='0' maxOccurs='unbounded'/>
+    <xs:element ref='router' minOccurs='0' maxOccurs='unbounded'/>
+    <xs:element ref='dns' minOccurs='0' maxOccurs='unbounded'/>
+    <xs:element ref='domain' minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='host' minOccurs='0' maxOccurs='unbounded'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='network'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='range'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='first'/>
+    <xs:element ref='last'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='first'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='last'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='router'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='dns'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='domain'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='host'>
+  <xs:complexType mixed='true'>
+   <xs:attribute name='name' type='xs:string' use='required'/>
+   <xs:attribute name='mac' type='xs:string' use='required'/>
+   <xs:attribute name='ip' type='xs:string' use='required'/>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='relay'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='toserver' maxOccurs='unbounded'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='toserver'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='client'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='if' maxOccurs='unbounded'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='if'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+</xs:schema>

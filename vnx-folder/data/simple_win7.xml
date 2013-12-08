@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        simple_w7
+Description: Just one Windows 7 virtual machine connected to a Network named Net0 with address 10.0.0.8. 
+             The host has an interface in Net0 with address 10.0.0.1  
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>simple_w7</scenario_name>
+    <automac offset="8"/>
+    <vm_mgmt type="none" />
+    <vm_defaults>
+    </vm_defaults>
+  </global>
+    
+  <net name="Net0" mode="virtual_bridge" />
+  
+  <!-- NODES -->
+  <vm name="win7" type="libvirt" subtype="kvm" os="windows" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_win7</filesystem>
+    <mem>1G</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.8/24</ipv4>
+    </if>
+    <filetree seq="vnxtxt" root="c:\temp">conf/txtfile</filetree>
+    <filetree seq="vnxwww" root="c:\temp">conf/txtfile</filetree>
+    <exec seq="vnxtxt" type="verbatim" ostype="system">start /max notepad c:\temp\vnx.txt</exec>
+    <exec seq="vnxwww" type="verbatim" ostype="system">start /max c:\temp\vnx.html</exec>
+    <exec seq="calc" type="verbatim" ostype="system">calc.exe</exec>
+  </vm>
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>
+  
+</vnx>

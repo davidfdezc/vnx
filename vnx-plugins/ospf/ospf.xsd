@@ -1,0 +1,117 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<!--
+
+VNX OSPF Plugin Definition Language v2.0
+
+Virtual Networks over LinuX (VNX) Project 
+www:    http://www.dit.upm.es/vnx 
+e-mail: vnx@dit.upm.es 
+
+-->
+
+ <xs:element name='ospf_conf'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='vm' minOccurs='0' maxOccurs='unbounded'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='vm'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='hostname'   minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='password'   minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='network'    minOccurs='0' maxOccurs='unbounded'/>
+    <xs:element ref='router_id'   minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='passive_if' minOccurs='0' maxOccurs='unbounded'/>
+    <xs:element ref='binaries'   minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='lo'   minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='if'   minOccurs='0' maxOccurs='unbounded'/>
+   </xs:sequence>
+   <xs:attribute name='name'    type='xs:string' use='required'/>
+   <xs:attribute name='type'    type='xs:string' use='required'/>
+   <xs:attribute name='subtype' type='xs:string' use='required'/>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='hostname'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='password'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='network'>
+  <xs:complexType mixed='true'>
+   <xs:attribute name='area' type='xs:string' use='required'/>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='router_id'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='passive_if'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='binaries'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='zebra'/>
+    <xs:element ref='ospfd'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='zebra'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='ospfd'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='lo'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='description'/>
+    <xs:element ref='ip_address'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+ 
+  <xs:element name='description'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='ip_address'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='if'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='ip_ospf' minOccurs='0' maxOccurs='unbounded'/>
+   </xs:sequence>
+   <xs:attribute name='name'    type='xs:string' use='required'/>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='ip_ospf'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+</xs:schema>

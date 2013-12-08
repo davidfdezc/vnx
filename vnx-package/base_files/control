@@ -1,0 +1,7 @@
+Package: %%PNAME%%
+Version: %%PVERS%%
+Architecture: all
+Maintainer: %%MAINTAINER%%
+Section: vnx
+Priority: optional
+Description: %%SHORT_DESC%%

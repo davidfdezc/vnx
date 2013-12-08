@@ -1,0 +1,73 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use File::Basename;
+
+
+my $rootfs_dir='/var/www/vnx/filesystems';
+my $vnx_repo = 'http://vnx.dit.upm.es/vnx/filesystems/'; 
+
+# Ubuntu
+my @oss = qw(Ubuntu Fedora CentOS FreeBSD);
+
+print "<ul>\n";
+
+for my $os (@oss) {
+
+    my $files_dir = $rootfs_dir . "/*" . lc($os) . "*.bz2";
+    #print "files_dir=$files_dir\n";
+    print "<li>'''$os''':</li>\n";
+    print "<ul>\n";
+	
+    my @files = <${files_dir}>;
+    @files = sort {$b cmp $a} @files;
+    foreach my $file (@files){
+
+        #print "$file\n";
+        my $fname = basename ($file);
+        #print "$fname\n";
+
+        my @fields = split (/-/, $fname);
+
+        #print "$fields[0]\n";
+        my $osver = $fields[1];
+        #print "osver=$osver\n";
+
+        my $rootfsver;
+        if ($fields[2] eq 'gui') {
+           $fields[3] =~ s/\.qcow2.bz2//;
+           $rootfsver = $fields[3];
+        } else {
+           $fields[2] =~ s/\.qcow2.bz2//;
+           $rootfsver = $fields[2];
+        }
+        #print "$rootfsver\n";
+        
+        my $unbz_file = $fname;
+        $unbz_file =~ s/\.bz2//;
+
+        if ($fields[2] eq 'gui') {
+            print "<li>'''$os $osver with GUI ($rootfsver)''':</li>\n";
+        } else {
+            print "<li>'''$os $osver ($rootfsver)''':</li>\n";
+        }
+        print " cd /usr/share/vnx/filesystems\n";
+        print " wget -N ${vnx_repo}$fname\n";
+        print " bunzip2 $fname\n";
+        print " ln -s $unbz_file rootfs_" . lc($os) . "\n";
+
+    }
+    print "</ul>\n";
+}
+print "</ul>\n";
+
+=BEGIN
+Example entry:
+<li>'''Ubuntu 11.04 (v022):'''</li>
+ cd /usr/share/vnx/filesystems
+ wget -N http://vnx.dit.upm.es/vnx/filesystems/vnx_rootfs_kvm_ubuntu-11.04-v022.qcow2.bz2
+ bunzip2 vnx_rootfs_kvm_ubuntu-11.04-v022.qcow2.bz2
+ ln -s vnx_rootfs_kvm_ubuntu-11.04-v022.qcow2 rootfs_ubuntu
+=END
+=cut

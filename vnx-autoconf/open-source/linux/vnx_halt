@@ -1,0 +1,69 @@
+#!/bin/bash
+
+UBUNTU=$( cat /etc/*-release | grep -i Ubuntu )
+FEDORA=$( cat /etc/*-release | grep -i Fedora )
+CENTOS=$( cat /etc/*-release | grep -i CentOS )
+
+if [ "$1" == '-y' ]; then
+    NOINTMODE='yes'
+fi
+
+# Clean packages caches
+if [[ $UBUNTU ]]; then
+    apt-get clean
+    apt-get -y autoremove
+fi
+if [[ $FEDORA  || $CENTOS ]]; then
+    yum clean all
+fi
+
+# Delete /etc/resolv.conf
+rm -f /etc/resolv.conf
+
+# Clean command history
+rm -f /root/.bash_history
+
+# Delete udev net rules files:
+rm -f /etc/udev/rules.d/70-persistent-net.rules
+
+# Delete VNXACE log
+rm -f /var/log/vnxaced.log
+
+if [ ! $NOINTMODE ]; then
+    while true; do
+        # Ask for a message to save in /etc/vnx_rootfs_version file
+        echo    "** Save a log message in /etc/vnx_rootfs_version file "
+        echo -n "** describing the modifications done? "
+        read -n 1 -p "[y/n] " answer
+        echo ""
+        case $answer in
+            [Yy]* )
+                    echo "** Log message (1 line maximum):"
+                    read logmsg
+                    DATE=`date`
+                    echo "MODDATE=$DATE" >> /etc/vnx_rootfs_version
+                    echo "MODDESC=$logmsg" >> /etc/vnx_rootfs_version
+                    break;;
+            [Nn]* ) break;;
+            * )     echo "** Error: please answer 'y' or 'n'.";;
+        esac
+    done
+fi
+
+# Check whether we are running chrooted or not
+if [ ! -e /proc/1/root ]; then
+  # Probably running chrooted. Do not halt!
+  echo "**"
+  echo "** Cannot read /proc. Probably running chrooted. Not halting"
+  echo "** Type 'exit' to exit from chroot"
+  exit
+elif [ ! -e /proc/1/root -o "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ]; then
+  # We are chrooted! Do not halt
+  echo "**"
+  echo "** Running chrooted. Not halting"
+  echo "** Type 'exit' to exit from chroot"
+  exit
+fi
+
+# We are NOT chrooted! We halt the virtual machine
+halt -p

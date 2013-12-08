@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        simple_winxp
+Description: Just one Windows XP virtual machine connected to a Network named Net0 with address 10.0.0.3. 
+             The host has an interface in Net0 with address 10.0.0.1  
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>simple_winxp</scenario_name>
+    <automac offset="3"/>
+    <vm_mgmt type="none" />
+    <vm_defaults>
+        <console id="0" display="yes"/>
+    </vm_defaults>
+  </global>
+  
+  <net name="Net0" mode="virtual_bridge" />
+    
+  <!-- NODES -->
+  <vm name="winxp" type="libvirt" subtype="kvm" os="windows">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_winxp</filesystem>
+    <mem>512M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.3/24</ipv4>
+    </if>
+    <filetree seq="vnxtxt" root="c:\windows\temp">conf/txtfile</filetree>
+    <filetree seq="vnxwww" root="c:\windows\temp">conf/txtfile</filetree>
+    <exec seq="vnxtxt" type="verbatim" ostype="exec">notepad c:\windows\temp\vnx.txt</exec>
+    <exec seq="vnxwww" type="verbatim" ostype="cmd">start /max c:\windows\temp\vnx.html</exec>
+    <exec seq="calc"   type="verbatim" ostype="system">calc.exe</exec>
+    <exec seq="logout" type="verbatim" ostype="system">shutdown -l</exec>
+    <exec seq="reboot" type="verbatim" ostype="system">shutdown -r -t 5</exec>
+  </vm>
+  
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>  
+
+</vnx>

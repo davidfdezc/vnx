@@ -1,0 +1,8 @@
+ha funcionado haciendo yo a mano lo siguiente:
+
+chroot edit
+awk -F: '$3 > 999' /etc/passwd
+-> no me ha salido ninguno con mas de 1000
+
+chroot edit
+mkinitramfs -o /initrd.lz $(ls /lib/modules)

@@ -1,0 +1,1 @@
+File copied to the vm before shutdown by means of a filetree command with seq='on_shutdown'

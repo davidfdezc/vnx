@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<domain type="kvm" xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">
+  <name>Ubuntu</name>
+  <memory>524288</memory>
+  <vcpu>1</vcpu>
+  <os>
+    <type arch="i686">hvm</type>
+    <boot dev='hd'/>
+    <boot dev='cdrom'/>
+  </os>
+  <features>
+     <pae/>
+     <acpi/>
+     <apic/>
+  </features>
+  <clock sync="localtime"/>
+  <devices>
+    <emulator>/usr/bin/kvm</emulator>
+    <disk type='file' device='disk'>
+      <source file='/usr/share/vnx/filesystems/rootfs_ubuntu'/>
+      <target dev='hda'/>
+      <driver name="qemu" type="qcow2"/>
+    </disk>
+    <disk type='file' device='cdrom'>
+      <!--source file='/almacen/iso/ubuntu-10.04.1-server-i386.iso'/-->
+      <target dev='hdb'/>
+    </disk>
+    <interface type='network'>
+      <source network='default'/>
+    </interface>
+    <serial type="pty">
+      <target port="0"/>
+    </serial>    
+    <console type="pty">
+      <target port="0"/>
+    </console>
+    <graphics type='vnc'/>
+  </devices>
+</domain>

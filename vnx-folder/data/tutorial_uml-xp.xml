@@ -1,0 +1,89 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+VNUML Root Scenario (1)
+See the tutorial/index.html document for details
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>tutorial_uml-xp</scenario_name>
+    <automac/>
+    <vm_mgmt type="none" />
+    <vm_defaults exec_mode="mconsole">
+       <!--filesystem type="cow">/usr/share/vnx/filesystems/rootfs_tutorial</filesystem-->
+       <mem>64M</mem>
+       <!--kernel>/usr/share/vnx/kernels/linux</kernel-->
+       <console id="0">xterm</console>
+       <!--xterm>gnome-terminal,-t,-x</xterm-->
+    </vm_defaults>
+  </global>
+
+  <net name="Net0" mode="virtual_bridge" />
+  <net name="Net1" mode="virtual_bridge" />
+  <net name="Net2" mode="virtual_bridge" />
+  <net name="Net3" mode="virtual_bridge" />
+
+  <vm name="h1" type="uml" subtype="" os="">
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.1/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.0.3">default</route>
+  </vm>
+
+  <vm name="h2" type="libvirt" subtype="kvm" os="windows">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_winxp</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.2/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.0.3">default</route>
+    <exec seq="calc" type="verbatim" ostype="system">calc.exe</exec>
+  </vm>
+
+  <vm name="h3" type="uml" subtype="" os="">
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.3/24</ipv4>
+    </if>
+    <if id="2" net="Net1">
+      <ipv4>10.0.1.1/24</ipv4>
+    </if>
+    <if id="3" net="Net3">
+      <ipv4>10.0.3.1/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
+    <forwarding type="ip" />
+  </vm>
+
+  <vm name="h4" type="libvirt" subtype="kvm" os="windows">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_winxp</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net1">
+      <ipv4>10.0.1.2/24</ipv4>
+    </if>
+    <if id="2" net="Net2">
+      <ipv4>10.0.2.1/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.1.1">default</route>
+    <forwarding type="ip" />
+  </vm>
+
+  <vm name="h5" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net2">
+      <ipv4>10.0.2.2/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.2.1">default</route>
+  </vm>
+
+  <host>
+    <hostif net="Net3">
+       <ipv4>10.0.3.2/24</ipv4>
+    </hostif>
+    <route type="ipv4" gw="10.0.3.1">10.0.0.0/16</route>
+  </host>
+
+</vnx>

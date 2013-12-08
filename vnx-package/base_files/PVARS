@@ -1,0 +1,26 @@
+#
+# PACKAGE CONFIGURATION FILE
+# Author: David Fernandez (david@dit.upm.es)
+#
+# Package name
+#
+PNAME="pname"
+#
+# Package version numbers
+#
+#PVERS="version"
+MAJOR="major"
+MINOR="minor"
+REVISION="revision"
+#
+# Package short description
+#
+SHORT_DESC="pname short description"
+#
+# Package long description
+#
+LONG_DESC="pname long description"
+#
+# Package maintainer
+#
+MAINTAINER="David Fernandez <david@dit.upm.es>"

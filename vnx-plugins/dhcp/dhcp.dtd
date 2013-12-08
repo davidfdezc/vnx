@@ -1,0 +1,36 @@
+<!-- DHCP DTD version 1.0 -->
+<!ELEMENT dhcp_conf (vm+)>
+
+<!ELEMENT vm (server?,relay?,client?)>
+<!ATTLIST vm name CDATA #REQUIRED
+            type CDATA #REQUIRED>
+            
+<!ELEMENT server (subnet+)>
+<!ELEMENT subnet (ip,range*,router*,dns*,domain?,host*)>
+
+<!ELEMENT ip (#PCDATA)>
+<!ATTLIST ip mask CDATA #REQUIRED>
+
+<!ELEMENT range (first,last)>
+<!ELEMENT first (#PCDATA)>
+<!ELEMENT last (#PCDATA)>
+
+<!ELEMENT router (#PCDATA)>
+
+<!ELEMENT dns (#PCDATA)>
+
+<!ELEMENT domain (#PCDATA)>
+
+<!ELEMENT host (#PCDATA)>
+<!ATTLIST host name CDATA #REQUIRED
+               mac  CDATA #REQUIRED
+               ip   CDATA #REQUIRED>
+
+
+
+
+<!ELEMENT relay (toserver+)>
+<!ELEMENT toserver (#PCDATA)>
+
+<!ELEMENT client (if+)>
+<!ELEMENT if (#PCDATA)>

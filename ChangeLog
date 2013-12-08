@@ -1,0 +1,178 @@
+
+
+17/11/2013:
+- vnx_mount_rootfs tools added
+
+
+- attribute 'gui' in <exec> tags eliminated (obsoleted) 
+
+6/5/2013:
+- vnx help simplified and updated
+
+- User VNX is executed as: -u option implemented 
+  '-u user' or '--user user' option is use to defines the user VNX is 
+  (mostly) run as. By now, VNX has to be run with root priviledges 
+  (from a root shell or sudoed) for creating virtual machines and 
+  manipulate bridges and network interfaces.
+  Present behaviour (provisional):
+   '-u root' or '-u' option absent 
+     -> VNX runs completely as root
+   '-u' 
+     -> VNX runs (mostly) as default user (the user from which sudo 
+        was issued) 
+    '-u user' (NOT implemented yet)     
+     -> VNX runs (mostly) as 'user'
+
+- New general config parameter in /etc/vnx.conf: vmfs_on_tmp
+  Added to solve the DIT-UPM laboratories problem. As user accounts 
+  are network mounted, root user has no permissions to write in users  
+  directories. So, as libvirt runs as root, the cowfs and sdisk 
+  filesystems are changed to root owner when the virtual machine 
+  starts, and root has no permissions to write on them when the 
+  vnxdir is located in user directory. When vmfs_on_tmp=yes, these two 
+  files are moved to tmp directory, independently of where the vnx_dir 
+  directory is located.
+
+- perl-modules-old directory created: Arguments.pm and CiscoExeCmd.pm 
+  modules not used anymore moved to it.
+
+- Old commented code remove and some function headers added.
+
+
+
+11/01/2012:
+
+- VNX:
+     - changed argument processing to simplify it using a hash to store arguments (%opts)
+     - option 'cid' deprecated. Now the '--console' option is used to specify console names
+       with a comma separated list (eg. --console con1,con2  )
+
+- EDIV:
+     - Added show-map, clean-cluster, seg-info and seg-alg-info new options
+     - Created @cluster_active_hosts new array to store active hosts
+     - Implemented -M as a comma separated list of vms
+     - changed argument processing to simplify it using a hash to store arguments (%opts)
+
+- Changed ifconfig and route commands to use ip instead. Commands:
+     - Activate interface: ip link set eth1 up
+     - Add address: ip addr add 2001::2/64 dev br0
+     - Delete address: ip addr del 2001::2/64 dev br0
+     - Add route: ip -4 add route 10.1.1.0/24 via 10.1.1.1
+     - Delete route: ip -4 del route 10.1.1.0/24 via 10.1.1.1
+
+- Added -v (verbose) and -i (copy new version to idefix repository) to build_tar* scripts
+- Changed all ifconfig xx 0.0.0.0 up commands by "ip link set xx up"
+.....
+.....
+
+16/9/2011
+
+- Changed the format of multiple sequences form space-separated to comma-separated list. Ej:
+        seq="on_boot, start"         
+        
+- Changes in make-iso script (not finished)     
+
+
+12/9/2011:
+
+- Plugins: 
+    + changed OSPF and DHCP plugins to use XML::LibXML instead of XML::DOM
+    + added a new function to plugin API: getSeqDescriptions to get descriptions of commands offered by plugins
+    + changes to OSPF and DHCP configuration files languages. DTD's translated to XSD.
+    + plog function to write log messages in plugins 
+    
+- vnx:
+    + added a new option --exe-info to get a description of the commands available in a virtual scenario. 
+      For the plugin commands, the information is obtained by menas of the new function getSeqDescriptions.
+      For the user-defined commands, a new tag has been added <seq_help>:
+      
+        <help>
+             <seq_help seq='start-www'>Start apache2 web server</seq_help>
+             <seq_help seq='stop-www'>Stop apache2 web server</seq_help>     
+        </help>
+    + Cleaning of the arguments list
+
+- VNX::Execution: eliminated the redirection to /dev/null in 'execute' in $EXE_NORMAL mode. It provoked problems
+  when executing commands like "echo xxxx > file"      
+            
+
+1/9/2011:
+
+- Naming conventions: variable names changes to follow the names conventions in 
+  http://damienlearnsperl.blogspot.com/2009/03/perl-naming-convention-for-subroutine.html 
+  or http://www.perl.com/pub/2000/01/CodingStandards.html.
+  All variables and subroutines in lower case with _ separating words (Ej: $vm_name) 
+
+- vmAPI: eliminated the parameters $vm_doc and $counter from startVM. $vm_doc is only needed in 
+  vmAPI_uml->startVM, but now it is obtained calling dh->get_vm_doc
+
+- Created a function to write log messages: wlog 
+  #
+  # Write log message depending on the verbosity level ($execution->get_exe_mode()).
+  # Adds a "\n" to the end of the message.  
+  # 
+  # Call with: 
+  #    log (V, "log message")  
+  #    log (VV, "log message")  
+  #    log (VVV, "log message")
+  #  
+
+- "on_boot" and "on_shutdown" commands. All filetree and exec commands with sequence="on_boot" are automatically
+  executed after startup. Similarly, "on_shutdown" filetree and exec commands are executed just before shutdown.
+  on_boot commands have been implemented for linux, freebsd and olive vms, but not yet for windows. on_shutdown 
+  commands are implemented for all types of vms.  
+
+- vnxaced.pl: 
+  + modified to execute on_boot and plugin commands (filetrees and execs) after restarting. 
+  + Modified the format of command_id file (name changed to vnxaced.cid) to store "param=value" lines.  
+
+- <filetrees> restriction to copy only directories has been eliminated. Now the the text value of <filetree> 
+  tag can be also a single file. In the case of files, the root attribute can also be a file. To distinguish 
+  files and directories in root attribute, now directories must be ended with a "/". 
+  Besides, user, group and perms attributes have been added to filetrees to allow changing ownership and 
+  permissions in files/directories copied.
+ 
+- Plugins implementation have been adapted to VNX (not yet finished).
+
+  - Names of plugins functions changed to initPlugin, getBootFiles, getBootCommands, getExecFiles,
+    getExecCommands, getShutdownFiles, getShutdownCommands and finalizePlugin 
+
+  - eliminated the execVmsToUse function of plugins. Now the execCreateFiles and execCommands are 
+    called for every vm.
+
+- Deprecated options eliminated from the code. 
+         
+- Important cleaning of vnx and vmAPI code
+    + reorganized all the way to get filetrees and execs for a sequence. A function has been created (get_vm_ftrees_and_execs)
+      to create two arrays with the filetrees and execs corresponding to a sequenced, either defined by the users or created 
+      by plugins. Now the vmAPI functions just process this two arrays to know the commands they have to execute.          
+
+- Olive: 
+    + added support for on_boot commands
+    + created a new ostype of command "system" to execute commands over the FreeBSD operating system (not over the Juniper cli)
+    + Solved the problem with emX interfaces (only em0 were created correctly; additional interfaces failed with 
+      the following error:
+          em1: Unable to allocate bus resource: ioport
+          em1: Allocation of PCI resources failed
+      The problem was related to bios-0.10.6. Compiling a new seabios with the CONFIG_SMBIOS disabled the problem dissapears. 
+      The name of the bios file loaded for Olive changed to bios-olive.bin. See VNX installation guide for more details.          
+
+- Clenup of the default command execution mode specification:          
+
+   Ideas:
+   + Mode attribute eliminated from filetree and exec tags
+   + filetree and exec's are executed using the way defined in exec_mode attribute of the 
+     virtual machine the belong to (<vm> tag) 
+   + If exec_mode attribute is not specified for the vm, we look for a default value specified 
+     in <vm_defaults> for the type of virtual machine. 
+   + If no default mode is specified in <vm_defaults>, the default value specified in VNX::Globals applies.
+
+    Definition of default exe_mode's in <vm_defaults>         
+    <vm_defaults>
+      <exec_mode type="uml">mconsole</exec_mode>
+      <exec_mode type="libvirt" subtype="kvm">cdrom</exec_mode>
+      <exec_mode type="libvirt" subtype="kvm" os="windows">cdrom</exec_mode>
+      <exec_mode type="libvirt" subtype="kvm" os="olive">sdisk</exec_mode>
+    </vm_defaults>
+
+         

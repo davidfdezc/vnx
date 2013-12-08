@@ -1,0 +1,49 @@
+<dhcp_conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/dhcp.xsd">
+
+  <vm name="r1" type="dhcp3-isc">
+    <server>
+      <subnet>
+        <network>10.0.1.0/24</network>
+        <range>
+          <first>10.0.1.10</first>
+          <last>10.0.1.20</last>
+        </range>
+        <router>10.0.1.1</router>
+        <dns>10.0.1.2</dns>
+        <domain>dominio1.org</domain>
+      </subnet>
+      <subnet>
+        <network>10.0.2.0/24</network>
+        <range>
+          <first>10.0.2.10</first>
+          <last>10.0.2.20</last>
+        </range>
+        <router>10.0.2.1</router>
+        <host name="Unicum" mac="AA:BB:CC:DD:EE:FF" ip="10.0.2.28"/>
+      </subnet>
+      <subnet>
+        <network>10.0.0.0/30</network>
+      </subnet>
+    </server>
+  </vm>
+
+  <vm name="h1" type="dhcp3">
+    <client>
+      <if>eth1</if>
+    </client>
+  </vm>
+
+  <vm name="r2" type="dhcp3">
+    <relay>
+      <toserver>10.0.0.1</toserver>
+    </relay>
+  </vm>
+
+  <vm name="h2" type="dhcp3">
+    <client>
+      <if>eth1</if>
+    </client>
+  </vm>
+
+</dhcp_conf>

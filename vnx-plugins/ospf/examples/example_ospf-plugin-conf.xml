@@ -1,0 +1,22 @@
+<ospf_conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/ospf.xsd">
+
+   <vm name="r1" type="quagga" subtype="lib-install">
+      <hostname>r1</hostname>
+      <password>xxxx</password>
+      <network area="0.0.0.0">10.0.0.0/16</network>
+      <passive_if>eth1</passive_if> 
+      <binaries>
+        <zebra>/usr/lib/quagga/zebra</zebra>
+        <ospfd>/usr/lib/quagga/ospfd</ospfd>
+      </binaries>
+   </vm>
+
+   <vm name="r2" type="quagga" subtype="lib-install">
+      <hostname>r2</hostname>
+      <password>xxxx</password>
+      <network area="0.0.0.0">10.0.0.0/16</network>
+      <passive_if>eth1</passive_if> 
+   </vm>
+
+</ospf_conf>

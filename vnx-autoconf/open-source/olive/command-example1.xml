@@ -1,0 +1,4 @@
+<command>
+<id>juniper-mNvp8f</id>
+<exec seq="showint" type="verbatim" mode="sdisk" ostype="show">show interfaces</exec>
+</command>

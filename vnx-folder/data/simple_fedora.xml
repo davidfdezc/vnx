@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        simple_fedora
+Description: Just one Fedora virtual machine connected to a Network named Net0 with address 10.0.0.9. 
+             The host has an interface in Net0 with address 10.0.0.1  
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>simple_fedora</scenario_name>
+    <automac offset="9"/>
+    <!--vm_mgmt type="none" /-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="32">
+       <host_mapping />
+    </vm_mgmt> 
+    <vm_defaults>
+	    <console id="0" display="yes"/>
+	    <console id="1" display="yes"/>
+    </vm_defaults>
+  </global>
+    
+  <net name="Net0" mode="virtual_bridge" />
+  
+  <!-- NODES -->
+  <vm name="fedora" type="libvirt" subtype="kvm" os="linux">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_fedora</filesystem>
+    <mem>256M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.9/24</ipv4>
+    </if>
+
+    <!-- Copy the files under conf/txtfile to vm /tmp directory -->
+    <filetree seq="copyfile" root="/tmp/">conf/txtfile</filetree>
+    
+    <!-- Copy the files under conf/txtfile to vm /var/www directory -->
+    <filetree seq="start-www" root="/var/www/html/">conf/txtfile</filetree>
+
+    <!-- Start/stop apache www server -->
+    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/html/*</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">service httpd start</exec>
+    <exec seq="stop-www"  type="verbatim" ostype="system">service httpd stop</exec>
+    
+    <!-- Simple command to move a file -->
+    <exec seq="movefile" type="verbatim"  ostype="system">mv /tmp/vnx.txt /root/</exec>    
+    
+  </vm>
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>
+  
+</vnx>

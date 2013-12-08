@@ -1,0 +1,51 @@
+#!/bin/bash
+
+#
+# make: Basic script to create Debian and Cygwin packages for CCSs and SCTs
+# Author: David Fernandez (david@dit.upm.es)
+# C@R Project, 2009
+#
+
+##########################################################
+# User defined functions and variables
+##########################################################
+
+#
+# User defined variables
+#
+# VAR1=value1
+# VAR2=value2
+
+#
+# CopyUser*Files functions: used to create the package directory
+#                           estructure and copy the files there.
+#
+#    All files have to be copied to ${PBINDIR} directory. During 
+#    instalation, all the files under ${PBINDIR} will be copied
+#    to root (/) directory of the target machine.
+#
+
+function CopyUserCommonFiles {
+  : # Copies files common to Debian and Cygwin
+
+  # Create directory structure
+#  mkdir -p ${PBINDIR}/${CATR_HOME}/ccs/$PNAME
+#  mkdir -p ${PBINDIR}/${CATR_HOME}/conf
+  # Copy files (example for a CCS based on template 3)
+  # For a CCS based on template 4, just delete the 
+  # "../CCS/webapps" from the copy command line
+#  cp -r ../CCS/bin ../CCS/build ../CCS/ccsws ../CCS/conf ../CCS/lib ../CCS/webapps ${PBINDIR}/${CATR_HOME}/ccs/${PNAME}/
+#  cp src/COMMON/bin/* ${PBINDIR}/${CATR_HOME}/ccs/${PNAME}/bin
+
+}
+
+function CopyUserDebFiles {
+  : # Copies files specific to Debian 
+
+}
+
+function CopyUserCygwinFiles {
+  : # Copies files specific to Cygwin
+
+}
+

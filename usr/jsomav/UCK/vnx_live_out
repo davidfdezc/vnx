@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# run as root
+
+cdir=$( dirname $0 )
+cd $cdir
+
+images_path="images"
+remaster_path="/tmp/vnx-live"
+
+
+
+# Increase timeout of main menu
+sed --in-place -e 's/timeout 50/timeout 5000/g' $remaster_path/remaster-iso/isolinux/isolinux.cfg
+    
+    
+# Remove install option from main menu
+#sudo chmod 777 $remaster_path/remaster-iso/isolinux/text.cfg
+echo 'default live
+label live
+  menu label ^Try Ubuntu without installing
+  kernel /casper/vmlinuz
+  append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --
+label check
+  menu label ^Check disc for defects
+  kernel /casper/vmlinuz
+  append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --
+label memtest
+  menu label Test ^memory
+  kernel /install/mt86plus
+label hd
+  menu label ^Boot from first hard disk
+  localboot 0x80' > $remaster_path/remaster-iso/isolinux/text.cfg
+#sudo chmod 444 $remaster_path/remaster-iso/isolinux/text.cfg
+    
+    
+# Show logo during main menu
+sed --in-place -e 's/hidden-timeout=2/hidden-timeout=1/g' $remaster_path/remaster-iso/isolinux/gfxboot.cfg
+
+
+# Copy images
+cp $images_path/access.pcx $images_path/splash.pcx $remaster_path/remaster-iso/isolinux/
+    
+    
+## De momento lo dejamos, no funciona.
+## Remove the (Casper) Autologin
+##cd extract-cd/casper
+#	cd /home/jorge/tmp/remaster-iso/casper/
+#	mkdir lztempdir
+#	cd lztempdir
+#	lzma -dc -S .lz ../initrd.lz | cpio -imvd --no-absolute-filenames
+#	gedit scripts/casper-bottom/25configure_init
+#	# borrar $USERNAME de la linea 25
+#	cp ../initrd.lz ../inird.lz.orig
+#	find . | cpio --quiet --dereference -o -H newc | lzma -7 > ../initrd.lz
+#    cd ../
+
+	
+	
+# Wallpaper
+sudo cp $images_path/wallpaper.png $remaster_path/remaster-root/usr/share/backgrounds/warty-final-ubuntu.png
+	
+
+# No hace falta mientras no quitemos el Casper autologin
+# mkinitramfs -o $remaster_path/remaster-iso/casper/initrd.lz $(chroot $remaster_path/remaster-root ls /lib/modules)
+	
+	
+	

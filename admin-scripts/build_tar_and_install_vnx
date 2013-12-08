@@ -1,0 +1,52 @@
+#!/bin/sh
+
+# Parse arguments
+echo "Options:"
+while getopts "vi" opt; do
+  case $opt in
+    v)
+      echo "Verbose mode" >&2
+      VERBOSE=-v
+      ;;
+    i)
+      echo "Install on idefix repository" >&2
+	  UPDATEIDEFIX=-i 
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+	  echo "Usage: build_tar_and_install_vnx [-i] [-v]"
+	  echo "           -i copies the new version to idefix repository (only if executed from idefix)"
+	  echo "           -v verbose mode"
+      ;;
+  esac
+done
+
+# Move to the upper directory where this script is
+cdir=$( dirname $0 )
+cd $cdir/..
+
+echo `pwd`
+
+admin-scripts/build_vnx_tar $VERBOSE $UPDATEIDEFIX 
+
+TARNAME=$( readlink distrib/vnx-latest.tgz )  # vnx-latest.tgz is a symbolic link
+                                              # with stat we get the name of the 
+                                              # file pointed by the link
+
+DIRNAME=$( echo "$TARNAME" | sed s/.tgz$// )
+
+if [ $VERBOSE ]; then 
+    echo "TARNAME=$TARNAME"
+    echo "DIRNAME=$DIRNAME"
+fi
+
+mkdir -p tmp
+cd tmp
+if [ $VERBOSE ]; then
+    tar xfvz ../distrib/$TARNAME
+else
+    tar xfz ../distrib/$TARNAME
+fi
+$DIRNAME/install_vnx $VERBOSE
+cd ..
+rm -rf tmp

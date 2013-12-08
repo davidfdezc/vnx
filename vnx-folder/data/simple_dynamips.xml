@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        simple_dynamips
+Description: Just one Dynamips C3640 router connected to a Network named Net0 with address 10.0.0.11. 
+             The host has an interface in Net0 with address 10.0.0.1  
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+     xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>simple_dynamips</scenario_name>
+    <automac offset="11"/>
+    <!--vm_mgmt type="none" /-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="40">
+       <host_mapping />
+    </vm_mgmt> 
+    <vm_defaults>
+	</vm_defaults>
+    <dynamips_ext>simple_dynamips-dn.xml</dynamips_ext>
+  </global>
+  
+  <net name="Net0" mode="virtual_bridge" />
+    
+  <!-- NODES -->
+  <vm name="cisco" type="dynamips" subtype="3600" os="">
+	<filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
+	<mem>96M</mem>
+  	<console id="1" display="yes"/>
+	<if id="0" net="vm_mgmt" name="e0/0"/>
+	<if id="1" net="Net0" name="e0/1">
+		<ipv4>10.0.0.11/24</ipv4>
+		<ipv4>11.0.0.11/24</ipv4>
+		<ipv6>2001:db8::11/64</ipv6>
+		<ipv6>2001:db9::11/64</ipv6>
+    </if>
+    <exec seq="brief"    type="verbatim" ostype="show">show ip interface brief</exec>
+    <exec seq="showcfg"  type="verbatim" ostype="show">show running-config</exec>
+    <exec seq="hostname" type="verbatim" ostype="set" >hostname Router1</exec>
+    <exec seq="cmdfile"  type="file"     ostype="show" >conf/cisco-cmd-file.conf</exec>
+    <exec seq="cmdfile2" type="file"     ostype="set"  >conf/cisco-cmd-file2.conf</exec>
+    <exec seq="loadcfg"  type="verbatim" ostype="load">conf/cisco.conf</exec>
+  </vm>
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.1/24</ipv4>
+    </hostif>
+  </host>  
+
+</vnx>

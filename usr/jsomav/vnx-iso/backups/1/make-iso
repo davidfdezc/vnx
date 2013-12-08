@@ -1,0 +1,469 @@
+#!/bin/bash
+#umount livecdtmp/edit/dev/
+
+#Download an official Desktop CD from http://releases.ubuntu.com/
+
+function main {
+
+	# Process parameters
+
+echo "directorio sdir = $sdir"
+
+        SOURCE_ISO_DIR="${1%/*}"
+        SOURCE_ISO_NAME="${1##*/}"
+	if [ "$SOURCE_ISO_DIR" = "$SOURCE_ISO_NAME" ]; then
+		SOURCE_ISO_DIR=${sdir}
+	fi
+	OUTPUT_TYPE=$2
+	INSTALL_TYPE=$3
+
+
+echo "SOURCE_ISO_DIR:$SOURCE_ISO_DIR  SOURCE_ISO_NAME:$SOURCE_ISO_NAME  OUTPUT_TYPE=$OUTPUT_TYPE  INSTALL_TYPE=$INSTALL_TYPE"
+
+
+	# Check for requirements and install
+#	apt-get install squashfs-tools genisoimage
+
+	# Work over a copy of source iso
+	cd $SOURCE_ISO_DIR
+	mkdir livecdtmp
+	cp $SOURCE_ISO_NAME livecdtmp
+	cd livecdtmp
+ 
+	# Mount the Desktop .iso
+	mkdir mnt
+	sudo mount -o loop $SOURCE_ISO_NAME mnt
+
+	# Extract .iso contents into dir 'extract-cd'
+	mkdir extract-cd
+	rsync --exclude=/casper/filesystem.squashfs -a mnt/ extract-cd
+
+	# Extract the SquashFS filesystem
+	sudo unsquashfs mnt/casper/filesystem.squashfs
+	sudo mv squashfs-root edit
+
+
+	# For network connection within chroot
+	sudo cp /etc/resolv.conf edit/etc/
+
+	# Depending on your configuration, you may also need to copy the hosts file
+	# sudo cp /etc/hosts edit/etc/
+
+	# these mount important directories of your host system - if you later decide to delete the edit/ directory, then make sure to unmount before doing so
+	sudo mount --bind /dev/ edit/dev	
+
+
+
+	#chroot edit
+	chroot edit mount -t proc none /proc
+	chroot edit mount -t sysfs none /sys
+	chroot edit mount -t devpts none /dev/pts
+
+	# To avoid locale issues and in order to import GPG keys
+#	chroot edit export HOME=/root
+#	chroot edit export LC_ALL=C
+
+	# In 9.10, before installing or upgrading packages you need to run
+	chroot edit dbus-uuidgen > /var/lib/dbus/machine-id
+	chroot edit dpkg-divert --local --rename --add /sbin/initctl
+	chroot edit ln -s /bin/true /sbin/initctl
+
+	# Remove install icon and examples folder that would otherwise be copied to the Desktop
+        rm -rf edit/usr/share/applications/ubiquity-gtkui.desktop
+        rm -rf edit/usr/share/example-content
+
+	# Increase timeout of main menu
+	sed --in-place -e 's/timeout 50/timeout 5000/g' extract-cd/isolinux/isolinux.cfg
+	# Remove install option from main menu
+	echo 'default live
+label live
+  menu label ^Try Ubuntu without installing
+  kernel /casper/vmlinuz
+  append  file=/cdrom/preseed/ubuntu.seed boot=casper initrd=/casper/initrd.lz quiet splash --
+label check
+  menu label ^Check disc for defects
+  kernel /casper/vmlinuz
+  append  boot=casper integrity-check initrd=/casper/initrd.lz quiet splash --
+label memtest
+  menu label Test ^memory
+  kernel /install/mt86plus
+label hd
+  menu label ^Boot from first hard disk
+  localboot 0x80' > extract-cd/isolinux/text.cfg
+        # Show logo during main menu
+	sed --in-place -e 's/hidden-timeout=2/hidden-timeout=1/g' extract-cd/isolinux/gfxboot.cfg
+
+	# Copy images
+	cp ${cdir}/access.pcx ${cdir}/splash.pcx extract-cd/isolinux/
+
+
+	# Install VNX
+#	install_basic
+#	if [[ $INSTALL_TYPE = "full" ]]; then
+#		install_rest
+#	fi
+
+	# Modificar el script que va a ir a chroot y copiarlo a chroot
+	cp $cdir/script_chroot.sh script_chroot
+        sed --in-place -e 's/INSTALL_TYPE\=\(""\)/INSTALL_TYPE\=\"'$INSTALL_TYPE'"/g' script_chroot
+	mv script_chroot edit
+        chmod +x edit/script_chroot
+        chroot edit ./script_chroot
+
+
+	############# Boot init
+	#you can change the hostname or the livecd user. NO LO HE HECHO aqui sino mas abajo
+	#sudo gedit edit/usr/share/initramfs-tools/scripts/casper
+	#and edit the username or hostname
+
+	#sudo gedit edit/usr/share/initramfs-tools/scripts/casper-bottom/10adduser
+	#to edit even the livecd user's password. 
+	# xxxxxxxx -> no me ha cogido la pass
+
+	# gedit edit/etc/casper.conf
+	# vnx-user
+	chroot edit sed -i -e "s/export USERNAME=\"ubuntu\"/export USERNAME=\"vnx-user\"/g" /etc/casper.conf
+	#############
+
+
+	# Remove the (Casper) Autologin
+#	exit
+	cd extract-cd/casper
+	mkdir lztempdir
+	cd lztempdir
+	lzma -dc -S .lz ../initrd.lz | cpio -imvd --no-absolute-filenames
+
+#	cp scripts/casper-bottom/25configure_init scripts/casper-bottom/25configure_init.orig
+
+
+
+#	gedit scripts/casper-bottom/25configure_init
+	# borrar $USERNAME de la linea 25
+
+	cp ../initrd.lz ../inird.lz.orig
+	find . | cpio --quiet --dereference -o -H newc | lzma -7 > ../initrd.lz
+	cd ../../..
+	##############
+
+echo "pulsa tecla"
+read a
+
+
+	# Custom Background for GNOME
+	#Generally background files are located in /usr/share/backgrounds. Copy your png file there, adjust owner and file access, and edit the files:
+	#   1. /usr/share/gnome-background-properties/ubuntu-wallpapers.xml and
+	#   2. /usr/share/gconf/defaults/16_ubuntu-wallpapers or other files in the same directory. by changing the string /usr/share/backgrounds/warty-final-ubuntu.png to point to your file
+
+	# After customization make sure that there are no users with a UID > 999. Otherwise your image won't boot because no initial user is available (see /usr/share/initramfs-tools/scripts/casper-bottom/10adduser). While in chroot:
+	#awk -F: '$3 > 999' /etc/passwd
+	#If you get any hits, try changing the uid:
+	#usermod -u 500 $hit
+	#chroot edit awk -F: '$3 > 999' /etc/passwd | awk -F: '{print "usermod -u 500" $1}' | bash
+
+read b
+	# sustituir 2.6.15-26-k7 por la versión del kernel que salga en /lib/modules
+	# hacer ls de /lib/modules, guardarlo en variable, y hacer mk... $variable
+	#mkinitramfs -o /initrd.gz 2.6.32-28-generic
+#	kvers=$(ls /lib/modules)
+#       mkinitramfs -o /initrd.lz $kvers
+#	chroot edit mkinitramfs -o /initrd.lz $(ls /lib/modules)
+# hacerlo yo!!
+
+read c	
+
+	# Exit from the chroot jail and move this file to extract-cd/casper:
+	#exit
+	#mv edit/initrd.gz extract-cd/casper/
+	mv edit/initrd.lz extract-cd/casper/
+
+	# Cleanup
+	#chroot edit
+
+	# dejar como estaba los repos
+	chroot edit mv /etc/apt/sources.list.backup /etc/apt/sources.list
+	chroot edit apt-get update
+
+	#downloaded package files
+	chroot edit aptitude clean
+	#delete temporary files
+	chroot edit rm -rf /tmp/* ~/.bash_history
+	# delete hosts file
+	chroot edit rm /etc/hosts
+	#nameserver settings
+	chroot edit rm /etc/resolv.conf
+	# if installed software, be sure to run
+	chroot edit rm /var/lib/dbus/machine-id
+	chroot edit rm /sbin/initctl
+	chroot edit dpkg-divert --rename --remove /sbin/initctl
+
+	#now umount (unmount) special filesystems and exit chroot
+	chroot edit umount /proc || umount -lf /proc
+	chroot edit umount /sys
+	chroot edit umount /dev/pts
+	#exit
+sleep 2
+	umount mnt
+	umount edit/dev
+
+
+
+	#Producing the CD image
+	##Assembling the file system
+	###Regenerate manifest
+	chmod +w extract-cd/casper/filesystem.manifest
+	sudo chroot edit dpkg-query -W --showformat='${Package} ${Version}\n' > extract-cd/casper/filesystem.manifest
+	sudo cp extract-cd/casper/filesystem.manifest extract-cd/casper/filesystem.manifest-desktop
+	sudo sed -i '/ubiquity/d' extract-cd/casper/filesystem.manifest-desktop
+	sudo sed -i '/casper/d' extract-cd/casper/filesystem.manifest-desktop
+	#Compress filesystem
+	sudo rm extract-cd/casper/filesystem.squashfs
+	sudo mksquashfs edit extract-cd/casper/filesystem.squashfs
+
+	# Update the filesystem.size file, which is needed by the installer:
+	printf $(sudo du -sx --block-size=1 edit | cut -f1) > extract-cd/casper/filesystem.size
+
+	# Set an image name in extract-cd/README.diskdefines
+	#sudo gedit extract-cd/README.diskdefines
+	sed -i -e "s/#define DISKNAME  /#define DISKNAME  VNX - /g" extract-cd/README.diskdefines
+
+	# Remove old md5sum.txt and calculate new md5 sums
+	cd extract-cd
+	sudo rm md5sum.txt
+	find -type f -print0 | sudo xargs -0 md5sum | grep -v isolinux/boot.cat | sudo tee md5sum.txt
+
+	# Create the ISO image
+	sudo mkisofs -D -r -V "$IMAGE_NAME" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ../ubuntu-10.04.2-desktop-i386-custom.iso .
+
+	mv ../ubuntu-10.04.2-desktop-i386-custom.iso ../..
+	cd ../..
+
+	# Remove temporary data
+	#rm -rf livecdtmp
+
+	# test
+	#cd ..
+	#qemu -cdrom ubuntu-10.04.2-desktop-i386-custom.iso -boot d -m 512
+
+}
+
+
+
+
+function install_basic {
+
+# Installs basic VNX requirements, VNX, and two filesystems
+
+	# Package Installation
+	# Enable universe and multiverse
+	cp /etc/apt/sources.list /etc/apt/sources.list.backup
+	sed -i -e "s/# deb/deb/g" /etc/apt/sources.list
+
+	# Update and install
+	apt-get update
+	apt-get install -y build-essential qemu-kvm libvirt-bin vlan xterm bridge-utils  screen virt-manager virt-viewer libxml-checker-perl libxml-parser-perl libnetaddr-ip-perl libnet-pcap-perl libnet-ipv6addr-perl liberror-perl libexception-class-perl uml-utilities libxml-libxml-perl libxml2-dev libgnutls-dev libdevmapper-dev libterm-readline-perl-perl libnet-telnet-perl libnet-ip-perl libreadonly-perl libmath-round-perl libappconfig-perl libdbi-perl graphviz libnl-dev genisoimage gnome-terminal libfile-homedir-perl
+
+	# If you use 64 bits version of Ubuntu, install 32 bits compatibility libraries:
+	# apt-get install ia32-libs
+
+	#Install libvirt 0.8.5:
+	/etc/init.d/libvirt-bin stop
+	wget http://libvirt.org/sources/libvirt-0.8.5.tar.gz
+	tar xfvz libvirt-0.8.5.tar.gz
+	cd libvirt-0.8.5
+	./configure --without-xen --prefix=/usr && make && make install
+	start libvirt-bin
+
+	# For Ubuntu 10.04, just install the libsys-virt-perl package
+	apt-get install libsys-virt-perl
+
+	# Install VNX:
+	mkdir /tmp/vnx-update
+	cd /tmp/vnx-update
+	wget -N http://idefix.dit.upm.es/download/vnx/vnx-latest.tgz
+	tar xfvz vnx-latest.tgz
+	cd vnx-*
+	./install_vnx
+
+	# Create the VNX config file (/etc/vnx.conf). You just can move the sample config file:
+	mv /etc/vnx.conf.sample /etc/vnx.conf
+
+	# root file systems
+	# ubuntu server
+	wget -N http://idefix.dit.upm.es/download/vnx/filesystems/root_fs_ubuntu-10.10-v02.qcow2.bz2
+	bunzip2 root_fs_ubuntu-10.10-v02.qcow2.bz2
+	ln -s root_fs_ubuntu-10.10-v02.qcow2 root_fs_ubuntu
+
+	# VNUML root_fs_tutorial and kernel
+	cd /usr/share/vnx/filesystems
+	wget -N http://idefix.dit.upm.es/download/vnx/filesystems/root_fs_tutorial-0.6.0.bz2
+	bunzip2 root_fs_tutorial-0.6.0.bz2
+	ln -s root_fs_tutorial-0.6.0 root_fs_tutorial
+	cd /usr/share/vnx/kernels
+	wget -N http://jungla.dit.upm.es/~vnx/download/kernels/linux-2.6.18.1-bb2-xt-4m
+	chmod +x linux-2.6.18.1-bb2-xt-4m
+	ln -s linux-2.6.18.1-bb2-xt-4m linux
+}
+
+
+function install_rest {
+
+# Installs all the other filesystems
+
+	# ubuntu with gui
+	wget -N http://idefix.dit.upm.es/download/vnx/filesystems/root_fs_ubuntu-10.10-gui-v01.qcow2.bz2
+	bunzip2 root_fs_ubuntu-10.10-gui-v01.qcow2.bz2
+	ln -s root_fs_ubuntu-10.10-gui-v01.qcow2 root_fs_ubuntu-gui
+
+	# freebsd server
+	wget -N http://idefix.dit.upm.es/download/vnx/filesystems/root_fs_freebsd-8.1-v01.qcow2.bz2
+	bunzip2 root_fs_freebsd-8.1-v01.qcow2.bz2
+	ln -s root_fs_freebsd-8.1-v01.qcow2 root_fs_freebsd
+
+	# freebsd gui
+	wget -N http://idefix.dit.upm.es/download/vnx/filesystems/root_fs_freebsd-8.1-gui-v01.qcow2.bz2
+	bunzip2 root_fs_freebsd-8.1-gui-v01.qcow2.bz2
+	ln -s root_fs_freebsd-8.1-gui-v01.qcow2 root_fs_freebsd-gui
+
+	# Dynamips support
+	apt-get install dynamips dynagen
+
+
+	# Create file /etc/init.d/dynamips
+	echo '#!/bin/sh
+# Start/stop the dynamips program as a daemon.
+#
+### BEGIN INIT INFO
+# Provides:          dynamips
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Cisco hardware emulator daemon
+### END INIT INFO
+
+DAEMON=/usr/bin/dynamips
+NAME=dynamips
+PORT=7200
+PIDFILE=/var/run/$NAME.pid 
+LOGFILE=/var/log/$NAME.log
+DESC="Cisco Emulator"
+SCRIPTNAME=/etc/init.d/$NAME
+
+test -f $DAEMON || exit 0
+
+. /lib/lsb/init-functions
+
+
+case "$1" in
+start)  log_daemon_msg "Starting $DESC " "$NAME"
+        start-stop-daemon --start --chdir /tmp --background --make-pidfile --pidfile $PIDFILE --name $NAME --startas $DAEMON -- -H $PORT -l $LOGFILE
+        log_end_msg $?
+        ;;
+stop)   log_daemon_msg "Stopping $DESC " "$NAME"
+        start-stop-daemon --stop --quiet --pidfile $PIDFILE --name $NAME
+        log_end_msg $?
+        ;;
+restart) log_daemon_msg "Restarting $DESC " "$NAME"
+        start-stop-daemon --stop --retry 5 --quiet --pidfile $PIDFILE --name $NAME
+        start-stop-daemon --start --chdir /tmp --background --make-pidfile --pidfile $PIDFILE --name $NAME --startas $DAEMON -- -H $PORT -l $LOGFILE
+        log_end_msg $?
+        ;;
+status)
+        status_of_proc -p $PIDFILE $DAEMON $NAME && exit 0 || exit $? 
+        #status $NAME
+        #RETVAL=$?
+        ;; 
+*)      log_action_msg "Usage: $SCRIPTNAME {start|stop|restart|status}"
+        exit 2
+        ;;
+esac
+exit 0' > /etc/init.d/dynamips
+
+	# Set execution permissions for the script and add it to system start-up
+	chmod +x /etc/init.d/dynamips
+	update-rc.d dynamips defaults
+	/etc/init.d/dynamips start
+
+	# Download and install cisco IOS image: ARREGLAR LINK!!!
+	cd /usr/share/vnx/filesystems
+	wget ... c3640-js-mz.124-19.image
+	ln -s c3640-js-mz.124-19.image c3640
+
+	# Calculate the idle-pc value for your computer following the procedure in http://dynagen.org/tutorial.htm: 
+	dynagen /usr/share/vnx/examples/R.net
+	console R     # type 'no' to exit the config wizard and wait 
+	              # for the router to completely start 
+	idle-pc get R
+
+	# Olive: Download old qemu bios from 0.10.6 version and copy it to /usr/share/qemu directory:
+	wget http://downloads.sourceforge.net/project/kvm/qemu-kvm/0.10.6/qemu-kvm-0.10.6.tar.gz
+	tar xfvz qemu-kvm-0.10.6.tar.gz
+	cp qemu-kvm-0.10.6/pc-bios/bios.bin /usr/share/qemu-kvm/bios-0.10.6.bin
+	rm qemu-kvm-0.10.6.tar.gz
+}
+
+function usage {
+	echo "**"
+	echo "**  Usage: make_iso [Options]"
+	echo "**"
+	echo "**  Options:"
+	echo "**       -s [source_iso_file]"
+	echo "**       -o [cd|usbkey]"
+	echo "**       -i [basic|full]   basic installs only UML and Ubuntu-server filesystems, while full installs all of them. basic is recommended."
+	echo "**"
+}
+
+
+sdir=$( pwd )
+
+cdir=$( dirname $0 )
+cd $cdir
+
+echo "cdir:$cdir  sdir:$sdir"
+
+
+SOURCE_ISO=""
+OUTPUT_TYPE=""
+INSTALL_TYPE=""
+
+while getopts ":s::o::i:" opt; do
+  case $opt in
+    s)
+      if [[ $OPTARG = -* ]]; then
+        usage
+        exit 1
+      fi
+      echo "-s was triggered, Parameter: $OPTARG" >&2
+      SOURCE_ISO=$OPTARG
+      ;;
+    o)
+      if [[ $OPTARG = -* ]]; then
+        usage
+        exit 1
+      fi
+      echo "-o was triggered, Parameter: $OPTARG" >&2
+      OUTPUT_TYPE=$OPTARG
+      ;;
+    i)
+      if [[ $OPTARG = -* ]]; then
+        usage
+        exit 1
+      fi
+
+      echo "-i was triggered, Parameter: $OPTARG" >&2
+      INSTALL_TYPE=$OPTARG
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done
+
+main $SOURCE_ISO $OUTPUT_TYPE $INSTALL_TYPE
+
+
+
+

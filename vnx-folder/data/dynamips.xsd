@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="hw">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="chassis" type="xs:string" minOccurs="0" />
+        <xs:element name="npe" type="xs:string" minOccurs="0" />
+        <xs:element name="slot" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:simpleContent>
+              <xs:extension base="xs:string">
+                <xs:attribute name="id" type="xs:string" />
+              </xs:extension>
+            </xs:simpleContent>
+          </xs:complexType>
+        </xs:element>
+        <!--xs:element name="console_base" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:attribute name="port" type="xs:string" />
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="console" minOccurs="0" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:attribute name="port" type="xs:string" />
+          </xs:complexType>
+        </xs:element-->
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="vnx_dynamips" >
+    <xs:complexType>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="hw" />
+        <xs:element name="global">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="sparsemem" type="xs:string" minOccurs="0" />
+              <xs:element name="ghostios" type="xs:string" minOccurs="0" />
+              <xs:element ref="hw" minOccurs="0" maxOccurs="unbounded" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="vm">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="conf" type="xs:string" minOccurs="0"  />
+              <xs:element ref="hw" minOccurs="0" maxOccurs="unbounded" />
+              <xs:element name="login" minOccurs="0" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:attribute name="password" type="xs:string" />
+                  <xs:attribute name="user" type="xs:string" />
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="enable" minOccurs="0" maxOccurs="1">
+                <xs:complexType>
+                  <xs:attribute name="password" type="xs:string" use="required"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string" />
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

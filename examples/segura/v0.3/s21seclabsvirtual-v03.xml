@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+S21SecLabs scenario v0.3
+-->
+
+<!DOCTYPE vnx [
+  <!ENTITY VNXDIR "/usr/share/vnx/">
+  <!ENTITY REDIR  "&lt;/dev/null &gt;/dev/null 2&gt;&amp;1 &amp;">
+]>
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-1.93.xsd">
+
+	<global>
+		<version>1.92</version>
+		<simulation_name>s21seclabsvirtual-v03</simulation_name>
+		<ssh_version>2</ssh_version>
+		<ssh_key>~/.ssh/identity.pub</ssh_key>
+		<automac offset="0"/>
+		<!--vm_mgmt type="private" network="10.255.0.0" mask="16" offset="0">
+		    <host_mapping/>
+                </vm_mgmt-->
+		<vm_mgmt type="none"/>
+		<vm_defaults exec_mode="mconsole">
+			<filesystem type="cow">&VNXDIR;filesystems/root_fs_light</filesystem>
+			<kernel>/usr/share/vnx/kernels/linux</kernel>
+			<console id="1">xterm</console>
+		</vm_defaults>
+	</global>
+
+	<!--NETS START-->
+
+        <!-- Red exterior: 10.1.1.0/24 -->
+	<net name="br0" mode="virtual_bridge" sock="" type="lan" external="" vlan="" hub="no"/>
+
+        <!-- Red exterior: 192.168.0.0/24 -->
+	<net name="ExtNet" mode="virtual_bridge" sock="" type="lan" external="" vlan="" hub="no"/>
+
+        <!-- Red DMZ: 10.0.10.0/24 -->
+	<net name="DMZ" mode="virtual_bridge" sock="" type="lan" external="" vlan="" hub="no"/>
+
+        <!-- Red IntNet: 10.0.0.0/24 -->
+	<net name="IntNet" mode="virtual_bridge" sock="" type="lan" external="" vlan="" hub="no"/>
+
+        <!-- Red SubNet1: 10.0.1.0/24 -->
+	<net name="SubNet1" mode="virtual_bridge" sock="" type="lan" external="" vlan="" hub="no"/>
+
+        <!-- Red SubNet2: 10.0.2.0/24 -->
+	<net name="SubNet2" mode="virtual_bridge" sock="" type="lan" external="" vlan="" hub="no"/>
+
+        <!-- Red SubNet3: 10.0.3.0/24 -->
+	<net name="SubNet3" mode="virtual_bridge" sock="" type="lan" external="" vlan="" hub="no"/>
+ 	<!--NETS END-->
+
+
+	<!-- Máquinas virtuales -->
+
+	<!-- Routers y firewall -->
+
+	<!--firewall-->
+	<vm name="fw" type="uml" subtype="" os="">
+		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
+                <mem>64M</mem>
+		<if id="1" net="ExtNet">
+			<ipv4 mask="255.255.255.0">192.168.0.1</ipv4>
+	    	</if>
+		<if id="2" net="DMZ">
+			<ipv4 mask="255.255.255.0">10.0.10.1</ipv4>
+	    	</if>
+		<if id="3" net="IntNet">
+			<ipv4 mask="255.255.255.0">10.0.0.1</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.0.2">10.0.0.0/16</route>
+		<route type="ipv4" gw="192.168.0.2">default</route>
+		<forwarding type="ip"/>
+
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+
+		<filetree root="/usr/local/bin" seq="start">conf/fw/bin</filetree> <!-- Copies scripts to start and stop fw -->
+		<filetree root="/root" seq="start">conf/fw/conf</filetree>            <!-- Copies fwbuilder configuration file (*.fwb) -->
+		<exec seq="start" type="verbatim">/usr/local/bin/s21secfw.fw</exec>
+		<exec seq="stop" type="verbatim">/usr/local/bin/delete-all-fw-rules.sh</exec>
+	</vm>
+
+	<!-- Router principal -->
+	<vm name="r1" type="uml" subtype="" os="">
+		<if id="1" net="IntNet">
+			<ipv4 mask="255.255.255.0">10.0.0.2</ipv4>
+	    	</if>
+		<if id="2" net="SubNet1">
+			<ipv4 mask="255.255.255.0">10.0.1.1</ipv4>
+	    	</if>
+		<if id="3" net="SubNet2">
+			<ipv4 mask="255.255.255.0">10.0.2.1</ipv4>
+	    	</if>
+		<if id="4" net="SubNet3">
+			<ipv4 mask="255.255.255.0">10.0.3.1</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.0.1">default</route>
+		<forwarding type="ip"/>
+
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<!--Router externo con NAT -->
+	<vm name="r2" type="uml" subtype="" os="">
+		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
+                <mem>48M</mem>
+		<if id="1" net="br0">
+			<ipv4 mask="255.255.255.0">10.1.1.81</ipv4>
+	    	</if>
+		<if id="2" net="ExtNet">
+			<ipv4 mask="255.255.255.0">192.168.0.2</ipv4>
+	    	</if>
+		<route type="ipv4" gw="192.168.0.1">10.0.0.0/16</route>
+		<route type="ipv4" gw="10.1.1.1">default</route>
+		<forwarding type="ip"/>
+
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+		<exec seq="start" type="verbatim">/sbin/iptables -t nat -A POSTROUTING -o eth1 -j MASQUERADE</exec>
+                <!-- DNS -->
+                <exec seq="start" type="verbatim">iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 53 -j DNAT --to 10.0.10.2:53</exec>
+                <exec seq="start" type="verbatim">iptables -t nat -A PREROUTING -i eth1 -p udp --dport 53 -j DNAT --to 10.0.10.2:53</exec>
+                <!-- MAIL -->
+                <exec seq="start" type="verbatim">iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 25 -j DNAT --to 10.0.10.3:25</exec>
+                <!-- WWW -->
+		<exec seq="start" type="verbatim">iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 80 -j DNAT --to 10.0.10.4:80</exec>
+                <exec seq="start" type="verbatim">iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 443 -j DNAT --to 10.0.10.4:443</exec>
+                <!-- VPN (ssh) -->
+		<exec seq="start" type="verbatim">iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 22 -j DNAT --to 10.0.1.2:22</exec>
+                <!-- TOMCAT -->
+		<exec seq="start" type="verbatim">iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 8080 -j DNAT --to 10.0.1.4:8080</exec>
+
+		<exec seq="stop" type="verbatim">/sbin/iptables -F -t nat</exec>
+	</vm>
+
+	<!--Internet VMs-->
+	<vm name="h-1" type="uml" subtype="" os="">
+		<if id="1" net="br0">
+			<ipv4 mask="255.255.255.0">10.1.1.83</ipv4>
+	    	</if>
+                <route type="ipv4" gw="10.1.1.81">10.0.0.0/16</route>
+                <route type="ipv4" gw="10.1.1.81">192.168.0.0/24</route>
+                <route type="ipv4" gw="10.1.1.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<!--External net VMs-->
+	<!--8 generic VMs-->
+
+	<vm name="ext-1" type="uml" subtype="" os="">
+		<if id="1" net="ExtNet">
+			<ipv4 mask="255.255.255.0">192.168.0.11</ipv4>
+	    	</if>
+		<route type="ipv4" gw="192.168.0.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="ext-2" type="uml" subtype="" os="">
+		<if id="1" net="ExtNet">
+			<ipv4 mask="255.255.255.0">192.168.0.12</ipv4>
+	    	</if>
+		<route type="ipv4" gw="192.168.0.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="ext-3" type="uml" subtype="" os="">
+		<if id="1" net="ExtNet">
+			<ipv4 mask="255.255.255.0">192.168.0.13</ipv4>
+	    	</if>
+		<route type="ipv4" gw="192.168.0.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="ext-4" type="uml" subtype="" os="">
+		<if id="1" net="ExtNet">
+			<ipv4 mask="255.255.255.0">192.168.0.14</ipv4>
+	    	</if>
+		<route type="ipv4" gw="192.168.0.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="ext-5" type="uml" subtype="" os="">
+		<if id="1" net="ExtNet">
+			<ipv4 mask="255.255.255.0">192.168.0.15</ipv4>
+	    	</if>
+		<route type="ipv4" gw="192.168.0.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="ext-6" type="uml" subtype="" os="">
+		<if id="1" net="ExtNet">
+			<ipv4 mask="255.255.255.0">192.168.0.16</ipv4>
+	    	</if>
+		<route type="ipv4" gw="192.168.0.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="ext-7" type="uml" subtype="" os="">
+		<if id="1" net="ExtNet">
+			<ipv4 mask="255.255.255.0">192.168.0.17</ipv4>
+	    	</if>
+		<route type="ipv4" gw="192.168.0.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="ext-8" type="uml" subtype="" os="">
+		<if id="1" net="ExtNet">
+			<ipv4 mask="255.255.255.0">192.168.0.18</ipv4>
+	    	</if>
+		<route type="ipv4" gw="192.168.0.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<!--DMZ net VMs-->
+
+	<!--Web server-->
+	<vm name="www" type="uml" subtype="" os="">
+		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
+                <mem>64M</mem>
+		<if id="1" net="DMZ">
+			<ipv4 mask="255.255.255.0">10.0.10.4</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.10.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+                <!-- Copiamos configuraciones apache -->
+                <filetree root="/var/www"  seq="start">conf/www/html</filetree>
+                <filetree root="/usr/lib/cgi-bin" seq="start">conf/www/lg</filetree>
+                <!-- Arranque apache -->
+                <exec seq="start" type="verbatim">cat /etc/hosts | grep -v www > /tmp/hosts; echo "10.0.10.4 www.s21seclabsvirtual.com www" >> /tmp/hosts; mv /tmp/hosts /etc</exec>  
+                <exec seq="start" type="verbatim">/etc/init.d/apache2 restart &REDIR; </exec>  
+                <!-- Paramos apache -->
+                <exec seq="stop"  type="verbatim">/etc/init.d/apache2 stop &REDIR; </exec>
+	</vm>
+
+	<!--Mail server-->
+	<vm name="mail" type="uml" subtype="" os="">
+		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
+                <mem>64M</mem>
+		<if id="1" net="DMZ">
+			<ipv4 mask="255.255.255.0">10.0.10.3</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.10.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<!--DNS server-->
+	<vm name="dns" type="uml" subtype="" os="">
+		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
+                <mem>64M</mem>
+		<if id="1" net="DMZ">
+			<ipv4 mask="255.255.255.0">10.0.10.2</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.10.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree>    <!-- Copies /etc/resolv.conf file -->
+		<filetree root="/etc/bind" seq="start">conf/dns/bind</filetree>       <!-- Copy bind config files -->
+		<exec seq="start" type="verbatim">/etc/init.d/bind9 start</exec> <!-- Start bind dns server -->
+		<exec seq="stop" type="verbatim">/etc/init.d/bind9 stop</exec> <!-- Stop bind dns server -->
+	</vm>
+
+	<!--SubNet1 net VMs-->
+
+	<!--VPN server-->
+	<vm name="vpn" type="uml" subtype="" os="">
+		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
+                <mem>64M</mem>
+		<if id="1" net="SubNet1">
+			<ipv4 mask="255.255.255.0">10.0.1.2</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.1.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<!--DB server-->
+	<vm name="bbdd" type="uml" subtype="" os="">
+		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
+                <mem>64M</mem>
+		<if id="1" net="SubNet1">
+			<ipv4 mask="255.255.255.0">10.0.1.3</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.1.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<!--Tomcat server-->
+	<vm name="tomcat" type="uml" subtype="" os="">
+		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
+                <mem>128M</mem>
+		<if id="1" net="SubNet1">
+			<ipv4 mask="255.255.255.0">10.0.1.4</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.1.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+                <!-- Arranque tomcat -->
+                <exec seq="start" type="verbatim">/usr/share/tomcat6.0/bin/catalina.sh start</exec>
+                <!-- Parada tomcat -->
+                <exec seq="stop"  type="verbatim">/usr/share/tomcat6.0/bin/catalina.sh stop</exec>
+	</vm>
+
+	<!--Glassfish server-->
+	<vm name="gfish" type="uml" subtype="" os="">
+		<filesystem type="cow">/usr/share/vnx/filesystems/root_fs_tutorial-0.5.2-server</filesystem>
+                <mem>128M</mem>
+		<if id="1" net="SubNet1">
+			<ipv4 mask="255.255.255.0">10.0.1.5</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.1.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<!--2 generic VMs-->
+
+	<vm name="net1-1" type="uml" subtype="" os="">
+		<if id="1" net="SubNet1">
+			<ipv4 mask="255.255.255.0">10.0.1.11</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.1.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net1-2" type="uml" subtype="" os="">
+		<if id="1" net="SubNet1">
+			<ipv4 mask="255.255.255.0">10.0.1.12</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.1.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<!--SubNet2 VMs-->
+	<!--8 generic VMs-->
+
+	<vm name="net2-1" type="uml" subtype="" os="">
+		<if id="1" net="SubNet2">
+			<ipv4 mask="255.255.255.0">10.0.2.11</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.2.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net2-2" type="uml" subtype="" os="">
+		<if id="1" net="SubNet2">
+			<ipv4 mask="255.255.255.0">10.0.2.12</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.2.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net2-3" type="uml" subtype="" os="">
+		<if id="1" net="SubNet2">
+			<ipv4 mask="255.255.255.0">10.0.2.13</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.2.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net2-4" type="uml" subtype="" os="">
+		<if id="1" net="SubNet2">
+			<ipv4 mask="255.255.255.0">10.0.2.14</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.2.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net2-5" type="uml" subtype="" os="">
+		<if id="1" net="SubNet2">
+			<ipv4 mask="255.255.255.0">10.0.2.15</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.2.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net2-6" type="uml" subtype="" os="">
+		<if id="1" net="SubNet2">
+			<ipv4 mask="255.255.255.0">10.0.2.16</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.2.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net2-7" type="uml" subtype="" os="">
+		<if id="1" net="SubNet2">
+			<ipv4 mask="255.255.255.0">10.0.2.17</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.2.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net2-8" type="uml" subtype="" os="">
+		<if id="1" net="SubNet2">
+			<ipv4 mask="255.255.255.0">10.0.2.18</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.2.1">default</route>
+	</vm>
+	
+	<!--SubNet3 VMs-->
+	<!--8 generic VMs-->
+
+	<vm name="net3-1" type="uml" subtype="" os="">
+		<if id="1" net="SubNet3">
+			<ipv4 mask="255.255.255.0">10.0.3.11</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.3.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net3-2" type="uml" subtype="" os="">
+		<if id="1" net="SubNet3">
+			<ipv4 mask="255.255.255.0">10.0.3.12</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.3.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net3-3" type="uml" subtype="" os="">
+		<if id="1" net="SubNet3">
+			<ipv4 mask="255.255.255.0">10.0.3.13</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.3.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net3-4" type="uml" subtype="" os="">
+		<if id="1" net="SubNet3">
+			<ipv4 mask="255.255.255.0">10.0.3.14</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.3.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net3-5" type="uml" subtype="" os="">
+		<if id="1" net="SubNet3">
+			<ipv4 mask="255.255.255.0">10.0.3.15</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.3.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net3-6" type="uml" subtype="" os="">
+		<if id="1" net="SubNet3">
+			<ipv4 mask="255.255.255.0">10.0.3.16</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.3.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net3-7" type="uml" subtype="" os="">
+		<if id="1" net="SubNet3">
+			<ipv4 mask="255.255.255.0">10.0.3.17</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.3.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+	<vm name="net3-8" type="uml" subtype="" os="">
+		<if id="1" net="SubNet3">
+			<ipv4 mask="255.255.255.0">10.0.3.18</ipv4>
+	    	</if>
+		<route type="ipv4" gw="10.0.3.1">default</route>
+		<filetree root="/etc/" seq="start">conf/common/resolv</filetree> <!-- Copies /etc/resolv.conf file -->
+	</vm>
+
+</vnx>
+

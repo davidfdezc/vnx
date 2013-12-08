@@ -1,0 +1,198 @@
+#!/usr/bin/perl
+
+use strict;
+
+my $usage = <<EOF;
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es          
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+create-tutorial_lxc_ubuntu-big:  Create  big VNX scenario made of LXC networks
+
+Usage: create-tutorial_lxc_ubuntu-big <num_routers> <num_hosts_per_net>
+
+                      <num_routers>        -> number of routers
+                      <num_hosts_per_net>  -> number of hosts per network
+
+Example: 
+  Usage: create-tutorial_lxc_ubuntu-big 3 10
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+EOF
+ 
+# Command line arguments process 
+if ($#ARGV != 1) {
+    print "\nERROR: incorrect number of parameters\n";
+    print "$usage";
+    exit (1);
+}
+
+for (my $i=0; $i <= $#ARGV; $i++) {
+    if ( ($ARGV[$i] eq "-h") or ($ARGV[$i] eq "--help") ) {
+        print "$usage\n";
+        exit (1);
+    }
+}
+
+
+my $num_routers = $ARGV[0];
+my $num_hosts_per_net = $ARGV[1];
+
+if ($num_routers < 1 or $num_routers > 253) {
+    print "ERROR: number of routers should be in the range [1,253]\n";
+    exit (1);
+}
+if ($num_hosts_per_net < 1 or $num_hosts_per_net > 253) {
+    print "ERROR: number of hosts per net should be in the range [1,253]\n";
+    exit (1);
+}
+
+my $num_hosts = $num_routers * $num_hosts_per_net;
+my $num_vms = $num_routers + $num_hosts;
+
+#print "Creating a scenario of $num_vms virtual machines ($num_routers routers and $num_hosts hosts)\n";
+
+
+
+my $header = <<EOF;
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        tutorial_lxc_ubuntu_big
+Description: A big tutorial scenario made of $num_vms LXC virtual machines ($num_routers routers and $num_hosts hosts).
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx\@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>tutorial_lxc_ubuntu_big</scenario_name>
+    <automac/>
+    <vm_mgmt type="none" />
+    <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="200">
+       <host_mapping />
+    </vm_mgmt-->
+    <vm_defaults>
+        <console id="0" display="yes"/>
+        <console id="1" display="no"/>
+    </vm_defaults>
+  </global>
+
+EOF
+
+my $net = <<EOF;
+<net name="__NET__" mode="virtual_bridge" />
+EOF
+
+print $header;
+
+
+#
+# Nets
+#
+for (my $i=0; $i <= $num_routers; $i++) {
+
+    my $new_net = $net;
+    $new_net =~ s/__NET__/Net${i}/;
+    print "  $new_net";
+
+}
+
+print "\n\n";
+
+#
+# Routers
+#
+my $router1 = <<EOF;
+<vm name="r__NUM__" type="lxc" subtype="" os="">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <!--mem>128M</mem-->
+    <if id="1" net="Net0">
+      <ipv4>10.0.0.__NUM__/24</ipv4>
+    </if>
+    <if id="2" net="Net__NUM__">
+      <ipv4>10.0.__NUM__.1/24</ipv4>
+    </if>
+EOF
+
+my $router2 = <<EOF;
+  <forwarding type="ip" />
+  </vm>
+EOF
+
+for (my $i=1; $i <= $num_routers; $i++) {
+
+    my $new_router = $router1;
+    $new_router =~ s/__NUM__/${i}/g;
+    print "  $new_router";
+    # Routes to other networks
+    for (my $j=1; $j <= $num_routers; $j++) {
+        if ($j == $i ) { next } # No route to our network 
+        print "    <route type=\"ipv4\" gw=\"10.0.0.$j\">10.0.$j.0/24</route>\n"
+    }
+    print "  $router2\n";
+
+}
+
+#
+# Hosts
+#
+
+my $host1 = <<EOF;
+<vm name="h__HOSTNUM__" type="lxc" subtype="" os="">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <!--mem>512M</mem!-->
+    <if id="1" net="Net__NETNUM__">
+      <ipv4>10.0.__NETNUM__.__IPADDR__/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.__NETNUM__.1">default</route>
+EOF
+
+my $host2 = "</vm>";
+
+my $host_num = 1;
+
+for (my $net_num=1; $net_num <= $num_routers; $net_num++) {
+
+  for (my $i=1; $i <= $num_hosts_per_net; $i++) {
+ 
+    #print "Creating host $host_num in network $net_num\n";
+    my $new_host = $host1;
+    my $ipaddr = $i + 1;
+    $new_host =~ s/__HOSTNUM__/${host_num}/g;
+    $new_host =~ s/__NETNUM__/${net_num}/g;
+    $new_host =~ s/__IPADDR__/${ipaddr}/g;
+    print "  $new_host";
+    print "  $host2\n\n";
+
+    $host_num++;
+
+  }
+}
+
+my $host = <<EOF;
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.252/24</ipv4>
+    </hostif>
+    <route type="ipv4" gw="10.0.0.1">10.0.0.0/16</route>
+  </host>
+
+</vnx>
+EOF
+
+print $host

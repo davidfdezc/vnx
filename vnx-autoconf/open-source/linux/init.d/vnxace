@@ -1,0 +1,73 @@
+#!/bin/bash
+#
+# chkconfig: 2345 12 88
+# Description: vnxaced is VNX Autoconfiguration and Execution Daemon (ACED)
+# Processname: vnxaced
+# Pidfile: /var/run/vnxaced.pid
+### BEGIN INIT INFO
+# Provides: vnxaced
+### END INIT INFO
+
+# Source function library.
+. /etc/init.d/functions
+
+binary="/usr/local/bin/vnxaced"
+
+[ -x $binary ] || exit 0
+
+RETVAL=0
+
+start() {
+    echo -n "Starting VNX ACED: "
+    daemonize $binary
+    RETVAL=$?
+    PID=$!
+    echo
+    [ $RETVAL -eq 0 ] && touch /var/lock/vnxaced
+
+    # Already done in vnxaced 
+    # echo $PID > /var/run/vnxaced.pid
+    status
+}
+
+stop() {
+    echo -n "Shutting down VNX ACED: "
+    killproc vnxaced
+    RETVAL=$?
+    echo
+    if [ $RETVAL -eq 0 ]; then
+        rm -f /var/lock/vnxaced
+        rm -f /var/run/vnxaced.pid
+    fi
+}
+
+status() {
+        ps uaxw | grep "/usr/local/bin/vnxaced" | grep -v grep
+}
+
+restart() {
+    echo -n "Restarting VNX ACED: "
+    stop
+    sleep 2
+    start
+}
+
+case "$1" in
+    start)
+        start
+    ;;
+    stop)
+        stop
+    ;;
+    status)
+        status
+    ;;
+    restart)
+        restart
+    ;;
+    *)
+        echo "Usage: $0 {start|stop|status|restart}"
+    ;;
+esac
+
+exit 0

@@ -1,0 +1,42 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<!--
+
+VNX DUMMY Plugin Definition Language v2.0
+
+Virtual Networks over LinuX (VNX) Project 
+www:    http://www.dit.upm.es/vnx 
+e-mail: vnx@dit.upm.es 
+
+-->
+
+ <xs:element name='dummy_conf'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='vm' minOccurs='0' maxOccurs='unbounded'/>
+   </xs:sequence>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='vm'>
+  <xs:complexType>
+   <xs:sequence>
+    <xs:element ref='tag1'   minOccurs='0' maxOccurs='1'/>
+    <xs:element ref='tag2'   minOccurs='0' maxOccurs='1'/>
+   </xs:sequence>
+   <xs:attribute name='name'    type='xs:string' use='required'/>
+   <xs:attribute name='type'    type='xs:string' use='required'/>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='tag1'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+ <xs:element name='tag2'>
+  <xs:complexType mixed='true'>
+  </xs:complexType>
+ </xs:element>
+
+</xs:schema>

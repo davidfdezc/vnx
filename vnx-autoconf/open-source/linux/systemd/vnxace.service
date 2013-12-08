@@ -1,0 +1,12 @@
+[Unit]
+Description=VNXACE
+#After=network.target
+
+[Service]
+Type=oneshot
+PIDFile=/var/run/vnxaced.pid
+ExecStart=/usr/local/bin/vnxaced
+Restart=on-abort
+ 
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,1 @@
+File copied to the vm during startup by means of a filetree command with seq='on_boot'

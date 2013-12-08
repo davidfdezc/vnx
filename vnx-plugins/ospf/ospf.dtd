@@ -1,0 +1,16 @@
+<!-- OSPF DTD version 1.0 -->
+<!ELEMENT ospf_conf (vm+)>
+<!ELEMENT vm (zebra_bin?,ospfd_bin?,zebra,passive_if,network+)>
+<!ATTLIST vm name CDATA #REQUIRED
+                        type CDATA #REQUIRED
+                        subtype CDATA #REQUIRED>
+<!ELEMENT zebra_bin (#PCDATA)>
+<!ELEMENT ospfd_bin (#PCDATA)>
+<!ELEMENT zebra EMPTY>
+<!ATTLIST zebra hostname CDATA #REQUIRED
+                        password CDATA #REQUIRED>
+<!ELEMENT passive_if (#PCDATA)>
+<!ELEMENT network (ip,area)>
+<!ELEMENT ip (#PCDATA)>
+<!ATTLIST ip mask CDATA #REQUIRED>
+<!ELEMENT area (#PCDATA)>

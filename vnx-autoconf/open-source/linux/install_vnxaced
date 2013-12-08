@@ -1,0 +1,243 @@
+#!/usr/bin/perl
+
+#
+# Name: install-vnxaced
+#
+# Description: 
+#   script to install vnxaced (Autoconfiguration and Command Execution Daemon) over Linux and FreeBSD 
+#
+# This file is a module part of VNX package.
+#
+# Author: David Fernández (david@dit.upm.es) 
+# Copyright (C) 2011, 	DIT-UPM
+# 			Departamento de Ingenieria de Sistemas Telematicos
+#			Universidad Politecnica de Madrid
+#			SPAIN
+#			
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+# An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
+#
+
+
+use strict;
+
+# Move to the directory where this script is
+$0 =~ /(.*)\// and chdir "$1";
+my $cdir=`pwd`;
+chomp ($cdir);
+print "-- Installing VNX ACE daemon from $cdir\n";
+
+my @platform = split(/,/, &getOSDistro);
+	
+# Check if XML::LibXML module is installed
+my $res=`perl -MXML::LibXML -e 1 2>&1`;
+if ($res) {
+    print "ERROR: module XML::LibXML not installed\n";
+    my $cmd;
+    if ($platform[1] eq 'Ubuntu') {
+        $cmd = "apt-get -y install libxml-libxml-perl";
+    } elsif ($platform[1] eq 'Fedora' || $platform[1] eq 'CentOS' ) {
+        $cmd = "yum -y install perl-XML-LibXML";
+    } elsif ($platform[0] eq 'FreeBSD') {
+        $cmd = "pkg_add -r perl p5-xml-libxml";
+    } 
+    print "       Install it manually with the following command:\n";
+    print "         $cmd\n";
+    print "       and execute again vnxaced installation script.\n";
+    exit (1);
+}	
+	
+if ($platform[0] eq 'Linux'){
+	
+	# ~~~~~~~~~~~~~~~~~~
+	#  Update for Linux       
+	# ~~~~~~~~~~~~~~~~~~
+	print "-- Linux platform detected ($platform[1]-$platform[2])\n";
+    if ( ($platform[1] eq 'Ubuntu' && $platform[2] =~ /^8.04/ ) || 
+         ($platform[1] eq 'Debian' ) ) {
+
+        # Particular case for Ubuntu 8.04: use VNXACED based on init.d
+        system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
+        system "chown root:root /usr/local/bin/vnxaced";
+        system "chmod 755 /usr/local/bin/vnxaced";
+
+        system "cp -v vnx_halt /usr/local/bin/";
+        system "chown root:root /usr/local/bin/vnx_halt";
+        system "chmod 755 /usr/local/bin/vnx_halt";
+        
+        system "cp -v linux/init.d/vnxace-ubuntu-8.04 /etc/init.d/vnxace";
+        system "chown root:root /etc/init.d/vnxace";
+        system "chmod 755 /etc/init.d/vnxace";
+        system "update-rc.d vnxace defaults";
+
+        system "cp -v linux/bin/xsu /usr/local/bin";
+        system "chown root:root /usr/local/bin/xsu";
+        system "chmod 755 /usr/local/bin/xsu";
+
+	} elsif ( ($platform[1] eq 'Ubuntu') or   
+            ($platform[1] eq 'Fedora' && $platform[2] <= 14) ) { 
+
+        # Use VNXACED based on upstart
+		system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
+		system "chown root:root /usr/local/bin/vnxaced";
+		system "chmod 755 /usr/local/bin/vnxaced";
+
+        system "cp -v vnx_halt /usr/local/bin/";
+        system "chown root:root /usr/local/bin/vnx_halt";
+        system "chmod 755 /usr/local/bin/vnx_halt";
+
+		system "cp -v linux/upstart/vnxace.conf /etc/init/";
+		system "chown root:root /etc/init/vnxace.conf";
+		system "chmod 644 /etc/init/vnxace.conf";
+
+		system "cp -v linux/bin/xsu /usr/local/bin";
+		system "chown root:root /usr/local/bin/xsu";
+		system "chmod 755 /usr/local/bin/xsu";
+
+    } elsif ( $platform[1] eq 'Fedora' && $platform[2] > 14 ) {
+    
+        # Use VNXACED based on systemd
+        system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
+        system "chown root:root /usr/local/bin/vnxaced";
+        system "chmod 755 /usr/local/bin/vnxaced";
+
+        system "cp -v vnx_halt /usr/local/bin/";
+        system "chown root:root /usr/local/bin/vnx_halt";
+        system "chmod 755 /usr/local/bin/vnx_halt";
+
+        system "cp -v linux/systemd/vnxace.service /lib/systemd/system/";
+        system "chown root:root /lib/systemd/system/vnxace.service";
+        system "chmod 644 /lib/systemd/system/vnxace.service";
+        system "systemctl enable vnxace.service";
+
+        system "cp -v linux/bin/xsu /usr/local/bin";
+        system "chown root:root /usr/local/bin/xsu";
+        system "chmod 755 /usr/local/bin/xsu";
+     
+	} elsif ($platform[1] eq 'CentOS') { 
+
+		# Use VNXACED based on init.d
+		system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
+		system "chown root:root /usr/local/bin/vnxaced";
+		system "chmod 755 /usr/local/bin/vnxaced";
+
+        system "cp -v vnx_halt /usr/local/bin/";
+        system "chown root:root /usr/local/bin/vnx_halt";
+        system "chmod 755 /usr/local/bin/vnx_halt";
+        
+		system "cp -v linux/init.d/vnxace /etc/init.d/";
+		system "chown root:root /etc/init.d/vnxace";
+		system "chmod 755 /etc/init.d/vnxace";
+		system "chkconfig --add vnxace";
+
+		system "cp -v linux/bin/xsu /usr/local/bin";
+		system "chown root:root /usr/local/bin/xsu";
+		system "chmod 755 /usr/local/bin/xsu";
+
+	}
+} elsif ($platform[0] eq 'FreeBSD'){
+
+	# ~~~~~~~~~~~~~~~~~~~~
+	#  Update for FreeBSD       
+	# ~~~~~~~~~~~~~~~~~~~~
+	print "-- FreeBSD platform detected\n";
+	system "cp -v vnxaced.pl /usr/local/bin/vnxaced";
+	system "chown root:wheel /usr/local/bin/vnxaced";
+	system "chmod 555 /usr/local/bin/vnxaced";
+
+    system "cp -v freebsd/vnx_halt /usr/local/bin/";
+    system "chown root:wheel /usr/local/bin/vnx_halt";
+    system "chmod 755 /usr/local/bin/vnx_halt";
+
+	system "cp -v freebsd/vnxace /etc/rc.d/";
+	system "chown root:wheel /etc/rc.d/vnxace";
+	system "chmod 555 /etc/rc.d/vnxace";
+
+	system "cp -v linux/bin/xsu /usr/local/bin";
+	system "chown root:wheel /usr/local/bin/xsu";
+	system "chmod 755 /usr/local/bin/xsu";
+
+} else {
+	print "-- Unknown platform\n";
+}
+
+system "rm -fr /root/.vnx/LOCK";
+
+
+#
+# Detects which OS, release, distribution name, etc 
+# This is an improved adaptation to perl the script found here: 
+#   http://www.unix.com/unix-advanced-expert-users/21468-machine.html?t=21468#post83185
+#
+# Output examples:
+#     Linux,Ubuntu,10.04,lucid,2.6.32-28-generic,x86_64
+#	  Linux,Fedora,14,Laughlin,2.6.35.11-83.fc14.i386,i386
+#     FreeBSD,FreeBSD,8.1,,,i386
+#
+sub getOSDistro {
+
+	my $OS=`uname -s`; chomp ($OS);
+	my $REV=`uname -r`; chomp ($REV);
+	my $MACH=`uname -m`; chomp ($MACH);
+	my $ARCH;
+	my $OSSTR;
+	my $DIST;
+	my $KERNEL;
+    my $PSEUDONAME;
+    	
+	if ( $OS eq 'SunOS' ) {
+	        $OS='Solaris';
+	        $ARCH=`uname -p`;
+	        $OSSTR= "$OS,$REV,$ARCH," . `uname -v`;
+	} elsif ( $OS eq "AIX" ) {
+	        $OSSTR= "$OS," . `oslevel` . "," . `oslevel -r`;
+	} elsif ( $OS eq "Linux" ) {
+	        $KERNEL=`uname -r`;
+	        if ( -e '/etc/redhat-release' ) {
+			my $relfile = `cat /etc/redhat-release`;
+			my @fields  = split(/ /, $relfile);
+	                $DIST = $fields[0];
+	                $REV = $fields[2];
+	                $PSEUDONAME = $fields[3];
+	                $PSEUDONAME =~ s/\(//; $PSEUDONAME =~ s/\)//;
+		} elsif ( -e '/etc/SuSE-release' ) {
+	                $DIST=`cat /etc/SuSE-release | tr "\n" ' '| sed s/VERSION.*//`;
+	                $REV=`cat /etc/SuSE-release | tr "\n" ' ' | sed s/.*=\ //`;
+	        } elsif ( -e '/etc/mandrake-release' ) {
+	                $DIST='Mandrake';
+	                $PSEUDONAME=`cat /etc/mandrake-release | sed s/.*\(// | sed s/\)//`;
+	                $REV=`cat /etc/mandrake-release | sed s/.*release\ // | sed s/\ .*//`;
+	        } elsif ( -e '/etc/lsb-release' ) {
+	                $DIST= `cat /etc/lsb-release | grep DISTRIB_ID | sed 's/DISTRIB_ID=//'`; 
+	                $REV = `cat /etc/lsb-release | grep DISTRIB_RELEASE | sed 's/DISTRIB_RELEASE=//'`;
+	                $PSEUDONAME = `cat /etc/lsb-release | grep DISTRIB_CODENAME | sed 's/DISTRIB_CODENAME=//'`;
+	        } elsif ( -e '/etc/debian_version' ) {
+	                $DIST= "Debian"; 
+	                $REV=`cat /etc/debian_version`;
+		}
+	        if ( -e '/etc/UnitedLinux-release' ) {
+	                $DIST=$DIST . " [" . `cat /etc/UnitedLinux-release | tr "\n" ' ' | sed s/VERSION.*//` . "]";
+	        }
+	 	chomp ($KERNEL); chomp ($DIST); chomp ($PSEUDONAME); chomp ($REV);
+	        $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+	} elsif ( $OS eq "FreeBSD" ) {
+	        $DIST= "FreeBSD";
+		$REV =~ s/-RELEASE//;
+	        $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+	}
+return $OSSTR;
+}
+

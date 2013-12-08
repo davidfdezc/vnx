@@ -1,0 +1,48 @@
+#!/bin/sh
+# Start/stop the vnxaced 
+#
+### BEGIN INIT INFO
+# Provides:          vnxace
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Required-Start:
+# Required-Stop:
+# Short-Description: VNX Autoconfiguration and Command Execution Daemon
+### END INIT INFO
+
+DAEMON=/usr/local/bin/vnxaced
+NAME=vnxaced
+#PORT=7200
+PIDFILE=/var/run/$NAME.pid
+LOGFILE=/var/log/$NAME.log
+DESC="VNX Autoconfiguration and Command Execution Daemon"
+SCRIPTNAME=/etc/init.d/$NAME
+
+test -f $DAEMON || exit 0
+
+. /lib/lsb/init-functions
+
+case "$1" in
+start)  log_daemon_msg "Starting $DESC " "$NAME"
+        start-stop-daemon --start --chdir /tmp --background --make-pidfile --pidfile $PIDFILE --name $NAME --startas $DAEMON -- -v
+        log_end_msg $?
+        ;;
+stop)   log_daemon_msg "Stopping $DESC " "$NAME"
+        start-stop-daemon --stop --quiet --pidfile $PIDFILE --name $NAME
+        log_end_msg $?
+        ;;
+restart) log_daemon_msg "Restarting $DESC " "$NAME"
+        start-stop-daemon --stop --retry 5 --quiet --pidfile $PIDFILE --name $NAME
+        start-stop-daemon --start --chdir /tmp --background --make-pidfile --pidfile $PIDFILE --name $NAME --startas $DAEMON -- -H $PORT -l $LOGFILE
+        log_end_msg $?
+        ;;
+status)
+        #status_of_proc -p $PIDFILE $DAEMON $NAME && exit 0 || exit $?
+        status $NAME
+        #RETVAL=$?
+        ;;
+*)      log_action_msg "Usage: $SCRIPTNAME {start|stop|restart|status}"
+        exit 2
+        ;;
+esac
+exit 0

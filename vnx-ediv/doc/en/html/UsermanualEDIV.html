@@ -1,0 +1,654 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
+        
+<!-- Mirrored from www.dit.upm.es/vnumlwiki/index.php/UsermanualEDIV by HTTrack Website Copier/3.x [XR&CO'2007], Thu, 19 Feb 2009 10:06:24 GMT -->
+<!-- Added by HTTrack --><meta http-equiv="content-type" content="text/html;charset=UTF-8"><!-- /Added by HTTrack -->
+<head>
+                <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+                <meta name="keywords" content="UsermanualEDIV,Example-BGP,Reference,Usermanual" />
+<link rel="shortcut icon" href="http://www.dit.upm.es/favicon.ico" />
+<link rel="search" type="application/opensearchdescription+xml" href="../opensearch_desc.php" title="VNUML-WIKI (English)" />
+<link title="Creative Commons" type="application/rdf+xml" href="../indexbafc.html?title=UsermanualEDIV&amp;action=creativecommons" rel="meta" />
+<link rel="copyright" href="http://creativecommons.org/licenses/by/2.5/" />
+                <title>UsermanualEDIV - VNUML-WIKI</title>
+                <style type="text/css" media="screen,projection">/*<![CDATA[*/ @import "skins/fratman_enhanced/main5444.css?42b"; /*]]>*/</style>
+                <link rel="stylesheet" type="text/css" media="print" href="skins/common/commonPrint5444.css?42b" />
+                <link rel="stylesheet" type="text/css" media="handheld" href="skins/fratman_enhanced/handheld5444.css?42b" />
+                <!--[if lt IE 5.5000]><style type="text/css">@import "/vnumlwiki/skins/fratman_enhanced/IE50Fixes.css?42b";</style><![endif]-->
+                <!--[if IE 5.5000]><style type="text/css">@import "/vnumlwiki/skins/fratman_enhanced/IE55Fixes.css?42b";</style><![endif]-->
+                <!--[if IE 6]><style type="text/css">@import "/vnumlwiki/skins/fratman_enhanced/IE60Fixes.css?42b";</style><![endif]-->
+                <!--[if IE 7]><style type="text/css">@import "/vnumlwiki/skins/fratman_enhanced/IE70Fixes.css?42b";</style><![endif]-->
+                <!--[if lt IE 7]><script type="text/javascript" src="/vnumlwiki/skins/common/IEFixes.js?42b"></script>
+                <meta http-equiv="imagetoolbar" content="no" /><![endif]-->
+
+                <script type= "text/javascript">/*<![CDATA[*/
+var skin = "fratman_enhanced";
+var stylepath = "/vnumlwiki/skins";
+var wgArticlePath = "/vnumlwiki/index.php/$1";
+var wgScriptPath = "/vnumlwiki";
+var wgServer = "http://www.dit.upm.es/";
+var wgCanonicalNamespace = "";
+var wgCanonicalSpecialPageName = false;
+var wgNamespaceNumber = 0;
+var wgPageName = "UsermanualEDIV";
+var wgTitle = "UsermanualEDIV";
+var wgArticleId = "1546";
+var wgIsArticle = true;
+var wgUserName = null;
+var wgUserLanguage = "en";
+var wgContentLanguage = "en";
+var wgBreakFrames = false;
+var wgCurRevisionId = "3783";
+/*]]>*/</script>
+
+                <script type="text/javascript" src="skins/common/wikibits5444.js?42b"><!-- wikibits js --></script>
+                <script type="text/javascript" src="../index6a64.php?title=-&amp;action=raw&amp;gen=js"><!-- site js --></script>
+                <style type="text/css">/*<![CDATA[*/
+@import "../index809e.css?title=MediaWiki:Common.css&amp;usemsgcache=yes&amp;action=raw&amp;ctype=text/css&amp;smaxage=18000";
+@import "../indexb6d0.css?title=MediaWiki:Fratman_enhanced.css&amp;usemsgcache=yes&amp;action=raw&amp;ctype=text/css&amp;smaxage=18000";
+@import "../index89be.css?title=-&amp;action=raw&amp;gen=css&amp;maxage=18000";
+/*]]>*/</style>
+                <!-- Head Scripts -->
+                        </head>
+
+
+  <body                 class="ns-0">
+
+<div id="titleBar"></div>
+
+    <!--  ---------------------------------------------
+      Added to have a link to the home page from the background image
+      in the top of the page (DFC 11/3/2007).
+      Based on recipe in http://www.alistapart.com/articles/imagemap/
+    -->
+
+    <div id="menu"> 
+       <a href="http://www.dit.upm.es/vnuml" id="home"><i>Home</i></a>
+    </div>
+
+    <div id="globalWrapper">
+      <div id="column-content">
+	<div id="content">
+	  <a name="top" id="contentTop"></a>
+	  	  <!--h1 class="firstHeading">UsermanualEDIV</h1-->
+
+          
+
+	  <div id="bodyContent">
+	    <h3 id="siteSub">From VNUML-WIKI</h3>
+	    <div id="contentSub"></div>
+	    	    	    <!-- start content -->
+	    <p style="font-size:1.65em;font-weight:bold; color: #173A7B; margin:0em 0 0.25em 0;border-bottom: 1px solid #333333; line-height: 1.1em; padding-bottom: 0.2em;">
+EDIV User Manual
+</p>
+<p><big>
+</p>
+<pre>Authors:
+<b>Francisco José Martín Moreno (fjmartin at dit.upm.es)</b>
+<b>Miguel Ferrer Cámara (mferrer at dit.upm.es)</b>
+<b>Fermín Galán Márquez (galan at dit.upm.es)</b>
+<b>version 1.0, Oct 14th, 2008</b>
+</pre>
+<p></big>
+</p>
+<table id="toc" class="toc" summary="Contents"><tr><td><div id="toctitle"><h2>Contents</h2></div>
+<ul>
+<li class="toclevel-1"><a href="#EDIV_Philosophy"><span class="tocnumber">1</span> <span class="toctext">EDIV Philosophy</span></a></li>
+<li class="toclevel-1"><a href="#Cluster_Configuration"><span class="tocnumber">2</span> <span class="toctext">Cluster Configuration</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Cluster_Requirements"><span class="tocnumber">2.1</span> <span class="toctext">Cluster Requirements</span></a></li>
+<li class="toclevel-2"><a href="#Configuration_File"><span class="tocnumber">2.2</span> <span class="toctext">Configuration File</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#EDIV_Controller_Usage"><span class="tocnumber">3</span> <span class="toctext">EDIV Controller Usage</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Building_Scenario"><span class="tocnumber">3.1</span> <span class="toctext">Building Scenario</span></a></li>
+<li class="toclevel-2"><a href="#Execute_Commands"><span class="tocnumber">3.2</span> <span class="toctext">Execute Commands</span></a></li>
+<li class="toclevel-2"><a href="#Releasing_a_Scenario"><span class="tocnumber">3.3</span> <span class="toctext">Releasing a Scenario</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#EDIV_Scripts_Usage_.28Manage_Mode.29"><span class="tocnumber">4</span> <span class="toctext">EDIV Scripts Usage (Manage Mode)</span></a>
+<ul>
+<li class="toclevel-2"><a href="#ediv_segmentation_info.pl"><span class="tocnumber">4.1</span> <span class="toctext">ediv_segmentation_info.pl</span></a></li>
+<li class="toclevel-2"><a href="#ediv_monitor.pl"><span class="tocnumber">4.2</span> <span class="toctext">ediv_monitor.pl</span></a></li>
+<li class="toclevel-2"><a href="#ediv_query_status.pl"><span class="tocnumber">4.3</span> <span class="toctext">ediv_query_status.pl</span></a></li>
+<li class="toclevel-2"><a href="#ediv_query_vlan.pl"><span class="tocnumber">4.4</span> <span class="toctext">ediv_query_vlan.pl</span></a></li>
+<li class="toclevel-2"><a href="#ediv_locate_vm.pl"><span class="tocnumber">4.5</span> <span class="toctext">ediv_locate_vm.pl</span></a></li>
+<li class="toclevel-2"><a href="#ediv_console.pl"><span class="tocnumber">4.6</span> <span class="toctext">ediv_console.pl</span></a>
+<ul>
+<li class="toclevel-3"><a href="#Info_Mode"><span class="tocnumber">4.6.1</span> <span class="toctext">Info Mode</span></a></li>
+<li class="toclevel-3"><a href="#Console_mode"><span class="tocnumber">4.6.2</span> <span class="toctext">Console mode</span></a></li>
+</ul>
+</li>
+<li class="toclevel-2"><a href="#ediv_db_manage.pl"><span class="tocnumber">4.7</span> <span class="toctext">ediv_db_manage.pl</span></a></li>
+<li class="toclevel-2"><a href="#ediv_db_reset.pl"><span class="tocnumber">4.8</span> <span class="toctext">ediv_db_reset.pl</span></a></li>
+<li class="toclevel-2"><a href="#ediv_cluster_cleanup.pl"><span class="tocnumber">4.9</span> <span class="toctext">ediv_cluster_cleanup.pl</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1"><a href="#Advanced_topics"><span class="tocnumber">5</span> <span class="toctext">Advanced topics</span></a>
+<ul>
+<li class="toclevel-2"><a href="#Scenario_Management_Network"><span class="tocnumber">5.1</span> <span class="toctext">Scenario Management Network</span></a></li>
+<li class="toclevel-2"><a href="#Segmentation_Algorithm_API"><span class="tocnumber">5.2</span> <span class="toctext">Segmentation Algorithm API</span></a></li>
+<li class="toclevel-2"><a href="#Language_Reference"><span class="tocnumber">5.3</span> <span class="toctext">Language Reference</span></a>
+<ul>
+<li class="toclevel-3"><a href="#Introduction"><span class="tocnumber">5.3.1</span> <span class="toctext">Introduction</span></a></li>
+<li class="toclevel-3"><a href="#Restriction_File"><span class="tocnumber">5.3.2</span> <span class="toctext">Restriction File</span></a>
+<ul>
+<li class="toclevel-4"><a href="#.3Cnet_deploy_at.3E"><span class="tocnumber">5.3.2.1</span> <span class="toctext">&lt;net_deploy_at&gt;</span></a></li>
+<li class="toclevel-4"><a href="#.3Cvm_deploy_at.3E"><span class="tocnumber">5.3.2.2</span> <span class="toctext">&lt;vm_deploy_at&gt;</span></a></li>
+<li class="toclevel-4"><a href="#.3Caffinity.3E"><span class="tocnumber">5.3.2.3</span> <span class="toctext">&lt;affinity&gt;</span></a></li>
+<li class="toclevel-4"><a href="#.3Cnet_deploy_together.3E"><span class="tocnumber">5.3.2.4</span> <span class="toctext">&lt;net_deploy_together&gt;</span></a></li>
+<li class="toclevel-4"><a href="#.3Cantiaffinity.3E"><span class="tocnumber">5.3.2.5</span> <span class="toctext">&lt;antiaffinity&gt;</span></a></li>
+</ul>
+</li>
+<li class="toclevel-3"><a href="#Example"><span class="tocnumber">5.3.3</span> <span class="toctext">Example</span></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</td></tr></table><script type="text/javascript"> if (window.showTocToggle) { var tocShowText = "show"; var tocHideText = "hide"; showTocToggle(); } </script>
+<p><br />
+</p>
+<a name="EDIV_Philosophy"></a><h2><span class="editsection">[<a href="../indexd2a4.html?title=UsermanualEDIV&amp;action=edit&amp;section=1" title="Edit section: EDIV Philosophy">edit</a>]</span> <span class="mw-headline"> EDIV Philosophy </span></h2>
+<p>This section introduces some basic concepts which are important to know in order to use the EDIV tool to design, build and run tests over distributed virtualization network scenarios.
+</p><p>EDIV is an evolution of VNUML to allow the management of virtualization scenarios deployed on multi-host distributed infrastructure. One of the main design requirements is transparency, so users accustomed to use basic VNUML (i.e. mono-host) will be able to work with EDIV in minutes.
+</p><p>EDIV is executed in a GNU/Linux cluster. The tool requires root privileges to run, in order to configure network interfaces and other management operations.
+</p><p>The EDIV cluster is composed of two different nodes:
+</p>
+<ul><li> The controller, in which EDIV software package is installed. It manages the deployment and shutdowns of distributed network simulations. The controller also provides functions to monitor the status of the running simulations.
+</li><li> The cluster hosts: these are the physical hosts where the scenario virtual machines are deployed. Each host cluster can run one or several virtual machines (it depends on the segmentation algorithm) <br /> The cluster has to be properly configured before running any scenario with EDIV (e.g., have VNUML tool installed).
+</li></ul>
+<p>The EDIV architecture is shown in the following image:
+</p>
+<center>
+<p><img src="images/EDIV_02.jpg" alt=" EDIV Architecture" width="284" height="167" longdesc="Image_EDIV_02.html" />
+</p>
+</center>
+<p>The EDIV architecture from a networking point of view is shown in the following image:
+</p>
+<center>
+<p><img src="images/EDIV_01.jpg" alt=" EDIV Networking Architecture" width="347" height="135" longdesc="Image_EDIV_01.html" />
+</p>
+</center>
+<p><span style="color:red"><strong>NOTE:</strong></span> it is also possible that one of the cluster hosts plays the controller role (i.e., the controller is more a functional rather than physical entity).
+</p><p>As a pre use requisite, a cluster must be configured:
+</p>
+<ul><li> First of all, the user must design a <i>host cluster</i>. For that, several aspects have to be considered in advance: the number of physical machines, the topology (network interfaces in each machine and how they are connected)... <br />A cluster configuration file must be written. The default location for this file is <code>/etc/ediv/cluster.conf</code>, although any other file can be used through command line arguments.
+</li></ul>
+<p>Once the user has configured the EDIV cluster, the typical working cycle can take place, running ediv_ctl.pl against a VNUML simulation, and consists in the following steps (although two of them are optional):
+</p>
+<ol><li> <b>Build scenario (ediv_ctl -t mode)</b>. The controller splits the VNUML scenario into smaller ones, according to different algorithms the user can choose. Then it takes the necessary steps to configure networking between the host cluster. Then it runs the splitted simulations in their corresponding hosts using VNUML.
+</li><li> <b>Execute commands (ediv_ctl -x mode)</b>. This step is optional. Once the scenario has been built using -t mode, you can run command sequences on it. If the scenario has command sequences, the controller sends the configuration files to every host of the cluster, and then uses VNUML -x mode in each host to configure the splitted simulations.
+</li><li> <b>Manage mode (several EDIV tools)</b>. This step is optional. Once one or several scenarios are running, some EDIV scripts can be used to monitor the cluster status and make queries about the simulations.
+</li><li> <b>Release Scenario (ediv_ctl -P or -d modes)</b>. In this final step, all the splitted simulation are stopped and it's components created using -t mode (splitted VNUML simulations, vlans, ssh_tunnels and temporary files) are cleanly released.
+</li></ol>
+<p>Concurrent simulations can be executed isolated or even sharing connections among them and the host.
+</p>
+<a name="Cluster_Configuration"></a><h2><span class="editsection">[<a href="../indexa980.html?title=UsermanualEDIV&amp;action=edit&amp;section=2" title="Edit section: Cluster Configuration">edit</a>]</span> <span class="mw-headline"> Cluster Configuration </span></h2>
+<a name="Cluster_Requirements"></a><h3><span class="editsection">[<a href="../index8ea9.html?title=UsermanualEDIV&amp;action=edit&amp;section=3" title="Edit section: Cluster Requirements">edit</a>]</span> <span class="mw-headline"> Cluster Requirements </span></h3>
+<p>The cluster has two parts: the controller and the hosts. All the elements need to IP connectivity among them in order to work (tipically an Ethernet switch or switches interconnecting them all).
+</p><p>The controller doesn't have additional requirements.
+</p><p>The hosts must have two network interfaces:
+</p>
+<ul><li> The first one can be it's main network interface, and it's going to be used to send commands and manage the simulations.
+</li></ul>
+<ul><li> The second one is going to be used to communicate running scenario among the hosts of the cluster. This network formed by all the secondary interfaces of all the hosts of the cluster must be a unique LAN. If this LAN is physically implemented by a VLAN capable switch, the switch must be configured to allow a VLAN range that needs to be specified in the EDIV cluster configuration file.
+</li></ul>
+<p><strong><span style="color:red">NOTE:</span></strong> Although only a single network interface can be used for both tasks, it's highly recommended to use two different ones. The reason for that is that creating or destroying subinterfaces some times renders the interface unusable, loosing connectivity with the rest of the hosts of the cluster.
+</p><p><strong><span style="color:red">NOTE:</span></strong> if the controller is also a host (runs part of the distributed simulation), the requirements of the host apply to the controller.
+</p>
+<a name="Configuration_File"></a><h3><span class="editsection">[<a href="../index13b1.html?title=UsermanualEDIV&amp;action=edit&amp;section=4" title="Edit section: Configuration File">edit</a>]</span> <span class="mw-headline"> Configuration File </span></h3>
+<p>This file is located by default in <code>/etc/ediv/cluster.conf</code> and has the following sections:
+</p>
+<ul><li> <b>[db]</b>, this section describes how to connect to the SQL database. Composed of the following parameters:
+<ul><li> <b>type</b>, this parameter specifies the type of SQL database that is going to be used. Although EDIV uses standard SQL queries, it has only been tested with MySQL. Examples:<br /><pre>type = Pg     # PostgreSQL DB type</pre><pre>type = mysql  # MySQL DB type</pre>
+</li><li> <b>name</b>, this is the name of the DB you want to use.
+</li><li> <b>host</b>, this is the name of the host that runs the DB.
+</li><li> <b>port</b>, this is the number of the port used by the SQL DB.
+</li><li> <b>user</b>, this is the username to use to connect to the SQL DB.
+</li><li> <b>pass</b>, this is the password to use to connect to the SQL DB.
+</li></ul>
+</li><li> <b>[vlan]</b>, this section specifies the vlan range that EDIV can use.
+<ul><li> <b>first</b>, this specifies the first vlan number EDIV can use.
+</li><li> <b>last</b>, this specifies the last vlan number EDIV can use.
+</li></ul>
+</li><li> <b>[cluster]</b>, this section specifies the names of the hosts (or IP addresses) of the cluster, and the default segmentation mode. 
+<ul><li> <b>host</b>, one parameter for each host of the cluster, specifying a different host name/IP.
+</li><li> <b>default_segmentation</b>, specifies the default segmentation mode EDIV will use if this parameter is not specified in the command line invocation of ediv_ctl.pl
+</li><li> <b>mgmt_network</b>, this argument specifies the management network EDIV will use to communicate with the virtual machines of each simulation.
+</li><li> <b>mgmt_network_mask</b>, this argument specifies the management network mask EDIV will use to communicate with the virtual machines of each simulation.
+</li></ul>
+</li><li> <b>[<i>&lt;hostname or IP&gt;</i>]</b>, several sections, one per host in the cluster, containing the properties of the corresponding host.
+<ul><li> <b>mem</b>, integer, number of RAM megabytes of this host.
+</li><li> <b>cpu</b>, integer, percentage speed relative to the fastest physical host of the cluster.
+</li><li> <b>max_vhost</b>, integer, maximum virtual machines allowed to be virtualized in the physical host. 0 = unlimited.
+</li><li> <b>ifname</b>, string, name of the external network interface used by the simulation.
+</li></ul>
+</li></ul>
+<p>The syntax is illustrated in the following example:
+</p><p>NOTE: The lines starting with a <b>#</b> character are comments and are ignored when parsing the configuration file. 
+</p>
+<pre>
+# Distributed VNUML Cluster Configuration File
+#	Default location: /etc/ediv/cluster.conf
+#	Sections: [db], [vlan], [cluster], multiple [&lt;hostname&gt;] properties
+
+# DB connection information
+[db]
+type = mysql
+name = ediv 
+host = localhost
+port = 3306
+user = root
+pass = whatever
+
+# Available VLAN number 
+# 	Define a list of Vlan numbers that can be used to virtualize and
+#	manage the virtual hosts.
+#	Syntax example:
+#		[vlan]
+#		first = 100
+#		last = 120
+[vlan]
+first = 100
+last = 199 
+
+# Physical host list:
+#	Defines each host name or ip in a new line. Mixing IPs and names
+#	is allowed.
+#	Defines the default segmentation mode.
+#	Syntax example:
+#		[cluster]
+#		host = my_host_name_1.mydomain.com
+#		host = my_host_name_2.mydomain.com
+#		host = 127.0.0.1
+#		default_segmentation = RoundRobin
+[cluster]
+host = zermat 
+host = kofy
+#host = cuco
+default_segmentation = RoundRobin
+#default_segmentation = WeightedRoundRobin
+mgmt_network = 10.250.0.0
+mgmt_network_mask = 16
+
+# Physical Host Properties
+#	A PER HOST properties set should be defined using the same name
+#	or IP defined in the [cluster] section.
+#	Parameters per host: 
+#	mem: integer, number of RAM megabytes available for the simulation
+#	cpu: integer, percentage speed relative to the fastest physical
+#		host of the cluster
+#	max_vhosts: integer, maximum virtual machines allowed to be
+#		virtualized in the physical host. 0 = unlimited.
+#	ifname: string, name of the default network interface used 
+#	Syntax example:
+#		[127.0.0.1]
+#		mem = 2048
+#		cpu = 100
+#		max_vhost = 0
+#		ifname = eth0
+#		[my_host_name_1.mydomain.com]
+#		mem = 1024
+#		cpu = 85
+#		max_vhost = 8
+#		ifname = eth0
+[zermat]
+mem = 2048
+cpu = 100
+max_vhost = 0
+ifname = eth1
+
+[kofy]
+mem = 1024
+cpu = 85
+max_vhost = 0
+ifname = eth1
+
+[cuco]
+mem = 2048 
+cpu = 85
+max_vhost = 0
+ifname = eth1
+
+# End of file
+</pre>
+<p>IMPORTANT NOTE: the <b>ifname</b> attribute specified in each host section must be the secondary interface mentioned in the "Cluster Requirementes" section.
+</p>
+<a name="EDIV_Controller_Usage"></a><h2><span class="editsection">[<a href="../index1047.html?title=UsermanualEDIV&amp;action=edit&amp;section=5" title="Edit section: EDIV Controller Usage">edit</a>]</span> <span class="mw-headline"> EDIV Controller Usage </span></h2>
+<p>This section describes in detail ediv_ctl.pl usage options. Basically, the EDIV controller is a Perl script that is called from a shell command-line. In fact, the installation procedure place the script file in the right directory (<code>/usr/local/bin/ediv_ctl.pl</code> if you installed from source .tgz or <code>/usr/bin/ediv_ctl.pl</code>, if you installed from .deb package -recommended).
+</p><p>Depending on the chosen mode, the arguments are different in each case:
+</p>
+<a name="Building_Scenario"></a><h3><span class="editsection">[<a href="../indexe062.html?title=UsermanualEDIV&amp;action=edit&amp;section=6" title="Edit section: Building Scenario">edit</a>]</span> <span class="mw-headline"> Building Scenario </span></h3>
+<p>To build a distributed scenario use <b>switch -t</b>. If the scenario (or another scenario with the same simulation_name) is already running, the parser exits immediately.
+</p><p>Sintax:
+</p>
+<pre>ediv_ctl.pl -t &lt;-s scenario_file&gt;  [-a segmentation_mode] [-r restriction_file] [-c cluster_configuration_file]
+</pre>
+<p>During the scenario start-up process, several virtual interfaces, bridges and uml_switch processes are created in the different hosts for the management of virtual machines (virtual machines are basically managed by sending commands through a ssh session from the host). These interfaces, bridges and uml_switches exist while the scenario is running, and are destroyed when the scenario is released (-P or -d).
+</p><p>The only mandatory argument is the scenario file (the name of the XML file that contains a VNUML scenario specification). The following optional arguments can be used when invoking vnumlparser using mode -t:
+</p>
+<ul>
+
+<li><b>Segmentation mode</b>. If is not specified, the default option (default_segmentation in [cluster] in the cluster configuration file, typically <code>/etc/ediv/cluster.conf</code>) will be used. The available segmentation modes are the ones located in the <code>/usr/share/EDIV/algorithms</code> or <code>/usr/local/share/EDIV/algorithms</code> folders (see <a href="Usermanual.html#Segmentation_Algorithm_API" title="Usermanual"> the Segmentation Algorithm API</a>). The basic EDIV package includes two algorithms:
+<ul>
+<li>'RoundRobin': This mode assigns the first virtual machine of the simulation to the first available host of the cluster. Then it takes the next virtual machine and assigns it to the next available cluster host and so on until all the virtual machines are assigned to a host of the cluster.</li>
+<li>'WeightedRoundRobin': This mode is similar to the previous one but considering the relative CPU load among the hosts of the cluster. Less virtual machines are assigned to the most loaded hosts of the cluster.</li>
+</ul>
+</li>
+<li><b>Restriction file</b>: This argument is the name of a XML file that contains some explicit assignment rules. To write a restriction file follow the directions of the <a href="Usermanual.html#Language_Reference" title="Usermanual">corresponding section of the language reference</a>.</li>
+<li><b>Cluster configuration file</b>: This argument specifies the cluster configuration file that is going to be used to deploy the simulation. If not specified the default <code>/etc/ediv/cluster.conf</code> will be used.</li>
+</ul>
+<a name="Execute_Commands"></a><h3><span class="editsection">[<a href="../index8b53.html?title=UsermanualEDIV&amp;action=edit&amp;section=7" title="Edit section: Execute Commands">edit</a>]</span> <span class="mw-headline"> Execute Commands </span></h3>
+<p>To execute commands over an already running scenario use <b>switch -x</b>. You must specify the commands sequence that you want to execute using the following notation: 
+</p>
+<pre>ediv_ctl.pl &lt;-x cmd_seq&gt; &lt;-s scenario_file&gt; 
+</pre>
+<p>Where 'cmd_seq' is the command sequence to be executed (matching with seq attribute in <a href="Reference.html#.3Cexec.3E" class="external text" title="http://dit.upm.es/vnumlwiki/index.php/Reference#.3Cexec.3E" rel="nofollow">&lt;exec&gt;</a> tag) and 'scenario_file' is the VNUML specification of the scenario.
+</p><p><strong><span style="color:red">NOTE:</span></strong> if the VNUML scenario needs configuration files (to be used in the execution mode -x), they must be in the same folder as the XML scenario file.
+</p>
+<a name="Releasing_a_Scenario"></a><h3><span class="editsection">[<a href="../index478b.html?title=UsermanualEDIV&amp;action=edit&amp;section=8" title="Edit section: Releasing a Scenario">edit</a>]</span> <span class="mw-headline"> Releasing a Scenario </span></h3>
+<p>To release a scenario use <b>switch -P</b> or <b>switch -d</b>.
+</p><p>Sintax:
+</p>
+<pre>ediv_ctl.pl -P &lt;-s simulation file&gt;
+</pre>
+<p>or
+</p>
+<pre>ediv_ctl.pl -d &lt;-s simulation file&gt;
+</pre>
+<p>This mode terminates the scenario life cycle, by halting all virtual machines and destroying virtual interfaces and bridges created during the start-up mode (-t switch). The effect (and cautions!) are the same that with VNUML -P and -d modes (see "VNUML  user manual").
+</p><p>While purging a scenario the following actions are performed:
+</p>
+<ol><li> Terminates tunnels to access the virtual machines.
+</li><li> Launch vnumlparser.pl in every host of the cluster to stop splitted simulations.
+</li><li> Delete vlan interfaces created to communicate virtual machines among cluster.
+</li><li> Remove (rm) all files related with the distributed simulation (located in <code>/tmp</code>).
+</li></ol>
+<a name="EDIV_Scripts_Usage_.28Manage_Mode.29"></a><h2><span class="editsection">[<a href="../index22fc.html?title=UsermanualEDIV&amp;action=edit&amp;section=9" title="Edit section: EDIV Scripts Usage (Manage Mode)">edit</a>]</span> <span class="mw-headline"> EDIV Scripts Usage (Manage Mode) </span></h2>
+<p>Once one or several distributed scenarios are running using EDIV, the following scripts are available to obtain information about the cluster and the scenario status.
+</p>
+<a name="ediv_segmentation_info.pl"></a><h3><span class="editsection">[<a href="../index4f74.html?title=UsermanualEDIV&amp;action=edit&amp;section=10" title="Edit section: ediv_segmentation_info.pl">edit</a>]</span> <span class="mw-headline"> ediv_segmentation_info.pl </span></h3>
+<p>This script shows the assignment that would be performed if EDIV was launched with certain parameters at that time (i.e: weighted round robin algorithm assignment changes in time depending on cpu load).
+</p><p>Syntax:
+</p>
+<pre>ediv_segmentation_info.pl &lt;scenario_file&gt; [segmentation_mode] [restriction_file]
+</pre>
+<ul><li> <b>Scenario file</b>. This argument is mandatory and specifies the scenario you want to simulate.
+</li><li> <b>Segmentation mode</b>. This argument is optional and specifies the segmentation algorithm to be used. If not specified in the Segmentation Mode specified in the default Cluster Configuration File is used.
+</li><li> <b>Restriction file</b>. This argument is optional although if segmentation mode is specified, this argument becomes mandatory (specify only one argument or three). This argument is the name of a XML file that contains some explicit assignment rules.
+</li></ul>
+<a name="ediv_monitor.pl"></a><h3><span class="editsection">[<a href="../indexbd78.html?title=UsermanualEDIV&amp;action=edit&amp;section=11" title="Edit section: ediv_monitor.pl">edit</a>]</span> <span class="mw-headline"> ediv_monitor.pl </span></h3>
+<p>This script shows the status of the cluster hosts.
+</p><p>Syntax:
+</p>
+<pre>ediv_monitor.pl &lt;refresh_rate&gt; [cluster_host]
+</pre>
+<ul><li> <b>Refresh rate.</b> This argument is mandatory and it's a number that indicates the information refresh rate in seconds. If this argument is '0', the information will be shown once and the script will terminate.
+</li></ul>
+<ul><li> <b>Cluster host.</b> This argument is optional. If specified, only the information about that host will be shown, otherwise, information about all the hosts of the cluster will be shown.
+</li></ul>
+<a name="ediv_query_status.pl"></a><h3><span class="editsection">[<a href="../index1c0a.html?title=UsermanualEDIV&amp;action=edit&amp;section=12" title="Edit section: ediv_query_status.pl">edit</a>]</span> <span class="mw-headline"> ediv_query_status.pl </span></h3>
+<p>This script shows information about the running scenarios.
+</p><p>Syntax:
+</p>
+<pre>ediv_query_status.pl [scenario_name]
+</pre>
+<ul><li> <b>Scenario name.</b> This argument is optional. If not specified the script shows the running scenarios in each host of the cluster. If the scenario name is specified, the script shows the virtual machines belonging to that scenario, and in which host are running (each of them).
+</li></ul>
+<a name="ediv_query_vlan.pl"></a><h3><span class="editsection">[<a href="../index32ee.html?title=UsermanualEDIV&amp;action=edit&amp;section=13" title="Edit section: ediv_query_vlan.pl">edit</a>]</span> <span class="mw-headline"> ediv_query_vlan.pl </span></h3>
+<p>This script shows the VLANs created to communicate the hosts of the cluster.
+</p><p>Sintax:
+</p>
+<pre>ediv_query_vlan.pl [scenario_name]
+</pre>
+<ul><li> <b>Scenario name.</b> This argument is optional. If not specified the script shows the created VLANs and the scenarios that uses them. If the scenario name is specified, the script shows the VLANs used by the scenario and the hosts of the cluster using those VLANs.
+</li></ul>
+<a name="ediv_locate_vm.pl"></a><h3><span class="editsection">[<a href="../indexf2ff.html?title=UsermanualEDIV&amp;action=edit&amp;section=14" title="Edit section: ediv_locate_vm.pl">edit</a>]</span> <span class="mw-headline"> ediv_locate_vm.pl </span></h3>
+<p>This script shows where the virtual machines are located in the cluster.
+</p><p>Sintax:
+</p>
+<pre>ediv_locate_vm.pl [virtual_machine_name]
+</pre>
+<ul><li> <b>Virtual machine name.</b> This argument is optional. If not specified the script shows all the virtual machines running and in which host of the cluster are located. Otherwise, only the information about that virtual machine is shown.
+</li></ul>
+<a name="ediv_console.pl"></a><h3><span class="editsection">[<a href="../index6742.html?title=UsermanualEDIV&amp;action=edit&amp;section=15" title="Edit section: ediv_console.pl">edit</a>]</span> <span class="mw-headline"> ediv_console.pl </span></h3>
+<p>This script has two working modes.
+</p>
+<a name="Info_Mode"></a><h4><span class="editsection">[<a href="../indexeee4.html?title=UsermanualEDIV&amp;action=edit&amp;section=16" title="Edit section: Info Mode">edit</a>]</span> <span class="mw-headline"> Info Mode </span></h4>
+<p>This mode shows the available SSH tunnel ports to access virtual machines.
+</p><p>Sintax:
+</p>
+<pre>ediv_console.pl info [scenario_name]
+</pre>
+<p>or
+</p>
+<pre>ediv_console.pl info &lt;scenario_name&gt; &lt;virtual_machine_name&gt;
+</pre>
+<ul><li> <b>Simulation name.</b> This argument is optional. If specified the script shows the available SSH tunnel ports corresponding to the scenario. Otherwise the ports corresponding to all the running scenarios are shown.
+</li></ul>
+<ul><li> <b>Virtual machine name.</b> This argument is optional. If specified, 'scenario_name' argument is mandatory. When both are specified the script shows the SSH port that can be used to access that virtual machine.
+</li></ul>
+<a name="Console_mode"></a><h4><span class="editsection">[<a href="../indexcbed.html?title=UsermanualEDIV&amp;action=edit&amp;section=17" title="Edit section: Console mode">edit</a>]</span> <span class="mw-headline"> Console mode </span></h4>
+<p>This mode uses a SSH tunnel to access a virtual machine running in some scenario.
+</p><p>Syntax:
+</p>
+<pre>ediv_console.pl console &lt;scenario_name&gt; &lt;vm_machine_name&gt;
+</pre>
+<p>Arguments are mandatory and described in the 'Info Mode'.
+</p>
+<a name="ediv_db_manage.pl"></a><h3><span class="editsection">[<a href="../indexc27a.html?title=UsermanualEDIV&amp;action=edit&amp;section=18" title="Edit section: ediv_db_manage.pl">edit</a>]</span> <span class="mw-headline"> ediv_db_manage.pl </span></h3>
+<p>EDIV uses a MySQL database to store all the information it needs. With this script the structure of the database can be created or destroyed. <b>Use it with caution!</b>.
+</p><p><b>This script is useful if you install EDIV from the tgz package. If you install EDIV through the deb package, you shouldn't use this script because the installation process of EDIV takes care of this task</b>.
+</p><p>Sintax:
+</p>
+<pre>ediv_db_manage.pl &lt;mode&gt;
+</pre>
+<ul><li> <b>Mode.</b> this argument is mandatory and can be 'create' or 'destroy'.
+</li></ul>
+<a name="ediv_db_reset.pl"></a><h3><span class="editsection">[<a href="../index4dd3.html?title=UsermanualEDIV&amp;action=edit&amp;section=19" title="Edit section: ediv_db_reset.pl">edit</a>]</span> <span class="mw-headline"> ediv_db_reset.pl </span></h3>
+<p>EDIV uses a MySQL database to store all the information it needs. This script cleans the information contained in the database. The purpose of this script is cleaning the database when some failure occurs. <b>Use it with caution!</b>.
+</p><p>Syntax:
+</p>
+<pre>ediv_db_reset.pl [scenario_name]
+</pre>
+<ul><li> <b>Scenario name.</b> If specified, the information related to that scenario is erased from the database, otherwise all data of the database is erased.
+</li></ul>
+<p><span style="color:red"><strong>NOTE:</strong></span> this scripts only alters the information contained in the database, but the database structure is always preserved.
+</p>
+<a name="ediv_cluster_cleanup.pl"></a><h3><span class="editsection">[<a href="../indexf080.html?title=UsermanualEDIV&amp;action=edit&amp;section=20" title="Edit section: ediv_cluster_cleanup.pl">edit</a>]</span> <span class="mw-headline"> ediv_cluster_cleanup.pl </span></h3>
+<p>This script takes the necessary actions to put the cluster in the initial status. <b>Running this script is dangerous and should only be used as a last resort measure!</b>
+</p><p>Syntax:
+</p>
+<pre>ediv_cluster_cleanup.pl
+</pre>
+<p>The actions performed by this script in each host of the cluster are:
+</p>
+<ol><li> Deletes all the information contained in the database.
+</li><li> Kills all the processes related to VNUML and EDIV, named: 'linux', 'vnuml'.
+</li><li> Deletes the VNUML status folder (typically, <code>/root/.vnuml/</code>).
+</li><li> Kills all the SSH tunnels to access the virtual machines.
+</li><li> Removes all the VLAN interfaces specified in the <code>/etc/ediv/cluster.conf</code> file.
+</li></ol>
+<a name="Advanced_topics"></a><h2><span class="editsection">[<a href="../index6817.html?title=UsermanualEDIV&amp;action=edit&amp;section=21" title="Edit section: Advanced topics">edit</a>]</span> <span class="mw-headline"> Advanced topics </span></h2>
+<a name="Scenario_Management_Network"></a><h3><span class="editsection">[<a href="../index93bd.html?title=UsermanualEDIV&amp;action=edit&amp;section=22" title="Edit section: Scenario Management Network">edit</a>]</span> <span class="mw-headline"> Scenario Management Network </span></h3>
+<p>EDIV requires a network to manage the distributed scenario to access every running virtual machine. To achieve this, EDIV modifies the original VNUML scenario specification file making changes.
+</p><p>In particular, a management network is always configured through the <a href="Reference.html#.3Cvm_mgmt.3E" title="Reference">&lt;vm_mgmt&gt;</a> VNUML property. The network used is specified in the cluster configuration file, so this IP range is considered as reserved and should never be used by the scenario. Also the <a href="Reference.html#.3Chost_mapping.3E" title="Reference">&lt;host_mapping&gt;</a> semantic is always added in order to create SSH tunnels to access the virtual machines running in the cluster. The management network type is private, so a point-to-point network belonging to the appropriate network is created connecting each virtual machine with the host that runs it.
+</p><p><span style="color:red"><strong>NOTE:</strong></span> It is very important that the chosen network mask is big enough to accommodate all the virtual machines of the launched scenarios. As a general rule, the minimun number of IPs needed is the number of virtual machines of the launched scenarios multiplied by four, because a point-to-point /30 network is assigned to each virtual machine.
+</p>
+<a name="Segmentation_Algorithm_API"></a><h3><span class="editsection">[<a href="../index55da.html?title=UsermanualEDIV&amp;action=edit&amp;section=23" title="Edit section: Segmentation Algorithm API">edit</a>]</span> <span class="mw-headline"> Segmentation Algorithm API </span></h3>
+<p>The segmentation algorithms that EDIV can use are implemented separated perl modules located in the <code>/usr/share/EDIV/algorithms</code> or <code>/usr/local/share/EDIV/algorithms</code> folders. The basic EDIV software package include two basic ones: RoundRobin and WeightedRoundRobin.
+</p><p>However, any user can develop its own algorithms using a simple API. Therefore, you can focus on the splitting of virtual machines as you desire, letting to the EDIV controller the dirty tasks of splitting the VNUML XML file, interact with the cluster hosts, etc.
+</p><p>To add more algorithms, new algorithm_name.pm files have to be created implementing the following API:
+</p>
+<table border="1" cellspacing="0" cellpadding="5" align="center">
+<tr>
+<th> Method name
+</th><th> Arguments
+</th><th> Returns
+</th></tr>
+<tr>
+<td> name
+</td><td> -
+</td><td> $name - String containing the name of the algorithm
+</td></tr>
+<tr>
+<td> split
+</td><td> <span style="color:red"><strong><b>by reference</b></strong></span>:
+<ol><li> $dom_tree - a DOM tree structure containing the parsed VNUML XML file.
+</li><li> @cluster_hosts - array containing the cluster host properties parsed from the cluster configuration file (<code>/etc/ediv/cluster.conf</code>)
+</li><li> @vms_to_split - if a restriction file was used to assign some of the virtual machines, the remaining virtual machine names are contained in this array. If this array is undef, no restriction file was used and the algorithm must assign all the virtual machines to some host.
+</li><li> %static_assignment - if a restriction file was used to assign some of the virtual machines, this hash contains the names of the virtual machines already assigned as keys, and the host where they will run as values. This has can be undef if no restriction file was used.
+</li></ol>
+</td><td> %allocation - The keys of this hash must be the names of the virtual machines and the values must be the host where the virtual machines are assigned. This hash must include the values of %static_assignment table if %static_assignment is not undef (restriction file was used).
+</td></tr></table>
+<p><span style="color:red"><strong>NOTE:</strong></span> The provided algorithms can be used as examples on how to create new ones.
+</p>
+<a name="Language_Reference"></a><h3><span class="editsection">[<a href="../index5903.html?title=UsermanualEDIV&amp;action=edit&amp;section=24" title="Edit section: Language Reference">edit</a>]</span> <span class="mw-headline"> Language Reference </span></h3>
+<a name="Introduction"></a><h4><span class="editsection">[<a href="../index0157.html?title=UsermanualEDIV&amp;action=edit&amp;section=25" title="Edit section: Introduction">edit</a>]</span> <span class="mw-headline"> Introduction </span></h4>
+<p>EDIV works with VNUML scenario files and it doesn't include any modifications to the VNUML dtd. Check the VNUML language reference to obtain more information about this topic: <a href="Reference.html" title="Reference">VNUML Language Reference</a>
+</p><p>EDIV includes a feature to allow the users to assign virtual machines to physical hosts in a explicit way. To use this feature the user has to write a XML file, and the syntax and language reference for this file is explained in the following section.
+</p>
+<a name="Restriction_File"></a><h4><span class="editsection">[<a href="../index9b65.html?title=UsermanualEDIV&amp;action=edit&amp;section=26" title="Edit section: Restriction File">edit</a>]</span> <span class="mw-headline"> Restriction File </span></h4>
+<p>EDIV includes five types of rules to define a explicit assignment of the virtual machines.
+</p><p>The rules are processed in the same order as they are listed here. Conflicts between rules are detected and an error message is displayed. 
+</p>
+<a name=".3Cnet_deploy_at.3E"></a><h5><span class="editsection">[<a href="../index9cba.html?title=UsermanualEDIV&amp;action=edit&amp;section=27" title="Edit section: &amp;lt;net_deploy_at&amp;gt;">edit</a>]</span> <span class="mw-headline"> &lt;net_deploy_at&gt; </span></h5>
+<p>All the virtual machines connected to a virtual net are assigned to the same physical host, chosen by the user.
+</p><p>The net is identified by the 'name' attribute of the <a href="Reference.html#Virtual_networks:_.3Cnet.3E" title="Reference">&lt;net&gt;</a> tag from the VNUML scenario file.
+</p><p>The host is identified by the same name used in the cluster configuration file (<code>/etc/ediv/cluster.conf</code>)
+</p><p>Syntax:
+</p>
+<pre>&lt;net_deploy_at net="net_name" host="hostname"/&gt;
+</pre>
+<a name=".3Cvm_deploy_at.3E"></a><h5><span class="editsection">[<a href="../index7274.html?title=UsermanualEDIV&amp;action=edit&amp;section=28" title="Edit section: &amp;lt;vm_deploy_at&amp;gt;">edit</a>]</span> <span class="mw-headline"> &lt;vm_deploy_at&gt; </span></h5>
+<p>A specific virtual machine is assigned to a specific physical host, chosen by the user.
+</p><p>The virtual machine is identified by the 'name' attribute of the <a href="Reference.html#Virtual_machines:_.3Cvm.3E" title="Reference">&lt;vm&gt;</a> tag from the VNUML scenario file.
+</p><p>The host is identified by the same name used in the cluster configuration file (<code>/etc/ediv/cluster.conf</code>)
+</p><p>Syntax:
+</p>
+<pre>&lt;vm_deploy_at vm="vm_name" host="hostname"/&gt;
+</pre>
+<a name=".3Caffinity.3E"></a><h5><span class="editsection">[<a href="../indexf0a3.html?title=UsermanualEDIV&amp;action=edit&amp;section=29" title="Edit section: &amp;lt;affinity&amp;gt;">edit</a>]</span> <span class="mw-headline"> &lt;affinity&gt; </span></h5>
+<p>A group of certain virtual machines are assigned to the same physical host regardless of the virtual networks they are connected to. The physical host is not chosen by the user, the first available one is used.
+</p><p>The virtual machines are identified by the 'name' attribute of the <a href="Reference.html#Virtual_machines:_.3Cvm.3E" title="Reference">&lt;vm&gt;</a> tags from the VNUML scenario file.
+</p><p>Sintax:
+</p>
+<pre>&lt;affinity&gt;
+  &lt;vm&gt;vm1_name&lt;/vm&gt;
+  &lt;vm&gt;vm2_name&lt;/vm&gt;
+  &lt;vm&gt;vm3_name&lt;/vm&gt;
+&lt;/affinity&gt;
+</pre>
+<a name=".3Cnet_deploy_together.3E"></a><h5><span class="editsection">[<a href="../index0b89.html?title=UsermanualEDIV&amp;action=edit&amp;section=30" title="Edit section: &amp;lt;net_deploy_together&amp;gt;">edit</a>]</span> <span class="mw-headline"> &lt;net_deploy_together&gt; </span></h5>
+<p>All the virtual machines connected to a virtual net are assigned to the same physical host. The physical host is not chosen by the user, the first available one is used.
+</p><p>The net is identified by the 'name' attribute of the <a href="Reference.html#Virtual_networks:_.3Cnet.3E" title="Reference">&lt;net&gt;</a> tag from the VNUML scenario file.
+</p><p>Sintax:
+</p>
+<pre>&lt;net_deploy_together net="net_name" /&gt;
+</pre>
+<a name=".3Cantiaffinity.3E"></a><h5><span class="editsection">[<a href="../index5e90.html?title=UsermanualEDIV&amp;action=edit&amp;section=31" title="Edit section: &amp;lt;antiaffinity&amp;gt;">edit</a>]</span> <span class="mw-headline"> &lt;antiaffinity&gt; </span></h5>
+<p>A group of certain virtual machines are assigned to different physical hosts regardless of the virtual networks they are connected to. The physical hosts are not chosen by the user.
+</p><p>The virtual machines are identified by the 'name' attribute of the <a href="Reference.html#Virtual_machines:_.3Cvm.3E" title="Reference">&lt;vm&gt;</a> tags from the VNUML scenario file.
+</p><p>Sintax:
+</p>
+<pre>&lt;antiaffinity&gt;
+  &lt;vm&gt;vm1_name&lt;/vm&gt;
+  &lt;vm&gt;vm2_name&lt;/vm&gt;
+  &lt;vm&gt;vm3_name&lt;/vm&gt;
+&lt;/antiaffinity&gt;
+</pre>
+<a name="Example"></a><h4><span class="editsection">[<a href="../index3ce9.html?title=UsermanualEDIV&amp;action=edit&amp;section=32" title="Edit section: Example">edit</a>]</span> <span class="mw-headline"> Example </span></h4>
+<p>This restriction file was used with <a href="Example-BGP.html" title="Example-BGP">the BGP example</a>.
+</p>
+<pre>&lt;deployment_restrictions&gt;
+
+&lt;net_deploy_at net="AS1-AS4" host="kofy.dit.upm.es" /&gt;
+
+&lt;vm_deploy_at vm="R2" host="zermat.dit.upm.es" /&gt;
+
+&lt;antiaffinity&gt;
+  &lt;vm&gt;R6&lt;/vm&gt;
+  &lt;vm&gt;R1&lt;/vm&gt;
+&lt;/antiaffinity&gt;
+ 
+&lt;antiaffinity&gt;
+  &lt;vm&gt;R2&lt;/vm&gt;
+  &lt;vm&gt;R5&lt;/vm&gt;
+&lt;/antiaffinity&gt;
+
+&lt;affinity&gt;
+  &lt;vm&gt;R3&lt;/vm&gt;
+  &lt;vm&gt;R2&lt;/vm&gt;
+&lt;/affinity&gt;
+ 
+&lt;/deployment_restrictions&gt;
+</pre>
+<!-- Saved in parser cache with key wikidb-vnuml_:pcache:idhash:1546-0!1!0!!en!2 and timestamp 20090218124950 -->
+<div class="printfooter">
+Retrieved from "<a href="UsermanualEDIV.html">http://www.dit.upm.es/vnumlwiki/index.php/UsermanualEDIV</a>"</div>
+	    	    <!-- end content -->
+	    <div class="visualClear"></div>
+	  </div>
+	</div>
+      </div>
+      <div id="column-one">
+        <br>
+        <br>
+        <br>
+
+	<div class="portlet" id="p-logo">
+	  <a style="background-image: url(skins/common/images/vnuml-150.png);"
+	    href="Main_Page.html"
+	    title="Main Page"></a>
+	</div>
+
+	<script type="text/javascript"> if (window.isMSIE55) fixalpha(); </script>
+	        
+	        
+	        <!-- BEGINSIDEBAR p-EDIV Documentation -->
+	<div class='portlet' id='p-EDIV Documentation'>
+	  <h5>EDIV Documentation</h5>
+	  <div class='pBody'>
+	    <ul>
+	    	      <li id="n-Tutorial"><a href="TutorialEDIV.html">Tutorial</a></li>
+	     	      <li id="n-Installation"><a href="InstallationEDIV.html">Installation</a></li>
+	     	      <li id="n--User-Manual"><a href="UsermanualEDIV.html"> User Manual</a></li>
+	     	    </ul>
+	  </div>
+	</div>
+        <!-- ENDSIDEBAR p-EDIV Documentation -->
+	        
+	
+        
+
+	<!--div id="p-cactions" class="portlet">
+	  <h5>Views</h5>
+	  <ul>
+	    <li id="ca-nstab-main"
+	       class="selected"	       ><a href="/vnumlwiki/index.php/UsermanualEDIV">Article</a></li><li id="ca-talk"
+	       class="new"	       ><a href="/vnumlwiki/index.php?title=Talk:UsermanualEDIV&amp;action=edit">Discussion</a></li><li id="ca-edit"
+	       	       ><a href="/vnumlwiki/index.php?title=UsermanualEDIV&amp;action=edit">Edit</a></li><li id="ca-history"
+	       	       ><a href="/vnumlwiki/index.php?title=UsermanualEDIV&amp;action=history">History</a></li>	  </ul>
+	</div-->
+        
+        
+
+        
+
+	      </div><!-- end of the left (by default at least) column -->
+      <div class="visualClear"></div>
+      <div id="footer">
+		<table width = "100%">
+			<tr><td width="5%" align="left" nowrap='nowrap'><div id="f-copyrightico"><a href="http://creativecommons.org/licenses/by/2.5/"><img src="http://creativecommons.org/images/public/somerights20.png" alt='Attribution 2.5 ' /></a></div></td>
+				<td align="center">
+	    This page was last modified 10:40, 11 February 2009. - 	   	  	  	  	   	  	</td>
+			<td width="5%" align="right" nowrap='nowrap'><div id="f-poweredbyico"><a href="http://www.mediawiki.org/"><img src="skins/common/images/poweredby_mediawiki_88x31.png" alt="Powered by MediaWiki" /></a></div></td></tr></table>
+      </div>
+    </div>
+    <!-- Served by buitre in 0.225 secs. -->  </body>
+
+<!-- Mirrored from www.dit.upm.es/vnumlwiki/index.php/UsermanualEDIV by HTTrack Website Copier/3.x [XR&CO'2007], Thu, 19 Feb 2009 10:06:52 GMT -->
+<!-- Added by HTTrack --><meta http-equiv="content-type" content="text/html;charset=UTF-8"><!-- /Added by HTTrack -->
+</html>

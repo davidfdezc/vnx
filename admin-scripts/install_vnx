@@ -1,0 +1,240 @@
+#!/bin/bash
+
+# Parse arguments
+while getopts "v" opt; do
+  echo "Options:"
+  case $opt in
+    v)
+      echo "Verbose mode" >&2
+      VERBOSE=-v
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+	  echo "Usage: build_tar_and_install_vnx [-i] [-v]"
+	  echo "           -i copies the new version to idefix repository (only if executed from idefix)"
+	  echo "           -v verbose mode"
+      ;;
+  esac
+done
+
+
+VNX_VERSION="2.0b"
+ROOTFS_VERSION="es-v022b"
+EDIV_ALG_MODULES_DIR="/usr/share/vnx/lib/seg-alg"
+
+# Move to the directory where this script is
+cdir=$( dirname $0 )
+cd $cdir
+
+# Load current version numbers
+source ./VERSION
+echo "VERSIONS:"
+echo VNX_MAJOR=${VNX_MAJOR}
+echo VNX_MINOR=${VNX_MINOR}
+echo VNX_LATEST_REVISION=${VNX_LATEST_REVISION}
+
+VNX_VERSION=${VNX_MAJOR}.${VNX_MINOR}.${VNX_LATEST_REVISION}
+#VNX_VERSION_DATE=${VNX_VERSION}-`date +%Y%m%d%H%M`
+
+
+# Get perl modules directory (/usr/local/share/perl/5.10.0/ in Ubuntu)
+PERL_LIBS=$(perl -e 'use Config; print $Config{installvendorlib}')
+if [ ! $PERL_LIBS ]
+then
+   echo "ERROR: cannot find perl modules directory"
+   exit 1
+fi
+VNX_LIBS="$PERL_LIBS/VNX/"
+#EDIV_LIBS="$PERL_LIBS/EDIV/"
+EDIV_LIBS="$PERL_LIBS/VNX/"
+
+echo "** "
+echo "** Installing VNX v${VNX_VERSION}... "
+echo "** "
+
+#
+# Create directories if not already created
+#
+mkdir -p $VERBOSE ${VNX_LIBS}
+mkdir -p $VERBOSE  ${EDIV_LIBS}
+mkdir -p $VERBOSE ${EDIV_ALG_MODULES_DIR}
+mkdir -p $VERBOSE /usr/share/xml/vnx
+mkdir -p $VERBOSE /usr/share/vnx/bin
+mkdir -p $VERBOSE /usr/share/vnx/examples/
+mkdir -p $VERBOSE /usr/share/vnx/filesystems
+mkdir -p $VERBOSE /usr/share/vnx/kernels
+mkdir -p $VERBOSE /usr/share/vnx/aced
+mkdir -p $VERBOSE /usr/share/vnx/plugins
+mkdir -p $VERBOSE /usr/share/vnx/src
+#mkdir -p $VERBOSE /etc/ediv
+mkdir -p $VERBOSE /usr/share/vnx/etc
+
+#
+# save a copy of vnx tar file to /usr/share/vnx/src directory
+#
+FNAME=vnx-${VNX_VERSION}
+PWD=$(pwd)
+DIRNAME=${PWD##*/}
+pushd .. > /dev/null
+if [ $VERBOSE ]; then
+    tar cfvz /usr/share/vnx/src/${FNAME}.tgz $DIRNAME
+else
+    tar cfz /usr/share/vnx/src/${FNAME}.tgz $DIRNAME
+fi
+rm /usr/share/vnx/src/vnx-latest.tgz
+ln -s ${FNAME}.tgz /usr/share/vnx/src/vnx-latest.tgz
+popd > /dev/null
+
+#
+# Copy vnx
+#
+cp $VERBOSE bin/vnx.pl /usr/bin/vnx
+chmod +x /usr/bin/vnx
+
+#
+# Copy ediv executables
+#
+cp $VERBOSE bin/ediv_ctl_vnx.pl /usr/bin/ediv
+cp $VERBOSE bin/vn /usr/bin
+cp $VERBOSE bin/ediv_monitor.pl /usr/bin/ediv_monitor
+chmod +x /usr/bin/ediv* /usr/bin/vn
+#
+# Delete deprecated ediv utilities
+#
+DEPRECATED_EDIV_CMDS="ediv_monitor.pl ediv_cluster_cleanup.pl ediv_ctl_vnuml.pl ediv_db_manage.pl ediv_db_reset.pl ediv_segmentation_info.pl ediv_console.pl ediv_ctl.pl"
+for f in $DEPRECATED_EDIV_CMDS; do 
+  rm -f /usr/bin/$f
+done
+
+#
+# Copy other utilities
+#
+cp $VERBOSE bin/vnx2dot.pl /usr/bin/vnx2dot
+chmod +x /usr/bin/vnx2dot
+
+#
+# Copy vnx perl modules
+#
+cp $VERBOSE perl-modules/VNX/* ${VNX_LIBS}
+chmod 644 ${VNX_LIBS}*
+
+#
+# Copy ediv perl modules
+#
+cp $VERBOSE perl-modules/EDIV/* ${EDIV_LIBS}
+chmod 644 ${VNX_LIBS}*
+cp $VERBOSE perl-modules/algorithms/* ${EDIV_ALG_MODULES_DIR}
+chmod 644 ${VNX_LIBS}*
+
+#
+# Copy VNX xsd
+#
+#cp $VERBOSE data/*.dtd /usr/share/xml/vnx/
+cp $VERBOSE data/*.xsd /usr/share/xml/vnx/
+
+#
+# Copy examples
+#
+cp $VERBOSE data/*.xml data/*.net /usr/share/vnx/examples/
+cp $VERBOSE -r data/conf /usr/share/vnx/examples/
+chmod 644 /usr/share/vnx/examples/*
+chmod +x /usr/share/vnx/examples/conf
+
+#
+# Copy other utils
+#
+cp $VERBOSE bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
+
+# Delete vnx_modify_rootfs* -> obsoleted by vnx --modify-rootfs option
+rm -f $VERBOSE /usr/share/vnx/bin/vnx_modify_rootfs*
+#cp $VERBOSE bin/vnx_modify_rootfs.sh /usr/share/vnx/bin/vnx_modify_rootfs
+#cp $VERBOSE bin/vnx_modify_rootfs2.sh /usr/share/vnx/bin/vnx_modify_rootfs2
+
+cp $VERBOSE bin/vnx_update.sh /usr/share/vnx/bin/vnx_update
+cp $VERBOSE bin/vnx_update_host.sh /usr/share/vnx/bin/vnx_update_host
+cp $VERBOSE bin/vnx_set_def_rootfs.pl /usr/share/vnx/bin/vnx_set_def_rootfs
+cp $VERBOSE bin/vnx_download_rootfs.sh /usr/share/vnx/bin/vnx_download_rootfs
+cp $VERBOSE bin/vnx_mount_rootfs.sh /usr/share/vnx/bin/vnx_mount_rootfs
+chmod 755 /usr/share/vnx/bin/*
+
+#
+# Copy vnx config file
+#
+#if [ -e /etc/vnx.conf ]; then
+#	mv /etc/vnx.conf /etc/vnx.conf.bak
+#fi
+cp $VERBOSE etc/vnx.conf /usr/share/vnx/etc/vnx.conf.sample
+chmod 600 /usr/share/vnx/etc/vnx.conf.sample
+
+#
+# Copy ediv config file
+#
+cp $VERBOSE etc/cluster.conf /usr/share/vnx/etc/vnx.cluster.conf.sample
+chmod 600 /usr/share/vnx/etc/vnx.cluster.conf.sample
+
+#
+# Copy ace daemons 
+#
+cp $VERBOSE aced/* /usr/share/vnx/aced
+
+#
+# Copy plugins
+#
+cp $VERBOSE plugins/*.pm /usr/share/vnx/plugins/
+#cp -v plugins/*.dtd /usr/share/xml/vnx/
+cp $VERBOSE plugins/*.xsd /usr/share/xml/vnx/
+cp $VERBOSE -r plugins/examples /usr/share/vnx/plugins/ 
+
+#
+# Copy bios for olive routers
+#
+mkdir -p /usr/share/kvm/
+cp $VERBOSE lib/bios-olive.bin /usr/share/kvm/
+
+
+echo "** "
+echo "** ...done"
+echo "** "
+
+#
+# Create vnx user and group (taken from postinst script of vnumlXXX.deb
+#
+
+VNX_TUN=/dev/net/tun
+TUN_GROUP=uml-net
+VNX_USER=vnx
+VNX_GROUP=vnx
+DATA=/var/run/vnx
+
+if ! grep "^$TUN_GROUP:" /etc/group > /dev/null 2>&1
+then
+   echo "creating TUN group: $TUN_GROUP"
+   groupadd $TUN_GROUP
+fi
+
+if ! grep "^$VNX_GROUP:" /etc/group > /dev/null 2>&1       
+then 
+   echo "creating VNX group: $VNX_GROUP"
+   groupadd $VNX_GROUP
+fi
+
+if ! grep "^$VNX_USER:" /etc/passwd > /dev/null 2>&1
+then
+   echo "creating VNX user: $VNX_USER"
+   useradd -d $DATA -g $VNX_GROUP -G $TUN_GROUP -s /bin/false $VNX_USER
+fi
+
+if ! [ -e $DATA ]
+then
+   # FIXME: is this the right place for mkdir?
+   echo "creating data dir: $DATA"
+   mkdir -p $DATA
+fi
+
+chgrp $TUN_GROUP $VNX_TUN
+chmod g+w $VNX_TUN
+chown $VNX_USER:$VNX_GROUP $DATA
+chmod 755 $DATA
+
+# Show VNX version
+vnx -V

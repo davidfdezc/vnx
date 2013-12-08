@@ -1,0 +1,237 @@
+#!/bin/sh
+
+# vnx-jconfig
+#
+# This file is part of VNX project (http://www.dit.upm.es/vnx)
+#
+# Author: David Fernandez Cambronero (david@dit.upm.es)
+# Copyright (C) 2010:   DIT-UPM
+# 			Departamento de Ingenieria de Sistemas Telematicos
+#			Universidad Politecnica de Madrid
+#			SPAIN
+#			
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+# An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
+
+MNTDIR=/mnt
+VNXBOOT=$1
+
+alias ExeSetCmd='{ echo "configure"; echo "$CMD"; echo "commit check"; echo "commit"; echo "exit"; } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp; cat /var/tmp/cmdoutput.tmp' 
+
+# Execute cli for the first time to avoid a "Retry connection ..." question
+# which is asked the first time
+CLIREADY=`echo "" | /usr/sbin/cli`
+echo $CLIREADY
+
+# First, we process the <conf> tag if it exists and we load the associated 
+# configuration file. We do it in this order to give preference to the configuration
+# values (name, ip address, etc) specified in the VNX XML scenario description. 
+
+CONFFILE=`cat $VNXBOOT | grep '<conf>' | sed -e 's/.*<conf>//' -e 's/<\/conf>.*//'`
+if [ "$CONFFILE" != "" ]
+then
+	CONFFILE=`basename $CONFFILE`
+    echo "** Processing <conf> tag"
+    echo "**   Loading $CONFFILE configuration..."
+	CMD="load override $MNTDIR/config/$CONFFILE"
+	ExeSetCmd
+else
+    echo "** No <conf> tag found"
+fi
+
+#
+# Then, we process the rest of vnxboot.xml file
+#
+count=0
+ifcount=0
+routecount=0
+
+CMD=""
+while read LINE
+do
+   count=`expr $count + 1`
+
+   VM=`echo $LINE | grep '<vm '`
+   if [ "$VM" != "" ]
+   then
+       echo "** Processing <vm> tag (name attribute)"
+       echo "** $count: $LINE"
+       NAME=`echo $LINE | sed -e 's/.* name\s*=\s*"\([^"]*\)".*/\1/'`
+       CMD="set system host-name $NAME"
+   fi
+
+   IF=`echo $LINE | grep '<if '`
+   if [ "$IF" != "" ]
+   then
+       ifcount=`expr $ifcount + 1`
+       echo "** Processing <if> tag #$ifcount"
+       echo "** $count: $LINE"
+       ID=`echo $LINE | sed -e 's/.* id\s*=\s*"\([^"]*\)".*/\1/'`
+       NAME=`echo $LINE | sed -e 's/.* name\s*=\s*"\([^"]*\)".*/\1/'`
+       MAC=`echo $LINE | sed -e 's/.* mac\s*=\s*"\([^"]*\)".*/\1/'`
+       echo "    ** ID=$ID, NAME=$NAME, MAC=$MAC"
+       while read LINE
+       do
+           count=`expr $count + 1`
+           #echo "    $count: $LINE"
+	   IPv4=`echo $LINE | grep '<ipv4 '`
+	   if [ "$IPv4" != "" ]
+           then
+               echo "    ** Processing <ipv4> tag"
+               echo "    ** $count: $LINE"
+               IP=`echo $LINE | sed -e 's/.*<ipv4[^>]*>//' -e 's/<\/ipv4>//'`
+               MASK=`echo $LINE | sed -e 's/.* mask\s*=\s*"\([^"]*\)".*/\1/'`
+	       echo "    ** IP=$IP, MASK=$MASK"
+               PLEN=`sh /usr/local/sbin/mask2cidr $MASK`	
+               CMD="${CMD}
+set interfaces $NAME unit 0 family inet address $IP$PLEN"
+           fi 
+	   IPv6=`echo $LINE | grep '<ipv6>'`
+	   if [ "$IPv6" != "" ]
+           then
+               echo "    ** Processing <ipv6> tag"
+               echo "    ** $count: $LINE"
+               IP=`echo $LINE | sed -e 's/.*<ipv6[^>]*>//' -e 's/<\/ipv6>//'`
+	       echo "    ** IP=$IP"
+               CMD="${CMD}
+set interfaces $NAME unit 0 family inet6 address $IP"
+           fi 
+	   ENDIF=`echo $LINE | grep '</if>'`
+	   if [ "$ENDIF" != "" ]
+           then
+               break
+           fi
+       done
+   fi
+
+   ROUTE=`echo $LINE | grep '<route '`
+   if [ "$ROUTE" != "" ]
+   then
+       routecount=`expr $routecount + 1`
+       echo "** Processing <route> tag #$routecount"
+       echo "** $count: $LINE"
+       TYPE=`echo $LINE | sed -e 's/.* type\s*=\s*"\([^"]*\)".*/\1/'`
+       GW=`echo $LINE | sed -e 's/.* gw\s*=\s*"\([^"]*\)".*/\1/'`
+       PREFIX=`echo $LINE | sed -e 's/.*<route[^>]*>//' -e 's/<\/route>//'`
+       echo "    ** TYPE=$TYPE, PREFIX=$PREFIX, GW=$GW"
+       if [ "$PREFIX" = "default" ]; then
+           if [ "$TYPE" = "ipv4" ]; then PREFIX="0.0.0.0/0"; fi
+           if [ "$TYPE" = "ipv6" ]; then PREFIX="::/0"; fi
+       fi
+       if [ "$TYPE" = "ipv4" ]; then 
+         CMD="${CMD}
+set routing-options static route $PREFIX next-hop $GW"
+       fi
+       if [ "$TYPE" = "ipv6" ]; then 
+         CMD="${CMD}
+set routing-options rib inet6.0 static route $PREFIX next-hop $GW"
+       fi
+   fi
+    
+done < $VNXBOOT  
+
+# Execute all commands stored in CMD variable
+#echo "$CMD"
+ExeSetCmd
+
+# Then we process on_boot filetree and exec commands
+
+ftreecount=0
+execcount=0
+
+CMD=""
+while read LINE
+do
+   count=`expr $count + 1`
+
+   FILETREE=`echo $LINE | grep '<filetree '`
+   if [ "$FILETREE" != "" ]
+   then
+       ftreecount=`expr $ftreecount + 1`
+       echo "** Processing <filetree> tag #$ftreecount"
+       echo "** $count: $LINE"
+       SEQ=`echo $LINE | sed -e 's/.* seq\s*=\s*"\([^"]*\)".*/\1/'`
+       ROOT=`echo $LINE | sed -e 's/.* root\s*=\s*"\([^"]*\)".*/\1/'`
+       DIRS=`echo $LINE | sed -e 's/.*<filetree[^>]*>//' -e 's/<\/filetree>//'`
+       echo "    ** seq=$SEQ type=$ROOT"
+       echo "    ** dirs=$DIRS"
+       # Copy the files indicated in filetree command
+       echo "    ** Executing: cp -vr $MNTDIR/filetree/$ftreecount/* $ROOT"
+       cp -vr $MNTDIR/filetree/$ftreecount/* $ROOT
+       echo "    ** shared disk content:"
+       ls -R $MNTDIR       
+       echo "    ** Destination dir content:" 
+       ls -R $ROOT
+   fi
+   EXEC=`echo $LINE | grep '<exec '`
+   if [ "$EXEC" != "" ]
+   then
+       execcount=`expr $execcount + 1`
+       echo "** Processing <exec> tag #$execcount"
+       echo "** $count: $LINE"
+       SEQ=`echo $LINE | sed -e 's/.* seq\s*=\s*"\([^"]*\)".*/\1/'`
+       TYPE=`echo $LINE | sed -e 's/.* type\s*=\s*"\([^"]*\)".*/\1/'`
+       OSTYPE=`echo $LINE | sed -e 's/.* ostype\s*=\s*"\([^"]*\)".*/\1/'`
+       CMD=`echo $LINE | sed -e 's/.*<exec[^>]*>//' -e 's/<\/exec>//'`
+       echo "     ** seq=$SEQ type=$TYPE ostype=$OSTYPE"
+       echo "     ** cmd=$CMD"
+       # we execute the command
+       case $OSTYPE in
+           "system")
+               echo "    Executing "system" command"
+               sh -c "$CMD"  > /var/tmp/cmdoutput.tmp
+               cat /var/tmp/cmdoutput.tmp >&3
+               ;;
+           "show")
+               echo "    Executing "show" command"
+               echo "$CMD" | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
+               cat /var/tmp/cmdoutput.tmp >&3
+               #ExeShowCmd
+               ;;
+           "set")
+               echo "    Executing "set" command"
+               {   echo "configure"
+                   echo "$CMD"
+                   echo "commit check"
+                   echo "commit"
+                   echo "exit"
+               } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
+               cat /var/tmp/cmdoutput.tmp >&3
+               #ExeSetCmd
+               ;;
+           "load")
+               echo "    Executing "load" command"
+               LOADOPT=`echo $CMD | awk '{print $1}'`
+               CONFFILE=`echo $CMD | awk '{print $2}'`
+               CONFFILE=`basename $CONFFILE`
+               CMD="load $LOADOPT $MNTDIR/config/$CONFFILE"
+               {   echo "configure"
+                   echo "$CMD"
+                   echo "commit check"
+                   echo "commit"
+                   echo "exit"
+               } | /usr/sbin/cli > /var/tmp/cmdoutput.tmp
+               cat /var/tmp/cmdoutput.tmp >&3
+               #ExeSetCmd
+               ;;
+           *)
+               echo "      Unknown OSTYPE ($OSTYPE)"
+               ;;
+       esac
+   fi
+
+done < $VNXBOOT  
+   
