@@ -141,6 +141,12 @@ chmod 644 /usr/share/vnx/examples/*
 chmod +x /usr/share/vnx/examples/conf
 
 #
+# Copy other things in data directory
+#
+cp $VERBOSE data/create-tutorial* /usr/share/vnx/examples/
+chmod 755 /usr/share/vnx/examples/create-tutorial*
+
+#
 # Copy other utils
 #
 cp $VERBOSE bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced

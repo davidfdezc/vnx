@@ -165,7 +165,7 @@ sub main {
                 'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y',
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
-                'user|u:s', '4', '6', 'D', 'no-console|n', 'st-delay=s',
+                'user|u:s', '4', '6', 'D', 'no-console|n', 'intervm-delay=s',
                 'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s' 
     ) or vnx_die("Incorrect usage. Type 'vnx -h' for help"); 
 
@@ -397,7 +397,7 @@ $>=$uid;
     $enable_6 = 0 if ($opts{4});   
     
     # Delay between vm startup
-#       $vmStartupDelay = $opts{'st-delay'} if ($opts{'st-delay'});
+#       $vmStartupDelay = $opts{'intervm-delay'} if ($opts{'intervm-delay'});
         
     # 3. To extract and check input
     $input_file = $opts{f} if ($opts{f});
@@ -1127,10 +1127,10 @@ back_to_user();
         undef($curr_uml);
         &change_vm_status($vm_name,"running");
           
-        if ( (defined $opts{'st-delay'})    # delay has been specified in command line and... 
+        if ( (defined $opts{'intervm-delay'})    # delay has been specified in command line and... 
             && ( $i < @vm_ordered-2 ) ) { # ...it is not the last virtual machine started...
-            for ( my $count = $opts{'st-delay'}; $count > 0; --$count ) {
-                printf "** Waiting $count seconds...\n";
+            for ( my $count = $opts{'intervm-delay'}; $count > 0; --$count ) {
+                printf "** Option 'intervm-delay' specified: waiting $count seconds...\n";
                 sleep 1;
                 print "\e[A";
             }
@@ -5748,7 +5748,7 @@ General options:
                 command, deletes the lock file before executing the command. 
   -n|--no-console -> do not display the console of any vm. To be used with 
                 -t|--create options
-  -y|--st-delay num -> wait num secs. between virtual machines startup 
+  --intervm-delay num -> wait num secs. between virtual machines startup 
                 (0 by default)
   -o logfile -> save log traces to 'logfile'
 
@@ -5863,7 +5863,7 @@ Options:
        -C|--config cfgfile -> use cfgfile as configuration file instead of default one (/etc/vnx.conf)
        -D              -> delete LOCK file
        -n|--no-console -> do not display the console of any vm. To be used with -t|--create options
-       --st-delay num -> wait num secs. between virtual machines startup (0 by default)
+       --intervm-delay num -> wait num secs. between virtual machines startup (0 by default)
 
 EOF
 
