@@ -43,9 +43,8 @@ SPAIN
   <net name="Net0" mode="virtual_bridge" />
   <net name="Net1" mode="virtual_bridge" />
   
-  <vm name="ubuntu" type="lxc" subtype="" os="" exec_mode="lxc-attach">
+  <vm name="ubuntu" type="lxc" exec_mode="lxc-attach">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
-    <mem>256M</mem>
     <if id="1" net="Net0">
       <ipv4>10.0.0.4/24</ipv4>
     </if>
