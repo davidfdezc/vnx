@@ -1233,8 +1233,11 @@ sub execute_filetree {
     my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
     my $vm_lxc_rootfs="${vm_lxc_dir}/rootfs/";
     
-    # Add vm rootfs location to filtree files destination ($root) 
-    $root = $vm_lxc_rootfs . $root;
+    # Calculate the root pathname from the host point of view: add vm rootfs location 
+    # to filetree files destination ($root). We use:
+    #  - $host_root for the commands executed from the host (copy commands mainly)
+    #  - $root for the commands executed from inside the virtual machine (chown commands)
+    my $host_root = $vm_lxc_rootfs . $root;
     
     wlog (VVV, "   processing " . $filetree_tag->toString(1), $logp ) ;
     wlog (VVV, "      seq=$seq, root=$root, user=$user, group=$group, perms=$perms, source_path=$source_path", $logp);
@@ -1248,18 +1251,18 @@ sub execute_filetree {
     }
     # Check if files destination (root attribute) is a directory or a file
     my $cmd;
-    if ( $root =~ /\/$/ ) {
+    if ( $host_root =~ /\/$/ ) {
         # Destination is a directory
         wlog (VVV, "   Destination is a directory", $logp);
         unless (-d $root){
-            wlog (VVV, "   creating unexisting dir '$root'...", $logp);
+            wlog (VVV, "   creating unexisting dir '$host_root'...", $logp);
             system "mkdir -p $root";
         }
 
-        $cmd="cp -vR ${source_path}* $root";
+        $cmd="cp -vR ${source_path}* $host_root";
         wlog (VVV, "   Executing '$cmd' ...", $logp);
         $res=`$cmd`;
-        wlog (VVV, "Copying filetree files ($root):", $logp);
+        wlog (VVV, "Copying filetree files ($host_root):", $logp);
         wlog (VVV, "$res", $logp);
 
         # Change owner and permissions if specified in <filetree>
@@ -1267,20 +1270,15 @@ sub execute_filetree {
         foreach my $file (@files) {
             my $fname = basename ($file);
             wlog (VVV, $file . "," . $fname, $logp);
-            if ( $user ne ''  ) {
-                my $cmd="chown -R $user $root/$fname"; 
+            if ( ($user ne '') or ($group ne '')  ) {
+                my $cmd="chown -R $user.$group $root/$fname"; 
                 my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
-                wlog(VVV, $res, $logp) if ($res ne ''); 
-            }
-            if ( $group ne '' ) {
-                my $cmd="chown -R .$group $root/$fname"; 
-                my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
-                wlog(VVV, $res, $logp) if ($res ne ''); 
+                wlog(N, $res, $logp) if ($res ne ''); 
             }
             if ( $perms ne '' ) {
                 my $cmd="chmod -R $perms $root/$fname"; 
                 my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
-                wlog(VVV, $res, $logp) if ($res ne ''); 
+                wlog(N, $res, $logp) if ($res ne ''); 
             }
         }
             
@@ -1299,26 +1297,21 @@ sub execute_filetree {
             wlog ("   creating unexisting dir '$file_dir'...", $logp);
             system "mkdir -p $file_dir";
         }
-        $cmd="cp -v ${source_path}* $root";
+        $cmd="cp -v ${source_path}* $host_root";
         wlog (VVV, "   Executing '$cmd' ...", $logp);
         $res=`$cmd`;
-        wlog (VVV, "Copying filetree file ($root):", $logp);
+        wlog (VVV, "Copying filetree file ($host_root):", $logp);
         wlog (VVV, "$res", $logp);
         # Change owner and permissions of file $root if specified in <filetree>
-        if ( $user ne ''  ) {
-            $cmd="chown -R $user $root";
+        if ( ($user ne '') or ($group ne '') ) {
+            $cmd="chown -R $user.$group $root"; 
             my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
-            wlog(VVV, $res, $logp) if ($res ne ''); 
-        }
-        if ( $group ne '' ) {
-            $cmd="chown -R .$group $root";
-            my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
-            wlog(VVV, $res, $logp) if ($res ne ''); 
+            wlog(N, $res, $logp) if ($res ne ''); 
         }
         if ( $perms ne '' ) {
             $cmd="chmod -R $perms $root";
             my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
-            wlog(VVV, $res, $logp) if ($res ne ''); 
+            wlog(N, $res, $logp) if ($res ne ''); 
         }
     }
 }
