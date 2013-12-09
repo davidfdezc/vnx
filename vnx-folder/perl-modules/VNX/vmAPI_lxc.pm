@@ -755,7 +755,7 @@ sub shutdownVM {
     if ($type eq "lxc") {
     	
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
-        $execution->execute( $logp, "lxc-shutdown -n $vm_name");
+        $execution->execute( $logp, "lxc-stop -s -W -n $vm_name");
     	
         return $error;
     }
