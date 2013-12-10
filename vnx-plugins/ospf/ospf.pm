@@ -555,10 +555,12 @@ sub get_commands {
     # Define the command to execute depending on the $seq value
     if (($seq eq "on_boot") || ($seq eq "ospf-on_boot")){
 
-        push (@{$commands_ref}, "mkdir /var/log/zebra");
+        push (@{$commands_ref}, "mkdir -v /var/log/zebra");
         push (@{$commands_ref}, "chown quagga.quagga /var/log/zebra");
-        push (@{$commands_ref}, "mkdir /var/run/quagga");
+        push (@{$commands_ref}, "sleep 4");
+        push (@{$commands_ref}, "mkdir -v /var/run/quagga");
         push (@{$commands_ref}, "chown quagga.quagga /var/run/quagga");
+        push (@{$commands_ref}, "chmod 755 /var/run/quagga");
         push (@{$commands_ref}, "$zebra_bin -d");
         push (@{$commands_ref}, "$ospfd_bin -d");
 
