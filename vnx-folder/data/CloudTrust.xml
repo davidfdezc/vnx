@@ -31,7 +31,7 @@ SPAIN
     </vm_defaults>
   </global>
   
-  <net name="Net0" mode="openvswitch" controller="tcp:10.0.0.1:6633"/>
+  <net name="Net0" mode="openvswitch" controller="tcp:10.0.0.2:6633"/>
   <net name="Net1" mode="openvswitch" >
 	<connection name='link' net='Net0'/>
   </net>

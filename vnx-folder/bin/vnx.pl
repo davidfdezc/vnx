@@ -1027,12 +1027,19 @@ sub mode_start {
 }
 
 sub set_vlan_links {
-
+    my $first_time='yes';
     my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account
     for ( my $i = 0; $i < @vm_ordered; $i++) {
         my $vm = $vm_ordered[$i];
         my $vm_name = $vm->getAttribute("name");
         foreach my $if ($vm->getElementsByTagName("if")){
+        	# Activate network links when openvswitch are used
+        	if(get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0 && ($first_time eq 'yes')){
+                    $first_time='no';
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-br UpdateNetwork123");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " del-br UpdateNetwork123");
+
+             }
             if ( (get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0)&& $if->getElementsByTagName("vlan")) {
                 my $if_id = $if->getAttribute("id");
                 my @vlan=$if->getElementsByTagName("vlan");
