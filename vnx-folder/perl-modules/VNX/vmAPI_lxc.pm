@@ -246,8 +246,10 @@ sub defineVM {
             $execution->execute( $logp, "lxc.network.veth.pair=$vm_name-e$id", *CONFIG_FILE );
             $execution->execute( $logp, "lxc.network.hwaddr=$mac", *CONFIG_FILE );
             if ($id != 0) {
-	            $execution->execute( $logp, "# bridge if connects to", *CONFIG_FILE );
-	            $execution->execute( $logp, "lxc.network.link=$net", *CONFIG_FILE );
+            	if (get_net_by_mode($net,"openvswitch") == 0){
+	                $execution->execute( $logp, "# bridge if connects to", *CONFIG_FILE );
+	                $execution->execute( $logp, "lxc.network.link=$net", *CONFIG_FILE );
+            	}
             }
             $execution->execute( $logp, "lxc.network.flags=up", *CONFIG_FILE );
 
@@ -1384,6 +1386,41 @@ sub get_net_by_type {
 
 
 
+###################################################################
+# get_net_by_mode
+#
+# Returns a network whose name is the first argument and whose mode is second
+# argument (may be "*" if the type doesn't matter). If there is no net with
+# the given constrictions, 0 value is returned
+#
+# Note the default type is "lan"
+#
+sub get_net_by_mode {
+
+    my $name_target = shift;
+    my $type_target = shift;
+
+    my $doc = $dh->get_doc;
+
+    # To get list of defined <net>
+    #my $net_list = $doc->getElementsByTagName("net");
+
+    # To process list
+    #for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
+    foreach my $net ($doc->getElementsByTagName("net")) {
+        #my $net  = $net_list->item($i);
+        my $name = $net->getAttribute("name");
+        my $mode = $net->getAttribute("mode");
+
+        if (   ( $name_target eq $name )
+            && ( $type_target eq $mode ) )
+        {
+            return $net;
+        }
+    }
+
+    return 0;
+}
 ###################################################################
 # get_ip_hostname
 #

@@ -234,7 +234,6 @@ sub vnet_ifs {
             $brctlshow[$line++] = $_;
         }
         close BRCTLSHOW; 
-        wlog (V, "*************** @brctlshow");  	
         for ( my $i = 1; $i < $line; $i++) {
             $_ = $brctlshow[$i];
             /^ *Bridge "(\S+)"$/;
@@ -244,6 +243,8 @@ sub vnet_ifs {
             }
         }
     }
+    return @if_list;
+    
 }
 
 =BEGIN
