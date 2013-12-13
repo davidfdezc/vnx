@@ -143,7 +143,6 @@ my $logp = "host> ";
 exit(0);
 
 
-
 ###########################################################
 # THE MAIN PROGRAM
 #
@@ -1028,16 +1027,24 @@ sub mode_start {
 }
 
 sub set_vlan_links {
-
+    my $first_time='yes';
     my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account
     for ( my $i = 0; $i < @vm_ordered; $i++) {
         my $vm = $vm_ordered[$i];
         my $vm_name = $vm->getAttribute("name");
         foreach my $if ($vm->getElementsByTagName("if")){
+        	# Activate network links when openvswitch are used
+        	if(get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0 && ($first_time eq 'yes')){
+                    $first_time='no';
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-br UpdateNetwork123");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " del-br UpdateNetwork123");
+
+             }
             if ( (get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0)&& $if->getElementsByTagName("vlan")) {
                 my $if_id = $if->getAttribute("id");
                 my @vlan=$if->getElementsByTagName("vlan");
-                my $vlantag= $vlan[0];                          
+                my $vlantag= $vlan[0];  
+                my $trunk="";                        
                 my $trunk = $vlantag->getAttribute("trunk");
                 my $port_name="$vm_name"."-e"."$if_id";
                 my $tagConcatenation="";
@@ -1062,6 +1069,26 @@ sub set_vlan_links {
             }
         }
      }
+       my $doc = $dh->get_doc;
+      foreach my $net ($doc->getElementsByTagName("net")) {
+      	if ($net->getElementsByTagName("connection")){
+      	    foreach my $connection ($doc->getElementsByTagName("connection")) {
+	      		my $port=$connection->getAttribute("name");
+	            if ($connection->getElementsByTagName("vlan")){
+	       		   my @vlan=$connection->getElementsByTagName("vlan");
+	      	       my $vlan_tag= @vlan[0];
+	      	       my $tagConcatenation="";
+	      	       foreach my $tag ($vlan_tag->getElementsByTagName("tag")){
+	                    my $tag_id=$tag->getAttribute("id");
+	                    $tagConcatenation.="$tag_id".",";
+	                }
+		            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port"."1-0"." trunk=$tagConcatenation");
+		            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port"."0-1"." trunk=$tagConcatenation");
+		                }
+      	    }
+      	}
+   				
+      }
 }
 
 sub start_VMs {
@@ -2539,7 +2566,7 @@ sub tun_connect {
             # Only TUN/TAP for interfaces attached to bridged networks
             # We do not add tap interfaces for libvirt or lxc VMs. It is done by libvirt/lxc 
             #if (&check_net_br($net)) {
-            if (($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
+            if (($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ( &get_net_by_mode($net,"virtual_bridge") != 0) ||(($vm_type eq 'lxc')&&  &get_net_by_mode($net,"openvswitch") != 0) ) {
             #if ( ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
 	 
                 my $net_if = $vm_name . "-e" . $id;

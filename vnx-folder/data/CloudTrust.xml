@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        CloudTrust
+Description: 
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>CloudTrust</scenario_name>
+    <automac offset="5"/>
+    <vm_mgmt type="none" />
+
+    <vm_defaults>
+	    <console id="0" display="no"/>
+	     <console id="1" display="yes"/>
+    </vm_defaults>
+  </global>
+  
+  <net name="Net0" mode="openvswitch" controller="tcp:10.0.0.2:6633"/>
+  <net name="Net1" mode="openvswitch" >
+	<connection name='link' net='Net0'/>
+  </net>
+  <!-- NODES -->
+  <vm name="host1" type="lxc" subtype="" os="">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <mem>512M</mem>
+    <if id="1" net="Net0" >
+  
+      <ipv4>10.0.0.1/24</ipv4>
+
+    </if>
+    <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
+    <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
+    <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
+  </vm>
+
+  <vm name="host2" type="lxc" subtype="" os="">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <mem>512M</mem>
+    <if id="1" net="Net1" >
+      <ipv4>10.0.0.2/24</ipv4>
+    </if>
+    <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
+    <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
+    <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
+  </vm>
+
+<vm name="host3" type="lxc" subtype="" os="">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <mem>512M</mem>
+    <if id="1" net="Net1" >
+      <ipv4>10.0.0.3/24</ipv4>
+    </if>
+    <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
+    <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
+    <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
+  </vm>
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.0.4/24</ipv4>
+    </hostif>
+    <!--route type="ipv4" gw="10.0.0.1">10.0.0.0/16</route-->
+  </host>
+</vnx>
+
