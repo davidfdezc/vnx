@@ -931,6 +931,7 @@ sub define_VMs {
       my $error = "VNX::vmAPI_$vm_type"->defineVM($vm_name, $merged_type, $docstring);
       if ($error ne 0) {
           wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->defineVM returns " . $error);
+          $execution->smartdie ("virtual machine $vm_name cannot be defined\n");
       } else {
           wlog (N, "...OK")
       }
