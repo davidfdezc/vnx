@@ -70,7 +70,8 @@ use IO::Socket::UNIX qw( SOCK_STREAM );
 
 
 use constant USE_UNIX_SOCKETS => 0;  # Use unix sockets (1) or TCP (0) to communicate with virtual machine 
-
+my $lxc_dir="/var/lib/lxc";
+my $union_type;
 
 # ---------------------------------------------------------------------------------------
 #
@@ -80,7 +81,13 @@ use constant USE_UNIX_SOCKETS => 0;  # Use unix sockets (1) or TCP (0) to commun
 sub init {
 
     my $logp = "lxc-init> ";
-
+    $union_type = get_conf_value ($vnxConfigFile, 'lxc', 'union_type', 'root');
+    if (empty($union_type)) {
+        $union_type = 'overlayfs'; # default value
+    } elsif ( ($union_type ne 'overlayfs') && ($union_type ne 'aufs') ){
+        $execution->smartdie ("ERROR in $vnxConfigFile, value of 'union_type' \nparameter in [lxc] section unknown (should be overlayfs or aufs).")
+    }
+    wlog (VVV, "lxc-union_type=$union_type");
 }
 
 # ---------------------------------------------------------------------------------------
@@ -108,10 +115,8 @@ sub defineVM {
 
     my $logp = "lxc-defineVM-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-#pak ("lxc-define...");   
     my $error = 0;
     my $extConfFile;
-    
 
     my $global_doc = $dh->get_doc;
     my @vm_ordered = $dh->get_vm_ordered;
@@ -130,6 +135,12 @@ sub defineVM {
     #
     if  ($type eq "lxc") {
     	    	
+        # Check if an LXC VM with the same name is already defined
+        if ( -d "$lxc_dir/$vm_name") {
+            $error = "ERROR: a LXC vm named $vm_name already exists. Check $lxc_dir/$vm_name directory content.";
+            return $error;
+        }
+
         #
         # Read VM XML specification file
         # 
@@ -149,14 +160,22 @@ sub defineVM {
             # Directory where COW files are going to be stored (upper dir in terms of overlayfs) 
             my $vm_cow_dir = $dh->get_vm_fs_dir($vm_name);
 
+            # Directory where vm overlay rootfs is going to be mounted
             $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
 
             # Create the overlay filesystem
             # umount first, just in case it is mounted...
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $vm_lxc_dir );
-            # Ex: mount -t overlayfs -o upperdir=/tmp/lxc1,lowerdir=/var/lib/lxc/vnx_rootfs_lxc_ubuntu-13.04-v025/ none /var/lib/lxc/lxc1
-            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t overlayfs -o upperdir=" . $vm_cow_dir . 
-                                 ",lowerdir=" . $filesystem . " none " . $vm_lxc_dir );
+
+            if ($union_type eq 'overlayfs') {
+                # Ex: mount -t overlayfs -o upperdir=/tmp/lxc1,lowerdir=/var/lib/lxc/vnx_rootfs_lxc_ubuntu-13.04-v025/ none /var/lib/lxc/lxc1
+                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t overlayfs -o upperdir=" . $vm_cow_dir . 
+                                     ",lowerdir=" . $filesystem . " none " . $vm_lxc_dir );
+            } elsif ($union_type eq 'aufs') {
+                # Ex: mount -t aufs -o br=/tmp/lxc1-rw:/var/lib/lxc/vnx_rootfs_lxc_ubuntu-12.04-v024/=ro none /tmp/lxc1
+                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t aufs -o br=" . $vm_cow_dir . 
+                                     ":" . $filesystem . "/=ro none " . $vm_lxc_dir );
+            }
         } else {
         	
             #$vm_lxc_dir = $filesystem;
@@ -165,6 +184,8 @@ sub defineVM {
             $execution->execute( $logp, "ln -s $filesystem $vm_lxc_dir" );
             
         }
+        
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"ln"} . " -s $vm_lxc_dir $lxc_dir/$vm_name" );
         
         die "ERROR: variable vm_lxc_dir is empty" unless ($vm_lxc_dir ne '');
         my $vm_lxc_rootfs="${vm_lxc_dir}/rootfs";
@@ -511,6 +532,19 @@ sub undefineVM {
 
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
 
+        # Remove symlink to VM in /var/lib/lxc/ if existant  
+        if ( -l "$lxc_dir/$vm_name") {
+            #my $a = `stat -c "%d:%i" $lxc_dir/$vm_name`; my $b = `stat -c "%d:%i" $vm_lxc_dir`;
+            #wlog (VVV, "a=$a, b=$b");
+            if ( `stat -c "%d:%i" $lxc_dir/$vm_name` eq `stat -c "%d:%i" $vm_lxc_dir`) {
+                $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " $lxc_dir/$vm_name" );
+            } else {
+                $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
+            }
+        } elsif ( -d "$lxc_dir/$vm_name") {
+            $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
+        }
+
         # Umount the overlay filesystem
         $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $vm_lxc_dir );
         
@@ -557,7 +591,25 @@ sub destroyVM {
     if ($type eq "lxc") {
 
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
+
+        #my $a = `stat -c "%d:%i" $lxc_dir/$vm_name/`; my $b = `stat -c "%d:%i" $vm_lxc_dir/`;
+        #wlog (VVV, "$lxc_dir/$vm_name/=$a, $vm_lxc_dir/=$b");
+        
+
         $execution->execute( $logp, "lxc-kill -n $vm_name");
+
+        # Remove symlink to VM in /var/lib/lxc/ if existant  
+        if ( -l "$lxc_dir/$vm_name") {
+            #my $a = `stat -c "%d:%i" $lxc_dir/$vm_name/`; my $b = `stat -c "%d:%i" $vm_lxc_dir/`;
+            #wlog (VVV, "a=$a, b=$b");
+            if ( `stat -c "%d:%i" $lxc_dir/$vm_name/` eq `stat -c "%d:%i" $vm_lxc_dir/`) {
+                $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " $lxc_dir/$vm_name" );
+            } else {
+                $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
+            }
+        } elsif ( -d "$lxc_dir/$vm_name") {
+            $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
+        }
 
         # Umount the overlay filesystem
         $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $vm_lxc_dir );
@@ -611,8 +663,12 @@ sub startVM {
 
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
 #pak ("before: lxc-start -n $vm_name -f $vm_lxc_dir/config");        
-        $execution->execute( $logp, "lxc-start -d -n $vm_name -f $vm_lxc_dir/config");
-
+        my $res = $execution->execute( $logp, "lxc-start -d -n $vm_name -f $vm_lxc_dir/config");
+            wlog (N, "**************************************************** $res", $logp);
+        if ($res) { 
+            wlog (N, "**************************************************** $res", $logp)
+        }
+        
         # Start the active consoles, unless options -n|--no_console were specified by the user
         unless ($no_consoles eq 1){
             Time::HiRes::sleep(0.5);
@@ -758,6 +814,17 @@ sub shutdownVM {
     	
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
         $execution->execute( $logp, "lxc-stop -s -W -n $vm_name");
+
+        # Remove symlink to VM in /var/lib/lxc/ if existant  
+        if ( -l "$lxc_dir/$vm_name") {
+            if ( `stat -c "%d:%i" $lxc_dir/$vm_name/` eq `stat -c "%d:%i" $vm_lxc_dir/`) {
+                $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " $lxc_dir/$vm_name" );
+            } else {
+                $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
+            }
+        } elsif ( -d "$lxc_dir/$vm_name") {
+            $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
+        }
     	
         return $error;
     }
