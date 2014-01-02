@@ -664,9 +664,8 @@ sub startVM {
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
 #pak ("before: lxc-start -n $vm_name -f $vm_lxc_dir/config");        
         my $res = $execution->execute( $logp, "lxc-start -d -n $vm_name -f $vm_lxc_dir/config");
-            wlog (N, "**************************************************** $res", $logp);
         if ($res) { 
-            wlog (N, "**************************************************** $res", $logp)
+            wlog (N, "$res", $logp)
         }
         
         # Start the active consoles, unless options -n|--no_console were specified by the user

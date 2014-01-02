@@ -40,26 +40,44 @@
 #
 
 use strict;
-#use XML::DOM;
 use XML::LibXML;
+use VNX::DocumentChecks;
 
-#my $colorscheme="rdbu9";
-my $colorscheme="set39";
-#my $netcolor="4";
-my $netcolor="#b3b3b3";
-#my $vmcolor="8";
-my $vmcolor="5";
-my $hostcolor="7";
-my $fontcolor="#FFFFFF";
+#my $color_scheme="rdbu9";
+my $color_scheme="set39";
 
-#my $parser       = new XML::DOM::Parser;
-my $parser       = XML::LibXML->new();
-my $dom          = $parser->parse_file($ARGV[0]);
+# Font styles
+my $font_name="arial";
+my $font_color="#000000";
+my $font_node_color="#FFFFFF";
 
+# Net styles
+my $net_shape="egg";
+my $net_style="filled,diagonals";
+#my $net_color="4";
+my $net_color="#b3b3b3";
+my $net_fontsize="14";
 
-#open FILE,  $ARGV[0]  || die "Can't open $ARGV[0]\n" ;
-#my @conf=<FILE> ;
-#close FILE ;
+# VM styles
+my $vm_shape="oval";
+my $vm_style="filled";
+#my $vm_color="8";
+my $vm_color="5";
+my $vm_fontsize="14";
+
+# Host styles
+my $host_shape="oval";
+my $host_style="filled";
+my $host_color="7";
+
+# Edge styles
+my $edge_fontsize="7";
+
+my %vm_legend;
+my %net_legend;
+
+my $parser = XML::LibXML->new();
+my $dom = $parser->parse_file($ARGV[0]);
 
 print<<FIN;
  
@@ -72,37 +90,74 @@ graph G {
 overlap=scale
 splines=true
 sep=.1
- 
+
+ graph [fontname = "$font_name", fontcolor = "$font_color"];
+ node  [fontname = "$font_name", fontcolor = "$font_node_color"];
+ edge  [fontname = "$font_name", fontcolor = "$font_color"];
+
 FIN
  
-# OK magic starts!
  
+# Print Title (scenario name)
+my $scen_name = $dom->findnodes ('/vnx/global/scenario_name')->to_literal;
+print "// Graph Title\n";
+print "labelloc=\"t\"\n";
+print "label=\"$scen_name\"\n"; 
+ 
+# Draw networks (switches)
 print "// Networks\n" ;
-# Networks
-#my $nets = $dom->getElementsByTagName ("net");
-#my $n = $nets->getLength;
 
-#for (my $i = 0; $i < $n; $i++)
-foreach my $net ($dom->getElementsByTagName ("net"))  
-{
-    #my $net = $nets->item ($i);
+foreach my $net ($dom->getElementsByTagName ("net")) {
     my $name = $net->getAttribute ("name");
     my $name2 = $name;
     $name2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
-    print "$name2 [label=\"$name\", shape=\"ellipse\", fontcolor=\"$fontcolor\", " . 
-          "colorscheme=\"$colorscheme\", color=\"$netcolor\", style=\"filled\" ] ;\n" ;
+    my $net_mode = $net->getAttribute ("mode");
+    if ($net_mode eq 'virtual_bridge') {
+        $net_mode = 'vbd';
+        $net_legend{"vbd"} = "virtual bridge";    	     
+    } elsif ($net_mode eq 'uml_switch') {
+        $net_mode = 'usw';
+        $net_legend{"usw"} = "uml switch";    	     
+    } elsif ($net_mode eq 'openvswitch') {
+        $net_mode = 'ovs';
+        $net_legend{"ovs"} = "OpenvSwitch";    	     
+    } else {
+        $net_mode = '??'
+    }
+    print "$name2 [label=\"$name\\n($net_mode)\", shape=\"$net_shape\", " . 
+          "fontsize=\"$net_fontsize\", fontstyle=\"bold\", colorscheme=\"$color_scheme\", color=\"$net_color\", style=\"$net_style\" ];\n" ;
 }
 
-my %legend;
+# Draw level 2 connections between switches
+foreach my $net ($dom->getElementsByTagName ("net")) {
+    my $name = $net->getAttribute ("name");
+    foreach my $conn ($net->getElementsByTagName ("connection")) {
+        my $net2 = $conn->getAttribute ("net");
 
-# Virtual machines
+        if ($conn->getElementsByTagName("vlan")) {
+            my @vlan=$conn->getElementsByTagName("vlan");
+            my $vlan_tag_list='';
+            foreach my $tag ($vlan[0]->getElementsByTagName("tag")){
+                $vlan_tag_list .= $tag->getAttribute("id") .",";
+            }
+            $vlan_tag_list =~ s/,$//;  # eliminate final ","
+            # Check whether the connection is configured as trunk 
+            # (two or more VLANs configured or trunk attribute set to 'yes')
+            my $trunk = '';
+            if ( (str($vlan[0]->getAttribute("trunk")) eq 'yes') || ( $vlan_tag_list =~ m/,/ ) ) { 
+                $trunk = 'trunk:';   
+            }
+            print "$name -- $net2 [ label = \"vlans=[$trunk$vlan_tag_list]\", fontsize=\"8\" ]; \n"; 
+        } else {
+            print "$name -- $net2 [ label = \"vlans=[*]\", fontsize=\"8\" ]; \n"; 
+        }        
+    }
+}
+
+# Draw virtual machines
 print "\n\n// Virtual machines \n" ;
-#my $vms = $dom->getElementsByTagName ("vm");
-#$n = $vms->getLength;
 
-#for (my $i = 0; $i < $n; $i++) {
 foreach my $vm ($dom->getElementsByTagName ("vm")) {
-    #my $vm = $vms->item ($i);
     my $vmname = $vm->getAttribute ("name");
     my $vmname2 = $vmname;
     $vmname2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
@@ -112,146 +167,180 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
     #print "vm: $vmname $type-$subtype-$os \n";
     my $ctype;
 
-#    if ( ($type eq "uml") || ($type eq "dynamips") ) {
-#        $ctype=$type;
-#    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") ) {
-#        if ($os eq "windows" ) { $os="win" }
-#        $ctype="$type-$os";
-#    } 
-
+    # Set legend texts
     if ($type eq "uml") { 
     	$ctype=$type;
-        $legend{"uml"} = "User mode linux"    	 
+        $vm_legend{"uml"} = "User mode linux"    	 
     } elsif ($type eq "dynamips") { 
         if ($subtype eq "3600") {
             $ctype="dyna1"; 
-            $legend{"dyna1"} = "Dynamips C3600 router"       
+            $vm_legend{"dyna1"} = "Dynamips C3600 router"       
         } elsif ($subtype eq "7200") {
             $ctype="dyna2"; 
-            $legend{"dyna2"} = "Dynamips C7200 router"       
+            $vm_legend{"dyna2"} = "Dynamips C7200 router"       
         }
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "linux")) { 
     	$ctype="linux";
-        $legend{"linux"} = "libvirt kvm Linux"       
+        $vm_legend{"linux"} = "libvirt kvm Linux"       
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "freebsd")) { 
         $ctype="freebsd";
-        $legend{"freebsd"} = "libvirt kvm FreeBSD"       
+        $vm_legend{"freebsd"} = "libvirt kvm FreeBSD"       
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "win")) { 
         $ctype="windows";
-        $legend{"windows"} = "libvirt kvm Windows"       
+        $vm_legend{"windows"} = "libvirt kvm Windows"       
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "olive")) { 
         $ctype="olive";
-        $legend{"olive"} = "libvirt kvm Olive router"       
+        $vm_legend{"olive"} = "libvirt kvm Olive router"       
     } elsif ($type eq "lxc") { 
         $ctype=$type;
-        $legend{"lxc"} = "Linux Containers"
+        $vm_legend{"lxc"} = "Linux Containers"
     }       
     print "\n// Virtual machine $vmname\n" ;
-    print "$vmname2 [label=\"$vmname \\n($ctype)\", shape=\"circle\", fontcolor=\"$fontcolor\", " . 
-          "colorscheme=\"$colorscheme\", color=\"$vmcolor\", style=\"filled\", margin=\"0\" ] ;\n" ;
-#    print "$vmname2 [label=\"$vmname\", shape=\"circle\", fontcolor=\"$fontcolor\", " . 
-#          "colorscheme=\"$colorscheme\", color=\"$vmcolor\", style=\"filled\" ] ;\n" ;
+    print "$vmname2 [label=\"$vmname \\n($ctype)\", shape=\"$vm_shape\", " . 
+          "fontsize=\"$vm_fontsize\", colorscheme=\"$color_scheme\", color=\"$vm_color\", style=\"$vm_style\", margin=\"0\" ] ;\n" ;
+#    print "$vmname2 [label=\"$vmname\", shape=\"circle\", fontcolor=\"$font_color\", " . 
+#          "colorscheme=\"$color_scheme\", color=\"$vm_color\", style=\"filled\" ] ;\n" ;
 
-    #my $ifs = $vm->getElementsByTagName ("if");
-    #my $n = $ifs->getLength;
-    #for (my $j = 0; $j < $n; $j++) {
     foreach my $if ($vm->getElementsByTagName ("if")) {
-        #my $if = $ifs->item ($j);
         my $id = $if->getAttribute ("id");
         my $net = $if->getAttribute ("net");
 	    my $net2 = $net;
     	$net2 =~ tr/-/_/;        
         #print "  if: $id $net \n";
         my $ipaddrs;
-        #my $ipv4s = $if->getElementsByTagName ("ipv4");
-        #my $n = $ipv4s->getLength;
-        #for (my $k = 0; $k < $n; $k++) {
         foreach my $ipv4s ($if->getElementsByTagName ("ipv4")) {
             my $ipv4 = $ipv4s->getChildNodes->[0];
             $ipaddrs = $ipaddrs . ' \n' . $ipv4->textContent;
         }
-        #my $ipv6s = $if->getElementsByTagName ("ipv6");
-        #$n = $ipv6s->getLength;
-        #for (my $k = 0; $k < $n; $k++) {
         foreach my $ipv6s ($if->getElementsByTagName ("ipv6")) {
             my $ipv6 = $ipv6s->getChildNodes->[0];
             $ipaddrs = $ipaddrs . ' \n' . $ipv6->textContent;
         }
-        print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
-        print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"9\", style=\"bold\" ];\n" ;
+       
+        if ($if->getElementsByTagName("vlan")) {
+            my @vlan=$if->getElementsByTagName("vlan");
+            my $vlan_tag_list='';
+            foreach my $tag ($vlan[0]->getElementsByTagName("tag")){
+                $vlan_tag_list .= $tag->getAttribute("id") .",";
+            }
+            $vlan_tag_list =~ s/,$//;  # eliminate final ","
+            # Check whether the connection is configured as trunk 
+            # (two or more VLANs configured or trunk attribute set to 'yes')
+            my $trunk = '';
+            if ( (str($vlan[0]->getAttribute("trunk")) eq 'yes') || ( $vlan_tag_list =~ m/,/ ) ) { 
+                $trunk = 'trunk:';   
+            }
+            print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
+            #print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"9\", style=\"bold\" ];\n" ;
+            print "$vmname2 -- $net2  [ label = \"$ipaddrs\\nvlans=[$trunk$vlan_tag_list]\", fontsize=\"$edge_fontsize\" ];\n" ;            
+        } else {
+            print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
+            print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;                        
+        }        
+        
     }
 }
 
+
+# Draw host node if connected to the scenario
 my @hostifs = $dom->getElementsByTagName ("hostif");
-#$n = @hostifs->getLength;
 
 if (@hostifs > 0) {
     print "\n// Host\n" ;
-    print "host [label=\"host\", shape=\"box\", fontcolor=\"$fontcolor\", " . 
-          "colorscheme=\"$colorscheme\", color=\"$hostcolor\", style=\"filled\" ] ;\n" ;
+    print "host [label=\"host\", shape=\"$host_shape\", " . 
+          "colorscheme=\"$color_scheme\", color=\"$host_color\", style=\"$host_style\" ] ;\n" ;
 }
 
-#for (my $j = 0; $j < $n; $j++) {
 foreach my $hostif (@hostifs) { 
-    #my $hostif = $hostifs->item ($j);
     my $id = $hostif->getAttribute ("id");
     my $net = $hostif->getAttribute ("net");
     my $net2 = $net;
    	$net2 =~ tr/-/_/;        
 
-=BEGIN
-    #print "  if: $id $net \n";
-    my $ipv4s = $hostif->getElementsByTagName ("ipv4");
-    my $n = $ipv4s->getLength;
-    for (my $k = 0; $k < $n; $k++) {
-        my $ipv4 = $ipv4s->item ($k)->getChildNodes->item(0);
-        my $ip = $ipv4->textContent;
-        # print "    ipv4: $ip\n";
-        print "//   if $id with IP address $ip connected to network $net\n" ;
-        print "host -- $net2  [ label = \"$ip\", fontsize=\"9\", style=\"bold\" ];\n" ;
-    }
-=END
-=cut
-
     my $ipaddrs;
-    #my $ipv4s = $hostif->getElementsByTagName ("ipv4");
-    #my $n = $ipv4s->getLength;
-    #for (my $k = 0; $k < $n; $k++) {
     foreach my $ipv4s ($hostif->getElementsByTagName ("ipv4")) {    	
         my $ipv4 = $ipv4s->getChildNodes->[0];
         $ipaddrs = $ipaddrs . ' \n' . $ipv4->textContent;
     }
-    #my $ipv6s = $hostif->getElementsByTagName ("ipv6");
-    #$n = $ipv6s->getLength;
-    #for (my $k = 0; $k < $n; $k++) {
     foreach my $ipv6s ($hostif->getElementsByTagName ("ipv6")) {        
         my $ipv6 = $ipv6s->getChildNodes->[0];
         $ipaddrs = $ipaddrs . ' \n' . $ipv6->textContent;
     }
-    print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
-    print "host -- $net2  [ label = \"$ipaddrs\", fontsize=\"9\", style=\"bold\" ];\n" ;
+
+    if ($hostif->getElementsByTagName("vlan")) {
+        my @vlan=$hostif->getElementsByTagName("vlan");
+        my $vlan_tag_list='';
+        foreach my $tag ($vlan[0]->getElementsByTagName("tag")){
+            $vlan_tag_list .= $tag->getAttribute("id") .",";
+        }
+        $vlan_tag_list =~ s/,$//;  # eliminate final ","
+        # Check whether the connection is configured as trunk 
+        # (two or more VLANs configured or trunk attribute set to 'yes')
+        my $trunk = '';
+        if ( (str($vlan[0]->getAttribute("trunk")) eq 'yes') || ( $vlan_tag_list =~ m/,/ ) ) { 
+            $trunk = 'trunk:';   
+        }
+        print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
+        print "host -- $net2  [ label = \"$ipaddrs\\nvlans=[$trunk$vlan_tag_list]\", fontsize=\"$edge_fontsize\" ];\n" ;
+    } else {
+        print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
+        print "host -- $net2  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;
+    }        
+       
 
 }
 
-# print Legend
+# print vm and net legends
 
+# Example legend table
+# label=<<TABLE ALIGN="LEFT">
+# <TR><TD ALIGN="LEFT" BGCOLOR="#AAAAAA">Virtual machines types</TD></TR>
+# <TR><TD ALIGN="LEFT">lxc = Linux Containers </TD></TR>
+# <TR><TD ALIGN="LEFT" BGCOLOR="#AAAAAA">Network types</TD></TR>
+# <TR><TD ALIGN="LEFT">ovs = OpenvSwitch</TD></TR>
+# </TABLE>>
+
+print<<END;
+bigger [
+fontsize=8
+shape=none
+fontcolor="$font_color"
+END
+print "label=<<TABLE border=\"0\" cellborder=\"1\" cellspacing=\"0\">";
+
+# Virtual machine types
+print "<TR><TD ALIGN=\"LEFT\" BGCOLOR=\"#FFFF99\"><b>Virtual machines types</b></TD></TR>";
+foreach my $key (keys %vm_legend) {
+    print "<TR><TD ALIGN=\"LEFT\">$key = $vm_legend{$key}</TD></TR>";
+}
+
+# Network types
+print "<TR><TD ALIGN=\"LEFT\" BGCOLOR=\"#FFFF99\">Network types</TD></TR>";
+foreach my $key (keys %net_legend) {
+    print "<TR><TD ALIGN=\"LEFT\">$key = $net_legend{$key}</TD></TR>";
+}
+
+print "</TABLE>>]";
+
+
+=BEGIN
 print<<END;
 bigger [
 fontsize=8
 shape=record
 label="{Virtual machines types |\\l\\
 END
-foreach my $key (keys %legend) {
-    print "$key = $legend{$key} \\l\\\n";
+foreach my $key (keys %vm_legend) {
+    print "$key = $vm_legend{$key} \\l\\\n";
+}
+#print "}\"];\n";
+
+print "| Network types |\\l\\";
+foreach my $key (keys %net_legend) {
+    print "$key = $net_legend{$key} \\l\\\n";
 }
 print "}\"];\n";
-
+=END
+=cut
 
 print "\n}\n" ;
-
-
-
-
-
-
-

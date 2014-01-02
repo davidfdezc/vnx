@@ -160,7 +160,7 @@ sub main {
     GetOptions (\%opts,
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
-                'show-map', 'console:s', 'console-info', 'exe-info', 'clean-host',
+                'show-map:s', 'console:s', 'console-info', 'exe-info', 'clean-host',
                 'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y',
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
@@ -312,7 +312,7 @@ $>=$uid;
    	if ($opts{'resume'})           { $how_many_args++; $mode_args .= 'resume ';        $mode = "resume";       }
    	if ($opts{'reboot'})           { $how_many_args++; $mode_args .= 'reboot ';        $mode = "reboot";       }
    	if ($opts{'reset'})            { $how_many_args++; $mode_args .= 'reset ';         $mode = "reset";        }
-   	if ($opts{'show-map'})         { $how_many_args++; $mode_args .= 'show-map ';      $mode = "show-map";     }
+   	if (defined($opts{'show-map'})){ $how_many_args++; $mode_args .= 'show-map ';      $mode = "show-map";     }
    	if (defined($opts{'console'})) { $how_many_args++; $mode_args .= 'console ';       $mode = "console";      }
    	if ($opts{'console-info'})     { $how_many_args++; $mode_args .= 'console-info ';  $mode = "console-info"; }
     if ($opts{'exe-info'})         { $how_many_args++; $mode_args .= 'exe-info ';      $mode = "exe-info";     }
@@ -1028,6 +1028,7 @@ sub mode_start {
 }
 
 sub set_vlan_links {
+    
     my $first_time='yes';
     my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account
     for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -1039,57 +1040,56 @@ sub set_vlan_links {
                     $first_time='no';
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-br UpdateNetwork123");
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " del-br UpdateNetwork123");
-
-             }
+            }
             if ( (get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0)&& $if->getElementsByTagName("vlan")) {
                 my $if_id = $if->getAttribute("id");
                 my @vlan=$if->getElementsByTagName("vlan");
                 my $vlantag= $vlan[0];  
-                my $trunk="";                        
-                my $trunk = $vlantag->getAttribute("trunk");
+                my $trunk = str($vlantag->getAttribute("trunk"));
                 my $port_name="$vm_name"."-e"."$if_id";
-                my $tagConcatenation="";
+                my $vlan_tag_list="";
                 my $vlan_number=0;
                 foreach my $tag ($vlantag->getElementsByTagName("tag")){
                     my $tag_id=$tag->getAttribute("id");
-                    $tagConcatenation.="$tag_id".",";
+                    $vlan_tag_list.="$tag_id".",";
                     $vlan_number=$vlan_number+1;    
                 }
+                $vlan_tag_list =~ s/,$//;  # eliminate final ","
                         
                 if ($trunk eq 'yes'){
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."trunk=$tagConcatenation");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."trunk=$vlan_tag_list");
                 } else {
                     if($vlan_number eq 1){
-                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."tag=$tagConcatenation");
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."tag=$vlan_tag_list");
                     } else {  
-                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."trunk=$tagConcatenation");
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."trunk=$vlan_tag_list");
                     }
-
-                                
                 }
             }
         }
-     }
-       my $doc = $dh->get_doc;
-      foreach my $net ($doc->getElementsByTagName("net")) {
-      	if ($net->getElementsByTagName("connection")){
-      	    foreach my $connection ($doc->getElementsByTagName("connection")) {
-	      		my $port=$connection->getAttribute("name");
-	            if ($connection->getElementsByTagName("vlan")){
-	       		   my @vlan=$connection->getElementsByTagName("vlan");
-	      	       my $vlan_tag= @vlan[0];
-	      	       my $tagConcatenation="";
-	      	       foreach my $tag ($vlan_tag->getElementsByTagName("tag")){
-	                    my $tag_id=$tag->getAttribute("id");
-	                    $tagConcatenation.="$tag_id".",";
-	                }
-		            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port"."1-0"." trunk=$tagConcatenation");
-		            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port"."0-1"." trunk=$tagConcatenation");
-		                }
-      	    }
-      	}
+    }
+    my $doc = $dh->get_doc;
+    foreach my $net ($doc->getElementsByTagName("net")) {
+        if ($net->getElementsByTagName("connection")){
+            foreach my $connection ($doc->getElementsByTagName("connection")) {
+                my $port=$connection->getAttribute("name");
+                if ($connection->getElementsByTagName("vlan")){
+                    my @vlan=$connection->getElementsByTagName("vlan");
+                    my $vlan_tag= $vlan[0];
+                    my $vlan_tag_list="";
+                    foreach my $tag ($vlan_tag->getElementsByTagName("tag")){
+                        my $tag_id=$tag->getAttribute("id");
+                        $vlan_tag_list.="$tag_id".",";
+                    }
+                    $vlan_tag_list =~ s/,$//;  # eliminate final ","
+                    
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port"."1-0"." trunk=$vlan_tag_list");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port"."0-1"." trunk=$vlan_tag_list");
+                }
+            }
+        }
    				
-      }
+    }
 }
 
 sub start_VMs {
@@ -1293,22 +1293,48 @@ sub mode_showmap {
 		mkdir $dh->get_sim_dir or $execution->smartdie ("error making directory " . $dh->get_sim_dir . ": $!");
    	}
    	
+   	# Guess map format (svg and png allowed; defaults to svg)
+    my $map_format = $opts{'show-map'};
+    if ($map_format eq '') { $map_format = 'svg' };
+   	if ( ($map_format ne 'png') && ($map_format ne 'svg') ) {
+   	    $execution->smartdie ("ERROR: format $map_format not supported in 'show-map' mode\n");  	    
+   	} 
+    wlog (V, "map_format=$map_format");
+   	
 	$execution->execute($logp, "vnx2dot ${input_file} > ${scedir}/${scename}.dot");
-   	$execution->execute($logp, "neato -Tpng -o${scedir}/${scename}.png ${scedir}/${scename}.dot");
-   
-   
-    # Read png_viewer variable from config file to see if the user has 
-    # specified a viewer
-    my $pngViewer = &get_conf_value ($vnxConfigFile, 'general', "png_viewer", 'root');
-	# If not defined use default values
-    if (!defined $pngViewer) { 
-   		my $gnome=`w -sh | grep gnome-session`;
-   		if ($gnome ne "") { $pngViewer="gnome-open" }
-        	         else { $pngViewer="xdg-open" }
+
+    if ($map_format eq 'png') {
+        
+       	$execution->execute($logp, "neato -Tpng -o${scedir}/${scename}.png ${scedir}/${scename}.dot");
+       
+        # Read png_viewer variable from config file to see if the user has 
+        # specified a viewer
+        my $png_viewer = &get_conf_value ($vnxConfigFile, 'general', "png_viewer", 'root');
+    	# If not defined use default values
+        if (!defined $png_viewer) { 
+       		my $gnome=`w -sh | grep gnome-session`;
+       		if ($gnome ne "") { $png_viewer="gnome-open" }
+            	         else { $png_viewer="xdg-open" }
+        }
+       	#$execution->execute($logp, "eog ${scedir}/${scename}.png");
+       	wlog (N, "Using '$png_viewer' to show scenario '${scename}' topology map", "host> ");
+        $execution->execute($logp, "$png_viewer ${scedir}/${scename}.png &");
+        
+    } elsif ($map_format eq 'svg') {
+        
+   	    $execution->execute($logp, "neato -Tsvg -o${scedir}/${scename}.svg ${scedir}/${scename}.dot");
+        # Read svg_viewer variable from config file to see if the user has 
+        # specified a viewer
+        my $svg_viewer = &get_conf_value ($vnxConfigFile, 'general', "svg_viewer", 'root');
+    	# If not defined use default values
+        if (!defined $svg_viewer) { 
+       		my $gnome=`w -sh | grep gnome-session`;
+       		if ($gnome ne "") { $svg_viewer="gnome-open" }
+            	         else { $svg_viewer="xdg-open" }
+        }
+       	wlog (N, "Using '$svg_viewer' to show scenario '${scename}' topology map", "host> ");
+        $execution->execute($logp, "$svg_viewer ${scedir}/${scename}.svg &");
     }
-   	#$execution->execute($logp, "eog ${scedir}/${scename}.png");
-   	wlog (N, "Using '$pngViewer' to show scenario '${scename}' topology map", "host> ");
-   	$execution->execute($logp, "$pngViewer ${scedir}/${scename}.png &");
 
 }
 
@@ -2681,8 +2707,6 @@ sub hostif_addr_conf {
     # 1a. To process interface IPv4 addresses
     if ($dh->is_ipv4_enabled) {
 
-        #my $ipv4_list = $if->getElementsByTagName("ipv4");
-        #for ( my $j = 0; $j < $ipv4_list->getLength; $j++) {
         foreach my $ipv4 ($if->getElementsByTagName("ipv4")) {
             my $ip = &text_tag($ipv4);
             my $ipv4_effective_mask = "255.255.255.0"; # Default mask value
@@ -2773,8 +2797,6 @@ sub chown_working_dir {
 # Check to see if any of the UMLs use xterm in console tags
 sub xauth_needed {
 
-	#my $vm_list = $dh->get_doc->getElementsByTagName("vm");
-	#for (my $i = 0; $i < $vm_list->getLength; $i++) {
 	foreach my $vm ($dh->get_doc->getElementsByTagName("vm")) {
 	   my @console_list = $dh->merge_console($vm);
 	   foreach my $console (@console_list) {
@@ -2783,7 +2805,6 @@ sub xauth_needed {
 		  }
 	   }
 	}
-	
 	return 0;
 }
 
@@ -5703,7 +5724,7 @@ Usage:
   [sudo] vnx -f VNX_file --resume          [-M vm_list] [options]
   [sudo] vnx -f VNX_file --reboot          [-M vm_list] [options]
   [sudo] vnx -f VNX_file --reset           [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --show-map 
+  [sudo] vnx -f VNX_file --show-map [svg|png]
   vnx -h
   vnx -V
   [sudo] vnx --clean-host
@@ -5745,7 +5766,8 @@ Console management modes:
     vnx -f ex1.xml --console con0 -M A --> open console 0 of vm A of scenario ex1.xml
 
 Other modes:
-  --show-map      -> shows a map of the network scenarios build using graphviz.
+  --show-map [format] -> shows a map of the network scenarios build using graphviz.
+                     png and svg formats supported (defaults to svg)
   --exe-info      -> show information about the commands available in VNX_file.
   --create-rootfs -> starts a virtual machine to create a rootfs. 
                      Use --install-media option to specify installation media.
