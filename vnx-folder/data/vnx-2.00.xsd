@@ -177,6 +177,7 @@ e-mail: vnx@dit.upm.es
   <xs:element name="hostif">
     <xs:complexType>
       <xs:sequence>
+        <xs:element minOccurs="0" ref="vlan"/>	
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="ipv4"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="ipv6"/>
       </xs:sequence>

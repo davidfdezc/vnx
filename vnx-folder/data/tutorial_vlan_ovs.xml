@@ -6,7 +6,7 @@
 VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
-Name:        tutorial_vlan_openvswitch
+Name:        tutorial_vlan_ovs
 Description:  
 
 This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
@@ -22,7 +22,7 @@ SPAIN
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
     <version>2.0</version>
-    <scenario_name>tutorial_vlan_openvswitch</scenario_name>
+    <scenario_name>tutorial_vlan_ovs</scenario_name>
     <automac offset="5"/>
     <vm_mgmt type="none" />
     <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="16">
@@ -30,14 +30,14 @@ SPAIN
     </vm_mgmt-->     
     <vm_defaults>
 	    <console id="0" display="no"/>
-	     <console id="1" display="yes"/>
+	    <console id="1" display="yes"/>
     </vm_defaults>
   </global>
   
   <net name="Net0" mode="openvswitch" />
   <net name="Net1" mode="openvswitch" >
 	<connection name='firstlink' net='Net0'>
-	    <vlan >
+	    <vlan>
 	       <tag id='1'/>
 	       <tag id='2'/>
 	    </vlan>
@@ -49,85 +49,101 @@ SPAIN
     </connection>
   </net>
   <net name="Net2" mode="openvswitch" />
+
   <!-- NODES -->
-  <vm name="host1" type="lxc" subtype="" os="">
+  <vm name="h1" type="lxc" subtype="" os="">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <mem>512M</mem>
     <if id="1" net="Net0" >
-	   <vlan >
+	   <vlan>
 	     <tag id='1'/>
       </vlan>
-      <ipv4>10.0.0.1/24</ipv4>
+      <ipv4>10.1.1.1/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
     
   </vm>
-  <vm name="host2" type="lxc" subtype="" os="">
+  
+  <vm name="h2" type="lxc" subtype="" os="">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <mem>512M</mem>
     <if id="1" net="Net0" >
-      <vlan >
+      <vlan>
 	     <tag id='2'/>
       </vlan>
-      <ipv4>10.0.0.2/24</ipv4>
+      <ipv4>10.1.1.2/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
     
   </vm>
-<vm name="host3" type="lxc" subtype="" os="">
+  
+  <vm name="h3" type="lxc" subtype="" os="">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net1" >
-      <vlan >
-	 <tag id='1'/>
+      <vlan>
+	    <tag id='1'/>
       </vlan>
-      <ipv4>10.0.0.3/24</ipv4>
+      <ipv4>10.1.1.3/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
     
   </vm>
-  <vm name="host4" type="lxc" subtype="" os="">
+  
+  <vm name="h4" type="lxc" subtype="" os="">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net1" >
-      <vlan >
-   <tag id='3'/>
+      <vlan>
+        <tag id='3'/>
       </vlan>
-      <ipv4>10.0.0.4/24</ipv4>
+      <ipv4>10.1.1.4/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
     
   </vm>
-  <vm name="host5" type="lxc" subtype="" os="">
+  
+  <vm name="h5" type="lxc" subtype="" os="">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net2" >
-      <vlan >
-   <tag id='3'/>
+      <vlan>
+        <tag id='3'/>
       </vlan>
-      <ipv4>10.0.0.5/24</ipv4>
+      <ipv4>10.1.1.5/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
     
   </vm>
-  <vm name="host6" type="lxc" subtype="" os="">
+  
+  <vm name="h6" type="lxc" subtype="" os="">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net2" >
-      <vlan >
-   <tag id='1'/>
+      <vlan>
+		<tag id='1'/>
       </vlan>
-      <ipv4>10.0.0.6/24</ipv4>
+      <ipv4>10.1.1.6/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="start-www" root="/var/www">conf/txtfile</filetree>
     
   </vm>
+  
+  <host>
+    <hostif net="Net2">
+      <vlan>
+		<tag id='1'/>
+      </vlan>
+      <ipv4>10.1.1.7/24</ipv4>
+    </hostif>
+  </host>
+  
 </vnx>
