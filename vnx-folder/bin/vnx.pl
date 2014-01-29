@@ -3746,9 +3746,10 @@ sub mode_destroy {
         # 3. Delete supporting scenario files...
         #    ...but only if -M option is not active (DFC 27/01/2010)
 
-        # Delete all files in scenario but the scenario map (<scename>.png) 
+        # Delete all files in scenario but the scenario map (<scename>.png or svg) 
         #$execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_sim_dir . "/*");
-        $execution->execute($logp, $bd->get_binaries_path_ref->{"find"} . " " . $dh->get_sim_dir . "/* ! -name *.png -delete");
+        $execution->execute($logp, $bd->get_binaries_path_ref->{"find"} . " " . $dh->get_sim_dir . "/* " . 
+                             "! -name *.png ! -name *.svg -delete");
 
         if ($vmfs_on_tmp eq 'yes') {
                 $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " 
@@ -5425,7 +5426,6 @@ sub make_vmAPI_doc {
     wlog (VVV, "make_vmAPI_doc: XML created for vm $vm_name with seq 'on_boot' commands included", "$vm_name> ", $logp); 
     wlog (VVV, "                plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", "$vm_name> ", $logp);
 
-
     # Copy all the <filetree> and <exec> to the create_conf XML document
     # 1 - Plugins <filetree> tags
     foreach my $filetree (@plugin_ftree_list) {
@@ -5448,7 +5448,8 @@ sub make_vmAPI_doc {
     # <ssh_key> tag
     my @ssh_key_list = $dh->get_doc->getElementsByTagName("global")->item(0)->getElementsByTagName("ssh_key");
     unless (@ssh_key_list == 0) {
-	    my $ftree_num = $vm_ftrees+1;
+	    my $ftree_num = $vm_plugin_ftrees+$vm_ftrees+1;
+        wlog (VVV,"ssh ftree_num=$ftree_num");
 	    my $ssh_key_dir = $dh->get_vm_tmp_dir($vm_name) . "/on_boot/filetree/$ftree_num";
         $execution->execute($logp,  "mkdir -p $ssh_key_dir"); # or $execution->smartdie ("cannot create directory $ssh_key_dir for storing ssh keys");
 	    # Copy ssh key files content to $ssh_key_dir/ssh_keys file
@@ -5461,7 +5462,7 @@ sub make_vmAPI_doc {
 	    # Add a <filetree> to copy ssh keys
         my $ftree_tag = XML::LibXML::Element->new('filetree');
         $ftree_tag->setAttribute( seq => "on_boot");
-        $ftree_tag->setAttribute( root => "/tmp" );
+        $ftree_tag->setAttribute( root => "/tmp/" );
         $ftree_tag->appendTextNode ("ssh_keys");            
         $vm_tag->addChild($ftree_tag);
         # And a <exec> command to add it to authorized_keys file in VM
