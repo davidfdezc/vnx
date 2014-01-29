@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        tutorial_lxc_wifi
+Description: As simple tutorial scenario to show how to connect external wifi devices to a virtual scenarios.
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>tutorial_lxc_wifi</scenario_name>
+    <automac/>
+    <vm_mgmt type="none" />
+    <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="200">
+       <host_mapping />
+    </vm_mgmt-->
+    <vm_defaults>
+        <console id="0" display="no"/>
+        <console id="1" display="yes"/>
+    </vm_defaults>
+  </global>
+
+  <net name="Net0" mode="virtual_bridge" />
+
+  <vm name="s1" type="lxc">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <if id="1" net="Net0">
+      <ipv4>10.0.1.1/24</ipv4>
+    </if>
+    <!-- Copy dhcp server config (dhcp.conf) -->
+    <filetree seq="on_boot" root="/etc/dhcp/">conf/tutorial_lxc_wifi/s1/dhcpd.conf</filetree>
+    <!-- Start dhcp server -->
+    <exec seq="on_boot" type="verbatim" ostype="system">service isc-dhcp-server start</exec>
+  </vm>
+
+  <vm name="h1" type="lxc">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <if id="1" net="Net0">
+      <!--ipv4>10.0.0.2/24</ipv4-->
+    </if>
+    <!-- Configure eth1 interface -->
+    <exec seq="on_boot" type="verbatim" ostype="system">dhclient eth1</exec>
+  </vm>
+
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.0.1.1/24</ipv4>
+    </hostif>
+  </host>
+
+</vnx>

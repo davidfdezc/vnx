@@ -684,7 +684,7 @@ sub startVM {
     	my $doc = $parser->parse_file($dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml');
 
         my @filetree_tag_list = $doc->getElementsByTagName("filetree");
-        my @exec_tag_list = $doc->getElementsByTagName("fexec");
+        my @exec_tag_list = $doc->getElementsByTagName("exec");
         if ( (@filetree_tag_list > 0) || (@exec_tag_list > 0) )  { 
         	
         	# At least one on_boot filetree or exec defined
@@ -1357,12 +1357,12 @@ sub execute_filetree {
         wlog (VVV, "       source_path=${source_path}", $logp);
         wlog (VVV, "       root=${root}", $logp);
         if ($num_files > 3) { # count "." and ".."
-            wlog ("   ERROR in filetree: destination ($root) is a file and there is more than one file in $source_path (seq=$seq)\n", $logp);
+            wlog (N, "   ERROR in filetree: destination ($root) is a file and there is more than one file in $source_path (seq=$seq)\n", $logp);
             next;
         }
         my $file_dir = dirname($root);
         unless (-d $file_dir){
-            wlog ("   creating unexisting dir '$file_dir'...", $logp);
+            wlog (VVV, "   creating unexisting dir '$file_dir'...", $logp);
             system "mkdir -p $file_dir";
         }
         $cmd="cp -v ${source_path}* $host_root";
