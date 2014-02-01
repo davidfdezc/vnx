@@ -152,6 +152,8 @@ sub defineVM {
         my $filesystem_type   = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
         my $filesystem        = $vm->getElementsByTagName("filesystem")->item(0)->getFirstChild->getData;
 
+change_to_root();
+
         # Directory where vm files are going to be mounted
         my $vm_lxc_dir;
 
@@ -297,7 +299,7 @@ sub defineVM {
 	    my $hostname_file   = ${vm_lxc_rootfs} . "/etc/hostname";
 	    my $resolv_file     = ${vm_lxc_rootfs} . "/etc/resolv.conf";
 	    my $rules_file      = ${vm_lxc_rootfs} . "/etc/udev/rules.d/70-persistent-net.rules";
-	    
+
 	    # Backup and delete /etc/resolv.conf file
 	    system "cp $resolv_file ${resolv_file}.bak";
 	    system "rm -f $resolv_file";
@@ -462,6 +464,8 @@ sub defineVM {
 	    #system "hostname $vm_name";
 	    
 	    # end of vm autoconfiguration
+
+back_to_user();     
 
         #
         # VM CONSOLES

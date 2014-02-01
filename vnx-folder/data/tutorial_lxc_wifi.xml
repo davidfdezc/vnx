@@ -50,16 +50,14 @@ SPAIN
   <vm name="h1" type="lxc">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net0">
-      <!--ipv4>10.0.0.2/24</ipv4-->
     </if>
     <!-- Configure eth1 interface -->
     <exec seq="on_boot" type="verbatim" ostype="system">dhclient eth1</exec>
   </vm>
 
-
   <host>
     <hostif net="Net0">
-       <ipv4>10.0.1.1/24</ipv4>
+       <ipv4>10.0.1.2/24</ipv4>
     </hostif>
   </host>
 
