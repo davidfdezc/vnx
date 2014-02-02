@@ -62,12 +62,9 @@ use VNX::Execution;
 #
 sub tundevice_needed {
 
-#   my $dh = shift;
    my $vmmgmt_type = shift;
    my @machines = @_;
 
-    #my $net_list = $dh->get_doc->getElementsByTagName("net");
-    #for (my $i = 0; $i < $net_list->getLength; $i++ ) {
     foreach my $net ($dh->get_doc->getElementsByTagName("net")) {
         # Get attributes
         my $name = $net->getAttribute("name");
@@ -102,8 +99,6 @@ sub check_net_host_conn {
     my $net = shift;
     my $doc = shift;
 
-    #my $hostif_list = $doc->getElementsByTagName("hostif");
-    #for ( my $i = 0 ; $i < $hostif_list->getLength ; $i++ ) {
     foreach my $hostif ($doc->getElementsByTagName("hostif")) {
    	    my $net_name = $hostif->getAttribute("net");
         return 1 if ($net eq $net_name);
@@ -113,49 +108,62 @@ sub check_net_host_conn {
 
 # vnet_exists_br
 #
-# If the virtual network (implemented with a bridge) whose name is given
+# If the virtual network whose name is given
 # as first argument exists, returns 1. In other case, returns 0.
 #
 # It based in `brctl show` parsing.
 sub vnet_exists_br {
 
-   my $vnet_name = shift;
-   my $mode = shift;
-   my $pipe;
+    my $vnet_name = shift;
+    my $mode = shift;
+    my $pipe;
 
-   # To get `brctl show`
-   my @brctlshow;
-   my $line = 0;
-   if ($mode eq "virtual_bridge"){
-        $pipe = $bd->get_binaries_path_ref->{"brctl"} . " show |";
-   } elsif($mode eq "openvswitch"){
-        $pipe = $bd->get_binaries_path_ref->{"ovs-vsctl"} . " show |";
-   }
-   open BRCTLSHOW, "$pipe";
-   while (<BRCTLSHOW>) {
-      chomp;
-      $brctlshow[$line++] = $_;
-   }
-   close BRCTLSHOW;
+    if ($mode eq "virtual_bridge") {
 
-   # To look for virtual network processing the list
-   # Note that we skip the first line (due to this line is the header of
-   # brctl show: bridge name, brige id, etc.)
-   for ( my $i = 1; $i < $line; $i++) {
-      $_ = $brctlshow[$i];
-      # We are interestend only in the first and last "word" of the line
-#      /^(\S+)\s.*\s(\S+)$/;   # DFC 14/1/2012: changed; it didn't work because lines can be ended with some spaces
-                               #      Besides only the bridge name is needed ($1)    
-      /^(\S+)\s.*/;
-      if (defined($1) && ($1 eq $vnet_name) ) {
-        # If equal, the virtual network has been found
-        return 1;
-      }
-   }
+        my @brctlshow;
+        my $line = 0;
+        if ( !`which brctl` ) {
+            # brctl not found. Suppousdly uml-utilities not installed and 
+            # no virtual bridges exist at all. return false
+            return 0;
+        }
+        $pipe = "brctl show |";
+        open BRCTLSHOW, "$pipe";
+        while (<BRCTLSHOW>) {
+            chomp;
+            $brctlshow[$line++] = $_;
+        }
+        close BRCTLSHOW;
+        
+        # To look for virtual network processing the list
+        # Note that we skip the first line (due to this line is the header of
+        # brctl show: bridge name, brige id, etc.)
+        for ( my $i = 1; $i < $line; $i++) {
+            $_ = $brctlshow[$i];
+            # We are interestend only in the first and last "word" of the line
+            #      /^(\S+)\s.*\s(\S+)$/;   # DFC 14/1/2012: changed; it didn't work because lines can be ended with some spaces
+            #      Besides only the bridge name is needed ($1)    
+            /^(\S+)\s.*/;
+            if (defined($1) && ($1 eq $vnet_name) ) {
+                # If equal, the virtual network has been found
+                return 1;
+            }
+        }
+        
+        # If virtual network is not found:
+        return 0;
 
-   # If virtual network is not found:
-   return 0;
+    } elsif ($mode eq "openvswitch") {
 
+        if ( !`which ovs-vsctl` ) {
+            # ovs-vsctl not found. Suppousdly openvswitch is not installed and 
+            # no openvswitches exist at all. return false
+            return 0;
+        }
+        system "ovs-vsctl br-exists $vnet_name";
+        wlog (VVV, "ovs-vsctl br-exists $vnet_name returns " . $?);
+        if ($? == 0) { return 1 } else { return 0 }
+    }
 }
 
 # vnet_exists_sw
@@ -221,27 +229,19 @@ sub vnet_ifs {
 	      	}
 	      	if ($s eq $vnet_name) { $found = 'true' }
 	    }
-	    return @if_list;
+	    
     } elsif ($mode eq "openvswitch") {
         my $pipe;
         my @brctlshow;
         my $line = 0;
         
-        $pipe = $bd->get_binaries_path_ref->{"ovs-vsctl"} . " show |";
+        $pipe = $bd->get_binaries_path_ref->{"ovs-vsctl"} . " list-ports $vnet_name |";
         open BRCTLSHOW, "$pipe";
         while (<BRCTLSHOW>) {
             chomp;
-            $brctlshow[$line++] = $_;
+            push (@if_list,$_);
         }
         close BRCTLSHOW; 
-        for ( my $i = 1; $i < $line; $i++) {
-            $_ = $brctlshow[$i];
-            /^ *Bridge "(\S+)"$/;
-            if (defined($1) && ($1 eq $vnet_name)) {
-                # To push interface into the list
-                push (@if_list,$1."-e00");
-            }
-        }
     }
     return @if_list;
     

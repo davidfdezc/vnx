@@ -888,7 +888,7 @@ sub mode_define {
 
 sub define_VMs {
 
-   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
 
    my $dom;
    
@@ -949,7 +949,7 @@ sub define_VMs {
 
 sub mode_undefine{
 
-    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option
 	   
     for ( my $i = 0; $i < @vm_ordered; $i++) {
    	
@@ -988,7 +988,13 @@ sub mode_start {
 #        &xauth_add;
 
         start_VMs();
+        
+        tun_connect();
         set_vlan_links();
+        
+        mode_execute ('on_boot', 'lxc');
+        
+        
          
         # If <host_mapping> is in use and not in debug mode, process /etc/hosts
         my $lines = join "\n", @host_lines;
@@ -1030,7 +1036,7 @@ sub mode_start {
 sub set_vlan_links {
     
     my $first_time='yes';
-    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account
     for ( my $i = 0; $i < @vm_ordered; $i++) {
         my $vm = $vm_ordered[$i];
         my $vm_name = $vm->getAttribute("name");
@@ -1038,8 +1044,8 @@ sub set_vlan_links {
         	# Activate network links when openvswitch are used
         	if(get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0 && ($first_time eq 'yes')){
                     $first_time='no';
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-br UpdateNetwork123");
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " del-br UpdateNetwork123");
+                    #$execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-br UpdateNetwork123");
+                    #$execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " del-br UpdateNetwork123");
             }
             if ( (get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0)&& $if->getElementsByTagName("vlan")) {
                 my $if_id = $if->getAttribute("id");
@@ -1094,7 +1100,7 @@ sub set_vlan_links {
 
 sub start_VMs {
 
-    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
  
     # If defined screen configuration file, open it
     if (($opts{e}) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
@@ -1106,6 +1112,7 @@ sub start_VMs {
 
         my $vm = $vm_ordered[$i];
         my $vm_name = $vm->getAttribute("name");
+        my $vm_type = $vm->getAttribute("type");
         my $merged_type = $dh->get_vm_merged_type($vm);
       
         # search for <on_boot> tag and if found then process it
@@ -1127,7 +1134,6 @@ sub start_VMs {
         }
       
         # call the corresponding vmAPI
-        my $vm_type = $vm->getAttribute("type");
         wlog (N, "Starting virtual machine '$vm_name' of type '$merged_type'...");
         my $error = "VNX::vmAPI_$vm_type"->startVM($vm_name, $merged_type, $no_console);
         if ($error ne 0) {
@@ -1171,9 +1177,10 @@ back_to_user();
     }
 }
 
+
 sub mode_reset {
 	
-   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
    	
@@ -1194,7 +1201,7 @@ sub mode_reset {
 
 sub mode_save {
 
-   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
    my $filename;
 
    for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -1218,7 +1225,7 @@ sub mode_save {
 
 sub mode_restore {
 
-   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
    my $filename;
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -1243,7 +1250,7 @@ sub mode_restore {
 
 sub mode_suspend {
 
-   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
    	
@@ -1265,7 +1272,7 @@ sub mode_suspend {
 
 sub mode_resume {
 
-   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
    	
@@ -1340,7 +1347,7 @@ sub mode_showmap {
 
 sub mode_console {
 	
-    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
 
  	my $scename = $dh->get_scename;
 	for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -2222,13 +2229,13 @@ sub configure_switched_networks {
       }
       
     }
-
 }
 
 #
 # configure_virtual_bridged_networks
 #
 # To create TUN/TAP devices
+#
 sub configure_virtual_bridged_networks {
 
     # TODO: to considerate "external" atribute when network is "ppp"
@@ -2285,110 +2292,113 @@ sub configure_virtual_bridged_networks {
         }
     }
    
-   # 2. Create bridges
+    # 2. Create bridges
       
-     # To process list
+    # To process list
     foreach my $net ($doc->getElementsByTagName("net")) {
 
-      # We get name attribute
-      my $net_name    = $net->getAttribute("name");
-      my $mode        = $net->getAttribute("mode");
-      my $external_if = $net->getAttribute("external");
-      my $vlan        = $net->getAttribute("vlan");
+        # We get name attribute
+        my $net_name    = $net->getAttribute("name");
+        my $mode        = $net->getAttribute("mode");
+        my $external_if = $net->getAttribute("external");
+        my $vlan        = $net->getAttribute("vlan");
 
-      # This function only processes virtual_bridge networks
-        #Carlos modifications(añadido parametro de entrada mode)
-      unless (&vnet_exists_br($net_name,$mode)) {
-        if ($mode eq "virtual_bridge") {
-         # If bridged does not exists, we create and set up it
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addbr $net_name");
-            if ($dh->get_stp) {
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name on");
-            }else {
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
-            }
+        wlog (VVV, "vnet_exists_br($net_name, 'openvswitch') returns " . vnet_exists_br($net_name, 'openvswitch'), $logp);
+        wlog (VVV, "vnet_exists_br($net_name, 'virtual_bridge') returns " . vnet_exists_br($net_name, 'virtual_bridge'), $logp);
 
-       }elsif ($mode eq "openvswitch") {
-         # If bridged does not exists, we create and set up it
-    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-br $net_name");
-        if($net->getAttribute("controller") ){
-            my $controller = $net->getAttribute("controller");
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set-controller $net_name $controller");
-            }
-        
-    }
-      sleep 1;    # needed in SuSE 8.2
-            
-            #
-            # Create a tap interface with a "low" mac address and join it to the bridge to 
-            # obligue the bridge to use that mac address.
-            # See http://backreference.org/2010/07/28/linux-bridge-mac-addresses-and-dynamic-ports/
-            #
-            # Generate a random mac address under prefix 02:00:00 
-            my @chars = ( "a" .. "f", "0" .. "9");
-            my $brtap_mac = "020000" . join("", @chars[ map { rand @chars } ( 1 .. 6 ) ]);
-            $brtap_mac =~ s/(..)/$1:/g;
-            chop $brtap_mac;                       
-            # Create tap interface
-            my $brtap_name = "$net_name-e00";
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $brtap_name -f " . $dh->get_tun_device);
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name address $brtap_mac");                       
-            # Join the tap interface to bridge
-            #Carlos modifications
-            if ($mode eq "virtual_bridge") {
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $brtap_name");
-        }elsif ($mode eq "openvswitch") {
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name $brtap_name");
+        if ( vnet_exists_br($net_name, 'openvswitch') && $mode eq 'virtual_bridge' ) {
+            $execution->smartdie ("\nERROR: Cannot create virtual bridge $net_name. An Openvswitch with the same name already exists.")
+        } elsif ( vnet_exists_br($net_name, 'virtual_bridge') && $mode eq 'openvswitch' ) {
+            $execution->smartdie ("\nERROR: Cannot create an Openvswitch with name $net_name. A virtual bridge with the same name already exists.")
         }
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name up");                       
-            
+        unless ( vnet_exists_br($net_name, $mode) ) {
+            if ($mode eq "virtual_bridge") {
+                # If bridged does not exists, we create and set up it
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addbr $net_name");
+                if ($dh->get_stp) {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name on");
+                }else {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
+                }
+
+                #
+                # Create a tap interface with a "low" mac address and join it to the bridge to 
+                # obligue the bridge to use that mac address.
+                # See http://backreference.org/2010/07/28/linux-bridge-mac-addresses-and-dynamic-ports/
+                #
+                # Generate a random mac address under prefix 02:00:00 
+                my @chars = ( "a" .. "f", "0" .. "9");
+                my $brtap_mac = "020000" . join("", @chars[ map { rand @chars } ( 1 .. 6 ) ]);
+                $brtap_mac =~ s/(..)/$1:/g;
+                chop $brtap_mac;                       
+                # Create tap interface
+                my $brtap_name = "$net_name-e00";
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $brtap_name -f " . $dh->get_tun_device);
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name address $brtap_mac");                       
+                # Join the tap interface to bridge
+                # Carlos modifications
+                if ($mode eq "virtual_bridge") {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $brtap_name");
+                } elsif ($mode eq "openvswitch") {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name $brtap_name");
+                }
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name up");                       
+
+            } elsif ($mode eq "openvswitch") {
+                # If bridged does not exists, we create and set up it
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-br $net_name");
+                if($net->getAttribute("controller") ){
+                    my $controller = $net->getAttribute("controller");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set-controller $net_name $controller");
+                }
+        
+            }
+                        
             # Bring the bridge up
             #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
             $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");         
-         }
+        }
         
-         # Is there an external interface associated with the network?
-         #unless ($external_if =~ /^$/) {
-         unless (empty($external_if)) {
+        # Is there an external interface associated with the network?
+        unless (empty($external_if)) {
             # If there is an external interface associate, to check if VLAN is being used
-            #unless ($vlan =~ /^$/ ) {
             unless (empty($vlan) ) {
-               # If there is not any configured VLAN at this interface, we have to enable it
-               unless (&check_vlan($external_if,"*")) {
-                  #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
-                  $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
-               }
-               # If VLAN is already configured at this interface, we haven't to configure it
-               unless (&check_vlan($external_if,$vlan)) {
-                  $execution->execute_root($logp, $bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
-                  $execution->execute_root($logp, $bd->get_binaries_path_ref->{"vconfig"} . " set_name_type DEV_PLUS_VID_NO_PAD");
-                  $execution->execute_root($logp, $bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
-               }
-               $external_if .= ".$vlan";
-               #$external_if .= ":$vlan";
+                # If there is not any configured VLAN at this interface, we have to enable it
+                unless (&check_vlan($external_if,"*")) {
+                    #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
+                }
+                # If VLAN is already configured at this interface, we haven't to configure it
+                unless (&check_vlan($external_if,$vlan)) {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"vconfig"} . " set_name_type DEV_PLUS_VID_NO_PAD");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
+                }
+                $external_if .= ".$vlan";
+                #$external_if .= ":$vlan";
             }
          
             # If the interface is already added to the bridge, we haven't to add it
-        #Carlos modifications(añadido parametro de entrada mode)
+            # Carlos modifications(añadido parametro de entrada mode)
             my @if_list = &vnet_ifs($net_name,$mode);
             wlog (VVV, "vnet_ifs returns @if_list", $logp);
             $_ = "@if_list";
             unless (/\b($external_if)\b/) {
-               $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
-               #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
-        #Carlos modifications
-        if ($mode eq "virtual_bridge") {
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $external_if");
-        }elsif ($mode eq "openvswitch") {
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name $external_if");
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
+                #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
+                #Carlos modifications
+                if ($mode eq "virtual_bridge") {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $external_if");
+                } elsif ($mode eq "openvswitch") {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name $external_if");
+                }
             }
-        }
             # We increase interface use counter
             &inc_cter($external_if);
-         }
-      
-   }
-    #Wait until all the openvswitches are created, then establish all the declared links between those switches
+        }
+    }
+
+    # Wait until all the openvswitches are created, then establish all the declared links between those switches
     foreach my $net ($doc->getElementsByTagName("net")) {
         my $net_name    = $net->getAttribute("name");
         foreach my $connection ($net->getElementsByTagName("connection")) {
@@ -2592,9 +2602,11 @@ sub tun_connect {
 	 
             # Only TUN/TAP for interfaces attached to bridged networks
             # We do not add tap interfaces for libvirt or lxc VMs. It is done by libvirt/lxc 
-            #if (&check_net_br($net)) {
-            if (($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ( &get_net_by_mode($net,"virtual_bridge") != 0) ||(($vm_type eq 'lxc')&&  &get_net_by_mode($net,"openvswitch") != 0) ) {
-            #if ( ( &get_net_by_mode($net,"virtual_bridge") != 0) ) {
+            if ( ($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ( &get_net_by_mode($net,"virtual_bridge") != 0)  || 
+                 (($vm_type eq 'lxc') && &get_net_by_mode($net,"openvswitch") != 0) ) {
+                # If condition for dummies: 
+                #     if    (vm is neither libvirt nor lxc and switch is virtual_bridge) 
+                #        or (vm is lxc and switch is openvswitch) then
 	 
                 my $net_if = $vm_name . "-e" . $id;
 
@@ -2835,8 +2847,9 @@ sub xauth_remove {
 #
 sub mode_execute {
 
-    my $seq = shift;
-	
+    my $seq  = shift;
+    my $type = shift;
+    	
 	my %vm_ips;
 	
     my $num_plugin_ftrees = 0;
@@ -2863,12 +2876,19 @@ sub mode_execute {
    	}
    
 	# Previous checkings and warnings
-    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
 	
 	# First loop: 
 	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 		my $vm = $vm_ordered[$i];
 		my $vm_name = $vm->getAttribute("name");
+        my $merged_type = $dh->get_vm_merged_type($vm);
+        my $vm_type = $vm->getAttribute("type");
+
+        # If parameter $type was defined, only execute command for the VM type indicated
+        if ( defined($type) && ($type ne $vm_type) ) {
+            next
+        }
 
         my @plugin_ftree_list = ();
         my @plugin_exec_list = ();
@@ -2888,10 +2908,7 @@ sub mode_execute {
         if ($vm_plugin_ftrees + $vm_plugin_execs + $vm_ftrees + $vm_execs > 0) { 
             wlog (N, "Calling executeCMD for vm '$vm_name' with seq '$seq'..."); 
             wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", $logp);
-	        my $merged_type = $dh->get_vm_merged_type($vm);
 			# call the corresponding vmAPI
-	    	my $vm_type = $vm->getAttribute("type");
-	
 	    	my $error = "VNX::vmAPI_$vm_type"->executeCMD(
 	    	                         $vm_name, $merged_type, $seq, $vm,  
 	    	                         \@plugin_ftree_list, \@plugin_exec_list, 
@@ -2913,7 +2930,9 @@ sub mode_execute {
         wlog(N, "--");
 	}
 
-	exec_command_host($seq);
+    if ( !defined($type) ) {
+        exec_command_host($seq);
+    }
 }
 
 
@@ -2936,24 +2955,33 @@ sub mode_shutdown {
     } else {
         wlog (V, "F flag NOT set", "mode_shutdown> ");
     }
-    
-    my $seq = 'on_shutdown';
 
-    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+    # Execute on_shutdown commands
+    unless ($opts{F} || defined($do_not_exe_cmds) ) {
+        mode_execute ('on_shutdown')
+    }
+
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
     my $only_vm = "";
    	
+=BEGIN    
+    my $seq = 'on_shutdown';
+
     my $num_plugin_ftrees = 0;
     my $num_plugin_execs  = 0;
     my $num_ftrees = 0;
     my $num_execs  = 0;
+=END
+=cut
    
     for ( my $i = 0; $i < @vm_ordered; $i++) {
 
         my $vm = $vm_ordered[$i];
         my $vm_name = $vm->getAttribute("name");
-
+        my $vm_type = $vm->getAttribute("type");
         my $merged_type = $dh->get_vm_merged_type($vm);
 
+=BEGIN
         unless ($opts{F} || defined($do_not_exe_cmds) ){
 
             my @plugin_ftree_list = ();
@@ -2996,14 +3024,14 @@ sub mode_shutdown {
 	        wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs, user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs", $logp);	    	
 	    }
 
+=END
+=cut
       	if ($opts{M}){
          	$only_vm = $vm_name;  	
       	}
       
       	if ($opts{F}){
-
          	# call the corresponding vmAPI
-           	my $vm_type = $vm->getAttribute("type");
             wlog (N, "Releasing virtual machine '$vm_name' of type '$merged_type'...");
            	my $error = "VNX::vmAPI_$vm_type"->destroyVM($vm_name, $merged_type);
             if ($error ne 0) {
@@ -3014,7 +3042,6 @@ sub mode_shutdown {
       	}
       	else{
            	# call the corresponding vmAPI
-           	my $vm_type = $vm->getAttribute("type");
            	wlog (N, "Shutdowning virtual machine '$vm_name' of type '$merged_type'...");
            	my $error = "VNX::vmAPI_$vm_type"->shutdownVM($vm_name, $merged_type, $opts{F});
             if ($error ne 0) {
@@ -3024,12 +3051,10 @@ sub mode_shutdown {
             }
     	}
     	
-    	Time::HiRes::sleep(0.2); # Sometimes libvirt 0.9.3 gives an error when shutdown VMs too fast...
+    	#Time::HiRes::sleep(0.2); # Sometimes libvirt 0.9.3 gives an error when shutdown VMs too fast...
     	
    	}
    
-#   unless ($opts{M}){
-
 	# For non-forced mode, we have to wait all UMLs dead before to destroy 
     # TUN/TAP (next step) due to these devices are yet in use
     #
@@ -3052,30 +3077,44 @@ sub mode_shutdown {
         }       
   	}
 
-#    if (($opts{F})&(!($opts{M})))   {
+    destroy_topology();
+}
 
-    if (!($opts{M}))   {
+
+sub destroy_topology {
+
+    my $logp = "destroy_topology> ";
+
+
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
+        destroy_vm_interfaces ($vm);         
+    }        
+ 
+     
+    if (!($opts{M}))   {   # Destroy full topology
 
          # 1. To stop UML
          #   &halt;
 
          # 2. Remove xauth data
-         &xauth_remove;
+         xauth_remove();
 
          # 3a. To remote TUN/TAPs devices (for uml_switched networks, <net mode="uml_switch">)
-         &tun_destroy_switched;
+         tun_destroy_switched();
   
          # 3b. To destroy TUN/TAPs devices (for bridged_networks, <net mode="virtual_bridge">)
-         &tun_destroy;
+         tun_destroy();
 
          # 4. To restore host configuration
-         &host_unconfig;
+         host_unconfig();
 
          # 5. To remove external interfaces
-         &external_if_remove;
+         external_if_remove();
 
          # 6. To remove bridges
-         &bridges_destroy;
+         bridges_destroy();
 
          # Destroy the mgmn_net socket when <vmmgnt type="net">, if needed
          if (($dh->get_vmmgmt_type eq "net") && ($dh->get_vmmgmt_autoconfigure ne "")) {
@@ -3094,14 +3133,69 @@ sub mode_shutdown {
          }
 
          # If <host_mapping> is in use and not in debug mode, process /etc/hosts
-         &host_mapping_unpatch ($dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != $EXE_DEBUG));
+         host_mapping_unpatch ($dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != $EXE_DEBUG));
 
          # To remove lock file (it exists while topology is running)
          $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_sim_dir . "/lock");
-    }
 
+    }    
 }
 
+sub destroy_vm_interfaces {
+    
+    my $vm = shift;
+    
+    my $logp = "destroy_vm_interfaces> ";
+    
+    my $vm_name = $vm->getAttribute("name");
+    my $vm_type = $vm->getAttribute("type");
+    my $merged_type = $dh->get_vm_merged_type($vm);
+            
+    wlog (VVV, "vm $vm_name of type $vm_type", $logp);
+    
+    # To throw away and remove management device (id 0), if neeed
+    my $mng_if_value = &mng_if_value($vm);
+          
+    #if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") && ($vm_type ne 'lxc')) {
+    if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") ) {
+        my $tun_if = $vm_name . "-e0";
+        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
+        #$execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
+        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link del $tun_if ");
+    }
+
+    # To get interfaces list
+    foreach my $if ($vm->getElementsByTagName("if")) {
+    
+        # To get attributes
+        my $id = $if->getAttribute("id");
+        my $net_name = $if->getAttribute("net");
+        my $net_mode = $dh->get_net_mode($net_name);
+        my $net_if = $vm_name . "-e" . $id;
+
+        wlog (VVV, "if with id=$id connected to net=$net_name ($net_mode)", $logp);
+                    
+        # Dettach if from bridge
+        if ( $net_mode eq "virtual_bridge" ){
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " delif $net_name $net_if");
+        } elsif ($net_mode eq "openvswitch"){
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " del-port $net_name $net_if");
+        }
+        
+        # Destroy TUN/TAP interfaces
+        #if ( ( ($net_name eq "virtual_bridge") or ($net_name eq "openvswitch") ) && ($vm_type ne 'lxc') ) {
+        if ( ($net_mode eq "virtual_bridge") or ($net_mode eq "openvswitch") ) {
+            # TUN device name
+        	my $tun_if = $vm_name . "-e" . $id;
+        	# To throw away TUN device
+        	$execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
+        	# To remove TUN device
+        	#$execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link del $tun_if ");
+        } 
+    }
+    
+}
 
 #
 # get_vm_ftrees_and_execs
@@ -3155,7 +3249,7 @@ sub get_vm_ftrees_and_execs {
         
     my $dst_num = 1;    # Name of the directory where each specific file/dir will be copied
                         # in the shared disk. See filetree processing for details       
-        
+                        
     # Create the XML doc to store the <filetree>'s and <exec>'s returned
     # by the calls to get*Files and get*Commands
     #my $xdoc = XML::DOM::Document->new;
@@ -3173,7 +3267,6 @@ sub get_vm_ftrees_and_execs {
         $execution->execute($logp, "rm -rf $files_dir/*");
 
         my %files;            
-
 
         # Call the getFiles plugin function
         %files = $plugin->getFiles($vm_name, $files_dir, $seq);
@@ -3647,17 +3740,14 @@ sub tun_destroy {
 
             # Only exists TUN/TAP in a bridged network
             #if (&check_net_br($net)) {
-            if (&get_net_by_mode($net,"virtual_bridge") != 0) {
-	            # To build TUN device name
+            if ( ( &get_net_by_mode($net,"virtual_bridge") != 0) && ( $vm_type ne 'lxc') ) {
+	            # TUN device name
 	            my $tun_if = $vm_name . "-e" . $id;
-	
 	            # To throw away TUN device
 	            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
 	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
-	
 	            # To remove TUN device
 	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
-
             }
 
         }
@@ -3683,20 +3773,20 @@ sub bridges_destroy {
 
     	wlog (VVV, "net=$net_name", $logp);
     	
-        # This function only processes uml_switch networks
         if ($mode ne "uml_switch") {
 
             # Set bridge down and remove it only in the case there isn't any associated interface 
-            my @br_ifs =&vnet_ifs($net_name,$mode);  
+            my @br_ifs = vnet_ifs($net_name,$mode);  
             #wlog (N, "OVS a eliminar @br_ifs", $logp);
 	    	wlog (VVV, "br_ifs=@br_ifs", $logp);
 
-            if ( (@br_ifs == 1) && ( $br_ifs[0] eq "${net_name}-e00" ) ) {
+            if ( (@br_ifs == 0) || (@br_ifs == 1) && ( $br_ifs[0] eq "${net_name}-e00" ) ) {
          	
-                # Destroy the tap associated with the bridge
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set ${net_name}-e00 down");
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d ${net_name}-e00");
-            
+                if ($mode eq "virtual_bridge") {
+                    # Destroy the tap associated with the bridge
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set ${net_name}-e00 down");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d ${net_name}-e00");
+                }            
                 # Destroy the bridge
                 #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name down");
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name down");
@@ -3726,13 +3816,13 @@ sub mode_destroy {
 
         # To get name attribute
         my $vm_name = $vm->getAttribute("name");
+        my $vm_type = $vm->getAttribute("type");
         my $merged_type = $dh->get_vm_merged_type($vm);
         unless ($vm_hash{$vm_name}){
             $vm_left = 1;
             next;
         }
         # call the corresponding vmAPI
-        my $vm_type = $vm->getAttribute("type");
         wlog (N, "Undefining virtual machine '$vm_name' of type '$merged_type'...");
         my $error = "VNX::vmAPI_$vm_type"->undefineVM($vm_name, $merged_type);
         if ($error ne 0) {
@@ -4990,7 +5080,7 @@ sub build_topology{
             configure_switched_networks();
 	   
             # 4. To link TUN/TAP to the bridges (for bridged virtual networks only, <net mode="virtual_bridge">)
-            tun_connect();
+            #tun_connect();
 
             # 5. To create fs, hostsfs and run directories
             create_dirs();
@@ -5615,7 +5705,7 @@ sub print_consoles_info{
 	my $briefFormat = $opts{b};
 
 	# Print information about vm consoles
-    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process havin into account -M option   
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
     
     my $first = 1;
     my $scename = $dh->get_scename;

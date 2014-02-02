@@ -678,6 +678,8 @@ sub startVM {
             VNX::vmAPICommon->start_consoles_from_console_file ($vm_name);
         }
 
+# Execution of on_boot commands moved to vnx.pl
+=BEGIN
 		# 
         # Check if there is any <filetree> tag with seq='on_boot' in $vm_doc
         # and execute the command if they exists
@@ -744,6 +746,8 @@ sub startVM {
 			}
 
         }
+=END
+=cut
 		
         # If host_mapping is in use and the vm has a management interface, 
         # then we have to add an entry for this vm in $dh->get_sim_dir/hostlines file
