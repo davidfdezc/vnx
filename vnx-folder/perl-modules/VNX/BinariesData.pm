@@ -34,12 +34,8 @@ use warnings;
 
 use VNX::Globals;
 use VNX::TextManipulation;
+use VNX::Execution;
 
-# TODO: constant should be included in a .pm that would be loaded from each module
-# that needs them
-use constant EXE_DEBUG => 0;	#	- does not execute, only shows
-use constant EXE_VERBOSE => 1;	#	- executes and shows
-use constant EXE_NORMAL => 2;	#	- executes
 
 ###########################################################################
 # CLASS CONSTRUCTOR
@@ -182,7 +178,6 @@ sub add_additional_xterm_binaries {
 #
 sub add_additional_vlan_binaries {
    my $self = shift;
-#   my $dh = shift;
    
    # Check that there are at least one <net> tag using vlan attribute   
    my @list = ();
@@ -199,7 +194,6 @@ sub add_additional_vlan_binaries {
 #
 sub add_additional_screen_binaries {
     my $self = shift;
-#   my $dh = shift;
    
     my @list = ();
    
@@ -252,17 +246,24 @@ sub add_additional_uml_switch_binaries {
 sub add_additional_bridge_binaries {
     my $self = shift;
    
+    my $vbridge;
+    my $ovs;
+            
     my @list = ();
     foreach my $net ($dh->get_doc->getElementsByTagName("net")) {
-        if ($net->getAttribute("mode") eq "virtual_bridge") {
+        if ( ($net->getAttribute("mode") eq "virtual_bridge") && !$vbridge ) {
             push (@list, "brctl");
-            last;
-        } elsif($net->getAttribute("mode") eq "openvswitch") {
+            $vbridge = 'yes';
+            next;
+        } elsif( ($net->getAttribute("mode") eq "openvswitch") && !$ovs ) {
             push (@list, "ovs-vsctl");
-            last;
+            $ovs = 'yes';
+            next;
         }
     }   
     $self->{'binaries_bridge'} = \@list;
+    #print "list=@list\n";
+    
 }
 
 # check_binaries_mandatory
@@ -357,7 +358,7 @@ sub check_binaries {
       }
       
       if ($fail) {
-         print "$_ not found\n" if (($exe_mode == EXE_VERBOSE) || ($exe_mode == EXE_DEBUG));;
+         print "$_ not found\n" if (($exe_mode == $EXE_VERBOSE) || ($exe_mode == $EXE_DEBUG));;
 	     $unchecked++;
       }
       else {
