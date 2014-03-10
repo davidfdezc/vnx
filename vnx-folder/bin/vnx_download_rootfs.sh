@@ -46,10 +46,14 @@ USAGE="
 vnx_download_rootfs: download, uncompress and optionally create links to 
                      root filesystems for VNX to current directory
 
-Usage: vnx_download_rootfs [-l] [-r <rootfsname>]
-
-Options:    -l -> creates a "rootfs_*" link to the root filesystem download
-            -r -> use it to batch download a specific root filesystem
+Usage:  vnx_download_rootfs [-l] [-r <rootfsname>] [-y]
+        vnx_download_rootfs -s
+        
+Options:    -s -> show root filesystems available at VNX repository
+            -l -> creates a "rootfs_*" link to the root filesystem download
+            -r <rootfsname> -> use it to download a specific root filesystem
+            -y -> overwrite local files without asking for permission
+            -h -> show this help
             when no options invoked vnx_download_rootfs starts in interactive mode            
 "
 HEADER1="
@@ -79,7 +83,11 @@ function get_link_name {
       fi
    fi
    
-   if [[ $1 == *ubuntu64* ]] ; then
+   if [[ $1 == *lxc*ubuntu64* ]] ; then
+      echo "rootfs_lxc_ubuntu64"
+   elif [[ $1 == *lxc*ubuntu* ]] ; then
+      echo "rootfs_lxc_ubuntu"
+   elif [[ $1 == *ubuntu64* ]] ; then
       if [[ $1 == *gui* ]] ; then
          echo "rootfs_ubuntu64-gui"
       else
@@ -138,104 +146,6 @@ function get_link_name {
 
 #------------------------------------------------------------------
 
-function download_rootfs {
-
-    if [ ! $rootfs_bzname = "" ] ; then
-    
-        # Rootfs specified: try to download and install it
-        if [ -e $rootfs_bzname ]; then
-            echo "Compressed root filesystem '$rootfs_bzname' already exists." 
-            if [ ! $yes ]; then 
-                echo -n "Do you want to overwrite it (y/n)? "
-                read choice
-                if [ "$choice" == "y" -o  "$choice" = "Y" ] ; then
-                    echo "Deleting ${rootfs_bzname}..."
-                    rm -v ./$rootfs_bzname 
-                else
-                    echo "Exiting..."
-                    exit 0
-                fi
-            else
-                echo "Deleting ${rootfs_bzname}..."
-                rm -v ./$rootfs_bzname 
-            fi
-        fi
-
-        myurl=(${vnx_rootfs_repo}${rootfs_bzname})
-        echo "myurl=$myurl"
-        error404=""
-        #cd $fsdir
-        wget $myurl || error404="true"
-        #echo $error404
-        if [ "$error404" == "true" ] ; then
-            echo "------------------------------------------------------------------------"
-            echo "ERROR: Root filesystem ($rootfs_name) not found in repository"
-            echo "       Use 'vnx_download_rootfs -s' to see the list of rootfs available"
-            echo "------------------------------------------------------------------------"
-            #download_rootfs_interactive
-            exit
-        fi
-        
-        if [ -e $rootfs_name ]; then
-            echo "Uncompressed root filesystem '$rootfs_name' already exists."
-            if [ ! $yes ]; then 
-                echo -n "Do you want to overwrite it (y/n)? "
-                read choice
-                if [ "$choice" == "y" -o  "$choice" = "Y" ] ; then
-                    echo "Deleting ${rootfs_name}..."
-                rm -v ./$rootfs_name 
-                else
-                    echo "Exiting..."
-                    exit 0
-                fi
-            else
-                echo "Deleting ${rootfs_bzname}..."
-                rm -v ./$rootfs_name 
-            fi
-        fi
-        echo ""
-        echo "Extracting $rootfs_bzname..."
-      
-        bunzip2 $rootfs_bzname
-        if [ "$create_sym_link" == "yes" ] ; then
-            # Create symbolic link if -l
-            link_name=$(get_link_name $rootfs_name)
-            echo "Creating simbolic link: '$link_name'->'$rootfs_name'"
-            rm -f ./$link_name
-            ln -s $rootfs_name $link_name
-        fi
-
-        # Check md5sum
-        rootfs_md5=${rootfs_name}.md5
-        rootfs_md5_url=(${vnx_rootfs_repo}${rootfs_md5}) 
-
-        rm -f ./$rootfs_md5
-        wget -N $rootfs_md5_url
-        md5_in_file=`cat $rootfs_md5 | awk '{print $1}'`
-        md5_calculated=`md5sum $rootfs_name | awk '{print $1}'`
-        rm -f ./$rootfs_md5
-        if [ "$md5_in_file" != "$md5_calculated" ]; then
-            echo "-----------------------------------------------------------------------------"
-            echo "ERROR: incorrect md5sum for rootfs downloaded ($rootfs_name)."
-            echo "       md5 in repository:      $md5_in_file"
-            echo "       md5 of downloaded file: $md5_calculated"
-            echo "-----------------------------------------------------------------------------"
-            echo ""
-            exit 1
-        fi
-                
-        echo "------------------------------------------------------------------------"
-        echo "$rootfs_name successfully installed."
-        echo "   md5 in repository:      $md5_in_file"
-        echo "   md5 of downloaded file: $md5_calculated"
-        echo "------------------------------------------------------------------------"
-    else
-        download_rootfs_interactive
-    fi
-}
-
-#------------------------------------------------------------------
-
 function show_rootfs_array {
 
     OLD_IFS=$IFS; IFS=$'\n'
@@ -259,11 +169,129 @@ function show_rootfs_array {
 
 #------------------------------------------------------------------
 
+function download_rootfs {
+
+    rootfs_url=(${vnx_rootfs_repo}${rootfs_bzname})
+    rootfs_ext=${rootfs_bzname##*.}
+    rootfs_md5=${rootfs_name}.md5
+    rootfs_md5_url=(${vnx_rootfs_repo}${rootfs_md5}) 
+          
+    echo "rootfs_bzname=$rootfs_bzname"
+    echo "rootfs_name=$rootfs_name"
+    echo "rootfs_md5=$rootfs_md5"
+    
+    if [ -e $rootfs_bzname ]; then
+        echo "Compressed root filesystem '$rootfs_bzname' already exists."
+        if [ ! $yes ]; then 
+            echo -n "Do you want to overwrite it (y/n)? "
+            read choice
+            if [ "$choice" == "y" -o  "$choice" = "Y" ] ; then
+                echo "Deleting ${rootfs_bzname}..."
+                rm -v ./$rootfs_bzname 
+            else
+                echo ""
+                return
+            fi
+        else
+            echo "Deleting ${rootfs_bzname}..."
+            rm -v ./$rootfs_bzname 
+        fi
+    fi
+    
+    error404=""
+    wget -N $rootfs_url || error404="true"
+    #echo $error404
+    if [ "$error404" == "true" ] ; then
+        echo "------------------------------------------------------------------------"
+        echo "ERROR: Root filesystem ($rootfs_name) not found in repository"
+        echo "       Use 'vnx_download_rootfs -s' to see the list of rootfs available"
+        echo "------------------------------------------------------------------------"
+        exit
+    fi
+    
+    if [ -e $rootfs_name ]; then
+        echo "Uncompressed root filesystem '$rootfs_name' already exists."
+        if [ ! $yes ]; then 
+            echo -n "Do you want to overwrite it (y/n)? "
+            read choice
+            if [ "$choice" == "y" -o  "$choice" = "Y" ] ; then
+                echo "Deleting ${rootfs_name}..."
+                rm -r ./$rootfs_name 
+            else
+                echo ""
+                return
+            fi
+        else
+            echo "Deleting ${rootfs_name}..."
+            rm -r ./$rootfs_name 
+        fi
+    fi
+    
+    echo "Extracting $rootfs_bzname..."
+    case $rootfs_ext in
+    bz2) bunzip2 $rootfs_bzname
+         ;;
+    tgz) tar xfzp $rootfs_bzname
+         ;;
+    esac
+
+    if [ "$create_sym_link" == "yes" ] ; then
+        # Create symbolic link if -l
+        link_name=$(get_link_name $rootfs_name)
+        echo "Creating simbolic link: '$link_name'->'$rootfs_name'"
+        rm -f ./$link_name
+        ln -s $rootfs_name $link_name
+    elif [ $interactive ]; then
+        link_name=$(get_link_name $rootfs_name)
+        echo -n "Do you want to create a symbolic link: '$link_name'->'$rootfs_name' (y/n)? "
+        read choice
+        if [ "$choice" == "y" -o  "$choice" = "Y" ] ; then
+            echo "Creating simbolic link..."
+            rm -f ./$link_name
+            ln -s $rootfs_name $link_name
+            sleep 1
+        fi
+    fi
+    
+    # Check md5sum
+    rm -f ./$rootfs_md5
+    wget -N $rootfs_md5_url
+    md5_in_file=`cat $rootfs_md5 | awk '{print $1}'`
+    case $rootfs_ext in
+    bz2) md5_calculated=`md5sum $rootfs_name | awk '{print $1}'`
+         ;;
+    tgz) md5_calculated=`md5sum $rootfs_bzname | awk '{print $1}'`
+         ;;
+    esac
+    
+    rm -f ./$rootfs_md5
+    if [ "$md5_in_file" != "$md5_calculated" ]; then
+        echo "-----------------------------------------------------------------------------"
+        echo "ERROR: incorrect md5sum for rootfs downloaded ($rootfs_name)."
+        echo "       md5 in repository:      $md5_in_file"
+        echo "       md5 of downloaded file: $md5_calculated"
+        echo "-----------------------------------------------------------------------------"
+        echo ""
+        sleep 5
+        continue
+    fi
+    
+    echo "------------------------------------------------------------------------"
+    echo "$rootfs_name successfully installed."
+    echo "   md5 in repository:      $md5_in_file"
+    echo "   md5 of downloaded file: $md5_calculated"
+    echo "------------------------------------------------------------------------"
+    echo ""
+            
+}                
+                                
+#------------------------------------------------------------------
+
 function download_rootfs_interactive {
 
     # show filesystems in server and ask user to choose
     OLD_IFS=$IFS; IFS=$'\n'
-    rootfs_links_array=($(curl $vnx_rootfs_repo -s | w3m -dump -T text/html | grep bz2))
+    rootfs_links_array=($(curl $vnx_rootfs_repo -s | w3m -dump -T text/html | grep -e 'bz2' -e 'tgz'))
     IFS=$OLD_IFS
 
     while true; do
@@ -305,89 +333,11 @@ function download_rootfs_interactive {
         if [ $choice -ge 0 ] ; then 
             if [ $choice -le `expr ${#rootfs_links_array[@]} - 1` ] ; then
 
-                chosen_rootfs_bzname=$(echo ${rootfs_links_array[$choice]} | awk '{print $3}')
-                chosen_rootfs_name=$(echo $chosen_rootfs_bzname | sed -e "s/.bz2//g")
-                chosen_rootfs_url=(${vnx_rootfs_repo}${chosen_rootfs_bzname})
-                chosen_rootfs_md5=$(echo ${rootfs_links_array[$choice]/.bz2/.md5} | awk '{print $3}')
-                chosen_rootfs_md5_url=(${vnx_rootfs_repo}${chosen_rootfs_md5}) 
-                #cd $fsdir
-                
-                #echo "chosen=$chosen_rootfs_name"
-                if [ -e $chosen_rootfs_bzname ]; then
-                    echo "Compressed root filesystem '$chosen_rootfs_bzname' already exists."
-                    if [ ! $yes ]; then 
-                        echo -n "Do you want to overwrite it (y/n)? "
-                        read choice
-                        if [ "$choice" == "y" -o  "$choice" = "Y" ] ; then
-                            echo "Deleting ${chosen_rootfs_bzname}..."
-                        rm -v ./$chosen_rootfs_bzname 
-                        else
-                            echo ""
-                            continue
-                        fi
-                    else
-                        echo "Deleting ${chosen_rootfs_bzname}..."
-                        rm -v ./$chosen_rootfs_bzname 
-                    fi
-                fi
+                rootfs_bzname=$(echo ${rootfs_links_array[$choice]} | awk '{print $3}')
+                rootfs_name=$(echo $rootfs_bzname | sed -e "s/.bz2//g" -e "s/.tgz//g")
 
-                wget -N $chosen_rootfs_url
+                download_rootfs
 
-                if [ -e $chosen_rootfs_name ]; then
-                    echo "Uncompressed root filesystem '$chosen_rootfs_name' already exists."
-                    if [ ! $yes ]; then 
-                        echo -n "Do you want to overwrite it (y/n)? "
-                        read choice
-                        if [ "$choice" == "y" -o  "$choice" = "Y" ] ; then
-                            echo "Deleting ${chosen_rootfs_name}..."
-                        rm -v ./$chosen_rootfs_name 
-                        else
-                            echo ""
-                            continue
-                        fi
-                    else
-                        echo "Deleting ${chosen_rootfs_name}..."
-                        rm -v ./$chosen_rootfs_name 
-                    fi
-                fi
-                
-                echo "Extracting $chosen_rootfs_bzname..."
-                bunzip2 $chosen_rootfs_bzname
-
-                # Create symbolic link if -l
-                link_name=$(get_link_name $chosen_rootfs_name )
-                echo -n "Do you want to create a symbolic link: '$link_name'->'$chosen_rootfs_name' (y/n)? "
-                read choice
-                if [ "$choice" == "y" -o  "$choice" = "Y" ] ; then
-                    echo "Creating simbolic link..."
-                    rm -f ./$link_name
-                    ln -s $chosen_rootfs_name $link_name
-                    sleep 1
-                fi
-                
-                # Check md5sum
-                rm -f ./$chosen_rootfs_md5
-                wget -N $chosen_rootfs_md5_url
-                md5_in_file=`cat $chosen_rootfs_md5 | awk '{print $1}'`
-                md5_calculated=`md5sum $chosen_rootfs_name | awk '{print $1}'`
-                rm -f ./$chosen_rootfs_md5
-                if [ "$md5_in_file" != "$md5_calculated" ]; then
-                    echo "-----------------------------------------------------------------------------"
-                    echo "ERROR: incorrect md5sum for rootfs downloaded ($chosen_rootfs_name)."
-                    echo "       md5 in repository:      $md5_in_file"
-                    echo "       md5 of downloaded file: $md5_calculated"
-                    echo "-----------------------------------------------------------------------------"
-                    echo ""
-                    sleep 5
-                    continue
-                fi
-                
-                echo "------------------------------------------------------------------------"
-                echo "$chosen_rootfs_name successfully installed."
-                echo "   md5 in repository:      $md5_in_file"
-                echo "   md5 of downloaded file: $md5_calculated"
-                echo "------------------------------------------------------------------------"
-                echo ""
                 sleep 3
                 continue
             fi
@@ -439,17 +389,23 @@ while getopts ":yshl :r:" opt; do
         rootfs_bzname=$OPTARG
         
         NAME=$OPTARG
-        if [ $( echo $NAME | egrep '\.bz2$' ) ]; then
-            # Name with .bz2 extension
+        if [ $( echo $NAME | egrep -e '\.bz2$' -e '\.tgz$') ]; then
+            # Name with extension
+            echo Name with extension
             rootfs_bzname=$NAME
-            rootfs_name=$( echo $NAME | sed -e 's/\.bz2//' )
+            rootfs_name=$( echo $NAME | sed -e 's/\.bz2//' -e 's/\.tgz//')
         else
-            # Name without .bz2 extension
+            # Name without .bz2 or .tgz extension
+            echo Name without extension            
             rootfs_name=$NAME
-            rootfs_bzname=${NAME}.bz2
+            if [ `echo "$NAME" | grep _lxc_` ]; then
+                rootfs_bzname=${NAME}.tgz
+            else
+                rootfs_bzname=${NAME}.bz2
+            fi
         fi
-        #echo "rootfs_name=$rootfs_name"
-        #echo "rootfs_bzname=$rootfs_bzname"
+        echo "rootfs_name=$rootfs_name"
+        echo "rootfs_bzname=$rootfs_bzname"
         ;;
     s)
         #echo "-s was triggered, Parameter: $OPTARG" >&2
@@ -484,7 +440,13 @@ echo -n "Current dir:   "
 pwd 
 echo ""
 
-download_rootfs
+if [ ! $rootfs_bzname = "" ] ; then
+    download_rootfs
+else
+    # No rootfs specified; go to interactive mode
+    interactive="yes"
+    download_rootfs_interactive
+fi
 
 exit 0
 

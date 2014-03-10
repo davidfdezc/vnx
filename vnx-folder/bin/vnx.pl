@@ -3152,7 +3152,7 @@ sub destroy_vm_interfaces {
     my $merged_type = $dh->get_vm_merged_type($vm);
             
     wlog (VVV, "vm $vm_name of type $vm_type", $logp);
-    
+#pak();    
     # To throw away and remove management device (id 0), if neeed
     my $mng_if_value = &mng_if_value($vm);
           
@@ -3529,6 +3529,7 @@ sub host_unconfig {
 
    my $doc = $dh->get_doc;
 
+#pak('host_unconfig');
    # If host <host> is not present, there is nothing to unconfigure
    return if (!$doc->getElementsByTagName("host"));
 
@@ -3774,7 +3775,7 @@ sub bridges_destroy {
     	wlog (VVV, "net=$net_name", $logp);
     	
         if ($mode ne "uml_switch") {
-
+#pak();
             # Set bridge down and remove it only in the case there isn't any associated interface 
             my @br_ifs = vnet_ifs($net_name,$mode);  
             #wlog (N, "OVS a eliminar @br_ifs", $logp);
