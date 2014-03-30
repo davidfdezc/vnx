@@ -37,7 +37,8 @@ our @ISA = qw(Exporter);
 our @EXPORT = qw( dec2bin bin2dec text_tag text_tag_multiline clean_line
               chompslash remove_heading_slash
               generate_random_string
-              slashed_to_dotted_mask);
+              slashed_to_dotted_mask
+              get_vmnames);
 
 
 # dec2bin and bin2dec adapted from http://perlmonks.thepen.com/2664.html
@@ -219,6 +220,25 @@ sub slashed_to_dotted_mask {
       $s = bin2dec($b) . ".0.0.0"
    }
    return $s;
+}
+
+# get_vmnames
+#
+# Returns a string list with the names of VMs in an array passed as parameter.
+# A character separator can be optionally passed as second parameter 
+# 
+sub get_vmnames {
+
+    my $ref_vms = shift;
+    my @vms = @{$ref_vms};
+    my $sep = shift;
+    
+    if (!defined($sep)) { $sep = " " }
+
+    my $vm_list;
+    foreach my $vm (@vms) { $vm_list .= $vm->getAttribute("name") . $sep }
+    chop($vm_list);
+    return $vm_list;
 }
 
 1;

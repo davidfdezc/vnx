@@ -552,6 +552,10 @@ sub undefineVM {
         # Umount the overlay filesystem
         $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $vm_lxc_dir );
         
+        # Delete COW files directory
+        my $vm_cow_dir = $dh->get_vm_dir($vm_name);
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $vm_cow_dir . "/fs/*" );
+
         return $error;
     }
 

@@ -174,7 +174,7 @@ sub defineVM {
 		# No configuration file defined for the router 
 	}
 	
-	my @routerConf = &create_router_conf ($vm_name, $extConfFile);
+	my @routerConf = create_router_conf ($vm_name, $extConfFile);
 	open (CONF, ">> $newRouterConfFile") or $execution->smartdie("ERROR: Cannot open $newRouterConfFile");
 	print CONF @routerConf;
 	close (CONF);
@@ -660,8 +660,7 @@ sub destroyVM{
 	my $error=0;
 	my $line;
 
-    print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Destroying: $vm_name\n" if ($exemode == $EXE_VERBOSE);
+    wlog (N, "Destroying: $vm_name", $logp);
 
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
@@ -685,23 +684,25 @@ sub destroyVM{
 		my $vm = $dom->getElementsByTagName("vm")->item(0);
 	
 	 	foreach my $if ($vm->getElementsByTagName("if")) {
-	 		#my $ifTag  = $ifTagList->item($j);
 			my $ifName = $if->getAttribute("name");
 			my ($slot, $dev)= split("/",$ifName,2);
 			$slot = substr $slot,-1,1;
-			print "**** Ethernet interface: $ifName, slot=$slot, dev=$dev\n";
+			wlog (V, "Ethernet interface: $ifName, slot=$slot, dev=$dev", $logp);
 			if ( $ifName =~ /^[gfeGFE]/ ) {
-				print("nio delete nio_tap_$vm_name$slot$dev\n");
+				wlog (V, "nio delete nio_tap_$vm_name$slot$dev", $logp);
 				$t->print("nio delete nio_tap_$vm_name$slot$dev");
 		   		my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 			}
 			elsif ( $ifName =~ /^[sS]/ ) {
-				print("nio delete nio_udp_$vm_name$slot$dev\n");
+				wlog (V, "nio delete nio_udp_$vm_name$slot$dev", $logp);
 				$t->print("nio delete nio_udp_$vm_name$slot$dev");
 		   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
 			}
 		}
 	}
+
+    # Remove vm directory content
+    #$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_vm_dir($vm_name) . "/*" );
     
    	#$t->print("hypervisor reset");
    	#$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
@@ -806,29 +807,24 @@ sub shutdownVM{
 	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 	
 	my $error=0;
+    my $line;
 	
 	# This is an ordered shutdown. We first save the configuration:
 
 	# To be implemented
 
+    wlog (N, "Shutdowning router $vm_name", $logp);
+
     # Then we shutdown and destroy the virtual router:
-    &destroyVM ($self, $vm_name, $type);
-    		
-=BEGIN    		
-	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
-	    
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
+
     $t->print("vm stop $vm_name");
-    my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
     $t->close;
-	sleep(2);	
-=END
-=cut
-	
+    		
 	#&change_vm_status( $dh, $vm_name, "REMOVE" );
-	&change_vm_status( $vm_name, "REMOVE" );
+	change_vm_status( $vm_name, "REMOVE" );
 
 	return $error;
 }
@@ -1224,7 +1220,7 @@ sub executeCMD{
 								# Eliminate end command if it exists
 	   	 						$execution->execute( $logp, "sed '/^end/d' " . $confFile . ">" . $newRouterConfFile);
 								# Add configuration in VNX spec file to the router config file
-								my @routerConf = &create_router_conf ($vm_name, $extConfFile);
+								my @routerConf = create_router_conf ($vm_name, $extConfFile);
 								open (CONF, ">> $newRouterConfFile") or $execution->smartdie("ERROR: Cannot open $newRouterConfFile");
 								print CONF @routerConf;
 								close (CONF);

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<modify_vnx>
+
+  <del_net name="Net4" del="no"/>
+
+</modify_vnx>
