@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<modify_vnx>
+
+  <add_net name="Net4" mode="virtual_bridge" />
+
+</modify_vnx>

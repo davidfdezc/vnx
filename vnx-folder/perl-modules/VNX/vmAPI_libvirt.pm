@@ -1372,7 +1372,7 @@ change_to_root();
 		}
 
 		# Remove vm fs directory (cow and iso filesystems)
-		$execution->execute( $logp, "rm " . $dh->get_vm_fs_dir($vm_name) . "/*" );
+		$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . $dh->get_vm_fs_dir($vm_name) . "/*" );
 back_to_user();
 		return $error;
 

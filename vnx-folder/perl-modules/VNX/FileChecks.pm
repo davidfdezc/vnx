@@ -171,24 +171,6 @@ if (defined($root)) {
     	return $result = $vnx_config->get($section . "_" . $param );			
 	}
 
-
-
-
-=BEGIN
-	#unless(-e $confFile){ return $result }
-	open FILE, "< $confFile" or $execution->smartdie("$confFile not found");
-	my @lines = <FILE>;
-	foreach my $line (@lines){
-	    if (($line =~ /$param/) && !($line =~ /^#/)){ 
-			my @config1 = split(/=/, $line);
-			my @config2 = split(/#/,$config1[1]);
-			$result = $config2[0];
-			chop $result;
-			$result =~ s/\s+//g;
-	    }
-	}
-=END
-=cut
 }
 
 # get_abs_path

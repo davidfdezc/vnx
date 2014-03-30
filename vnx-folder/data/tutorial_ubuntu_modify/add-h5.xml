@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<modify_vnx>
+
+  <add_vm name="h5" type="lxc">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <if id="1" net="Net2">
+      <ipv4>10.0.2.4/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.2.1">default</route>    
+    <!-- Copy the files under conf/tutorial_ubuntu/h4 to vm /var/www directory -->
+    <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h4</filetree>
+    <!-- Start/stop apache www server -->
+    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>    
+  </add_vm>
+
+</modify_vnx>

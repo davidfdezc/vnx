@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<modify_vnx>
+
+  <del_vm name="h6" mode="destroy"/>
+  <del_vm name="h7" mode="destroy"/>
+
+</modify_vnx>
