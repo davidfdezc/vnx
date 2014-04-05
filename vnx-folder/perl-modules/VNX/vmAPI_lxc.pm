@@ -276,6 +276,10 @@ change_to_root();
             }
             $execution->execute( $logp, "lxc.network.flags=up", *CONFIG_FILE );
 
+            # Change to unconfined mode to avoid problems with apparmor
+            $execution->execute( $logp, "lxc.aa_profile=unconfined", *CONFIG_FILE );
+
+
             #
             # Add interface to /etc/network/interfaces
             #

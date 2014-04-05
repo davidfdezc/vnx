@@ -7,12 +7,12 @@
     <filesystem type="cow">/usr/share/vnx/filesystems/c3640</filesystem>
     <mem>96M</mem>
     <console id="1" display="yes"/>
-    <if id="0" net="vm_mgmt" name="e0/0"/>
+    <!--if id="0" net="vm_mgmt" name="e0/0"/-->
     <if id="1" net="Net2" name="e0/1">
-      <ipv4>10.0.2.10/24</ipv4>
+      <ipv4>10.1.2.10/24</ipv4>
     </if>
     <if id="2" net="Net4" name="e0/2">
-      <ipv4>10.0.3.1/24</ipv4>
+      <ipv4>10.1.4.1/24</ipv4>
     </if>
   </add_vm>
 

@@ -1635,6 +1635,12 @@ sub mode_modify {
        if($opName eq "del_net"){
            modify_del_net($doc, $operation);
        }
+       if($opName eq "up_net"){
+           modify_updown_net($doc, $operation, 'up');
+       }
+       if($opName eq "down_net"){
+           modify_updown_net($doc, $operation, 'down');
+       }
 	   if($opName eq "add_vm"){ 
 	       modify_add_vm($doc, $operation);
 	   }
@@ -1664,6 +1670,15 @@ sub mode_modify {
     $tidy_obj->tidy();
     $tidy_obj->write();    
     
+    # Regenerate scenario map if already generated
+    if ( -f "$vnx_dir/scenarios/${scename}/${scename}.png" ) {
+        wlog (VVV, "regenerating png scenario map.", $logp);
+        mode_showmap ('png', 'no'); 
+    } elsif ( -f "$vnx_dir/scenarios/${scename}/${scename}.svg" ) {
+        wlog (VVV, "regenerating svg scenario map.", $logp);
+        mode_showmap ('svg', 'no'); 
+    }
+    
 }
 
 sub modify_add_net {
@@ -1672,11 +1687,10 @@ sub modify_add_net {
   my $logp = "modify_add_net> ";
 
   my $net_name = $add_net->getAttribute('name');
-  my $boolean = $doc->exists("/vnx/net[\@name='$net_name']");
-  if($boolean == 1){
+  if( $doc->exists("/vnx/net[\@name='$net_name']") ){
       print "ERROR: cannot add net $net_name to scenario " . $dh->get_scename . " (a net $net_name already exists)\n";
   } else {
-      wlog (V, "Adding $net_name to scenario " . $dh->get_scename . ".", $logp);
+      wlog (N, "Adding $net_name to scenario " . $dh->get_scename . ".", $logp);
       
       # Add net to specification  
       $add_net->setNodeName('net');
@@ -1703,7 +1717,7 @@ sub modify_del_net {
               
         my @nets = $doc->findnodes("/vnx/net[\@name='$net_name']");
         my $del = $del_net->getAttribute('del');
-        wlog (V, "Deleting $net_name from scenario " . $dh->get_scename . " (del=$del).", $logp);
+        wlog (N, "Deleting $net_name from scenario " . $dh->get_scename . " (del=$del).", $logp);
         
         if($del eq "no"){
             if( $doc->exists("/vnx/vm/if[\@net='$net_name']") || $doc->exists("/vnx/host/hostif[\@net='$net_name']") ){
@@ -1788,6 +1802,25 @@ sub modify_del_net {
   }
 }
 
+sub modify_updown_net {
+
+    my($doc, $add_net, $cmd) = @_;
+    my $logp = "modify_updown_net> ";
+
+    my $net_name = $add_net->getAttribute('name');
+    if( ! $doc->exists("/vnx/net[\@name='$net_name']") ){
+        print "ERROR: cannot modify net $net_name status. Net does not exist in scenario " . $dh->get_scename . ".\n";
+    } else {
+        wlog (N, "Changing status of net $net_name to $cmd.", $logp);
+
+        # Change net status
+        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $net_name " . $cmd);
+      
+      
+  }
+}
+
+
 sub modify_add_vm {
 
     my($doc, $add_vm) = @_;
@@ -1799,7 +1832,7 @@ sub modify_add_vm {
     if($doc->exists("/vnx/vm[\@name='$vm_name']")){
         print "ERROR: cannot add VM $vm_name to scenario " . $dh->get_scename . " (vm $vm_name already exists)\n";
     } else {
-    	wlog (V, "Adding $vm_name to scenario " . $dh->get_scename . ".", $logp); 
+    	wlog (N, "Adding $vm_name to scenario " . $dh->get_scename . ".", $logp); 
   	
         # Add VM to specification  	
         $add_vm->setNodeName('vm');
@@ -1824,7 +1857,7 @@ sub modify_del_vm {
         print "ERROR: cannot del VM $vm_name from scenario " . $dh->get_scename . " (VM does not exists)\n";
     } else {
         my $mode = $del_vm->getAttribute('mode');
-        wlog (V, "Deleting VM $vm_name from scenario " . $dh->get_scename . ".", $logp);
+        wlog (N, "Deleting VM $vm_name from scenario " . $dh->get_scename . ".", $logp);
         my @del_vms = $doc->findnodes("/vnx/vm[\@name='$vm_name']");
         
         if ( $mode eq 'shutdown' ) {
@@ -1993,18 +2026,27 @@ sub mode_reset {
 #
 sub mode_showmap {
 
+    # Optional parameters
+    my $map_format_par = shift;
+    my $show = shift;
+
    	my $scedir  = $dh->get_sim_dir;
    	my $scename = $dh->get_scename;
    	if (! -d $dh->get_sim_dir ) {
 		mkdir $dh->get_sim_dir or $execution->smartdie ("error making directory " . $dh->get_sim_dir . ": $!");
    	}
    	
-   	# Guess map format (svg and png allowed; defaults to svg)
-    my $map_format = $opts{'show-map'};
-    if ($map_format eq '') { $map_format = 'svg' };
-   	if ( ($map_format ne 'png') && ($map_format ne 'svg') ) {
-   	    $execution->smartdie ("ERROR: format $map_format not supported in 'show-map' mode\n");  	    
-   	} 
+    my $map_format;
+   	if (defined($map_format_par)) {
+   		$map_format = $map_format_par;   		
+   	} else {
+	    # Guess map format (svg and png allowed; defaults to svg)
+	    $map_format = $opts{'show-map'};
+	    if ($map_format eq '') { $map_format = 'svg' };
+	    if ( ($map_format ne 'png') && ($map_format ne 'svg') ) {
+	        $execution->smartdie ("ERROR: format $map_format not supported in 'show-map' mode\n");          
+	    } 
+   	}
     wlog (V, "map_format=$map_format");
    	
 	$execution->execute($logp, "vnx2dot ${input_file} > ${scedir}/${scename}.dot");
@@ -2012,34 +2054,39 @@ sub mode_showmap {
     if ($map_format eq 'png') {
         
        	$execution->execute($logp, "neato -Tpng -o${scedir}/${scename}.png ${scedir}/${scename}.dot");
-       
-        # Read png_viewer variable from config file to see if the user has 
-        # specified a viewer
-        my $png_viewer = get_conf_value ($vnxConfigFile, 'general', "png_viewer", 'root');
-    	# If not defined use default values
-        if (!defined $png_viewer) { 
-       		my $gnome=`w -sh | grep gnome-session`;
-       		if ($gnome ne "") { $png_viewer="gnome-open" }
-            	         else { $png_viewer="xdg-open" }
-        }
-       	#$execution->execute($logp, "eog ${scedir}/${scename}.png");
-       	wlog (N, "Using '$png_viewer' to show scenario '${scename}' topology map", "host> ");
-        $execution->execute($logp, "$png_viewer ${scedir}/${scename}.png &");
-        
+
+        if ( !defined($show) || $show eq 'yes' ) {
+	        # Read png_viewer variable from config file to see if the user has 
+	        # specified a viewer
+	        my $png_viewer = get_conf_value ($vnxConfigFile, 'general', "png_viewer", 'root');
+	    	# If not defined use default values
+	        if (!defined $png_viewer) { 
+	       		my $gnome=`w -sh | grep gnome-session`;
+	       		if ($gnome ne "") { $png_viewer="gnome-open" }
+	            	         else { $png_viewer="xdg-open" }
+	        }
+	       	#$execution->execute($logp, "eog ${scedir}/${scename}.png");
+	       	wlog (N, "Using '$png_viewer' to show scenario '${scename}' topology map", "host> ");
+	        $execution->execute($logp, "$png_viewer ${scedir}/${scename}.png &");
+        }       
+
     } elsif ($map_format eq 'svg') {
         
    	    $execution->execute($logp, "neato -Tsvg -o${scedir}/${scename}.svg ${scedir}/${scename}.dot");
-        # Read svg_viewer variable from config file to see if the user has 
-        # specified a viewer
-        my $svg_viewer = get_conf_value ($vnxConfigFile, 'general', "svg_viewer", 'root');
-    	# If not defined use default values
-        if (!defined $svg_viewer) { 
-       		my $gnome=`w -sh | grep gnome-session`;
-       		if ($gnome ne "") { $svg_viewer="gnome-open" }
-            	         else { $svg_viewer="xdg-open" }
+
+        if ( !defined($show) || $show eq 'yes' ) {
+	        # Read svg_viewer variable from config file to see if the user has 
+	        # specified a viewer
+	        my $svg_viewer = get_conf_value ($vnxConfigFile, 'general', "svg_viewer", 'root');
+	    	# If not defined use default values
+	        if (!defined $svg_viewer) { 
+	       		my $gnome=`w -sh | grep gnome-session`;
+	       		if ($gnome ne "") { $svg_viewer="gnome-open" }
+	            	         else { $svg_viewer="xdg-open" }
+	        }
+	       	wlog (N, "Using '$svg_viewer' to show scenario '${scename}' topology map", "host> ");
+	        $execution->execute($logp, "$svg_viewer ${scedir}/${scename}.svg &");
         }
-       	wlog (N, "Using '$svg_viewer' to show scenario '${scename}' topology map", "host> ");
-        $execution->execute($logp, "$svg_viewer ${scedir}/${scename}.svg &");
     }
 
 }
@@ -5360,7 +5407,7 @@ sub build_topology{
     }
     # To copy the scenario file
     my $command = $bd->get_binaries_path_ref->{"date"};
-    chomp (my $now = `$command`);
+    chomp (my $now = `LANG=es $command`);
     my $input_file_basename = basename $dh->get_input_file;
     $execution->execute($logp, $bd->get_binaries_path_ref->{"cp"} . " " . $dh->get_input_file . " " . $dh->get_sim_dir);
     $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " '<'!-- copied by $basename at $now --'>' >> ".$dh->get_sim_dir."/$input_file_basename");       
