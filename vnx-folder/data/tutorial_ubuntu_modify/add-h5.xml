@@ -4,9 +4,9 @@
   <add_vm name="h5" type="lxc">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net2">
-      <ipv4>10.0.2.4/24</ipv4>
+      <ipv4>10.1.2.4/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.2.1">default</route>    
+    <route type="ipv4" gw="10.1.2.1">default</route>    
     <!-- Copy the files under conf/tutorial_ubuntu/h4 to vm /var/www directory -->
     <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h4</filetree>
     <!-- Start/stop apache www server -->

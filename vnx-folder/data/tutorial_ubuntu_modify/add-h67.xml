@@ -4,17 +4,17 @@
   <add_vm name="h6" type="lxc">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net4">
-      <ipv4>10.0.3.2/24</ipv4>
+      <ipv4>10.1.4.2/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.3.1">default</route>    
+    <route type="ipv4" gw="10.1.4.1">default</route>    
   </add_vm>
 
   <add_vm name="h7" type="lxc">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net4">
-      <ipv4>10.0.3.3/24</ipv4>
+      <ipv4>10.1.4.3/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.3.1">default</route>    
+    <route type="ipv4" gw="10.1.4.1">default</route>    
   </add_vm>
 
 </modify_vnx>
