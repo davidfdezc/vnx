@@ -631,7 +631,7 @@ back_to_user();
 	# defineVM for libvirt-kvm-linux/freebsd/olive
 	#
 	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")||
-	        ($type eq "libvirt-kvm-olive") ) {
+	        ($type eq "libvirt-kvm-olive")||($type eq "libvirt-vbox") ) {
 
         # Create vnxboot.xml file under $sdisk_content directory
         unless ( $execution->get_exe_mode() eq $EXE_DEBUG ) {
@@ -690,12 +690,17 @@ back_to_user();
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 		my $domain_tag = $init_xml->createElement('domain');
 		$init_xml->addChild($domain_tag);
-		# Note: changed the first line to 
-		# <domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
-		# to allow the use of <qemu:commandline> tag to especify the bios in Olive routers
-		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-		$domain_tag->addChild( $init_xml->createAttribute( 'xmlns:qemu' => "http://libvirt.org/schemas/domain/qemu/1.0" ) );
- 
+
+        if ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")||($type eq "libvirt-kvm-olive") ) {
+    		# Note: changed the first line to 
+    		# <domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
+    		# to allow the use of <qemu:commandline> tag to especify the bios in Olive routers
+    		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
+    		$domain_tag->addChild( $init_xml->createAttribute( 'xmlns:qemu' => "http://libvirt.org/schemas/domain/qemu/1.0" ) );
+        } elsif ( $type eq "libvirt-vbox") {
+    		$domain_tag->addChild( $init_xml->createAttribute( type => "vbox" ) );
+	    }
+	            
 		# <name> tag
 		my $name_tag = $init_xml->createElement('name');
 		$domain_tag->addChild($name_tag);
@@ -793,6 +798,7 @@ back_to_user();
 		my $target1_tag = $init_xml->createElement('target');
 		$disk1_tag->addChild($target1_tag);
 		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
+
 
 		# DFC: Added '<driver name='qemu' type='qcow2'/>' to work with libvirt 0.8.x 
         my $driver1_tag = $init_xml->createElement('driver');
