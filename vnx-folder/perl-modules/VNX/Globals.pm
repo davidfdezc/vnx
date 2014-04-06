@@ -72,6 +72,8 @@ our @EXPORT = qw(
 	$CONS_PORT	
 
 	$LIBVIRT_DEFAULT_HYPERVISOR        
+    $LIBVIRT_KVM_HYPERVISOR        
+    $LIBVIRT_VBOX_HYPERVISOR        
 
 	$DYNAMIPS_DEFAULT_PORT        
 	$DYNAMIPS_DEFAULT_IDLE_PC
@@ -161,6 +163,8 @@ our $CONS_PORT = $CONS_BASE_PORT; # Points to the next TCP port to be used for c
 
 # Libvirt
 Readonly::Scalar our $LIBVIRT_DEFAULT_HYPERVISOR => 'qemu:///system';        
+Readonly::Scalar our $LIBVIRT_KVM_HYPERVISOR => 'qemu:///system';        
+Readonly::Scalar our $LIBVIRT_VBOX_HYPERVISOR => 'vbox:///system';        
 
 # Dynamips
 Readonly::Scalar our $DYNAMIPS_DEFAULT_PORT    => '7200';        

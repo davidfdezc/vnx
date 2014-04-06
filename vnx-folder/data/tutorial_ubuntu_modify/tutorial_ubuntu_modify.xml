@@ -26,10 +26,10 @@ SPAIN
     <version>2.0</version>
     <scenario_name>tutorial_ubuntu_modify</scenario_name>
     <automac/>
-    <vm_mgmt type="none" />
-    <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="200">
+    <!--vm_mgmt type="none" /-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="200">
        <host_mapping />
-    </vm_mgmt-->
+    </vm_mgmt>
     <vm_defaults>
         <console id="0" display="no"/>
         <console id="1" display="yes"/>

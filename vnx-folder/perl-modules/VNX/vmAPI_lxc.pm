@@ -273,20 +273,30 @@ change_to_root();
 	                $execution->execute( $logp, "# bridge if connects to", *CONFIG_FILE );
 	                $execution->execute( $logp, "lxc.network.link=$net", *CONFIG_FILE );
             	}
-            }
+            } 
+#            else {
+#
+#                my $ipv4_tag = $if->getElementsByTagName("ipv4")->item(0);
+#                my $mask    = $ipv4_tag->getAttribute("mask");
+#                my $ip      = $ipv4_tag->getFirstChild->getData;
+#
+#                my $ip_addr = NetAddr::IP->new($ip, $mask);
+#	            $execution->execute( $logp, "lxc.network.ipv4=" . $ip_addr->cidr(), *CONFIG_FILE );
+#            }
+            
             $execution->execute( $logp, "lxc.network.flags=up", *CONFIG_FILE );
-
-            # Change to unconfined mode to avoid problems with apparmor
-            $execution->execute( $logp, "lxc.aa_profile=unconfined", *CONFIG_FILE );
-
 
             #
             # Add interface to /etc/network/interfaces
             #
             #$execution->execute( $logp, "echo 'iface lo inet loopback' >> $vm_etc_net_ifs" );
-              
 
         }                       
+        # Change to unconfined mode to avoid problems with apparmor
+        $execution->execute( $logp, "", *CONFIG_FILE );
+        $execution->execute( $logp, "# Set unconfined to avoid problems with apparmor", *CONFIG_FILE );
+        $execution->execute( $logp, "lxc.aa_profile=unconfined", *CONFIG_FILE );
+
         close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
         #

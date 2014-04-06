@@ -1170,7 +1170,7 @@ sub mode_start {
 sub set_vlan_links {
     
     my $first_time='yes';
-    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option
     for ( my $i = 0; $i < @vm_ordered; $i++) {
         my $vm = $vm_ordered[$i];
         my $vm_name = $vm->getAttribute("name");
@@ -1237,11 +1237,27 @@ sub start_VMs {
     my $ref_vm_ordered = shift;
     my @vm_ordered = @{$ref_vm_ordered};
  
+    my $logp = "start_VMs> ";
+ 
     # If defined screen configuration file, open it
     if (($opts{e}) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
         open SCREEN_CONF, ">". $opts{e}
             or $execution->smartdie ("can not open " . $opts{e} . ": $!")
     }
+    
+    # Check whether Network-manager is installed and running
+    my $nm_running = 0;
+    my $nmcli;
+    if ( $nmcli = `which nmcli` ) {
+        chomp ($nmcli);
+        my $cmd = "LANG=en " . $nmcli . " nm status | grep 'not running'"; 
+        $nm_running = system($cmd);
+        if ($nm_running) {
+            wlog (V, "Network manager is running ($nm_running)", $logp);
+        } else {
+            wlog (V, "Network manager is NOT running ($nm_running)", $logp);
+        }
+    }     
 
     for ( my $i = 0; $i < @vm_ordered; $i++) {
 
@@ -1289,10 +1305,42 @@ sub start_VMs {
 
 change_to_root();
 			$execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $vm_name-e0 up");
-			$execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $vm_name-e0");
+
+            # If Network manager is running, we have to release the management interface from being managed by NM. 
+            # If not, the managemente IP address assigned dissapears after some seconds (why?)  
+            if ($nm_running) {
+                my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e0 | awk 'BEGIN {FS=\":\"} {print \$1}' `;
+                $execution->execute($logp, $nmcli . " con delete uuid $con_uuid" );
+            }
+#my $res = `nmcli con status`;	
+#wlog (N, "******************************\n" . $res . "\n************************");		
+#pak();		
+            # Disable IPv6 autoconfiguration in interface
+            $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e0.autoconf=0" );
+    
+            # Configure management IP address	
+ 			$execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $vm_name-e0");
 back_to_user();               
         }
 
+        # Disable IPv6 autoconfiguration on host VM interfaces and, if 
+        # Network manager is running, prevent it from managing the interfaces.
+change_to_root();
+        foreach my $if ($vm->getElementsByTagName("if")) {
+            my $id = $if->getAttribute("id");
+            # Ignore management interface (treated above)
+            if ($id eq 0) { next }
+
+            # Disable IPv6 autoconfiguration in interface
+            $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e${id}.autoconf=0" );
+
+            # Prevent Network manager (if running) from managing VM interfaces
+            if ($nm_running) {
+                my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e${id} | awk 'BEGIN {FS=\":\"} {print \$1}' `;
+                $execution->execute($logp, $nmcli . " con delete uuid $con_uuid" );
+            }
+back_to_user();               
+        }
         undef($curr_uml);
         change_vm_status($vm_name,"running");
           
@@ -3141,7 +3189,10 @@ sub create_bridges_for_virtual_bridged_networks  {
                 } elsif ($mode eq "openvswitch") {
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name $brtap_name");
                 }
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name up");                       
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name up");
+                
+                # Disable IPv6 autoconfiguration in bridge
+                $execution->execute($logp, "sysctl -w net.ipv6.conf.${brtap_name}.autoconf=0" );
 
             } elsif ($mode eq "openvswitch") {
                 # If bridged does not exists, we create and set up it
@@ -3155,7 +3206,10 @@ sub create_bridges_for_virtual_bridged_networks  {
                         
             # Bring the bridge up
             #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");         
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");      
+            
+            # Disable IPv6 autoconfiguration in bridge
+            $execution->execute($logp, "sysctl -w net.ipv6.conf.${net_name}.autoconf=0" );
         }
         
         # Is there an external interface associated with the network?
