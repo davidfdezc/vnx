@@ -1310,6 +1310,7 @@ change_to_root();
             # If not, the managemente IP address assigned dissapears after some seconds (why?)  
             if ($nm_running) {
                 my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e0 | awk 'BEGIN {FS=\":\"} {print \$1}' `;
+                chomp ($con_uuid);
                 $execution->execute($logp, $nmcli . " con delete uuid $con_uuid" );
             }
 #my $res = `nmcli con status`;	
@@ -1337,6 +1338,7 @@ change_to_root();
             # Prevent Network manager (if running) from managing VM interfaces
             if ($nm_running) {
                 my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e${id} | awk 'BEGIN {FS=\":\"} {print \$1}' `;
+                chomp ($con_uuid);
                 $execution->execute($logp, $nmcli . " con delete uuid $con_uuid" );
             }
 back_to_user();               
