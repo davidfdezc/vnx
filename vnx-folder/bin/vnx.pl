@@ -3542,7 +3542,7 @@ sub xauth_remove {
 #
 sub mode_execute {
 
-    my $seq  = shift;
+    my $seq_str  = shift;
     my $type = shift;
 
     my $ref_vms = shift;
@@ -3555,87 +3555,94 @@ sub mode_execute {
         # to process having into account -M option
         @vm_ordered = $dh->get_vm_to_use_ordered;    
     }
+
+    # $seq can be a comma separated list of command tags
+    my @seqs = split /,/, $seq_str; 
+
+    foreach my $seq (@seqs) {
     	
-	my %vm_ips;
+		my %vm_ips;
+		
+	    my $num_plugin_ftrees = 0;
+	    my $num_plugin_execs  = 0;
+	    my $num_ftrees = 0;
+	    my $num_execs  = 0;
 	
-    my $num_plugin_ftrees = 0;
-    my $num_plugin_execs  = 0;
-    my $num_ftrees = 0;
-    my $num_execs  = 0;
-
-   	# If -B, block until ready
-   	if ($opts{B}) {
-      	my $time_0 = time();
-      	%vm_ips = get_UML_command_ip($seq);
-      	while (!UMLs_cmd_ready(%vm_ips)) {
-         	#system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
-         	sleep($dh->get_delay);
-         	my $time_f = time();
-         	my $interval = $time_f - $time_0;
-         	wlog (V, "$interval seconds elapsed...", $logp);
-         	%vm_ips = get_UML_command_ip($seq);
-      	}
-   	} else {
-      	%vm_ips = get_UML_command_ip($seq);
-    	$execution->smartdie ("some vm is not ready to exec sequence $seq through net. Wait a while and retry...\n") 
-    		unless UMLs_cmd_ready(%vm_ips);
-   	}
-   
-	# First loop: 
-	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-		my $vm = $vm_ordered[$i];
-		my $vm_name = $vm->getAttribute("name");
-        my $merged_type = $dh->get_vm_merged_type($vm);
-        my $vm_type = $vm->getAttribute("type");
-
-        # If parameter $type is different from 'all', only execute command for the VM type indicated
-        if ( ($type ne 'all') && ($type ne $vm_type) ) {
-            next
-        }
-
-        my @plugin_ftree_list = ();
-        my @plugin_exec_list = ();
-        my @ftree_list = ();
-        my @exec_list = ();
-
-        # Get all the <filetree> and <exec> commands to be executed for sequence $seq
-        my ($vm_plugin_ftrees, $vm_plugin_execs, $vm_ftrees, $vm_execs) = 
-              get_vm_ftrees_and_execs($vm, $vm_name, 'execute', $seq,  
-                   \@plugin_ftree_list, \@plugin_exec_list, \@ftree_list, \@exec_list );
-
-        $num_plugin_ftrees += $vm_plugin_ftrees;
-        $num_plugin_execs  += $vm_plugin_execs;
-        $num_ftrees += $vm_ftrees;
-        $num_execs  += $vm_execs;
-          
-        if ($vm_plugin_ftrees + $vm_plugin_execs + $vm_ftrees + $vm_execs > 0) { 
-            wlog (N, "Calling executeCMD for vm '$vm_name' with seq '$seq'..."); 
-            wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", $logp);
-			# call the corresponding vmAPI
-	    	my $error = "VNX::vmAPI_$vm_type"->executeCMD(
-	    	                         $vm_name, $merged_type, $seq, $vm,  
-	    	                         \@plugin_ftree_list, \@plugin_exec_list, 
-	    	                         \@ftree_list, \@exec_list);
-	        if ($error ne 0) {
-	            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->executeCMD returns " . $error);
-	        } else {
-	            wlog (N, "...OK");
+	   	# If -B, block until ready
+	   	if ($opts{B}) {
+	      	my $time_0 = time();
+	      	%vm_ips = get_UML_command_ip($seq);
+	      	while (!UMLs_cmd_ready(%vm_ips)) {
+	         	#system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
+	         	sleep($dh->get_delay);
+	         	my $time_f = time();
+	         	my $interval = $time_f - $time_0;
+	         	wlog (V, "$interval seconds elapsed...", $logp);
+	         	%vm_ips = get_UML_command_ip($seq);
+	      	}
+	   	} else {
+	      	%vm_ips = get_UML_command_ip($seq);
+	    	$execution->smartdie ("some vm is not ready to exec sequence $seq through net. Wait a while and retry...\n") 
+	    		unless UMLs_cmd_ready(%vm_ips);
+	   	}
+	   
+		# First loop: 
+		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+			my $vm = $vm_ordered[$i];
+			my $vm_name = $vm->getAttribute("name");
+	        my $merged_type = $dh->get_vm_merged_type($vm);
+	        my $vm_type = $vm->getAttribute("type");
+	
+	        # If parameter $type is different from 'all', only execute command for the VM type indicated
+	        if ( ($type ne 'all') && ($type ne $vm_type) ) {
+	            next
 	        }
-            
-        }
-	}
-
-    wlog (VVV, "Total number of commands executed for seq $seq:", $logp);
-    wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs, user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs", $logp);
-	if ($num_plugin_ftrees + $num_plugin_execs + $num_ftrees + $num_execs == 0) {
-        wlog(N, "--");
-		wlog(N, "-- WARNING: no commands found for tag '$seq'");
-        wlog(N, "--");
-	}
-
-    if ( $type eq 'all' ) {
-        exec_command_host($seq);
-    }
+	
+	        my @plugin_ftree_list = ();
+	        my @plugin_exec_list = ();
+	        my @ftree_list = ();
+	        my @exec_list = ();
+	
+	        # Get all the <filetree> and <exec> commands to be executed for sequence $seq
+	        my ($vm_plugin_ftrees, $vm_plugin_execs, $vm_ftrees, $vm_execs) = 
+	              get_vm_ftrees_and_execs($vm, $vm_name, 'execute', $seq,  
+	                   \@plugin_ftree_list, \@plugin_exec_list, \@ftree_list, \@exec_list );
+	
+	        $num_plugin_ftrees += $vm_plugin_ftrees;
+	        $num_plugin_execs  += $vm_plugin_execs;
+	        $num_ftrees += $vm_ftrees;
+	        $num_execs  += $vm_execs;
+	          
+	        if ($vm_plugin_ftrees + $vm_plugin_execs + $vm_ftrees + $vm_execs > 0) { 
+	            wlog (N, "Calling executeCMD for vm '$vm_name' with seq '$seq'..."); 
+	            wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", $logp);
+				# call the corresponding vmAPI
+		    	my $error = "VNX::vmAPI_$vm_type"->executeCMD(
+		    	                         $vm_name, $merged_type, $seq, $vm,  
+		    	                         \@plugin_ftree_list, \@plugin_exec_list, 
+		    	                         \@ftree_list, \@exec_list);
+		        if ($error ne 0) {
+		            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->executeCMD returns " . $error);
+		        } else {
+		            wlog (N, "...OK");
+		        }
+	            
+	        }
+		}
+	
+	    wlog (VVV, "Total number of commands executed for seq $seq:", $logp);
+	    wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs, user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs", $logp);
+		if ($num_plugin_ftrees + $num_plugin_execs + $num_ftrees + $num_execs == 0) {
+	        wlog(N, "--");
+			wlog(N, "-- WARNING: no commands found for tag '$seq'");
+	        wlog(N, "--");
+		}
+	
+	    if ( $type eq 'all' ) {
+	        exec_command_host($seq);
+	    }
+    
+    }           
 }
 
 

@@ -59,7 +59,7 @@ Version: $VNXACED_VER ($VNXACED_BUILT)
 vnx_mount_rootfs: (um)mount raw and qcow2 root filesystems
 ----------------------------------------------------------------------------------"
 
-umount="no"  # indicates wheter "-u" umount switch is selected
+umount="no"  # indicates whether "-u" umount switch is selected
 type=""      # type of vm image (raw or qcow2)
 partnum="1"  # number of partition to mount
 i=1          # counter of args processed
@@ -164,7 +164,7 @@ if [[ $type == "qcow2" ]]; then
         exit 1
     fi
 
-    if ! modinfo nbd &> /dev/null ; then 
+    if ! lsmod | grep nbd &> /dev/null ; then 
         echo "Module nbd not loaded. Loading it..."
         if ! modprobe nbd; then 
             echo "ERROR. Can not load 'nbd' module needed by 'qemu-nbd' command."
