@@ -34,6 +34,16 @@ SPAIN
         <console id="0" display="no"/>
         <console id="1" display="yes"/>
     </vm_defaults>
+
+    <cmd-seq seq="ls12">ls1,ls2</cmd-seq>
+    <cmd-seq seq="ls123">ls12,ls3</cmd-seq>
+    <cmd-seq seq="ls1234">ls123,ls4</cmd-seq>
+
+    <help>
+        <seq_help seq='start-www'>Start apache2 web server</seq_help>
+        <seq_help seq='stop-www'>Stop apache2 web server</seq_help>
+    </help>
+    
   </global>
 
   <net name="Net0" mode="virtual_bridge" />
@@ -55,6 +65,10 @@ SPAIN
       <ipv4>10.0.0.3/24</ipv4>
     </if>
     <route type="ipv4" gw="10.0.0.1">default</route>
+    <exec seq="ls1" type="verbatim">ls -al /tmp</exec>
+    <exec seq="ls2" type="verbatim">ls -al /root</exec>
+    <exec seq="ls3" type="verbatim">ls -al /usr</exec>
+    <exec seq="ls4" type="verbatim">ls -al /bin</exec>
   </vm>
 
   <vm name="r1" type="lxc">

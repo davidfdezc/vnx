@@ -1,4 +1,12 @@
+19/04/2014
 
+- Execution.pm: added pause_if_interactive (or pii) sub.
+- New option (show-status) to show the status of VMs. 
+     Ej: vnx -f tutorial_ubuntu.xml --show-status -b
+- Code cleanup in vmAPI modules. 
+- Deep revision of mode_* functions to make the tool more consistent. 
+- New primitive added to vmAPI: get_state_vm 
+- Preliminar test to add Virtualbox support
 
 17/11/2013:
 - vnx_mount_rootfs tools added
