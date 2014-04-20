@@ -100,6 +100,15 @@ sub get_exe_mode {
    return $self->{'exe_mode'};
 } 
 
+# get_exe_interactive
+#
+# Returns the exe_mode
+#
+sub get_exe_interactive {
+   my $self = shift;
+   return $self->{'exe_interactive'};
+} 
+
 # get_verb_prompt
 #
 # Returns the exe_mode
@@ -148,7 +157,6 @@ sub get_logfile {
    my $self = shift;
    return $self->{'log_file'};
 } 
-
 
 # set_mconsole_binary
 #
@@ -464,11 +472,21 @@ sub press_any_key {
 }
 
 sub pak { 
-
     my $msg = shift;
     press_any_key ($msg);
-	
 }
+
+sub pause_if_interactive {
+    my $msg = shift;
+    if ($execution->get_exe_interactive) {
+        press_any_key($msg);
+    }
+}
+
+sub pii {
+    my $msg = shift;
+    pause_if_interactive ($msg);
+}	 
 
 # wlog 
 #

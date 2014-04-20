@@ -57,6 +57,8 @@ sub exec_command_host {
     my $logp = "exec_command_host> ";
 	my $doc = $dh->get_doc;
 
+    wlog (VV, "seq=$seq", $logp);
+    
 	# If host <host> is not present, there is nothing to do
     return if (!$doc->getElementsByTagName("host"));
 

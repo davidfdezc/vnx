@@ -39,27 +39,26 @@ use Exporter;
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(
   init
-  defineVM
-  undefineVM
-  destroyVM
-  startVM
-  shutdownVM
-  saveVM
-  restoreVM
-  suspendVM
-  resumeVM
-  rebootVM
-  resetVM
-  executeCMD
+  define_vm
+  undefine_vm
+  destroy_vm
+  start_vm
+  shutdown_vm
+  save_vm
+  restore_vm
+  suspend_vm
+  resume_vm
+  reboot_vm
+  reset_vm
+  get_state_vm
+  execute_cmd
   );
 
   
-#use feature qw(switch);
 use XML::LibXML;
 use VNX::Globals;
 use VNX::Execution;
 use VNX::BinariesData;
-#use VNX::Arguments;
 use VNX::CheckSemantics;
 use VNX::TextManipulation;
 use VNX::NetChecks;
@@ -87,15 +86,13 @@ sub init {
 	my $logp = "dynamips-init> ";
 	
 	$dynamipsHost = "localhost";
-	#my $dynamipsPort=get_dynamips_port_conf();
-	$dynamipsPort = &get_conf_value ($vnxConfigFile, 'dynamips', 'port', 'root');
+	$dynamipsPort = get_conf_value ($vnxConfigFile, 'dynamips', 'port', 'root');
 	if (!defined $dynamipsPort) { $dynamipsPort = $DYNAMIPS_DEFAULT_PORT };
-	#print "*** dynamipsPort = $dynamipsPort \n";
 }    
 
 # ---------------------------------------------------------------------------------------
 #
-# defineVM
+# define_vm
 #
 # Defined a virtual machine 
 #
@@ -109,14 +106,14 @@ sub init {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub defineVM {
+sub define_vm {
 	
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 	my $vm_doc    = shift;
 	
-	my $logp = "dynamips-defineVM-$vm_name> ";
+	my $logp = "dynamips-define_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 	
 	my $error=0;
@@ -127,10 +124,8 @@ sub defineVM {
 
 	# Get the extended configuration file if it exists
 	$extConfFile = $dh->get_default_dynamips();
-	#print "*** dynamipsconf=$extConfFile\n";
 	if ($extConfFile ne "0"){
-		$extConfFile = &get_abs_path ($extConfFile);
-		#$extConfFile = &validate_xml ($extConfFile); # Moved to vnx.pl	
+		$extConfFile = get_abs_path ($extConfFile);
 	}
 	
 	my @vm_ordered = $dh->get_vm_ordered;
@@ -153,7 +148,6 @@ sub defineVM {
 	# Get the configuration file name of the router (if defined) 
 	# form the extended config file
 	my $routerConfFile = get_router_conf_file($extConfFile, $vm_name);
-	#print "**** conf_dynamips=$routerConfFile\n";
     wlog (VVV, "...5", "$logp");
 
 	# $newRouterConfFile is the file where we will store the configuration of the new router	
@@ -192,35 +186,19 @@ sub defineVM {
 	my $line;
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    # Si es la primera vez que se ejecuta el escenario, se borra todo el hypervisor
-    # Precacion, tambien se borra otros escenarios que este corriendo paralelamente
-    # DFC Comentado 30/3/2011. Con los cambios en los interfaces de gestion ahora $counter llega
-    # siempre a 0 y se resetea dynamips cada vez que se crea un router 
-    #if ($counter == 0)
-    #{
-    #	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    #	print "Reset hypervisor:\n" if ($exemode == $EXE_VERBOSE);;
-    #	$t->print("hypervisor reset");
-   	#	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    #	$t->close;
-    #	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    #}
     
     $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    print("hypervisor version\n") if ($exemode == $EXE_VERBOSE);
-    $t->print("hypervisor version");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    print("hypervisor working_dir \"". $dh->get_vm_fs_dir($vm_name)."\" \n") if ($exemode == $EXE_VERBOSE);
-    $t->print("hypervisor working_dir \"". $dh->get_vm_fs_dir($vm_name). "\" ");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "hypervisor version", $logp);
+    $line = t_getline ($t, $logp);
+    t_print ($t, "hypervisor working_dir \"". $dh->get_vm_fs_dir($vm_name). "\" ", $logp);
+    $line = t_getline ($t, $logp);
 	
 	
 	# Set type
 	my($trash,$model)=split(/-/,$type,2);
-    print("vm create $vm_name 0 c$model\n");
-	$t->print("vm create $vm_name 0 c$model");
-	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+	t_print ($t, "vm create $vm_name 0 c$model", $logp);
+	$line = t_getline ($t, $logp);
 	
   	#
 	# VM CONSOLES
@@ -242,13 +220,13 @@ sub defineVM {
    		#print "** console: id=$id, display=$display port=$port value=$value\n" if ($exemode == $EXE_VERBOSE);
 		if ( ($id eq "1") || ($id eq "2") ) {
 			if ( $value ne "" && $value ne "telnet" ) { 
-				print "WARNING (vm=$vm_name): only 'telnet' value is allowed for Dynamips consoles. Value ignored.\n"
+				wlog (N, "WARNING (vm=$vm_name): only 'telnet' value is allowed for Dynamips consoles. Value ignored.", $logp);
 			}
 			$consPortDefInXML{$id} = $port;
 			if ($display ne '') { $consDisplayDefInXML{$id} = $display }
 		}
 		if ( ( $id eq "0" ) || ($id > 1) ) {
-			print "WARNING (vm=$vm_name): only consoles with id='1' or '2' allowed for Dynamips virtual machines. Tag with id=$id ignored.\n"
+			wlog (N, "WARNING (vm=$vm_name): only consoles with id='1' or '2' allowed for Dynamips virtual machines. Tag with id=$id ignored.", $logp)
 		} 
 	}
 	#print "** $vm_name: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
@@ -269,7 +247,7 @@ sub defineVM {
 				$consolePort[$j]++;
 			}
 		}
-		print "WARNING (vm=$vm_name): cannot use port $consPortDefInXML{1} for console #1; using $consolePort[$j] instead\n"
+		wlog (V, "WARNING (vm=$vm_name): cannot use port $consPortDefInXML{1} for console #1; using $consolePort[$j] instead", $logp)
 	   		if ( (!empty($consPortDefInXML{$j})) && ($consolePort[$j] ne $consPortDefInXML{$j}) );
     }
 	
@@ -278,46 +256,39 @@ sub defineVM {
 	
 	open (PORT_CISCO, ">$consFile") || $execution->smartdie("ERROR (vm=$vm_name): cannot open $consFile");
 	print PORT_CISCO "con1=$consDisplayDefInXML{1},telnet,$consolePort[1]\n";
-	print("vm set_con_tcp_port $vm_name $consolePort[1]\n");
-	$t->print("vm set_con_tcp_port $vm_name $consolePort[1]");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+	t_print ($t, "vm set_con_tcp_port $vm_name $consolePort[1]", $logp);
+    $line = t_getline ($t, $logp); 
     if ($type eq 'dynamips-7200') {
     	# Configure aux port
 		print PORT_CISCO "con2=$consDisplayDefInXML{2},telnet,$consolePort[2]\n";
-		print("vm set_con_tcp_port $vm_name $consolePort[2]\n");
-		$t->print("vm set_con_tcp_port $vm_name $consolePort[2]");
-	    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+		t_print ($t, "vm set_con_tcp_port $vm_name $consolePort[2]", $logp);
+	    $line = t_getline ($t, $logp);
     }
 	close (PORT_CISCO);
     
     # Set Chassis
     my $chassis = &merge_simpleconf($extConfFile, $vm_name, 'chassis');
     $chassis =~ s/c//;
-    print("c$model set_chassis $vm_name $chassis\n");
-    $t->print("c$model set_chassis $vm_name $chassis");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "c$model set_chassis $vm_name $chassis", $logp);
+    $line = t_getline ($t, $logp);
 
     # Set NPE if 7200
     if ($model eq '7200') {
 	    my $npe = &merge_simpleconf($extConfFile, $vm_name, 'npe');
-	    print("c$model set_npe $vm_name npe-$npe\n");
-	    $t->print("c$model set_npe $vm_name npe-$npe");
-	    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);   	
+	    t_print ($t, "c$model set_npe $vm_name npe-$npe", $logp);
+	    $line = t_getline ($t, $logp);
     } 
     
 	# Set Filesystem
-    print("vm set_ios $vm_name $filesystem\n");
-    $t->print("vm set_ios $vm_name $filesystem");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm set_ios $vm_name $filesystem", $logp);
+    $line = t_getline ($t, $logp);
     
     # Set Mem
-    print("vm set_ram $vm_name $mem\n");
-    $t->print("vm set_ram $vm_name $mem");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm set_ram $vm_name $mem", $logp);
+    $line = t_getline ($t, $logp);
     if (&merge_simpleconf($extConfFile, $vm_name, 'sparsemem') eq "true"){
-		print("vm set_sparse_mem $vm_name 1\n");
-		$t->print("vm set_sparse_mem $vm_name 1");
-   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+		t_print ($t, "vm set_sparse_mem $vm_name 1", $logp);
+   		$line = t_getline ($t, $logp);
     }
     
     # Set IDLEPC
@@ -334,33 +305,28 @@ sub defineVM {
     }
     #print "*** idlepc = $idlepc \n";
     
-	print("vm set_idle_pc $vm_name $idlepc\n");
-	$t->print("vm set_idle_pc $vm_name $idlepc");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+	t_print ($t, "vm set_idle_pc $vm_name $idlepc", $logp);
+    $line = t_getline ($t, $logp);
     
     #Set ios ghost
     if (&merge_simpleconf($extConfFile, $vm_name, 'ghostios') eq "true"){
-    	print("vm set_ghost_status $vm_name 2\n");
-		$t->print("vm set_ghost_status $vm_name 2");
-    	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+		t_print ($t, "vm set_ghost_status $vm_name 2", $logp);
+    	$line = t_getline ($t, $logp);
     	my $temp = basename($filesystem);
-    	print("vm set_ghost_file $vm_name \"$temp.image-localhost.ghost\" \n");
-		$t->print("vm set_ghost_file $vm_name \"$temp.image-localhost.ghost\" ");
-    	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+		t_print ($t, "vm set_ghost_file $vm_name \"$temp.image-localhost.ghost\" ", $logp);
+    	$line = t_getline ($t, $logp);
     }
     
     #Set Blk_direct_jump
-	print("vm set_blk_direct_jump $vm_name 0\n");
-	$t->print("vm set_blk_direct_jump $vm_name 0");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+	t_print ($t, "vm set_blk_direct_jump $vm_name 0", $logp);
+    $line = t_getline ($t, $logp);
     
     # Add slot cards
     my @cards=&get_cards_conf($extConfFile, $vm_name);
     my $index = 0;
     foreach my $slot (@cards){
-    	print("vm slot_add_binding $vm_name $index 0 $slot \n");
-		$t->print("vm slot_add_binding $vm_name $index 0 $slot");
-    	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+		t_print ($t, "vm slot_add_binding $vm_name $index 0 $slot", $logp);
+    	$line = t_getline ($t, $logp);
     	$index++;
     }
     
@@ -373,12 +339,10 @@ sub defineVM {
 		$slot = substr $slot,-1,1;
 		if ( $name =~ /^[gfeGFE]/ ) {
 			#print "**** Ethernet interface: $name, slot=$slot, dev=$dev\n";
-			print("nio create_tap nio_tap_$vm_name$slot$dev $vm_name-e$id\n");
-			$t->print("nio create_tap nio_tap_$vm_name$slot$dev $vm_name-e$id");
-	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-	   		print("vm slot_add_nio_binding $vm_name $slot $dev nio_tap_$vm_name$slot$dev\n");
-	   		$t->print("vm slot_add_nio_binding $vm_name $slot $dev nio_tap_$vm_name$slot$dev");
-	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+			t_print ($t, "nio create_tap nio_tap_$vm_name$slot$dev $vm_name-e$id", $logp);
+	   		$line = t_getline ($t, $logp);
+	   		t_print ($t, "vm slot_add_nio_binding $vm_name $slot $dev nio_tap_$vm_name$slot$dev", $logp);
+	   		$line = t_getline ($t, $logp);
 		}
 		elsif ( $name =~ /^[sS]/ ) {
 			#print "**** Serial interface: $name, slot=$slot, dev=$dev\n";			
@@ -442,27 +406,21 @@ sub defineVM {
 			}
 			#print "**** Serial interface: ports[0]=$ports[0], ports[1]=$ports[1]\n";
 			if ($vms[0] eq $vm_name) {
-				print("nio create_udp nio_udp_$vm_name$slot$dev $ports[0] 127.0.0.1 $ports[1]\n");
-				$t->print("nio create_udp nio_udp_$vm_name$slot$dev $ports[0] 127.0.0.1 $ports[1]");
+				t_print ($t, "nio create_udp nio_udp_$vm_name$slot$dev $ports[0] 127.0.0.1 $ports[1]", $logp);
 			} else {
-				print("nio create_udp nio_udp_$vm_name$slot$dev $ports[1] 127.0.0.1 $ports[0]\n");
-				$t->print("nio create_udp nio_udp_$vm_name$slot$dev $ports[1] 127.0.0.1 $ports[0]");
+				t_print ($t, "nio create_udp nio_udp_$vm_name$slot$dev $ports[1] 127.0.0.1 $ports[0]", $logp);
 			}
-	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-	   		print("vm slot_add_nio_binding $vm_name $slot $dev nio_udp_$vm_name$slot$dev\n");
-	   		$t->print("vm slot_add_nio_binding $vm_name $slot $dev nio_udp_$vm_name$slot$dev");
-	   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+	   		$line = t_getline ($t, $logp);
+	   		t_print ($t, "vm slot_add_nio_binding $vm_name $slot $dev nio_udp_$vm_name$slot$dev", $logp);
+	   		$line = t_getline ($t, $logp);
 		}
    		$execution->execute( $logp, "ifconfig $vm_name-e$id 0.0.0.0");
 	}
 	
 	# Set config file to router
-	print("vm set_config $vm_name \"$newRouterConfFile\" \n");
-   	$t->print("vm set_config $vm_name \"$newRouterConfFile\" ");
-   	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+   	t_print ($t, "vm set_config $vm_name \"$newRouterConfFile\" ", $logp);
+   	$line = t_getline ($t, $logp);
    	$t->close;
-
-    print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
     
     return $error;
     
@@ -552,7 +510,7 @@ sub create_router_conf {
  			$destination = "0.0.0.0";
  			$maskdestination = "0.0.0.0";
  		}else {
- 			print "****** $destination\n";
+ 			#print "****** $destination\n";
  			my $ip = new NetAddr::IP ($destination) or $execution->smartdie (NetAddr::IP::Error());
  			$maskdestination = $ip->mask();
  			$destination = $ip->addr();
@@ -595,7 +553,7 @@ sub create_router_conf {
 
 # ---------------------------------------------------------------------------------------
 #
-# undefineVM
+# undefine_vm
 #
 # Undefines a virtual machine 
 #
@@ -608,26 +566,25 @@ sub create_router_conf {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub undefineVM{
+sub undefine_vm{
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "dynamips-undefineVM-$vm_name> ";
+    my $logp = "dynamips-undefine_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
 	my $error=0;
 	
-	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
+    wlog (V, "Undefining router: $vm_name", $logp);
     
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm destroy $vm_name");
-    my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-    #$t->print("hypervisor reset");
-   	#$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm destroy $vm_name", $logp);
+    my $line = t_getline ($t, $logp);
+    #t_print ($t, "hypervisor reset", $logp);
+   	#$line = t_getline ($t, $logp);
     $t->close;
     
     return $error;
@@ -635,7 +592,7 @@ sub undefineVM{
 
 # ---------------------------------------------------------------------------------------
 #
-# destroyVM
+# destroy_vm
 #
 # Destroys a virtual machine 
 #
@@ -648,13 +605,13 @@ sub undefineVM{
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub destroyVM{
+sub destroy_vm{
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "dynamips-destroyVM-$vm_name> ";
+    my $logp = "dynamips-destroy_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
 	my $error=0;
@@ -665,10 +622,10 @@ sub destroyVM{
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
 
-   	$t->print("vm stop $vm_name");
-   	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-   	$t->print("vm delete $vm_name");
-   	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+   	t_print ($t, "vm stop $vm_name", $logp);
+   	$line = t_getline ($t, $logp);
+   	t_print ($t, "vm delete $vm_name", $logp);
+   	$line = t_getline ($t, $logp);
 
 	# We have to destroy the tap or udp devices created for the router
 	# using the "nio create_tap" or "nio create_udp" commands 
@@ -689,14 +646,12 @@ sub destroyVM{
 			$slot = substr $slot,-1,1;
 			wlog (V, "Ethernet interface: $ifName, slot=$slot, dev=$dev", $logp);
 			if ( $ifName =~ /^[gfeGFE]/ ) {
-				wlog (V, "nio delete nio_tap_$vm_name$slot$dev", $logp);
-				$t->print("nio delete nio_tap_$vm_name$slot$dev");
-		   		my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+				t_print ($t, "nio delete nio_tap_$vm_name$slot$dev", $logp);
+		   		my $line = t_getline ($t, $logp);
 			}
 			elsif ( $ifName =~ /^[sS]/ ) {
-				wlog (V, "nio delete nio_udp_$vm_name$slot$dev", $logp);
-				$t->print("nio delete nio_udp_$vm_name$slot$dev");
-		   		$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+				t_print ($t, "nio delete nio_udp_$vm_name$slot$dev", $logp);
+		   		$line = t_getline ($t, $logp);
 			}
 		}
 	}
@@ -704,8 +659,8 @@ sub destroyVM{
     # Remove vm directory content
     #$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_vm_dir($vm_name) . "/*" );
     
-   	#$t->print("hypervisor reset");
-   	#$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+   	#t_print ($t, "hypervisor reset", $logp);
+   	#$line = t_getline ($t, $logp);
    	$t->close;
 
 	return $error;
@@ -714,9 +669,9 @@ sub destroyVM{
 
 # ---------------------------------------------------------------------------------------
 #
-# startVM
+# start_vm
 #
-# Starts a virtual machine already defined with defineVM
+# Starts a virtual machine already defined with define_vm
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
@@ -728,25 +683,23 @@ sub destroyVM{
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub startVM {
+sub start_vm {
 
 	my $self    = shift;
 	my $vm_name  = shift;
 	my $type    = shift;
 	my $no_consoles = shift;
 	
-    my $logp = "dynamips-startVM-$vm_name> ";
+    my $logp = "dynamips-start_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
 	my $error=0;
 	
-    print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Starting router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
+    wlog (V, "Starting router: $vm_name", $logp);
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm start $vm_name");
-    my $line = $t->getline; 
-    print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm start $vm_name", $logp);
+    my $line = t_getline ($t, $logp);
 
     # Read the console file and start the active consoles,
 	# unless options -n|--no_console were specified by the user
@@ -784,7 +737,7 @@ sub startVM {
 
 # ---------------------------------------------------------------------------------------
 #
-# shutdownVM
+# shutdown_vm
 #
 # Shutdowns a virtual machine
 #
@@ -797,13 +750,13 @@ sub startVM {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub shutdownVM{
+sub shutdown_vm{
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 	my $F_flag    = shift;
 	
-	my $logp = "dynamips-shutdownVM-$vm_name> ";
+	my $logp = "dynamips-shutdown_vm-$vm_name> ";
 	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 	
 	my $error=0;
@@ -819,19 +772,16 @@ sub shutdownVM{
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
 
-    $t->print("vm stop $vm_name");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm stop $vm_name", $logp);
+    $line = t_getline ($t, $logp);
     $t->close;
     		
-	#&change_vm_status( $dh, $vm_name, "REMOVE" );
-	change_vm_status( $vm_name, "REMOVE" );
-
 	return $error;
 }
 
 # ---------------------------------------------------------------------------------------
 #
-# saveVM
+# save_vm
 #
 # Stops a virtual machine and saves its status to disk
 #
@@ -845,25 +795,24 @@ sub shutdownVM{
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub saveVM{
+sub save_vm{
 	
 	my $self     = shift;
 	my $vm_name   = shift;
 	my $type     = shift;
 	my $filename = shift;
 	
-	my $logp = "dynamips-saveVM-$vm_name> ";
+	my $logp = "dynamips-save_vm-$vm_name> ";
 	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 	
 	my $error=0;
 		
-	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
+    wlog (V, "Saving router: $vm_name", $logp);
     
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm extract_config $vm_name");
-    my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm extract_config $vm_name", $logp);
+    my $line = t_getline ($t, $logp);
     $t->close;
 
     return $error;	
@@ -871,9 +820,9 @@ sub saveVM{
 
 # ---------------------------------------------------------------------------------------
 #
-# restoreVM
+# restore_vm
 #
-# Restores the status of a virtual machine from a file previously saved with saveVM
+# Restores the status of a virtual machine from a file previously saved with save_vm
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
@@ -885,29 +834,28 @@ sub saveVM{
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub restoreVM{
+sub restore_vm{
 	
 	my $self     = shift;
 	my $vm_name   = shift;
 	my $type     = shift;
 	my $filename = shift;
 	
-	my $logp = "dynamips-restoreVM-$vm_name> ";
+	my $logp = "dynamips-restore_vm-$vm_name> ";
 	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
     my $error=0;
     
-    print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Rebooting router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
+    wlog (V, "Rebooting router: $vm_name", $logp);
 
     sleep(2);
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm stop $vm_name");
-    my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm stop $vm_name", $logp);
+    my $line = t_getline ($t, $logp);
     sleep(2);
-    $t->print("vm start $vm_name");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm start $vm_name", $logp);
+    $line = t_getline ($t, $logp);
     $t->close;
 
     return $error;
@@ -916,7 +864,7 @@ sub restoreVM{
 
 # ---------------------------------------------------------------------------------------
 #
-# suspendVM
+# suspend_vm
 #
 # Stops a virtual machine and saves its status to memory
 #
@@ -929,24 +877,23 @@ sub restoreVM{
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub suspendVM{
+sub suspend_vm{
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "dynamips-suspendVM-$vm_name> ";
+    my $logp = "dynamips-suspend_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
     my $error=0;
     
-	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
+    wlog (V, "Suspending router: $vm_name", $logp);
 	
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm suspend $vm_name");
-    my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm suspend $vm_name", $logp);
+    my $line = t_getline ($t, $logp);
     $t->close;
 
     return $error;	
@@ -954,9 +901,9 @@ sub suspendVM{
 
 # ---------------------------------------------------------------------------------------
 #
-# resumeVM
+# resume_vm
 #
-# Restores the status of a virtual machine from memory (previously saved with suspendVM)
+# Restores the status of a virtual machine from memory (previously saved with suspend_vm)
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
@@ -967,23 +914,22 @@ sub suspendVM{
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub resumeVM{
+sub resume_vm{
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "dynamips-resumeVM-$vm_name> ";
+    my $logp = "dynamips-resume_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
     my $error=0;
-	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
+    wlog (V, "Resuming router: $vm_name", $logp);
     
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm resume $vm_name");
-    my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm resume $vm_name", $logp);
+    my $line = t_getline ($t, $logp);
     $t->close;
 
     return $error;	
@@ -991,7 +937,7 @@ sub resumeVM{
 
 # ---------------------------------------------------------------------------------------
 #
-# rebootVM
+# reboot_vm
 #
 # Reboots a virtual machine
 #
@@ -1004,27 +950,26 @@ sub resumeVM{
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub rebootVM{
+sub reboot_vm{
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "dynamips-rebootVM-$vm_name> ";
+    my $logp = "dynamips-reboot_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
     my $error=0;
     
-	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
+    wlog (V, "Rebooting router: $vm_name", $logp);
 	
     sleep(2);
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm stop $vm_name");
-    my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm stop $vm_name", $logp);
+    my $line = t_getline ($t, $logp);
     sleep(2);
-    $t->print("vm start $vm_name");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm start $vm_name", $logp);
+    $line = t_getline ($t, $logp);
     $t->close;
 
     return $error;
@@ -1033,9 +978,9 @@ sub rebootVM{
 
 # ---------------------------------------------------------------------------------------
 #
-# resetVM
+# reset_vm
 #
-# Restores the status of a virtual machine form a file previously saved with saveVM
+# Restores the status of a virtual machine form a file previously saved with save_vm
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
@@ -1046,27 +991,26 @@ sub rebootVM{
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub resetVM{
+sub reset_vm{
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "dynamips-resetVM-$vm_name> ";
+    my $logp = "dynamips-reset_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
 
     my $error=0;
     
-	print "-----------------------------\n" if ($exemode == $EXE_VERBOSE);
-    print "Shutdowning router: $vm_name\n" if ($exemode == $EXE_VERBOSE);
+    wlog (V, "Reseting router: $vm_name", $logp);
 	
     sleep(2);
     my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    $t->print("vm stop $vm_name");
-    my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm stop $vm_name", $logp);
+    my $line = t_getline ($t, $logp);
     sleep(2);
-    $t->print("vm start $vm_name");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+    t_print ($t, "vm start $vm_name", $logp);
+    $line = t_getline ($t, $logp);
     $t->close;
 
     return $error;
@@ -1075,7 +1019,43 @@ sub resetVM{
 
 # ---------------------------------------------------------------------------------------
 #
-# executeCMD
+# get_state_vm
+#
+# Returns the status of a VM from the hypervisor point of view 
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $ref_state: reference to a variable that will hold the state of VM in VNX terms 
+#                 (undefined, defeined, running, suspended, hibernated)
+#   - $ref_hstate: reference to a variable that will hold the state of VM in hipervisor terms 
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
+sub get_state_vm {
+
+    my $self   = shift;
+    my $vm_name = shift;
+    my $ref_state = shift;
+    my $ref_hstate = shift;
+
+    my $logp = "lxc-get_status_vm-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name ...)", $logp);
+
+    my $error = 0;
+
+    $$ref_state = "--";
+    $$ref_hstate = "--";
+    
+    wlog (VVV, "state=$$ref_state, hstate=$$ref_hstate, error=$error");
+    return $error;
+}
+
+# ---------------------------------------------------------------------------------------
+#
+# execute_cmd
 #
 # Executes a set of <filetree> and <exec> commands in a virtual mchine
 #
@@ -1096,7 +1076,7 @@ sub resetVM{
 #
 # ---------------------------------------------------------------------------------------
 
-sub executeCMD{
+sub execute_cmd{
 
 	my $self        = shift;
     my $vm_name      = shift;
@@ -1104,7 +1084,7 @@ sub executeCMD{
 	my $seq         = shift;
 	my $vm          = shift;
 
-    my $logp = "dynamips-executeCMD-$vm_name> ";
+    my $logp = "dynamips-execute_cmd-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type ...)", "$logp");
 
 	my @output = "Nothing to show";
@@ -1199,7 +1179,7 @@ sub executeCMD{
 					    if ($ostype eq 'set') {	my @output = $sess->exe_cmd ('configure terminal'); }
 						# execute the command
 						my @output = $sess->exe_cmd ($command_tag);
-						print "\ncmd '$command_tag' result: \n\n@output\n";
+						wlog (N, "\ncmd '$command_tag' result: \n\n@output\n");
 					    if ($ostype eq 'set') {	my @output = $sess->exe_cmd ('end'); }
 						$sess->exe_cmd ("disable");
 						$sess->exe_cmd ("exit");
@@ -1213,7 +1193,7 @@ sub executeCMD{
 						if ( $command_tag =~ /merge / ) {
 							# Merge mode: add configuration in VNX spec (hostname, ip addressses and routes)
 							# to the configuration file provided
-							print "*** load merge\n";
+							#print "*** load merge\n";
 							$command_tag =~ s/merge //;
 							my $confFile = &get_abs_path($command_tag);
 							if (-e $confFile) {
@@ -1292,7 +1272,7 @@ sub executeCMD{
 						if ($ostype eq 'set') {	my @output = $sess->exe_cmd ('configure terminal'); }
 						# execute the file with commands 
 						@output = $sess->exe_cmd_file ("$include_file");
-						print "-- cmd result: \n\n@output\n";
+						wlog (N, "-- cmd result: \n\n@output");
 						if ($ostype eq 'set') {	my @output = $sess->exe_cmd ('end'); }
 						$sess->exe_cmd ("disable");
 						$sess->exe_cmd ("exit");
@@ -1321,19 +1301,19 @@ sub reload_conf {
 	my $dynamipsHost = shift;
 	my $dynamipsPort = shift;
 	my $consFile = shift;
+
+    my $logp = "dynamips-reload_conf> ";
 	
 	$confFile = &get_abs_path ($confFile);
 	unless (-e $confFile) {	$execution->smartdie ("router $vm_name configuration file not found ($confFile)") } 
 	my $t = new Net::Telnet (Timeout => 10);
     $t->open(Host => $dynamipsHost, Port => $dynamipsPort);
-    print("vm stop $vm_name \n");
-	$t->print("vm stop $vm_name");
-    my $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-   	print("vm set_config $vm_name \"$confFile\" \n");
-   	$t->print("vm set_config $vm_name \"$confFile\" ");
-   	$line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
-   	$t->print("vm start $vm_name");
-    $line = $t->getline; print $line if ($exemode == $EXE_VERBOSE);
+	t_print ($t, "vm stop $vm_name", $logp);
+    my $line = t_getline ($t, $logp);
+   	t_print ($t, "vm set_config $vm_name \"$confFile\" ", $logp);
+   	$line = t_getline ($t, $logp);
+   	t_print ($t, "vm start $vm_name", $logp);
+    $line = t_getline ($t, $logp);
     sleep (3);    
 	VNX::vmAPICommon->start_consoles_from_console_file ($vm_name);
 }
@@ -1587,23 +1567,40 @@ sub get_cards_conf {
 }
 
 ###################################################################
-#                                                                 
-sub change_vm_status {
 
-	my $vm     = shift;
-	my $status = shift;
+#
+# t_print
+#
+# Auxiliar function to make the code readable. Calls wlog to write log message and 
+# $t->print to send the command through telnet to the router 
+#
+sub t_print {
 
-    my $logp = "change_vm_status> ";
-	my $status_file = $dh->get_vm_dir($vm) . "/status";
+ my $t = shift;
+ my $cmd = shift;
+ my $logp = shift;
 
-	if ( $status eq "REMOVE" ) {
-		$execution->execute( $logp, 
-			$bd->get_binaries_path_ref->{"rm"} . " -f $status_file" );
-	}
-	else {
-		$execution->execute( $logp, 
-			$bd->get_binaries_path_ref->{"echo"} . " $status > $status_file" );
-	}
+ wlog (V, $cmd, $logp);
+ $t->print($cmd); 
+	
 }
+
+#
+# t_getline
+#
+# Auxiliar function to make the code readable. Calls $t->getline to read the response 
+# from telnet and wlog to write log message 
+#
+sub t_getline {
+
+ my $t = shift;
+ my $logp = shift;
+
+ my $line = $t->getline; 
+ wlog (V, $line, $logp);
+
+ return $line;
+}
+
 
 1;

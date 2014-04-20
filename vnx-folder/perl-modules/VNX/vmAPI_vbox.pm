@@ -5,7 +5,7 @@
 # Authors: David Fernández
 # Coordinated by: David Fernández (david@dit.upm.es)
 #
-# Copyright (C) 2013   DIT-UPM
+# Copyright (C) 2014   DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -27,7 +27,7 @@
 # An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
 #
 
-package VNX::vmAPI_lxc;
+package VNX::vmAPI_vbox;
 
 use strict;
 use warnings;
@@ -76,19 +76,19 @@ my $union_type;
 
 # ---------------------------------------------------------------------------------------
 #
-# Module vmAPI_lxc initialization code 
+# Module vmAPI_vbox initialization code 
 #
 # ---------------------------------------------------------------------------------------
 sub init {
 
-    my $logp = "lxc-init> ";
-    $union_type = get_conf_value ($vnxConfigFile, 'lxc', 'union_type', 'root');
-    if (empty($union_type)) {
-        $union_type = 'overlayfs'; # default value
-    } elsif ( ($union_type ne 'overlayfs') && ($union_type ne 'aufs') ){
-        $execution->smartdie ("ERROR in $vnxConfigFile, value of 'union_type' \nparameter in [lxc] section unknown (should be overlayfs or aufs).")
-    }
-    wlog (VVV, "lxc-union_type=$union_type");
+    my $logp = "vbox-init> ";
+#    $union_type = get_conf_value ($vnxConfigFile, 'lxc', 'union_type', 'root');
+#    if (empty($union_type)) {
+#        $union_type = 'overlayfs'; # default value
+#    } elsif ( ($union_type ne 'overlayfs') && ($union_type ne 'aufs') ){
+#        $execution->smartdie ("ERROR in $vnxConfigFile, value of 'union_type' \nparameter in [lxc] section unknown (should be overlayfs or aufs).")
+#    }
+#    wlog (VVV, "vbox-union_type=$union_type");
 }
 
 # ---------------------------------------------------------------------------------------
@@ -114,7 +114,7 @@ sub define_vm {
     my $type    = shift;
     my $vm_doc  = shift;
 
-    my $logp = "lxc-define_vm-$vm_name> ";
+    my $logp = "vbox-define_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
     my $error = 0;
     my $extConfFile;
@@ -122,6 +122,9 @@ sub define_vm {
     my $global_doc = $dh->get_doc;
     my @vm_ordered = $dh->get_vm_ordered;
 
+    my $sdisk_content;
+    my $sdisk_fname_raw;
+    my $sdisk_fname_vmdk;
     my $filesystem;
 
     my $vm = $dh->get_vm_byname ($vm_name);
@@ -134,11 +137,17 @@ sub define_vm {
     #
     # define_vm for lxc
     #
-    if  ($type eq "lxc") {
-    	    	
-        # Check if an LXC VM with the same name is already defined
-        if ( -d "$lxc_dir/$vm_name") {
-            $error = "ERROR: a LXC vm named $vm_name already exists. Check $lxc_dir/$vm_name directory content.";
+    if  ($type eq "vbox") {
+
+        # Check if a VBox VM with the same name is already defined
+        my $vbox_dir;
+        if ($uid_name eq 'root' ) {
+        	$vbox_dir = '/root/VirtualBox VMs/';
+        } else {
+            $vbox_dir = "/home/$uid_name/VirtualBox VMs/";
+        }
+        if ( -d "{$vbox_dir}${vm_name}") {
+            $error = "ERROR: a VirtualBox VM named $vm_name already exists. Check {$vbox_dir}${vm_name} directory content.";
             return $error;
         }
 
@@ -147,14 +156,89 @@ sub define_vm {
         # 
         my $parser       = XML::LibXML->new();
         my $dom          = $parser->parse_string($vm_doc);
-        my $global_node   = $dom->getElementsByTagName("create_conf")->item(0);
+        my $global_node  = $dom->getElementsByTagName("create_conf")->item(0);
         my $vm     = $global_node->getElementsByTagName("vm")->item(0);
 
         my $filesystem_type   = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
         my $filesystem        = $vm->getElementsByTagName("filesystem")->item(0)->getFirstChild->getData;
 
-change_to_root();
+        
+        # Register the VM
+        $execution->execute( $logp, "VBoxManage createvm --name $vm_name --register" ); 
+pak();        
+        # memory
+        my $mem = $vm->getElementsByTagName("mem")->item(0)->getFirstChild->getData;
+        $mem = $mem / 1024; 
+        $execution->execute( $logp, "VBoxManage modifyvm $vm_name --memory $mem" ); 
+         
+        # Other default parameters
+        $execution->execute( $logp, "VBoxManage modifyvm $vm_name --vram 17" ); 
+        $execution->execute( $logp, "VBoxManage modifyvm $vm_name --rtcuseutc on" ); 
+pak();        
+        # Create storage controller
+        $execution->execute( $logp, "VBoxManage storagectl $vm_name --name 'SATAController' " .
+                                    "--add sata --controller IntelAHCI --sataportcount 2 --hostiocache on" ); 
+        
+        # Attach disk to controller
+        if ( $filesystem_type eq "cow" ) {
+            $execution->execute( $logp, "VBoxManage storageattach $vm_name --storagectl 'SATAController' " .
+                                        " --port 0 --device 0 --type hdd --medium $filesystem --mtype multiattach");
+        } else {
+            $execution->execute( $logp, "VBoxManage storageattach $vm_name --storagectl 'SATAController' " .
+                                        " --port 0 --device 0 --type hdd --medium $filesystem --mtype normal");        	
+        }
+pak();
 
+        # Create the shared filesystem 
+        wlog (VVV, "vmfs_on_tmp=$vmfs_on_tmp", $logp);
+        if ($vmfs_on_tmp eq 'yes') {
+            $sdisk_fname_raw = $dh->get_vm_fs_dir_ontmp($vm_name) . "/sdisk.img";
+            $sdisk_fname_vmdk = $dh->get_vm_fs_dir_ontmp($vm_name) . "/sdisk.vmdk";
+        } else {
+            $sdisk_fname_raw = $dh->get_vm_fs_dir($vm_name) . "/sdisk.img";
+            $sdisk_fname_vmdk = $dh->get_vm_fs_dir($vm_name) . "/sdisk.vmdk";
+        }                
+        
+        # qemu-img create jconfig.img 12M
+        # TODO: change the fixed 50M to something configurable
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname_raw 50M" );
+pak();
+        # mkfs.msdos jconfig.img
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname_raw" ); 
+        # Mount the shared disk to copy filetree files
+        $sdisk_content = $dh->get_vm_hostfs_dir($vm_name) . "/";
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname_raw . " " . $sdisk_content );
+        # Create filetree and config dirs in the shared disk
+        $execution->execute( $logp, "mkdir -p $sdisk_content/filetree");
+        $execution->execute( $logp, "mkdir -p $sdisk_content/config");          
+
+        # Copy something to test...
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"cp"} . " /etc/vnx.conf $sdisk_content/" );
+
+        # Dismount shared disk
+        # Note: under some systems this umount fails. We sleep for a while and, in case it fails, we wait and retry 3 times...
+        Time::HiRes::sleep(0.2);
+        my $retry=3;
+        while ( $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content ) ) {
+            $retry--; last if $retry == 0;  
+            wlog (N, "umount $sdisk_content failed. Retrying...", "");          
+            Time::HiRes::sleep(0.2);
+        }
+
+        # Convert shared disk to vmdk format
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"qemu-img"} . " convert -O vmdk $sdisk_fname_raw $sdisk_fname_vmdk" );
+        
+        # Attach shared disk to VM
+        $execution->execute( $logp, "VBoxManage storageattach $vm_name --storagectl 'SATAController' " .
+                                    " --port 1 --device 0 --type hdd --medium $sdisk_fname_vmdk --mtype normal");         
+pak();
+
+
+
+
+#change_to_root();
+
+=BEGIN
         # Directory where vm files are going to be mounted
         my $vm_lxc_dir;
 
@@ -180,7 +264,7 @@ change_to_root();
                                      ":" . $filesystem . "/=ro none " . $vm_lxc_dir );
             }
         } else {
-        	
+            
             #$vm_lxc_dir = $filesystem;
             $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
             $execution->execute( $logp, "rmdir $vm_lxc_dir" );
@@ -228,21 +312,23 @@ change_to_root();
         
         # Set lxc.mount: lxc.mount = $vm_lxc_dir/fstab
         $execution->execute( $logp, "lxc.mount = $vm_lxc_dir/fstab", *CONFIG_FILE );
+=END
+=cut
         
         #
         # Configure network interfaces
         #   
         # Example:
-		#    # interface eth0
-		#    lxc.network.type=veth
-		#    # ifname inside VM
-		#    lxc.network.name = eth0
-		#    # ifname on the host
-		#    lxc.network.veth.pair = lxc1e0
-		#    lxc.network.hwaddr = 02:fd:00:04:01:00
-		#    # bridge if connects to
-		#    lxc.network.link=lxcbr0
-		#    lxc.network.flags=up        
+        #    # interface eth0
+        #    lxc.network.type=veth
+        #    # ifname inside VM
+        #    lxc.network.name = eth0
+        #    # ifname on the host
+        #    lxc.network.veth.pair = lxc1e0
+        #    lxc.network.hwaddr = 02:fd:00:04:01:00
+        #    # bridge if connects to
+        #    lxc.network.link=lxcbr0
+        #    lxc.network.flags=up        
        
         my $mng_if_exists = 0;
         my $mng_if_mac;
@@ -261,224 +347,196 @@ change_to_root();
             my $mac   = $if->getAttribute("mac");
             $mac =~ s/,//; # TODO: why is there a comma before mac addresses?
 
-            $execution->execute( $logp, "", *CONFIG_FILE );
-            $execution->execute( $logp, "# interface eth$id", *CONFIG_FILE );
-            $execution->execute( $logp, "lxc.network.type=veth", *CONFIG_FILE );
-            $execution->execute( $logp, "# ifname inside VM", *CONFIG_FILE );
-            $execution->execute( $logp, "lxc.network.name=eth$id", *CONFIG_FILE );
-            $execution->execute( $logp, "# ifname on the host", *CONFIG_FILE );
-            $execution->execute( $logp, "lxc.network.veth.pair=$vm_name-e$id", *CONFIG_FILE );
-            $execution->execute( $logp, "lxc.network.hwaddr=$mac", *CONFIG_FILE );
-            if ($id != 0) {
-            	if (get_net_by_mode($net,"openvswitch") == 0){
-	                $execution->execute( $logp, "# bridge if connects to", *CONFIG_FILE );
-	                $execution->execute( $logp, "lxc.network.link=$net", *CONFIG_FILE );
-            	}
-            } 
-#            else {
-#
-#                my $ipv4_tag = $if->getElementsByTagName("ipv4")->item(0);
-#                my $mask    = $ipv4_tag->getAttribute("mask");
-#                my $ip      = $ipv4_tag->getFirstChild->getData;
-#
-#                my $ip_addr = NetAddr::IP->new($ip, $mask);
-#	            $execution->execute( $logp, "lxc.network.ipv4=" . $ip_addr->cidr(), *CONFIG_FILE );
-#            }
+            if ($id == 0) {
+
+            } else {
+                # Add interface to VM
+                my $nic_id = $id + 1;
+                $execution->execute( $logp, "VBoxManage modifyvm $vm_name --nic${nic_id} bridged --bridgeadapter${nic_id} $net" );
+            }
             
-            $execution->execute( $logp, "lxc.network.flags=up", *CONFIG_FILE );
-
-            #
-            # Add interface to /etc/network/interfaces
-            #
-            #$execution->execute( $logp, "echo 'iface lo inet loopback' >> $vm_etc_net_ifs" );
-
         }                       
-        # Change to unconfined mode to avoid problems with apparmor
-        $execution->execute( $logp, "", *CONFIG_FILE );
-        $execution->execute( $logp, "# Set unconfined to avoid problems with apparmor", *CONFIG_FILE );
-        $execution->execute( $logp, "lxc.aa_profile=unconfined", *CONFIG_FILE );
-
-        close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
         #
         # VM autoconfiguration 
         #
         # Adapted from 'autoconfigure_ubuntu' fuction in vnxaced.pl             
         #
-    	# TODO: generalize to other Linux distributions
-    	
-	    # Files modified
-	    my $interfaces_file = ${vm_lxc_rootfs} . "/etc/network/interfaces";
-	    my $sysctl_file     = ${vm_lxc_rootfs} . "/etc/sysctl.conf";
-	    my $hosts_file      = ${vm_lxc_rootfs} . "/etc/hosts";
-	    my $hostname_file   = ${vm_lxc_rootfs} . "/etc/hostname";
-	    my $resolv_file     = ${vm_lxc_rootfs} . "/etc/resolv.conf";
-	    my $rules_file      = ${vm_lxc_rootfs} . "/etc/udev/rules.d/70-persistent-net.rules";
+        # TODO: generalize to other Linux distributions
 
-	    # Backup and delete /etc/resolv.conf file
-	    system "cp $resolv_file ${resolv_file}.bak";
-	    system "rm -f $resolv_file";
-	        
-	    # before the loop, backup /etc/udev/...70 and /etc/network/interfaces
-	    # and erase their contents
-	    wlog (VVV, "configuring $rules_file and $interfaces_file...", $logp);
-	    #system "cp $rules_file $rules_file.backup";
-	    system "echo \"\" > $rules_file";
-	    open RULES, ">" . $rules_file or print "error opening $rules_file";
-	    system "cp $interfaces_file $interfaces_file.backup";
-	    system "echo \"\" > $interfaces_file";
-	    open INTERFACES, ">" . $interfaces_file or print "error opening $interfaces_file";
-	
-	    print INTERFACES "\n";
-	    print INTERFACES "auto lo\n";
-	    print INTERFACES "iface lo inet loopback\n";
-	
-	    # Network routes configuration: <route> tags
-	    my @ip_routes;   # Stores the route configuration lines
+=BEGIN        
+        # Files modified
+        my $interfaces_file = ${vm_lxc_rootfs} . "/etc/network/interfaces";
+        my $sysctl_file     = ${vm_lxc_rootfs} . "/etc/sysctl.conf";
+        my $hosts_file      = ${vm_lxc_rootfs} . "/etc/hosts";
+        my $hostname_file   = ${vm_lxc_rootfs} . "/etc/hostname";
+        my $resolv_file     = ${vm_lxc_rootfs} . "/etc/resolv.conf";
+        my $rules_file      = ${vm_lxc_rootfs} . "/etc/udev/rules.d/70-persistent-net.rules";
+
+        # Backup and delete /etc/resolv.conf file
+        system "cp $resolv_file ${resolv_file}.bak";
+        system "rm -f $resolv_file";
+            
+        # before the loop, backup /etc/udev/...70 and /etc/network/interfaces
+        # and erase their contents
+        wlog (VVV, "configuring $rules_file and $interfaces_file...", $logp);
+        #system "cp $rules_file $rules_file.backup";
+        system "echo \"\" > $rules_file";
+        open RULES, ">" . $rules_file or print "error opening $rules_file";
+        system "cp $interfaces_file $interfaces_file.backup";
+        system "echo \"\" > $interfaces_file";
+        open INTERFACES, ">" . $interfaces_file or print "error opening $interfaces_file";
+    
+        print INTERFACES "\n";
+        print INTERFACES "auto lo\n";
+        print INTERFACES "iface lo inet loopback\n";
+    
+        # Network routes configuration: <route> tags
+        my @ip_routes;   # Stores the route configuration lines
         foreach my $route ($vm->getElementsByTagName("route")) {
-	    	
-	        my $route_type = $route->getAttribute("type");
-	        my $route_gw   = $route->getAttribute("gw");
-	        my $route_data = $route->getFirstChild->getData;
-	        if ($route_type eq 'ipv4') {
-	            if ($route_data eq 'default') {
-	                push (@ip_routes, "   up route add -net default gw " . $route_gw . "\n");
-	            } else {
-	                push (@ip_routes, "   up route add -net $route_data gw " . $route_gw . "\n");
-	            }
-	        } elsif ($route_type eq 'ipv6') {
-	            if ($route_data eq 'default') {
-	                push (@ip_routes, "   up route -A inet6 add default gw " . $route_gw . "\n");
-	            } else {
-	                push (@ip_routes, "   up route -A inet6 add $route_data gw " . $route_gw . "\n");
-	            }
-	        }
-	    }   
-	
-	    # Network interfaces configuration: <if> tags
+            
+            my $route_type = $route->getAttribute("type");
+            my $route_gw   = $route->getAttribute("gw");
+            my $route_data = $route->getFirstChild->getData;
+            if ($route_type eq 'ipv4') {
+                if ($route_data eq 'default') {
+                    push (@ip_routes, "   up route add -net default gw " . $route_gw . "\n");
+                } else {
+                    push (@ip_routes, "   up route add -net $route_data gw " . $route_gw . "\n");
+                }
+            } elsif ($route_type eq 'ipv6') {
+                if ($route_data eq 'default') {
+                    push (@ip_routes, "   up route -A inet6 add default gw " . $route_gw . "\n");
+                } else {
+                    push (@ip_routes, "   up route -A inet6 add $route_data gw " . $route_gw . "\n");
+                }
+            }
+        }   
+    
+        # Network interfaces configuration: <if> tags
         foreach my $if ($vm->getElementsByTagName("if")) {
-	        my $id    = $if->getAttribute("id");
-	        my $net   = str($if->getAttribute("net"));
-	        my $mac   = $if->getAttribute("mac");
-	        $mac =~ s/,//g;
-	
-	        my $ifName;
-	        # Special case: loopback interface
-	        if ( $net eq "lo" ) {
-	            $ifName = "lo:" . $id;
-	        } else {
-	            $ifName = "eth" . $id;
-	        }
-	
-	        print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac .  "\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
-	        print INTERFACES "auto " . $ifName . "\n";
-	
-	        my $ipv4_tag_list = $if->getElementsByTagName("ipv4");
-	        my $ipv6_tag_list = $if->getElementsByTagName("ipv6");
-	
-	        if ( ($ipv4_tag_list->size == 0 ) && ( $ipv6_tag_list->size == 0 ) ) {
-	            # No addresses configured for the interface. We include the following commands to 
-	            # have the interface active on start
-	            print INTERFACES "iface " . $ifName . " inet manual\n";
-	            print INTERFACES "  up ifconfig " . $ifName . " 0.0.0.0 up\n";
-	        } else {
-	            # Config IPv4 addresses
-	            for ( my $j = 0 ; $j < $ipv4_tag_list->size ; $j++ ) {
-	
-	                my $ipv4_tag = $ipv4_tag_list->item($j);
-	                my $mask    = $ipv4_tag->getAttribute("mask");
-	                my $ip      = $ipv4_tag->getFirstChild->getData;
-	
-	                if ($j == 0) {
-	                    print INTERFACES "iface " . $ifName . " inet static\n";
-	                    print INTERFACES "   address " . $ip . "\n";
-	                    print INTERFACES "   netmask " . $mask . "\n";
-	                } else {
-	                    print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet add " . $ip . " netmask " . $mask . "\n";
-	                }
-	            }
-	            # Config IPv6 addresses
-	            for ( my $j = 0 ; $j < $ipv6_tag_list->size ; $j++ ) {
-	
-	                my $ipv6_tag = $ipv6_tag_list->item($j);
-	                my $ip    = $ipv6_tag->getFirstChild->getData;
-	                my $mask = $ip;
-	                $mask =~ s/.*\///;
-	                $ip =~ s/\/.*//;
-	
-	                if ($j == 0) {
-	                    print INTERFACES "iface " . $ifName . " inet6 static\n";
-	                    print INTERFACES "   address " . $ip . "\n";
-	                    print INTERFACES "   netmask " . $mask . "\n\n";
-	                } else {
-	                    print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet6 add " . $ip . "/" . $mask . "\n";
-	                }
-	            }
-	            # TODO: To simplify and avoid the problems related with some routes not being installed 
-	                            # due to the interfaces start order, we add all routes to all interfaces. This should be 
-	                            # refined to add only the routes going to each interface
-	            print INTERFACES @ip_routes;
-	
-	        }
-	    }
-	        
-	    close RULES;
-	    close INTERFACES;
-	        
-	    # Packet forwarding: <forwarding> tag
-	    my $ipv4Forwarding = 0;
-	    my $ipv6Forwarding = 0;
-	    my $forwardingTaglist = $vm->getElementsByTagName("forwarding");
-	    my $numforwarding = $forwardingTaglist->size;
-	    for (my $j = 0 ; $j < $numforwarding ; $j++){
-	        my $forwardingTag   = $forwardingTaglist->item($j);
-	        my $forwarding_type = $forwardingTag->getAttribute("type");
-	        if ($forwarding_type eq "ip"){
-	            $ipv4Forwarding = 1;
-	            $ipv6Forwarding = 1;
-	        } elsif ($forwarding_type eq "ipv4"){
-	            $ipv4Forwarding = 1;
-	        } elsif ($forwarding_type eq "ipv6"){
-	            $ipv6Forwarding = 1;
-	        }
-	    }
-	    wlog (VVV, "configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in $sysctl_file...", $logp);
-	    system "echo >> $sysctl_file ";
-	    system "echo '# Configured by VNXACED' >> $sysctl_file ";
-	    system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> $sysctl_file ";
-	    system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> $sysctl_file ";
-	
-	    # Configuring /etc/hosts and /etc/hostname
-	    #write_log ("   configuring $hosts_file and /etc/hostname...");
-	    #system "cp $hosts_file $hosts_file.backup";
-	
-	    #/etc/hosts: insert the new first line
-	    #system "sed '1i\ 127.0.0.1  $vm_name    localhost.localdomain   localhost' $hosts_file > /tmp/hosts.tmp";
-	    #system "mv /tmp/hosts.tmp $hosts_file";
-	
-	    #/etc/hosts: and delete the second line (former first line)
-	    #system "sed '2 d' $hosts_file > /tmp/hosts.tmp";
-	    #system "mv /tmp/hosts.tmp $hosts_file";
-	
-	    #/etc/hosts: insert the new second line
-	    #system "sed '2i\ 127.0.1.1  $vm_name' $hosts_file > /tmp/hosts.tmp";
-	    #system "mv /tmp/hosts.tmp $hosts_file";
-	
-	    #/etc/hosts: and delete the third line (former second line)
-	    #system "sed '3 d' $hosts_file > /tmp/hosts.tmp";
-	    #system "mv /tmp/hosts.tmp $hosts_file";
-	
-	    #/etc/hostname: insert the new first line
-	    #system "sed '1i\ $vm_name' $hostname_file > /tmp/hostname.tpm";
-	    #system "mv /tmp/hostname.tpm $hostname_file";
-	
-	    #/etc/hostname: and delete the second line (former first line)
-	    #system "sed '2 d' $hostname_file > /tmp/hostname.tpm";
-	    #system "mv /tmp/hostname.tpm $hostname_file";
-	
-	    #system "hostname $vm_name";
-	    
-	    # end of vm autoconfiguration
+            my $id    = $if->getAttribute("id");
+            my $net   = str($if->getAttribute("net"));
+            my $mac   = $if->getAttribute("mac");
+            $mac =~ s/,//g;
+    
+            my $ifName;
+            # Special case: loopback interface
+            if ( $net eq "lo" ) {
+                $ifName = "lo:" . $id;
+            } else {
+                $ifName = "eth" . $id;
+            }
+    
+            print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac .  "\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
+            print INTERFACES "auto " . $ifName . "\n";
+    
+            my $ipv4_tag_list = $if->getElementsByTagName("ipv4");
+            my $ipv6_tag_list = $if->getElementsByTagName("ipv6");
+    
+            if ( ($ipv4_tag_list->size == 0 ) && ( $ipv6_tag_list->size == 0 ) ) {
+                # No addresses configured for the interface. We include the following commands to 
+                # have the interface active on start
+                print INTERFACES "iface " . $ifName . " inet manual\n";
+                print INTERFACES "  up ifconfig " . $ifName . " 0.0.0.0 up\n";
+            } else {
+                # Config IPv4 addresses
+                for ( my $j = 0 ; $j < $ipv4_tag_list->size ; $j++ ) {
+    
+                    my $ipv4_tag = $ipv4_tag_list->item($j);
+                    my $mask    = $ipv4_tag->getAttribute("mask");
+                    my $ip      = $ipv4_tag->getFirstChild->getData;
+    
+                    if ($j == 0) {
+                        print INTERFACES "iface " . $ifName . " inet static\n";
+                        print INTERFACES "   address " . $ip . "\n";
+                        print INTERFACES "   netmask " . $mask . "\n";
+                    } else {
+                        print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet add " . $ip . " netmask " . $mask . "\n";
+                    }
+                }
+                # Config IPv6 addresses
+                for ( my $j = 0 ; $j < $ipv6_tag_list->size ; $j++ ) {
+    
+                    my $ipv6_tag = $ipv6_tag_list->item($j);
+                    my $ip    = $ipv6_tag->getFirstChild->getData;
+                    my $mask = $ip;
+                    $mask =~ s/.*\///;
+                    $ip =~ s/\/.*//;
+    
+                    if ($j == 0) {
+                        print INTERFACES "iface " . $ifName . " inet6 static\n";
+                        print INTERFACES "   address " . $ip . "\n";
+                        print INTERFACES "   netmask " . $mask . "\n\n";
+                    } else {
+                        print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet6 add " . $ip . "/" . $mask . "\n";
+                    }
+                }
+                # TODO: To simplify and avoid the problems related with some routes not being installed 
+                                # due to the interfaces start order, we add all routes to all interfaces. This should be 
+                                # refined to add only the routes going to each interface
+                print INTERFACES @ip_routes;
+    
+            }
+        }
+            
+        close RULES;
+        close INTERFACES;
+            
+        # Packet forwarding: <forwarding> tag
+        my $ipv4Forwarding = 0;
+        my $ipv6Forwarding = 0;
+        my $forwardingTaglist = $vm->getElementsByTagName("forwarding");
+        my $numforwarding = $forwardingTaglist->size;
+        for (my $j = 0 ; $j < $numforwarding ; $j++){
+            my $forwardingTag   = $forwardingTaglist->item($j);
+            my $forwarding_type = $forwardingTag->getAttribute("type");
+            if ($forwarding_type eq "ip"){
+                $ipv4Forwarding = 1;
+                $ipv6Forwarding = 1;
+            } elsif ($forwarding_type eq "ipv4"){
+                $ipv4Forwarding = 1;
+            } elsif ($forwarding_type eq "ipv6"){
+                $ipv6Forwarding = 1;
+            }
+        }
+        wlog (VVV, "configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in $sysctl_file...", $logp);
+        system "echo >> $sysctl_file ";
+        system "echo '# Configured by VNXACED' >> $sysctl_file ";
+        system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> $sysctl_file ";
+        system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> $sysctl_file ";
+    
+        # Configuring /etc/hosts and /etc/hostname
+        #write_log ("   configuring $hosts_file and /etc/hostname...");
+        #system "cp $hosts_file $hosts_file.backup";
+    
+        #/etc/hosts: insert the new first line
+        #system "sed '1i\ 127.0.0.1  $vm_name    localhost.localdomain   localhost' $hosts_file > /tmp/hosts.tmp";
+        #system "mv /tmp/hosts.tmp $hosts_file";
+    
+        #/etc/hosts: and delete the second line (former first line)
+        #system "sed '2 d' $hosts_file > /tmp/hosts.tmp";
+        #system "mv /tmp/hosts.tmp $hosts_file";
+    
+        #/etc/hosts: insert the new second line
+        #system "sed '2i\ 127.0.1.1  $vm_name' $hosts_file > /tmp/hosts.tmp";
+        #system "mv /tmp/hosts.tmp $hosts_file";
+    
+        #/etc/hosts: and delete the third line (former second line)
+        #system "sed '3 d' $hosts_file > /tmp/hosts.tmp";
+        #system "mv /tmp/hosts.tmp $hosts_file";
+    
+        #/etc/hostname: insert the new first line
+        #system "sed '1i\ $vm_name' $hostname_file > /tmp/hostname.tpm";
+        #system "mv /tmp/hostname.tpm $hostname_file";
+    
+        #/etc/hostname: and delete the second line (former first line)
+        #system "sed '2 d' $hostname_file > /tmp/hostname.tpm";
+        #system "mv /tmp/hostname.tpm $hostname_file";
+    
+        #system "hostname $vm_name";
+        
+        # end of vm autoconfiguration
 
 back_to_user();     
 
@@ -508,7 +566,8 @@ back_to_user();
             }
         }
         close (CONS_FILE); 
-
+=END
+=cut
         return $error;
 
     } else {
@@ -538,16 +597,18 @@ sub undefine_vm {
     my $vm_name = shift;
     my $type   = shift;
 
-    my $logp = "lxc-undefine_vm-$vm_name> ";
+    my $logp = "vbox-undefine_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
     my $con;
 
+return "not implemented yet....";
+
     #
     # undefine_vm for lxc
     #
-    if ($type eq "lxc") {
+    if ($type eq "vbox") {
 
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
 
@@ -601,17 +662,19 @@ sub destroy_vm {
     my $vm_name = shift;
     my $type   = shift;
 
-    my $logp = "lxc-destroy_vm-$vm_name> ";
+    my $logp = "vbox-destroy_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
     my $con;
+
+return "not implemented yet....";
     
     
     #
     # destroy_vm for lxc
     #
-    if ($type eq "lxc") {
+    if ($type eq "vbox") {
 
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
 
@@ -619,7 +682,7 @@ sub destroy_vm {
         #wlog (VVV, "$lxc_dir/$vm_name/=$a, $vm_lxc_dir/=$b");
         
 
-        $execution->execute( $logp, "lxc-kill -n $vm_name");
+        $execution->execute( $logp, "vbox-kill -n $vm_name");
 
         # Remove symlink to VM in /var/lib/lxc/ if existant  
         if ( -l "$lxc_dir/$vm_name") {
@@ -673,7 +736,7 @@ sub start_vm {
     my $type   = shift;
     my $no_consoles = shift;
 
-    my $logp = "lxc-start_vm-$vm_name> ";
+    my $logp = "vbox-start_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
@@ -682,11 +745,15 @@ sub start_vm {
     #
     # start_vm for lxc
     #
-    if ($type eq "lxc") {
+    if ($type eq "vbox") {
+
+return "not implemented yet....";
+
+
 
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
-#pak ("before: lxc-start -n $vm_name -f $vm_lxc_dir/config");        
-        my $res = $execution->execute( $logp, "lxc-start -d -n $vm_name -f $vm_lxc_dir/config");
+#pak ("before: vbox-start -n $vm_name -f $vm_lxc_dir/config");        
+        my $res = $execution->execute( $logp, "vbox-start -d -n $vm_name -f $vm_lxc_dir/config");
         if ($res) { 
             wlog (N, "$res", $logp)
         }
@@ -697,20 +764,91 @@ sub start_vm {
             VNX::vmAPICommon->start_consoles_from_console_file ($vm_name);
         }
 
+# Execution of on_boot commands moved to vnx.pl
+=BEGIN
+        # 
+        # Check if there is any <filetree> tag with seq='on_boot' in $vm_doc
+        # and execute the command if they exists
+        #
+        
+        # Get VM XML definition from .vnx/scenarios/<scenario_name>/vms/$vm_name_cconf.xml file
+        my $parser = XML::LibXML->new();
+        my $doc = $parser->parse_file($dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml');
+
+        my @filetree_tag_list = $doc->getElementsByTagName("filetree");
+        my @exec_tag_list = $doc->getElementsByTagName("exec");
+        if ( (@filetree_tag_list > 0) || (@exec_tag_list > 0) )  { 
+            
+            # At least one on_boot filetree or exec defined
+            #
+            # Wait for VM to start
+            #
+            my $tout = 10;
+            while ( system("vbox-info -s -n $vm_name | grep RUNNING > /dev/null") ) {
+                wlog (VVV, "waiting for VM $vm_name to start....", $logp);
+                sleep 1;
+                if ( !$tout-- ) {
+                    wlog (N, "time out waiting for VM $vm_name to start...on_boot commands not executed", $logp);
+                    return 1;
+                }
+            }
+            
+            # Get shell to use to execute commands on the vm
+            # The shell type (sh, bashc, etc) can be changed with the <shell> tag inside <vm>
+            my $shell = $dh->merge_shell ($doc);
+            
+            my $dst_num = 1;
+            foreach my $filetree ($doc->getElementsByTagName("filetree")) {
+                
+                my $seq    = $filetree->getAttribute("seq");
+                wlog (VVV, "$seq filetree: " . $filetree->toString(1), $logp );
+
+                my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num/"; 
+                execute_filetree ($vm_name, $filetree, "$files_dir", $shell);
+                $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir" );
+                $dst_num++;            
+            }
+
+            foreach my $exec ($doc->getElementsByTagName("exec")) {
+                
+                my $seq    = $exec->getAttribute("seq");
+                wlog (VVV, "$seq exec: " . $exec->toString(1), $logp );
+
+                my $command = $exec->getFirstChild->getData;
+                my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
+
+                #
+                # We execute the command inside a shell using:
+                #   sh -c 'command'
+                # to avoid problems with complex commands made of several lines or including 
+                # input/output redirection. We have to scape "'" inside the command changing
+                # each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
+                # 
+                $command =~ s/'/'\\''/g;
+                wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
+                wlog (V, "executing '$seq' user defined exec command '$command'", $logp);
+                my $cmd_output = $execution->execute_getting_output( $logp, "vbox-attach -n $vm_name -- $shell -c '$command'");
+                wlog (N, "$cmd_output", '') if ($cmd_output ne '');
+            }
+
+        }
+=END
+=cut
+        
         # If host_mapping is in use and the vm has a management interface, 
         # then we have to add an entry for this vm in $dh->get_sim_dir/hostlines file
         if ( $dh->get_host_mapping ) {
-        	my @vm_ordered = $dh->get_vm_ordered;
-	        for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-	        	my $vm = $vm_ordered[$i];
-	            my $name = $vm->getAttribute("name");
-	            unless ( $name eq $vm_name ) { next; }
-						    		
-				# Check whether the vm has a management interface enabled
-				my $mng_if_value = &mng_if_value($vm);
-				unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
+            my @vm_ordered = $dh->get_vm_ordered;
+            for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+                my $vm = $vm_ordered[$i];
+                my $name = $vm->getAttribute("name");
+                unless ( $name eq $vm_name ) { next; }
+                                    
+                # Check whether the vm has a management interface enabled
+                my $mng_if_value = &mng_if_value($vm);
+                unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
                             
-                 	# Get the vm management ip address 
+                    # Get the vm management ip address 
                     my %net = &get_admin_address( 'file', $vm_name );
                     # Add it to hostlines file
                     open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
@@ -718,7 +856,7 @@ sub start_vm {
                         unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
                     print HOSTLINES $net{'vm'}->addr() . " $vm_name\n";
                     close HOSTLINES;
-                }	    		
+                }               
             }
         }
         
@@ -754,7 +892,7 @@ sub shutdown_vm {
     my $vm_name = shift;
     my $type   = shift;
 
-    my $logp = "lxc-shutdown_vm-$vm_name> ";
+    my $logp = "vbox-shutdown_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
@@ -765,10 +903,10 @@ sub shutdown_vm {
     #
     # shutdown_vm for lxc
     #
-    if ($type eq "lxc") {
-    	
+    if ($type eq "vbox") {
+        
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
-        $execution->execute( $logp, "lxc-stop -s -W -n $vm_name");
+        $execution->execute( $logp, "vbox-stop -s -W -n $vm_name");
 
         # Remove symlink to VM in /var/lib/lxc/ if existant  
         if ( -l "$lxc_dir/$vm_name") {
@@ -780,7 +918,7 @@ sub shutdown_vm {
         } elsif ( -d "$lxc_dir/$vm_name") {
             $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
         }
-    	
+        
         return $error;
     }
     else {
@@ -813,15 +951,17 @@ sub save_vm {
     my $type     = shift;
     my $filename = shift;
 
-    my $logp = "lxc-save_vm-$vm_name> ";
+    my $logp = "vbox-save_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
 
+return "not implemented yet....";
+
     # Sample code
     print "save_vm: saving vm $vm_name of type $type\n" if ($exemode == $EXE_VERBOSE);
 
-    if ( $type eq "lxc" ) {
+    if ( $type eq "vbox" ) {
         return $error;
 
     }
@@ -850,10 +990,12 @@ sub restore_vm {
     my $type     = shift;
     my $filename = shift;
 
-    my $logp = "lxc-restore_vm-$vm_name> ";
+    my $logp = "vbox-restore_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
+
+return "not implemented yet....";
 
     print
       "restore_vm: restoring vm $vm_name of type $type from file $filename\n";
@@ -861,7 +1003,7 @@ sub restore_vm {
     #
     # restore_vm for lxc
     #
-    if ($type eq "lxc") {
+    if ($type eq "vbox") {
 
         return $error;
 
@@ -893,15 +1035,17 @@ sub suspend_vm {
     my $vm_name = shift;
     my $type   = shift;
 
-    my $logp = "lxc-suspend_vm-$vm_name> ";
+    my $logp = "vbox-suspend_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
 
+return "not implemented yet....";
+
     #
     # suspend_vm for lxc
     #
-    if ($type eq "lxc") {
+    if ($type eq "vbox") {
 
         return $error;
 
@@ -933,10 +1077,12 @@ sub resume_vm {
     my $vm_name = shift;
     my $type   = shift;
 
-    my $logp = "lxc-resume_vm-$vm_name> ";
+    my $logp = "vbox-resume_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
+
+return "not implemented yet....";
 
     # Sample code
     print "resume_vm: resuming vm $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -944,7 +1090,7 @@ sub resume_vm {
     #
     # resume_vm for lxc
     #
-    if ($type eq "lxc") {
+    if ($type eq "vbox") {
 
         return $error;
 
@@ -976,15 +1122,17 @@ sub reboot_vm {
     my $vm_name = shift;
     my $type   = shift;
 
-    my $logp = "lxc-reboot_vm-$vm_name> ";
+    my $logp = "vbox-reboot_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error = 0;
 
+return "not implemented yet....";
+
     #
     # reboot_vm for lxc
     #
-    if ($type eq "lxc") {
+    if ($type eq "vbox") {
 
         return $error;
 
@@ -1017,10 +1165,12 @@ sub reset_vm {
     my $vm_name = shift;
     my $type   = shift;
 
-    my $logp = "lxc-reset_vm-$vm_name> ";
+    my $logp = "vbox-reset_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
     my $error;
+
+return "not implemented yet....";
 
     # Sample code
     print "reset_vm: reseting vm $vm_name\n" if ($exemode == $EXE_VERBOSE);
@@ -1028,7 +1178,7 @@ sub reset_vm {
     #
     # reset_vm for lxc
     #
-    if ($type eq "lxc") {
+    if ($type eq "vbox") {
 
         return $error;
 
@@ -1068,11 +1218,8 @@ sub get_state_vm {
     my $error = 0;
 
     $$ref_state = "--";
-    $$ref_hstate = `lxc-info -n $vm_name -s | awk '{print \$2}'`;
-    chomp ($$ref_hstate); 
+    $$ref_hstate = "--";
     
-    if    ($$ref_hstate eq 'RUNNING') { $$ref_state = 'running'}
-    elsif ($$ref_hstate eq 'STOPPED') { $$ref_state = 'defined'}
     wlog (VVV, "state=$$ref_state, hstate=$$ref_hstate, error=$error");
     return $error;
 }
@@ -1113,28 +1260,29 @@ sub execute_cmd {
 
     my $error = 0;
 
-    my $logp = "lxc-execute_cmd-$vm_name> ";
+    my $logp = "vbox-execute_cmd-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)", $logp);
 
+return "not implemented yet....";
 
     my $random_id  = &generate_random_string(6);
 
 
-    if ($merged_type eq "lxc")    {
+    if ($merged_type eq "vbox")    {
         
         my $user   = get_user_in_seq( $vm, $seq );
-        # exec_mode should always be 'lxc-attach' 
+        # exec_mode should always be 'vbox-attach' 
         my $exec_mode   = $dh->get_vm_exec_mode($vm);
         wlog (VVV, "---- vm_exec_mode = $exec_mode", $logp);
 
-        if ($exec_mode ne "lxc-attach") {
+        if ($exec_mode ne "vbox-attach") {
             return "execution mode $exec_mode not supported for VM of type $merged_type";
         }       
        
         # We create the command.xml file. It is not needed for LXC, as the commands are 
-        # directly executed o the VM using lxc-attach. But we create it anyway for 
+        # directly executed o the VM using vbox-attach. But we create it anyway for 
         # compatibility with other virtualization modules
-		my $command_file = $dh->get_vm_dir($vm_name) . "/${vm_name}_command.xml";
+        my $command_file = $dh->get_vm_dir($vm_name) . "/${vm_name}_command.xml";
         wlog (VVV, "opening file $command_file...", $logp);
         my $retry = 3;
         open COMMAND_FILE, "> $command_file" 
@@ -1167,10 +1315,10 @@ sub execute_cmd {
             $execution->execute( $logp, "$filetree_txt", *COMMAND_FILE );
             wlog (VVV, "execute_cmd: adding plugin filetree \"$filetree_txt\" to command.xml", $logp);
 
-   			my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
-			execute_filetree ($vm_name, $filetree, "$files_dir/filetree/$dst_num/", $shell);
+            my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
+            execute_filetree ($vm_name, $filetree, "$files_dir/filetree/$dst_num/", $shell);
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
-			
+            
             $dst_num++;          
         }
         
@@ -1183,10 +1331,10 @@ sub execute_cmd {
             $execution->execute( $logp, "$filetree_txt", *COMMAND_FILE );
             wlog (VVV, "execute_cmd: adding user defined filetree \"$filetree_txt\" to command.xml", $logp);
    
-   			my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
-			execute_filetree ($vm_name, $filetree, "$files_dir/filetree/$dst_num/", $shell);
+            my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
+            execute_filetree ($vm_name, $filetree, "$files_dir/filetree/$dst_num/", $shell);
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
-			
+            
             $dst_num++;            
         }
         
@@ -1210,21 +1358,21 @@ sub execute_cmd {
             wlog (VVV, "execute_cmd: adding plugin exec \"$cmd_txt\" to command.xml", $logp);
 
             my $command = $cmd->getFirstChild->getData;
-        	my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
+            my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
 
-        	#
-        	# We execute the command inside a shell using:
-        	#   sh -c 'command'
-        	# to avoid problems with complex commands made of several lines or including 
-        	# input/output redirection. We have to scape "'" inside the command changing
-        	# each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
-        	# 
-        	$command =~ s/'/'\\''/g;
-        	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
+            #
+            # We execute the command inside a shell using:
+            #   sh -c 'command'
+            # to avoid problems with complex commands made of several lines or including 
+            # input/output redirection. We have to scape "'" inside the command changing
+            # each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
+            # 
+            $command =~ s/'/'\\''/g;
+            wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
             wlog (V, "executing user defined exec command '$command'", $logp);
-        	my $cmd_output = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$command'");
+            my $cmd_output = $execution->execute_getting_output( $logp, "vbox-attach -n $vm_name -- $shell -c '$command'");
             wlog (N, "$cmd_output", '') if ($cmd_output ne '');
-        	
+            
         }
 
         # 2 - User defined <exec> tags
@@ -1237,19 +1385,19 @@ sub execute_cmd {
             wlog (VVV, "execute_cmd: adding user defined exec \"$cmd_txt\" to command.xml", $logp);
             
             my $command = $cmd->getFirstChild->getData;
-        	my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
-        	
-        	#
-        	# We execute the command inside a shell using:
-        	#   sh -c 'command'
-        	# to avoid problems with complex commands made of several lines or including 
-        	# input/output redirection. We have to scape "'" inside the command changing
-        	# each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
-        	# 
-        	$command =~ s/'/'\\''/g;
-        	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
+            my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
+            
+            #
+            # We execute the command inside a shell using:
+            #   sh -c 'command'
+            # to avoid problems with complex commands made of several lines or including 
+            # input/output redirection. We have to scape "'" inside the command changing
+            # each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
+            # 
+            $command =~ s/'/'\\''/g;
+            wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
             wlog (V, "executing user defined exec command '$command'", $logp);
-        	my $cmd_output = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$command'");
+            my $cmd_output = $execution->execute_getting_output( $logp, "vbox-attach -n $vm_name -- $shell -c '$command'");
             wlog (N, "$cmd_output", '') if ($cmd_output ne '');
         }
 
@@ -1280,10 +1428,10 @@ sub execute_filetree {
     my $vm_name = shift;
     my $filetree_tag = shift;
     my $source_path = shift;
-   	my $shell = shift;
+    my $shell = shift;
 
 
-    my $logp = "lxc-execute_filetree-$vm_name> ";
+    my $logp = "vbox-execute_filetree-$vm_name> ";
 
     my $seq          = str($filetree_tag->getAttribute("seq"));
     my $root         = str($filetree_tag->getAttribute("root"));
@@ -1335,12 +1483,12 @@ sub execute_filetree {
             wlog (VVV, $file . "," . $fname, $logp);
             if ( ($user ne '') or ($group ne '')  ) {
                 my $cmd="chown -R $user.$group $root/$fname"; 
-                my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+                my $res = $execution->execute_getting_output( $logp, "vbox-attach -n $vm_name -- $shell -c '$cmd'");
                 wlog(N, $res, $logp) if ($res ne ''); 
             }
             if ( $perms ne '' ) {
                 my $cmd="chmod -R $perms $root/$fname"; 
-                my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+                my $res = $execution->execute_getting_output( $logp, "vbox-attach -n $vm_name -- $shell -c '$cmd'");
                 wlog(N, $res, $logp) if ($res ne ''); 
             }
         }
@@ -1368,12 +1516,12 @@ sub execute_filetree {
         # Change owner and permissions of file $root if specified in <filetree>
         if ( ($user ne '') or ($group ne '') ) {
             $cmd="chown -R $user.$group $root"; 
-            my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+            my $res = $execution->execute_getting_output( $logp, "vbox-attach -n $vm_name -- $shell -c '$cmd'");
             wlog(N, $res, $logp) if ($res ne ''); 
         }
         if ( $perms ne '' ) {
             $cmd="chmod -R $perms $root";
-            my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+            my $res = $execution->execute_getting_output( $logp, "vbox-attach -n $vm_name -- $shell -c '$cmd'");
             wlog(N, $res, $logp) if ($res ne ''); 
         }
     }

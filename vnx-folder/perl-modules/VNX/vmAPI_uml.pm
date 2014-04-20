@@ -79,18 +79,19 @@ use Exporter;
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(
   init
-  defineVM
-  undefineVM
-  destroyVM
-  startVM
-  shutdownVM
-  saveVM
-  restoreVM
-  suspendVM
-  resumeVM
-  rebootVM
-  resetVM
-  executeCMD
+  define_vm
+  undefine_vm
+  destroy_vm
+  start_vm
+  shutdown_vm
+  save_vm
+  restore_vm
+  suspend_vm
+  resume_vm
+  reboot_vm
+  reset_vm
+  get_state_vm
+  execute_cmd
   );
 
 
@@ -141,7 +142,7 @@ sub init {
 
 # ---------------------------------------------------------------------------------------
 #
-# defineVM
+# define_vm
 #
 # Defined a virtual machine 
 #
@@ -155,14 +156,14 @@ sub init {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub defineVM {
+sub define_vm {
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 	my $vm_doc    = shift;
 	
-    my $logp = "uml-defineVM-$vm_name> ";
+    my $logp = "uml-define_vm-$vm_name> ";
 	my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 	
 	$curr_uml = $vm_name;
@@ -174,106 +175,12 @@ sub defineVM {
 		return $error;
 	}
 
-=BEGIN
-	my $doc2       = $dh->get_doc;
-	my @vm_ordered = $dh->get_vm_ordered;
-
-	my $path;
-	my $filesystem;
-
-	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-
-		my $vm = $vm_ordered[$i];
-
-		# We get name attribute
-		my $name = $vm->getAttribute("name");
-
-		unless ( $name eq $vm_name ) {
-			next;
-		}
-
-		# To get filesystem and type
-		my $filesystem_type;
-		my $filesystem_list = $vm->getElementsByTagName("filesystem");
-		if ( $filesystem_list->getLength == 1 ) {
-			$filesystem =
-			  &do_path_expansion(
-				&text_tag( $vm->getElementsByTagName("filesystem")->item(0) ) );
-			$filesystem_type =
-			  $vm->getElementsByTagName("filesystem")->item(0)
-			  ->getAttribute("type");
-		}
-		else {
-			$filesystem      = $dh->get_default_filesystem;
-			$filesystem_type = $dh->get_default_filesystem_type;
-		}
-
-
-		if ( $execution->get_exe_mode() ne $EXE_DEBUG ) {
-			my $command =
-			    $bd->get_binaries_path_ref->{"mktemp"}
-			  . " -d -p "
-			  . $dh->get_tmp_dir
-			  . " vnx_opt_fs.XXXXXX";
-			chomp( $path = `$command` );
-		}
-		else {
-			$path = $dh->get_tmp_dir . "/vnx_opt_fs.XXXXXX";
-		}
-		$path .= "/";
-
-		$filesystem = $dh->get_vm_fs_dir($name) . "/opt_fs";
-
-		# Install global public ssh keys in the UML
-		my $global_list = $doc2->getElementsByTagName("global");
-		my $key_list = $global_list->item(0)->getElementsByTagName("ssh_key");
-
-		# If tag present, add the key
-		for ( my $j = 0 ; $j < $key_list->getLength ; $j++ ) {
-			my $keyfile =
-			  &do_path_expansion( &text_tag( $key_list->item($j) ) );
-			$execution->execute($logp,  $bd->get_binaries_path_ref->{"cat"}
-				  . " $keyfile >> $path"
-				  . "keyring_root" );
-		}
-
-		# Next install vm-specific keys and add users and groups
-		my @user_list = $dh->merge_user($vm);
-		foreach my $user (@user_list) {
-			my $username      = $user->getAttribute("username");
-			my $initial_group = $user->getAttribute("group");
-			$execution->execute($logp,  $bd->get_binaries_path_ref->{"touch"} 
-				  . " $path"
-				  . "group_$username" );
-			my $group_list = $user->getElementsByTagName("group");
-			for ( my $k = 0 ; $k < $group_list->getLength ; $k++ ) {
-				my $group = &text_tag( $group_list->item($k) );
-				if ( $group eq $initial_group ) {
-					$group = "*$group";
-				}
-				$execution->execute($logp,  $bd->get_binaries_path_ref->{"echo"}
-					  . " $group >> $path"
-					  . "group_$username" );
-			}
-			my $key_list = $user->getElementsByTagName("ssh_key");
-			for ( my $k = 0 ; $k < $key_list->getLength ; $k++ ) {
-				my $keyfile =
-				  &do_path_expansion( &text_tag( $key_list->item($k) ) );
-				$execution->execute($logp,  $bd->get_binaries_path_ref->{"cat"}
-					  . " $keyfile >> $path"
-					  . "keyring_$username" );
-			}
-		}
-	}
-=END
-=cut
-
 	return $error;
 }
 
 # ---------------------------------------------------------------------------------------
 #
-# undefineVM
+# undefine_vm
 #
 # Undefines a virtual machine 
 #
@@ -286,13 +193,13 @@ sub defineVM {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub undefineVM {
+sub undefine_vm {
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "uml-undefineVM-$vm_name> ";
+    my $logp = "uml-undefine_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
 	my $error = 0;
@@ -307,9 +214,9 @@ sub undefineVM {
 
 # ---------------------------------------------------------------------------------------
 #
-# startVM
+# start_vm
 #
-# Starts a virtual machine already defined with defineVM
+# Starts a virtual machine already defined with define_vm
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
@@ -321,14 +228,14 @@ sub undefineVM {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub startVM {
+sub start_vm {
 
 	my $self    = shift;
 	my $vm_name  = shift;
 	my $type    = shift;
 	my $no_consoles = shift;
 	
-	my $logp = "uml-startVM-$vm_name> ";
+	my $logp = "uml-start_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 	
 	$curr_uml = $vm_name;
@@ -924,9 +831,6 @@ sub startVM {
 		}			
 	}
 
-	# done in vnx core
-	# &change_vm_status( $dh, $vm_name, "running" );
-
 	# Close screen configuration file
 	if ( ($e_flag) && ( $execution->get_exe_mode() ne $EXE_DEBUG ) ) {
 		close SCREEN_CONF;
@@ -937,7 +841,7 @@ sub startVM {
 
 # ---------------------------------------------------------------------------------------
 #
-# destroyVM
+# destroy_vm
 #
 # Destroys a virtual machine 
 #
@@ -950,13 +854,13 @@ sub startVM {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub destroyVM {
+sub destroy_vm {
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "uml-destroyVM-$vm_name> ";
+    my $logp = "uml-destroy_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
 	my $error = 0;
@@ -1033,7 +937,7 @@ sub destroyVM {
 
 # ---------------------------------------------------------------------------------------
 #
-# shutdownVM
+# shutdown_vm
 #
 # Shutdowns a virtual machine
 #
@@ -1046,14 +950,14 @@ sub destroyVM {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub shutdownVM {
+sub shutdown_vm {
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 	$F_flag    = shift;
 
-    my $logp = "uml-shutdownVM-$vm_name> ";
+    my $logp = "uml-shutdown_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
 	my $error = 0;
@@ -1069,7 +973,7 @@ sub shutdownVM {
 
 # ---------------------------------------------------------------------------------------
 #
-# saveVM
+# save_vm
 #
 # Stops a virtual machine and saves its status to disk
 #
@@ -1083,14 +987,14 @@ sub shutdownVM {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub saveVM {
+sub save_vm {
 
 	my $self     = shift;
 	my $vm_name   = shift;
 	my $type     = shift;
 	my $filename = shift;
 	
-	my $logp = "uml-saveVM-$vm_name> ";
+	my $logp = "uml-save_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
 	my $error = 0;
@@ -1100,16 +1004,16 @@ sub saveVM {
 		return $error;
 	}
 
-	$error = "saveVM not supported for UML virtual machines\n";
+	$error = "save_vm not supported for UML virtual machines\n";
 	return $error;
 
 }
 
 # ---------------------------------------------------------------------------------------
 #
-# restoreVM
+# restore_vm
 #
-# Restores the status of a virtual machine from a file previously saved with saveVM
+# Restores the status of a virtual machine from a file previously saved with save_vm
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
@@ -1121,14 +1025,14 @@ sub saveVM {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub restoreVM {
+sub restore_vm {
 
 	my $self     = shift;
 	my $vm_name   = shift;
 	my $type     = shift;
 	my $filename = shift;
 
-    my $logp = "uml-restoreVM-$vm_name> ";
+    my $logp = "uml-restore_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
 	my $error = 0;
@@ -1138,7 +1042,7 @@ sub restoreVM {
 		return $error;
 	}
 
-	$error = "restoreVM not supported for UML virtual machines\n";
+	$error = "restore_vm not supported for UML virtual machines\n";
 	return $error;
 
 }
@@ -1146,7 +1050,7 @@ sub restoreVM {
 
 # ---------------------------------------------------------------------------------------
 #
-# suspendVM
+# suspend_vm
 #
 # Stops a virtual machine and saves its status to memory
 #
@@ -1159,13 +1063,13 @@ sub restoreVM {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub suspendVM {
+sub suspend_vm {
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "uml-suspendVM-$vm_name> ";
+    my $logp = "uml-suspend_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
 	my $error = 0;
@@ -1175,7 +1079,7 @@ sub suspendVM {
 		return $error;
 	}
 
-	$error = "suspendVM not supported for UML virtual machines\n";
+	$error = "suspend_vm not supported for UML virtual machines\n";
 	return $error;
 
 }
@@ -1183,9 +1087,9 @@ sub suspendVM {
 
 # ---------------------------------------------------------------------------------------
 #
-# resumeVM
+# resume_vm
 #
-# Restores the status of a virtual machine from memory (previously saved with suspendVM)
+# Restores the status of a virtual machine from memory (previously saved with suspend_vm)
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
@@ -1196,13 +1100,13 @@ sub suspendVM {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub resumeVM {
+sub resume_vm {
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "uml-resumeVM-$vm_name> ";
+    my $logp = "uml-resume_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
 	my $error = 0;
@@ -1212,14 +1116,14 @@ sub resumeVM {
 		return $error;
 	}
 
-	$error = "resumeVM not supported for UML virtual machines\n";
+	$error = "resume_vm not supported for UML virtual machines\n";
 	return $error;
 
 }
 
 # ---------------------------------------------------------------------------------------
 #
-# rebootVM
+# reboot_vm
 #
 # Reboots a virtual machine
 #
@@ -1232,13 +1136,13 @@ sub resumeVM {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub rebootVM {
+sub reboot_vm {
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "uml-rebootVM-$vm_name> ";
+    my $logp = "uml-reboot_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
 	my $error = 0;
@@ -1248,16 +1152,16 @@ sub rebootVM {
 		return $error;
 	}
 
-	$error = "rebootVM not supported for UML virtual machines\n";
+	$error = "reboot_vm not supported for UML virtual machines\n";
 	return $error;
 
 }
 
 # ---------------------------------------------------------------------------------------
 #
-# resetVM
+# reset_vm
 #
-# Restores the status of a virtual machine form a file previously saved with saveVM
+# Restores the status of a virtual machine form a file previously saved with save_vm
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
@@ -1268,13 +1172,13 @@ sub rebootVM {
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
-sub resetVM {
+sub reset_vm {
 
 	my $self   = shift;
 	my $vm_name = shift;
 	my $type   = shift;
 
-    my $logp = "uml-resetVM-$vm_name> ";
+    my $logp = "uml-reset_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
 	my $error;
@@ -1284,126 +1188,50 @@ sub resetVM {
 		return $error;
 	}
 
-	$error = "resetVM not supported for UML virtual machines\n";
+	$error = "reset_vm not supported for UML virtual machines\n";
 	return $error;
 
 }
 
+# ---------------------------------------------------------------------------------------
+#
+# get_state_vm
+#
+# Returns the status of a VM from the hypervisor point of view 
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $ref_state: reference to a variable that will hold the state of VM in VNX terms 
+#                 (undefined, defeined, running, suspended, hibernated)
+#   - $ref_hstate: reference to a variable that will hold the state of VM in hipervisor terms 
+# 
+# Returns:
+#   - 0 if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
+sub get_state_vm {
 
+    my $self   = shift;
+    my $vm_name = shift;
+    my $ref_state = shift;
+    my $ref_hstate = shift;
 
-##sub executeCMD {
-#
-#	my $self = shift;
-#	my $seq  = shift;
-#	$execution = shift;
-#	$bd        = shift;
-#	$dh        = shift;
-#	%vm_ips    = shift;
-#
-#	#Commands sequence (start, stop or whatever).
-#
-#	# Previous checkings and warnings
-#	my @vm_ordered = $dh->get_vm_ordered;
-#	my %vm_hash    = $dh->get_vm_to_use(@plugins);
-#
-#	# First loop: look for uml_mconsole exec capabilities if needed. This
-#	# loop can cause exit, if capabilities are not accomplished
-#	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-#		my $vm = $vm_ordered[$i];
-#
-#		# We get name attribute
-#		my $name = $vm->getAttribute("name");
-#
-#		# We have to process it?
-#		unless ( $vm_hash{$name} ) {
-#			next;
-#		}
-#		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
-#		if ( $merged_type eq "uml" ) {
-#			if ( &get_vm_exec_mode($vm) eq "mconsole" ) {
-#				unless ( &check_mconsole_exec_capabilities($vm) ) {
-#					$execution->smartdie(
-#"vm $name uses mconsole to exec and it is not a uml_mconsole exec capable virtual machine"
-#					);
-#				}
-#			}
-#		}
-#		elsif ( $merged_type eq "libvirt-kvm-windows" ) {
-#
-#			#Nothing to do.
-#		}
-#	}
-#
-#	# Second loop: warning
-#	for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-#		my $vm = $vm_ordered[$i];
-#
-#		# We get name attribute
-#		my $name = $vm->getAttribute("name");
-#
-#		# We have to process it?
-#		unless ( $vm_hash{$name} ) {
-#			next;
-#		}
-#		my $merged_type = &merge_vm_type($vm->getAttribute("type"),$vm->getAttribute("subtype"),$vm->getAttribute("os"));
-#		if ( $merged_type eq "uml" ) {
-#
-#		   # Check if the virtual machine execute commans using "net" mode. This
-#		   # involves additional checkings
-#			if ( &get_vm_exec_mode($vm) eq "net" ) {
-#
-#				my $mng_if = &mng_if_value( $dh, $vm );
-#				if ( $dh->get_vmmgmt_type eq 'none' ) {
-#					print
-#"VNX warning: vm $name uses network to exec and vm management is not enabled (via <vm_mgmt> element)\n";
-#					print
-#"VNX warning: connectivity is needed to vm $name throught the virtual networks\n";
-#				}
-#				elsif ( $mng_if eq "no" ) {
-#
-#	# Network management is being used, but the virtual machine is configured to
-#	# not use management interface
-#					print
-#"VNX warning: vm $name uses network to exec but is not using management interface (<mng_if>no</mng_if>)\n";
-#					print
-#"VNX warning: connectivity is needed to vm $name throught the virtual networks\n";
-#				}
-#			}
-#		}
-#		elsif ( $merged_type eq "libvirt-kvm-windows" ) {
-#
-#			#Nothing to do.
-#		}
-#
-#	}
-#
-#
-#	# Each -x invocation uses an "unique" random generated identifier, that
-#	# would avoid collision problems among several users
-#	my $random_id = &generate_random_string(6);
-#
-#	# 1. To install configuration files subtree
-#	&conf_files( $seq, %vm_ips );
-#
-#	# 2. To build commands files
-#	&command_files( $random_id, $seq );
-#
-#	# 3. To load commands file in each UML
-#	&install_command_files( $random_id, $seq, %vm_ips );
-#
-#	# 4. To execute commands file in each UML
-#	&exec_command_files( $random_id, $seq, %vm_ips );
-#
-#	# 5. To execute commands file in host
-#	&exec_command_host($seq);
+    my $logp = "lxc-get_status_vm-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name ...)", $logp);
 
-#}
+    my $error = 0;
 
-
+    $$ref_state = "--";
+    $$ref_hstate = "--";
+    
+    wlog (VVV, "state=$$ref_state, hstate=$$ref_hstate, error=$error");
+    return $error;
+}
 
 # ---------------------------------------------------------------------------------------
 #
-# executeCMD
+# execute_cmd
 #
 # Executes a set of <filetree> and <exec> commands in a virtual mchine
 #
@@ -1424,7 +1252,7 @@ sub resetVM {
 #
 # ---------------------------------------------------------------------------------------
 
-sub executeCMD {
+sub execute_cmd {
 
 	my $self = shift;
     my $vm_name = shift;
@@ -1436,7 +1264,7 @@ sub executeCMD {
     my $ftree_list_ref        = shift;
     my $exec_list_ref         = shift;	
 
-    my $logp = "uml-executeCMD-$vm_name> ";
+    my $logp = "uml-execute_cmd-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)", $logp);
 
     my $error;
@@ -1481,7 +1309,7 @@ sub executeCMD {
 		my $dst_num = 1;
 		
 		# Process all the filetrees generated by plugins and with sequence $seq
-		# prepared by vnx.pl before calling executeCMD
+		# prepared by vnx.pl before calling execute_cmd
 	    foreach my $filetree (@{$plugin_ftree_list_ref},@{$ftree_list_ref}) {
 	
 	        # Save a copy of the <filetree> to command.xml file 
@@ -1799,7 +1627,7 @@ sub executeCMD {
 
 	    #
     	# Shared disk command execution mode
-    	# Note: code copied from vmAPI_libvirt->executeCMD
+    	# Note: code copied from vmAPI_libvirt->execute_cmd
 	    #
 		wlog (V, "execution mode: $mode", $logp);
 	
@@ -1864,7 +1692,7 @@ sub executeCMD {
 		#
 		
 		# 1 - Plugins <filetree> tags
-		wlog (VVV, "executeCMD: number of plugin ftrees " . scalar(@{$plugin_ftree_list_ref}), $logp);
+		wlog (VVV, "execute_cmd: number of plugin ftrees " . scalar(@{$plugin_ftree_list_ref}), $logp);
 		
 		foreach my $filetree (@{$plugin_ftree_list_ref}) {
 			# Add the <filetree> tag to the command.xml file
@@ -1876,12 +1704,12 @@ sub executeCMD {
 	        my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
 	        $execution->execute( $logp, $bd->get_binaries_path_ref->{"mv"} . " $files_dir/filetree/$dst_num $sdisk_content/filetree" );
 	        $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
-			wlog (VVV, "executeCMD: adding plugin filetree \"$filetree_txt\" to command.xml", $logp);
+			wlog (VVV, "execute_cmd: adding plugin filetree \"$filetree_txt\" to command.xml", $logp);
 			$dst_num++;			 
 		}
 		
 		# 2 - User defined <filetree> tags
-        wlog (VVV, "executeCMD: number of user defined ftrees " . scalar(@{$ftree_list_ref}), $logp);
+        wlog (VVV, "execute_cmd: number of user defined ftrees " . scalar(@{$ftree_list_ref}), $logp);
         
         foreach my $filetree (@{$ftree_list_ref}) {
             # Add the <filetree> tag to the command.xml file
@@ -1893,12 +1721,12 @@ sub executeCMD {
             my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq"; 
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"mv"} . " $files_dir/filetree/$dst_num $sdisk_content/filetree" );
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir/filetree/$dst_num" );
-            wlog (VVV, "executeCMD: adding user defined filetree \"$filetree_txt\" to command.xml", $logp);
+            wlog (VVV, "execute_cmd: adding user defined filetree \"$filetree_txt\" to command.xml", $logp);
             $dst_num++;            
         }
         
         my $res=`tree $sdisk_content`; 
-        wlog (VVV, "executeCMD: shared disk content:\n $res", $logp);
+        wlog (VVV, "execute_cmd: shared disk content:\n $res", $logp);
 
 		$execution->set_verb_prompt("$vm_name> ");
 		my $command = $bd->get_binaries_path_ref->{"date"};
@@ -1909,23 +1737,23 @@ sub executeCMD {
 		#
 		
 		# 1 - Plugins <exec> tags
-		wlog (VVV, "executeCMD: number of plugin <exec> = " . scalar(@{$plugin_ftree_list_ref}), $logp);
+		wlog (VVV, "execute_cmd: number of plugin <exec> = " . scalar(@{$plugin_ftree_list_ref}), $logp);
 		
 		foreach my $cmd (@{$plugin_exec_list_ref}) {
 			# Add the <exec> tag to the command.xml file
 			my $cmd_txt = $cmd->toString(1);
 			$execution->execute( $logp, "$cmd_txt", *COMMAND_FILE );
-			wlog (VVV, "executeCMD: adding plugin exec \"$cmd_txt\" to command.xml", $logp);
+			wlog (VVV, "execute_cmd: adding plugin exec \"$cmd_txt\" to command.xml", $logp);
 		}
 
 		# 2 - User defined <exec> tags
-        wlog (VVV, "executeCMD: number of user-defined <exec> = " . scalar(@{$ftree_list_ref}), $logp);
+        wlog (VVV, "execute_cmd: number of user-defined <exec> = " . scalar(@{$ftree_list_ref}), $logp);
         
         foreach my $cmd (@{$exec_list_ref}) {
             # Add the <exec> tag to the command.xml file
             my $cmd_txt = $cmd->toString(1);
             $execution->execute( $logp, "$cmd_txt", *COMMAND_FILE );
-            wlog (VVV, "executeCMD: adding user defined exec \"$cmd_txt\" to command.xml", $logp);
+            wlog (VVV, "execute_cmd: adding user defined exec \"$cmd_txt\" to command.xml", $logp);
 
             # Process particular cases
             # 1 - Olive load config command
@@ -2193,8 +2021,6 @@ sub halt_uml {
 			next;
 		}
 
-		&change_vm_status( $name, "REMOVE" );
-
 		# Currently booting uml has already been killed
 		if ( defined($curr_uml) && $name eq $curr_uml ) {
 			next;
@@ -2292,29 +2118,8 @@ sub kill_curr_uml {
 #	return 0;
 #}
 
-###################################################################
+
 #
-sub change_vm_status {
-
-#	my $dh     = shift;
-	my $vm     = shift;
-	my $status = shift;
-
-	my $status_file = $dh->get_vm_dir($vm) . "/status";
-
-	if ( $status eq "REMOVE" ) {
-		$execution->execute( "change_vm_status> ", 
-			$bd->get_binaries_path_ref->{"rm"} . " -f $status_file" );
-	}
-	else {
-		$execution->execute( "change_vm_status> ", 
-			$bd->get_binaries_path_ref->{"echo"} . " $status > $status_file" );
-	}
-}
-
-
-
-###################################################################
 # vm_tun_access
 #
 # Returns 1 if a vm accesses the host via a tun device and 0 otherwise
@@ -3131,22 +2936,6 @@ sub get_user_in_seq {
 			}
 		}
 	}
-
-=BEGIN modified to only apply to exec. each filetree can have its own user
-	# If not found in <exec>, try with <filetree>
-	if ( $username eq "" ) {
-		my $filetree_list = $vm->getElementsByTagName("filetree");
-		for ( my $i = 0 ; $i < $filetree_list->getLength ; $i++ ) {
-			if ( $filetree_list->item($i)->getAttribute("seq") eq $seq ) {
-				if ( $filetree_list->item($i)->getAttribute("user") ne "" ) {
-					$username = $filetree_list->item($i)->getAttribute("user");
-					last;
-				}
-			}
-		}
-	}
-=END
-=cut
 
 	# If no mode was found in <exec> or <filetree>, use default
 	if ( $username eq "" ) {

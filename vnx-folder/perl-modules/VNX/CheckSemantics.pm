@@ -182,6 +182,8 @@ sub validate_xml {
 # - dynamips: if management network is defined, then the name of the mgmt if has to be defined with:
 #                    <if id="0" net="vm_mgmt" name="e0/0">
 #             this <if> should not have address associated
+# - cmd-seq: check that command sequence tags are unique and they are not used in exec or filetree seq values 
+
 
 sub check_doc {
 	

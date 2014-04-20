@@ -24,6 +24,12 @@ e-mail: vnx@dit.upm.es
     <xs:complexType mixed="true"/>
   </xs:element>
 
+  <xs:element name="cmd-seq">
+    <xs:complexType mixed="true">
+      <xs:attribute name="seq" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
   <xs:element name="conf">
     <xs:complexType mixed="true"/>
   </xs:element>
@@ -140,6 +146,7 @@ e-mail: vnx@dit.upm.es
         <xs:element ref="vm_mgmt"/>
         <xs:element minOccurs="0" ref="tun_device"/>
         <xs:element minOccurs="0" ref="vm_defaults"/>
+        <xs:element maxOccurs="unbounded" minOccurs="0" ref="cmd-seq"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="extension"/>
         <xs:element maxOccurs="1" minOccurs="0" ref="dynamips_ext"/>
         <xs:element maxOccurs="1" minOccurs="0" ref="olive_ext"/>
