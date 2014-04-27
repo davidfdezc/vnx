@@ -38,7 +38,7 @@ use POSIX qw(setsid setuid setgid);	# Needed in deamonize subrutine
 use Term::ReadKey;
 
 our @ISA    = qw(Exporter);
-our @EXPORT = qw( wlog press_any_key pak change_to_root back_to_user);
+our @EXPORT = qw( wlog press_any_key pak change_to_root back_to_user root user);
 
 
 
@@ -404,9 +404,13 @@ sub execute_getting_output {
     return $retval;
 }
 
+sub root { change_to_root() }
+
 sub change_to_root {
     $>=0;    wlog (VVV, "-- Changed to root", "");
 }
+
+sub user { back_to_user() }
 
 sub back_to_user {
     $>=$uid; wlog (VVV, "-- Back to user $uid_name", "");
@@ -502,11 +506,11 @@ sub pii {
 #  
 sub wlog {
 	
-	my $msg_level = shift;   # Posible values: V, VV, VVV
+	my $msg_level = shift;   # Posible values: N, ERR, V, VV, VVV
 	my $msg       = shift;
 	my $prompt    = shift;
 
-    unless ( defined($prompt) or ($msg_level == N) ) {
+    unless ( defined($prompt) or ($msg_level == N) or ($msg_level == ERR)) {
     	#$prompt = "vnx-log-$EXE_VERBOSITY_LEVEL>";  
     	$prompt = $execution->get_verb_prompt();
     }
@@ -517,6 +521,9 @@ sub wlog {
     if ($msg_level == N) {
         print "$msg\n"; 
         if ($execution->get_logfile()) { print_log ($msg, ""); }
+    } elsif ($msg_level == ERR) {
+        print "$hline\nERROR: $msg\n$hline\n"; 
+        if ($execution->get_logfile()) { print_log ("$hline\nERROR: $msg\n$hline", ""); }
     } elsif ( ($exe_mode == $EXE_DEBUG) || ( ($exe_mode == $EXE_VERBOSE) && ( $msg_level <= $EXE_VERBOSITY_LEVEL ) ) ) { 
 		#print "$prompt$msg\n";		
 		print_log ($msg, $prompt);		

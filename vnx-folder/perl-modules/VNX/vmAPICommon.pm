@@ -34,7 +34,7 @@ use Exporter;
 
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(	
-	exec_command_host
+	execute_host_command 
 	open_console
 	start_console
 	start_consoles_from_console_file
@@ -44,65 +44,74 @@ our @EXPORT = qw(
 use VNX::Execution;
 use VNX::FileChecks;
 use VNX::Globals;
-
+use VNX::DocumentChecks;
+use VNX::TextManipulation;
 
 
 ###################################################################
 #
-sub exec_command_host {
+sub execute_host_command {
 
-	my $self = shift;
 	my $seq  = shift;
 
-    my $logp = "exec_command_host> ";
+    my $logp = "execute_host_command> ";
 	my $doc = $dh->get_doc;
+	
+	my $num_host_execs = 0;
 
     wlog (VV, "seq=$seq", $logp);
     
-	# If host <host> is not present, there is nothing to do
-    return if (!$doc->getElementsByTagName("host"));
+	# If host <host> is not present and there are no <exec> tags under <host>, 
+	# there is nothing to do
+    return $num_host_execs if ( ! $doc->exists("/vnx/host/exec") );
 
-	# To get <host> tag
-	my $host = $doc->getElementsByTagName("host")->item(0);
+	# Check if the execution of host commands is allowed in config file (/etc/vnx.conf)
+	# ..
+	# [general]
+    # ...
+    # exe_host_cmds=no
+	#
+    my $exe_host_cmds = get_conf_value ($vnxConfigFile, 'general', 'exe_host_cmds', 'root');
+    my $exe_allowed = ! empty($exe_host_cmds) && $exe_host_cmds eq 'yes';
 
-	# To process exec tags of matching commands sequence
-	#my $command_list = $host->getElementsByTagName("exec");
+    my @execs = $doc->findnodes("/vnx/host/exec[\@seq='$seq']");
+    foreach my $exec (@execs) {
+        	
+        if (!$exe_allowed) {
+            wlog (N, "--\n-- ERROR. Host command execution forbidden by configuration.\n" . 
+                     "--        Change 'exe_host_cmd' config value in [general] section of /etc/vnc.conf file).");
+            return $num_host_execs
+        }
+            
+        my $type = $exec->getAttribute("type");
 
-	# To process list, dumping commands to file
-	#for ( my $j = 0 ; $j < $command_list->getLength ; $j++ ) {
-	foreach my $command ($host->getElementsByTagName("exec")) {
-		#my $command = $command_list->item($j);
+        # Case 1. Verbatim type
+        if ( $type eq "verbatim" ) {
 
-		# To get attributes
-		my $cmd_seq = $command->getAttribute("seq");
-		my $type    = $command->getAttribute("type");
+            # To include the command "as is"
+            $execution->execute( $logp,  text_tag_multiline($exec) );
+            $num_host_execs++;
+        }
 
-		if ( $cmd_seq eq $seq ) {
+        # Case 2. File type
+        elsif ( $type eq "file" ) {
 
-			# Case 1. Verbatim type
-			if ( $type eq "verbatim" ) {
+            # We open file and write commands line by line
+            my $include_file = do_path_expansion( text_tag($exec) );
+            open INCLUDE_FILE, "$include_file"
+              or $execution->smartdie("can not open $include_file: $!");
+            while (<INCLUDE_FILE>) {
+                chomp;
+                $execution->execute( $logp, $_);
+            }
+            close INCLUDE_FILE;
+            $num_host_execs++;
+        }
 
-				# To include the command "as is"
-				$execution->execute( $logp,  &text_tag_multiline($command) );
-			}
-
-			# Case 2. File type
-			elsif ( $type eq "file" ) {
-
-				# We open file and write commands line by line
-				my $include_file = &do_path_expansion( &text_tag($command) );
-				open INCLUDE_FILE, "$include_file"
-				  or $execution->smartdie("can not open $include_file: $!");
-				while (<INCLUDE_FILE>) {
-					chomp;
-					$execution->execute( $logp, $_);
-				}
-				close INCLUDE_FILE;
-			}
-
-			# Other case. Don't do anything (it would be an error in the XML!)
-		}
-	}
+        # Other case. Don't do anything (it would be an error in the XML!)
+    }  
+    return $num_host_execs
+      
 }
 
 
