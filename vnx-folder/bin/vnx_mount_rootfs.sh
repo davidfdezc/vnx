@@ -85,7 +85,7 @@ while getopts "ut:r:" opt; do
     t)
         #echo "-t was triggered, Parameter: $OPTARG" >&2
     type=$OPTARG
-    if [ $type != raw || $type != qcow2 || $type != vmdk || $type != vdi ] ; then 
+    if [[ "$type" != 'raw' && "$type" != 'qcow2' && "$type" != 'vmdk' && "$type" != 'vdi' ]] ; then
             echo ""       
             echo "ERROR. Invalid type in -t option: $type" >&2
             echo "$USAGE"
@@ -107,7 +107,7 @@ while getopts "ut:r:" opt; do
     p)
         #echo "-p was triggered, Parameter: $OPTARG" >&2
     partnum=$OPTARG
-    if [ "$partnum" -le "0" || "$partnum" -gt "10" ] ; then        
+    if [[ "$partnum" -le "0" || "$partnum" -gt "10" ]] ; then        
             echo ""       
             echo "ERROR. Invalid partition number: $partnum" >&2
             echo "$USAGE"
@@ -121,7 +121,7 @@ done
 
 # mount dir is the last argument
 eval mountdir=\$$i
-if [ ! -d "$mountdir" ]; then
+if [[ ! -d "$mountdir" ]]; then
     echo ""       
     echo "ERROR. Mount directory does not exist." >&2
     echo "$USAGE"
@@ -148,20 +148,20 @@ if [[ "$umount" == "no" ]]; then
 fi
 
 if [[ "$umount" == "no" && $type == "" ]] ; then
-    if [ $( echo $rootfs | egrep '\.img$' ) ]; then
+    if [[ $( echo $rootfs | egrep '\.img$' ) ]]; then
         type="raw"
-    elif [ $( echo $rootfs | egrep '\.qcow2$' ) ]; then
+    elif [[ $( echo $rootfs | egrep '\.qcow2$' ) ]]; then
         type="qcow2"
-    elif [ $( echo $rootfs | egrep '\.vmdk$' ) ]; then
+    elif [[ $( echo $rootfs | egrep '\.vmdk$' ) ]]; then
         type="vmdk"
-    elif [ $( echo $rootfs | egrep '\.vdi$' ) ]; then
+    elif [[ $( echo $rootfs | egrep '\.vdi$' ) ]]; then
         type="vdi"
     else
-        if [ "$( file -b "$rootfs" | egrep 'QEMU QCOW Image (v2)' )" ]; then
+        if [[ "$( file -b "$rootfs" | egrep 'QEMU QCOW Image (v2)' )" ]]; then
             type="qcow2"
-        elif [ "$( file -b "$rootfs" | egrep 'VMware4 disk image' )" ]; then
+        elif [[ "$( file -b "$rootfs" | egrep 'VMware4 disk image' )" ]]; then
             type="vmdk"
-        elif [ "$( file -b "$rootfs" | egrep 'VirtualBox Disk Image' )" ]; then
+        elif [[ "$( file -b "$rootfs" | egrep 'VirtualBox Disk Image' )" ]]; then
             type="vdi"
         else        
             echo ""       

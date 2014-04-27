@@ -52,6 +52,7 @@ our @EXPORT = qw(
     $uid
     $uid_name
     $vmfs_on_tmp
+    $hline
 
     $VNX_INSTALL_DIR
 	$DEFAULT_TMP_DIR
@@ -89,6 +90,7 @@ our @EXPORT = qw(
 	V
 	VV
 	VVV
+	ERR
 	
 	@EXEC_MODES_UML
     @EXEC_MODES_LIBVIRT_KVM_LINUX
@@ -138,6 +140,8 @@ our $vmfs_on_tmp;   # Loads the value of vmfs_on_tmp global config value
                     # Used to move the cow and sdisk filesystems to the tmp directory
                     # (used to solve a problem in DIT-UPM laboratories, where root user 
                     # cannot write to network-mounted user directories)  
+our $hline = "----------------------------------------------------------------------------------"; # Just a horizontal line...
+
 
 # Configuration files and directories
 Readonly::Scalar our $VNX_INSTALL_DIR => '/usr/share/vnx';
@@ -184,7 +188,7 @@ use constant N   => 0;
 use constant V   => 1;
 use constant VV  => 2;
 use constant VVV => 3;
-
+use constant ERR => 4;
 
 # Allowed and default modes in exec_mode attribute of <vm> tag for each virtual machine type
 # Default mode is always the first value in array

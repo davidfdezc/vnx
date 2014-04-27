@@ -133,9 +133,6 @@ my $input_file;
 # Delay between virtual machines startup
 #my $vmStartupDelay;
 
-# Just a line...
-my $hline = "----------------------------------------------------------------------------------";
-
 # host log prompt
 my $logp = "host> ";
 
@@ -144,10 +141,10 @@ my $logp = "host> ";
 
 # Modes allowed with --scenario|-s option  
 my @opt_s_allowed_modes = ('create', 'start', 'shutdown', 'destroy', 'execute', 'modify', 'save', 'restore', 
-                           'suspend', 'resume', 'reboot', 'reset', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
+                           'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
 # Modes allowed with -f option  
-my @opt_f_allowed_modes = ('define', 'undefine', 'create', 'start', 'shutdown', 'destroy', 'execute', 'save', 'restore',  
-                           'suspend', 'resume', 'reboot', 'reset', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
+my @opt_f_allowed_modes = ('define', 'undefine', 'start', 'create', 'shutdown', 'destroy', 'execute', 'save', 'restore',  
+                           'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
 
 # Modes that do not need exclusive access (no lock file needed)   
 my @no_lock_modes = ('show-map', 'show-status'); 
@@ -173,13 +170,13 @@ sub main {
     Getopt::Long::Configure ( qw{no_auto_abbrev no_ignore_case } ); # case sensitive single-character options
     GetOptions (\%opts,
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P', 'modify|m=s', 'scenario|s=s', 
-                'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
+                'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'recreate', 'execute|x=s',
                 'show-map:s', 'show-status', 'console:s', 'console-info', 'exe-info', 'clean-host',
                 'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y',
                 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'user|u:s', '4', '6', 'D', 'no-console|n', 'intervm-delay=s',
-                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s' 
+                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k' 
     ) or vnx_die("Incorrect usage. Type 'vnx -h' for help"); 
 
     #
@@ -325,22 +322,23 @@ $>=$uid;
    	my $how_many_args = 0;
    	my $mode_args = '';
    	my $mode;
+    if ($opts{'define'})           { $how_many_args++; $mode_args .= 'define ';        $mode = "define";       }
+    if ($opts{'undefine'})         { $how_many_args++; $mode_args .= 'undefine ';      $mode = "undefine";     }
+    if ($opts{'start'})            { $how_many_args++; $mode_args .= 'start ';         $mode = "start";        }
    	if ($opts{'create'})           { $how_many_args++; $mode_args .= 'create|t ';      $mode = "create";       }
+    if ($opts{'shutdown'})         { $how_many_args++; $mode_args .= 'shutdown|d ';    $mode = "shutdown";     }
+    if ($opts{'destroy'})          { $how_many_args++; $mode_args .= 'destroy|P ';     $mode = "destroy";      }
+    if ($opts{'suspend'})          { $how_many_args++; $mode_args .= 'suspend ';       $mode = "suspend";      }
+    if ($opts{'resume'})           { $how_many_args++; $mode_args .= 'resume ';        $mode = "resume";       }
+    if ($opts{'save'})             { $how_many_args++; $mode_args .= 'save ';          $mode = "save";         }
+    if ($opts{'restore'})          { $how_many_args++; $mode_args .= 'restore ';       $mode = "restore";      }
+    if ($opts{'reboot'})           { $how_many_args++; $mode_args .= 'reboot ';        $mode = "reboot";       }
+    if ($opts{'reset'})            { $how_many_args++; $mode_args .= 'reset ';         $mode = "reset";        }
+    if ($opts{'recreate'})         { $how_many_args++; $mode_args .= 'recreate ';      $mode = "recreate";     }
    	if ($opts{'execute'})          { $how_many_args++; $mode_args .= 'execute|x ';     $mode = "execute";	   }
-   	if ($opts{'shutdown'})         { $how_many_args++; $mode_args .= 'shutdown|d ';    $mode = "shutdown";     }
-   	if ($opts{'destroy'})          { $how_many_args++; $mode_args .= 'destroy|P ';     $mode = "destroy";	   }
     if ($opts{'modify'})           { $how_many_args++; $mode_args .= 'modify|m ';      $mode = "modify";       }
    	if ($opts{'version'})          { $how_many_args++; $mode_args .= 'version|V ';     $mode = "version";      }
    	if ($opts{'help'})             { $how_many_args++; $mode_args .= 'help|h ';        $mode = "help";         }
-   	if ($opts{'define'})           { $how_many_args++; $mode_args .= 'define ';        $mode = "define";       }
-   	if ($opts{'start'})            { $how_many_args++; $mode_args .= 'start ';         $mode = "start";        }
-   	if ($opts{'undefine'})         { $how_many_args++; $mode_args .= 'undefine ';      $mode = "undefine";     }
-   	if ($opts{'save'})             { $how_many_args++; $mode_args .= 'save ';          $mode = "save";         }
-   	if ($opts{'restore'})          { $how_many_args++; $mode_args .= 'restore ';       $mode = "restore";      }
-   	if ($opts{'suspend'})          { $how_many_args++; $mode_args .= 'suspend ';       $mode = "suspend";      }
-   	if ($opts{'resume'})           { $how_many_args++; $mode_args .= 'resume ';        $mode = "resume";       }
-   	if ($opts{'reboot'})           { $how_many_args++; $mode_args .= 'reboot ';        $mode = "reboot";       }
-   	if ($opts{'reset'})            { $how_many_args++; $mode_args .= 'reset ';         $mode = "reset";        }
    	if (defined($opts{'show-map'})){ $how_many_args++; $mode_args .= 'show-map ';      $mode = "show-map";     }
     if ($opts{'show-status'})      { $how_many_args++; $mode_args .= 'show-status ';   $mode = "show-status";  }
    	if (defined($opts{'console'})) { $how_many_args++; $mode_args .= 'console ';       $mode = "console";      }
@@ -362,17 +360,17 @@ $>=$uid;
       	usage();
       	vnx_die ("missing main mode option. Specify one of the following options: \n" . 
       	          "  -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, -m|--modify, --define, \n" . 
-      	          "  --start, --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, \n" . 
+      	          "  --undefine, --start, --suspend, --resume, --save, --restore, --reboot, --reset, --recreate,\n" . 
       	          "  --show-map, --show-status, --console, --console-info, --clean-host, --create-rootfs, \n" . 
       	          "  --modify-rootfs, -V or -H\n");
    	}
-   	if (($opts{F}) && (!($opts{'shutdown'}))) { 
+   	if (($opts{kill}) && (!($opts{'shutdown'}))) { 
       	usage(); 
-      	vnx_die ("Option -F only makes sense with -d|--shutdown mode\n"); 
+      	vnx_die ("Option --kill|k only makes sense with -d|--shutdown mode\n"); 
    	}
-   	if (($opts{B}) && ($opts{F}) && ($opts{'shutdown'})) {
-      	vnx_die ("Option -F and -B are incompabible\n");
-   	}
+#   	if (($opts{B}) && ($opts{F}) && ($opts{'shutdown'})) {
+#      	vnx_die ("Option -F and -B are incompabible\n");
+#   	}
 #    if (($opts{o}) && (!($opts{'create'}))) {
 #      	usage();
 #      	vnx_die ("Option -o only makes sense with -t|--create mode\n");
@@ -722,10 +720,12 @@ back_to_user();
    	}
 
     # Initialize vmAPI modules
-    VNX::vmAPI_uml->init;
-    VNX::vmAPI_libvirt->init;
-    VNX::vmAPI_dynamips->init;
-    VNX::vmAPI_lxc->init;
+    my $init_err;
+    if ($init_err=VNX::vmAPI_uml->init)      { vnx_die("Cannot initialize UML module -> $init_err")}
+    if ($init_err=VNX::vmAPI_libvirt->init)  { vnx_die("Cannot initialize Libvirt module -> $init_err")}
+    if ($init_err=VNX::vmAPI_dynamips->init) { vnx_die("Cannot initialize Dynamips module -> $init_err")}
+    if ($init_err=VNX::vmAPI_lxc->init)      { vnx_die("Cannot initialize LXC module -> $init_err")}
+    #if ($init_err=VNX::vmAPI_vbox->init)      { vnx_die("Cannot initialize VirtualBox module -> $init_err")}
     pre_wlog ($hline)  if (!$opts{b});
 
 
@@ -747,7 +747,9 @@ back_to_user();
 	   	}
    	}
    	
-   	# Mode selection
+   	#
+   	# Call to mode handler functions
+   	#
     if ($mode eq 'define') {
         mode_define();
     }
@@ -758,81 +760,52 @@ back_to_user();
         mode_start();
     }
     elsif ($mode eq 'shutdown') {
-        mode_shutdown('do_exe_cmds');
+    	if ($opts{'kill'}) {
+            mode_shutdown('kill');
+    	} else {
+            mode_shutdown('do_exe_cmds');
+    	}
     }
-   	elsif ($mode eq 'create') {
-	   	if ($exemode != $EXE_DEBUG && !$opts{M}) {
-         	$execution->smartdie ("scenario " . $dh->get_scename . " already created\n") 
-            	if scenario_exists($dh->get_scename);
-      	}
-      	mode_define();
-      	mode_start();
-   	}
+    elsif ($mode eq 'create') {
+        mode_define();
+        mode_start();
+    }
+    elsif ($mode eq 'destroy') {
+        mode_shutdown('kill');
+        mode_undefine();
+    }
+    elsif ($mode eq 'suspend') {
+        mode_suspend();
+    }
+    elsif ($mode eq 'resume') {
+        mode_resume();
+    }
+    elsif ($mode eq 'save') {
+        mode_save();
+    }
+    elsif ($mode eq 'restore') {
+        mode_restore();
+    }
+    elsif ($mode eq 'reboot') {
+        mode_shutdown('do_exe_cmds');
+        sleep(3);
+        mode_start();
+    }
+    elsif ($mode eq 'reset') {
+        mode_shutdown('kill');
+        sleep(3);
+        mode_start();
+    }
+    elsif ($mode eq 'recreate') {
+        mode_shutdown('kill');
+        mode_undefine();
+        sleep(3);    
+        mode_define();
+        mode_start();
+    }
    	elsif ($mode eq 'execute') {
-      	if ($exemode != $EXE_DEBUG) {
-         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exists: create it with -t before\n")
-           		unless scenario_exists($dh->get_scename);
-      	}
-
       	mode_execute($cmdseq, 'all');
    	}
-   	elsif ($mode eq 'destroy') {
-      	mode_destroy();
-   	}
-   	elsif ($mode eq 'reset') {
-      	if ($exemode != $EXE_DEBUG) {
-         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-           		unless scenario_exists($dh->get_scename);
-      	}
-      	#$args->set('F',1);
-      	$opts{F} = '1';
-      	mode_shutdown('do_exe_cmds');		# First, call destroy mode with force flag activated
-      	mode_destroy();		# Second, purge other things
-      	sleep(1);     # Let it finish
-      	mode_define();
-      	mode_start();
-   	}
-   
-   	elsif ($mode eq 'reboot') {
-     	if ($exemode != $EXE_DEBUG) {
-        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        	unless scenario_exists($dh->get_scename);
-     	}   	
-        mode_shutdown('do_exe_cmds');
-     	mode_start();
-   	}
-   
-   	elsif ($mode eq 'save') {
-     	if ($exemode != $EXE_DEBUG) {
-        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        	unless scenario_exists($dh->get_scename);
-     	}
-     	mode_save();
-   	}
-   	elsif ($mode eq 'restore') {
-     	if ($exemode != $EXE_DEBUG) {
-        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        		unless scenario_exists($dh->get_scename);
-     	}
-     	mode_restore();
-   	}
-   
-   	elsif ($mode eq 'suspend') {
-     	if ($exemode != $EXE_DEBUG) {
-        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        		unless scenario_exists($dh->get_scename);
-     	}
-     	mode_suspend();
-   	}
-   
-   	elsif ($mode eq 'resume') {
-     	if ($exemode != $EXE_DEBUG) {
-        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
-        	unless scenario_exists($dh->get_scename);
-     	}
-     	mode_resume();
-   	}
-
     elsif ($mode eq 'modify') {
         # Modify scenario mode
 change_to_root();
@@ -842,15 +815,12 @@ change_to_root();
 back_to_user();
         mode_modify($opts{'modify'}, $vnx_dir);
     }
-   
    	elsif ($mode eq 'show-map') {
      	mode_showmap();
    	}
-   
     elsif ($mode eq 'show-status') {
         mode_showstatus();
     }
-   
    	elsif ($mode eq 'console') {
      	if ($exemode != $EXE_DEBUG) {
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
@@ -962,7 +932,12 @@ sub mode_define {
     my $logp = "mode_define> ";
     wlog (VVV, "Defining " . get_vmnames(\@vm_ordered), $logp);
 
-    # If -M option or ref_vms specifies, the scenario must be already created
+    # If not -M option or ref_vms specified, the scenario must not exist
+    if ( scenario_exists($dh->get_scename) ) {
+        $execution->smartdie ("ERROR, scenario " . $dh->get_scename . " already created\n") if ( !$opts{M} && !defined($ref_vms) )
+    }
+
+    # If -M option or ref_vms specified, the scenario must be already created
     unless ( scenario_exists($dh->get_scename) ) {
         $execution->smartdie ("ERROR, scenario " . $dh->get_scename . " not created\n") if ( $opts{M} || defined($ref_vms) )
     }
@@ -1104,8 +1079,8 @@ sub define_vms {
         my $vm_type = $vm->getAttribute("type");
         wlog (N, "Defining virtual machine '$vm_name' of type '$merged_type'...");
         my $error = "VNX::vmAPI_$vm_type"->define_vm($vm_name, $merged_type, $vm_doc);
-        if ($error ne 0) {
-            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->define_vm returns " . $error);
+        if ($error) {
+            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->define_vm returns '" . $error . "'\n$hline");
             wlog (N, "Virtual machine $vm_name cannot be defined.");
             next
         }
@@ -1333,7 +1308,7 @@ sub make_vmAPI_doc {
                 #print "**** mgmtIfName=$mgmtIfName\n";
                 my $net = $if->getAttribute("net");
                 if ($mgmtIfName eq ''){
-                    wlog (N, "WARNING: no name defined for management if (id=0) of vm $vm_name");
+                    wlog (N, "$hline\nWARNING: no name defined for management if (id=0) of vm $vm_name\n$hline");
                 } else { last }
             }
         }
@@ -1439,7 +1414,7 @@ sub make_vmAPI_doc {
                                 $ipv4_effective_mask = slashed_to_dotted_mask($1);
                             }
                         } else {
-                            wlog (N, "WARNING (vm=$vm_name): no mask defined for $ip address of interface $id. Using default mask ($ipv4_effective_mask)");
+                            wlog (N, "$hline\nWARNING (vm=$vm_name): no mask defined for $ip address of interface $id. Using default mask ($ipv4_effective_mask)\n$hline");
                         }
                     }
                
@@ -1511,7 +1486,8 @@ sub make_vmAPI_doc {
         $vm_tag->addChild($forwarding_tag);
         $forwarding_tag->addChild( $dom->createAttribute( type => $f_type));
     }
-      
+    
+=BEGIN      
     # my @group = getgrnam("@TUN_GROUP@");
     my @group = getgrnam("uml-net");
 
@@ -1554,6 +1530,8 @@ sub make_vmAPI_doc {
         $F_flag = 0;
     }      
     $F_flag_tag->addChild($dom->createTextNode($F_flag));
+=END
+=cut
 
 
     my @plugin_ftree_list = ();
@@ -1709,9 +1687,9 @@ sub mode_undefine{
         # Raise an error if the VM is not in defined state
         unless ($vm_status eq 'defined') {
             if ($vm_status eq 'undefined') {
-                wlog (N, "\nWARNING: virtual machine '$vm_name' already in undefined state\n")
+                wlog (N, "$hline\nWARNING: virtual machine '$vm_name' already in undefined state\n$hline")
             } else {
-                wlog (N, "\nERROR: virtual machine '$vm_name' running (status=$vm_status). Shutdown it before undefining.\n");
+                wlog (N, "$hline\nERROR: virtual machine '$vm_name' running (status=$vm_status). Shutdown it before undefining.\n$hline");
                 $undef_error = 'true';
                 next;
             }
@@ -1721,8 +1699,8 @@ sub mode_undefine{
         my $vm_type = $vm->getAttribute("type");
         wlog (N, "Undefining virtual machine '$vm_name' of type '$merged_type'...");
         my $error = "VNX::vmAPI_$vm_type"->undefine_vm($vm_name, $merged_type);
-        if ($error ne 0) {
-            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->undefine_vm returns " . $error);
+        if ($error) {
+            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->undefine_vm returns '" . $error . "'\n$hline");
             next;
         }
         wlog (N, "...OK");
@@ -1918,7 +1896,7 @@ sub mode_start {
     set_vlan_links(\@vm_ordered);
         
     # Execute 'on_boot' commands
-    mode_execute ('on_boot', 'all', \@vm_ordered);
+    mode_execute ('on_boot', 'lxc,dynamips', \@vm_ordered);
         
     # If <host_mapping> is in use and not in debug mode, process /etc/hosts
     my $lines = join "\n", @host_lines;
@@ -2019,8 +1997,8 @@ sub start_vms {
         # call the vmAPI-->start_vm function
         wlog (N, "Starting virtual machine '$vm_name' of type '$merged_type'...");
         my $error = "VNX::vmAPI_$vm_type"->start_vm($vm_name, $merged_type, $no_console);
-        if ($error ne 0) {
-            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->start_vm returns " . $error);
+        if ($error) {
+            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->start_vm returns '" . $error . "'\n$hline");
             next;
         }
         wlog (N, "...OK");
@@ -2044,7 +2022,8 @@ change_to_root();
             if ($nm_running) {
                 my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e0 | awk 'BEGIN {FS=\":\"} {print \$1}' `;
                 chomp ($con_uuid);
-                $execution->execute($logp, $nmcli . " con delete uuid $con_uuid" );
+                wlog (VVV, "con_uuid='$con_uuid'", $logp);
+                $execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
             }
             # Disable IPv6 autoconfiguration in interface
             $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e0.autoconf=0" );
@@ -2069,7 +2048,8 @@ change_to_root();
             if ($nm_running) {
                 my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e${id} | awk 'BEGIN {FS=\":\"} {print \$1}' `;
                 chomp ($con_uuid);
-                $execution->execute($logp, $nmcli . " con delete uuid $con_uuid" );
+                wlog (VVV, "con_uuid='$con_uuid'", $logp);
+                $execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
             }
 back_to_user();               
         }
@@ -2178,8 +2158,10 @@ sub set_vlan_links {
 # 'on_shutdown' commands in VMs if specified in mode parameter
 # 
 # Arguments:
-#   - $mode:    defines if 'on_shutdown' commands are executes or not 
-#               values: 'do_not_exe_cmds', 'do_exe_cmds'  
+#   - $mode:    defines shutdown mode 
+#               values: 'do_exe_cmds' -> normal shutdown executing 'on_shutdown' commands  
+#                       'do_not_exe_cmds' -> normal shutdown without executing 'on_shutdown' cmds  
+#                       'kill' -> power-off  
 #   - $ref_vm:  reference to an array with the list of VMs to work on. If not specified,
 #               it works with all the VMs in scenario or the ones specified in -M option
 #               if used. 
@@ -2197,22 +2179,23 @@ sub mode_shutdown {
         # to process having into account -M option
         @vm_ordered = $dh->get_vm_to_use_ordered;    
     }
+    
+    my $kill;
+    if ($mode eq 'kill') { $kill=$mode }
 
     my $logp = "mode_shutdown> ";
-    wlog (VVV, "Shutingdown " . get_vmnames(\@vm_ordered), $logp);
+    wlog (VVV, "Shutingdown " . get_vmnames(\@vm_ordered) . " (mode=$mode)", $logp);
 
     # If scenario does not exist --> error
     unless ( scenario_exists($dh->get_scename) ) {
         $execution->smartdie ("ERROR, scenario " . $dh->get_scename . " not started\n");
     }
 
-    if ( $mode eq 'do_not_exe_cmds' ) { wlog (VV, "do_not_exe_cmds set", $logp) } 
-    else { wlog (VV, "do_not_exe_cmds NOT set", $logp) }
-    if ($opts{F}) { wlog (VV, "F flag set", $logp) } 
-    else { wlog (VV, "F flag NOT set", $logp) }
+#    if ($opts{F}) { wlog (VV, "F flag set", $logp) } 
+#    else { wlog (VV, "F flag NOT set", $logp) }
 
     # Execute on_shutdown commands
-    unless ($opts{F} || $mode eq 'do_not_exe_cmds' ) {
+    if ($mode eq 'do_exe_cmds' ) {
         mode_execute ('on_shutdown', 'all')
     }
 
@@ -2231,10 +2214,14 @@ sub mode_shutdown {
         }        
 
         # Call the vmAPI-->shutdown_vm function
-        wlog (N, "Shutdowning virtual machine '$vm_name' of type '$merged_type'...");
-        my $error = "VNX::vmAPI_$vm_type"->shutdown_vm($vm_name, $merged_type, $opts{F});
-        if ($error ne 0) {
-            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->shutdown_vm returns " . $error);
+        if (defined($kill)){
+            wlog (N, "Powering off virtual machine '$vm_name' of type '$merged_type'...");
+        } else {
+            wlog (N, "Shutting down virtual machine '$vm_name' of type '$merged_type'...");
+        }
+        my $error = "VNX::vmAPI_$vm_type"->shutdown_vm($vm_name, $merged_type, $kill);
+        if ($error) {
+            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->shutdown_vm returns '" . $error . "'\n$hline");
             wlog (N, "Virtual machine $vm_name cannot be shutdown.");
             next
         }
@@ -2242,6 +2229,7 @@ sub mode_shutdown {
         change_vm_status($vm_name,"defined");
     }
    
+=BEGIN   
     # UML specific
     # For non-forced mode, we have to wait all UMLs dead before to destroy 
     # TUN/TAP (next step) due to these devices are yet in use
@@ -2251,11 +2239,11 @@ sub mode_shutdown {
     # release)
     my $time_0 = time();
       
-    if ((!$opts{F})&&($execution->get_exe_mode() != $EXE_DEBUG)) {      
+    if ((!$opts{kill})&&($execution->get_exe_mode() != $EXE_DEBUG)) {      
 
         wlog (N, "---------- Waiting until virtual machines extinction ----------");
 
-        my $only_vm = "";  # TODO: probabley does not work...revise if UML maintained
+        my $only_vm = "";  # TODO: probably does not work...revise if UML maintained
         while (my $pids = VM_alive($only_vm)) {
             wlog (N,  "waiting on processes $pids...");;
             #system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
@@ -2265,9 +2253,12 @@ sub mode_shutdown {
             wlog (N, "$interval seconds elapsed...");;
         }       
     }
+=END
+=cut    
+    
 }
 
-
+=BEGIN
 #
 # ------------------------------------------------------------------------------
 #                           D E S T R O Y   M O D E
@@ -2314,10 +2305,10 @@ sub mode_destroy {
         }        
 
         # call the corresponding vmAPI
-        wlog (N, "Undefining virtual machine '$vm_name' of type '$merged_type'...");
+        wlog (N, "Destroying virtual machine '$vm_name' of type '$merged_type'...");
         my $error = "VNX::vmAPI_$vm_type"->destroy_vm($vm_name, $merged_type);
-        if ( ($error ne 0) && ($error ne "VM $vm_name does not exist") ) {
-            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->destroy_vm returns " . $error);
+        if ( ($error) && ($error ne "VM $vm_name does not exist") ) {
+            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->destroy_vm returns '" . $error . "'\n$hline");
             next;
         }
         wlog (N, "...OK");
@@ -2330,6 +2321,9 @@ sub mode_destroy {
     	mode_undefine()
     }    
 }
+=END
+=cut
+
 
 #
 # ------------------------------------------------------------------------------
@@ -2423,7 +2417,7 @@ sub modify_add_net {
 
   my $net_name = $add_net->getAttribute('name');
   if( $doc->exists("/vnx/net[\@name='$net_name']") ){
-      print "ERROR: cannot add net $net_name to scenario " . $dh->get_scename . " (a net $net_name already exists)\n";
+      print "\nERROR: cannot add net $net_name to scenario " . $dh->get_scename . " (a net $net_name already exists)\n";
   } else {
       wlog (N, "Adding $net_name to scenario " . $dh->get_scename . ".", $logp);
       
@@ -2447,7 +2441,7 @@ sub modify_del_net {
     my $net_name = $del_net->getAttribute('name');
     
     if( ! $doc->exists("/vnx/net[\@name='$net_name']") ){
-        print "ERROR: cannot del net $net_name from scenario " . $dh->get_scename . " (no network named $net_name exists)\n";
+        print "\nERROR: cannot del net $net_name from scenario " . $dh->get_scename . " (no network named $net_name exists)\n";
     } else {
               
         my @nets = $doc->findnodes("/vnx/net[\@name='$net_name']");
@@ -2456,7 +2450,7 @@ sub modify_del_net {
         
         if($del eq "no"){
             if( $doc->exists("/vnx/vm/if[\@net='$net_name']") || $doc->exists("/vnx/host/hostif[\@net='$net_name']") ){
-                print "ERROR: cannot del net $net_name in scenario " . $dh->get_scename . " (a VM is still connected to $net_name)\n";
+                print "\nERROR: cannot del net $net_name in scenario " . $dh->get_scename . " (a VM is still connected to $net_name)\n";
             } else {
                 # Delete Net
                 bridges_destroy(\@nets);
@@ -2507,11 +2501,11 @@ sub modify_del_net {
                 } 
                 elsif ( $mode eq 'destroy' ) {
                     wlog (N, "Destroying VM " . get_vmnames(\@del_vms,',') . " from scenario " . $dh->get_scename . ".", $logp);
-                    mode_shutdown('do_not_exe_cmds', \@del_vms);
-                    mode_destroy(\@del_vms);
+                    mode_shutdown('kill', \@del_vms);
+                    mode_undefine(\@del_vms);
                 } 
                 else {
-                    wlog (N, "ERROR: unknown mode ($mode) in <del_vm> tag.", $logp);
+                    wlog (N, "\nERROR: unknown mode ($mode) in <del_vm> tag.", $logp);
                 }
 
                 # Delete VMs from XML doc
@@ -2544,7 +2538,7 @@ sub modify_updown_net {
 
     my $net_name = $add_net->getAttribute('name');
     if( ! $doc->exists("/vnx/net[\@name='$net_name']") ){
-        print "ERROR: cannot modify net $net_name status. Net does not exist in scenario " . $dh->get_scename . ".\n";
+        print "\nERROR: cannot modify net $net_name status. Net does not exist in scenario " . $dh->get_scename . ".\n";
     } else {
         wlog (N, "Changing status of net $net_name to $cmd.", $logp);
 
@@ -2565,7 +2559,7 @@ sub modify_add_vm {
   
     # Check Add the new vm if it isn't existed
     if($doc->exists("/vnx/vm[\@name='$vm_name']")){
-        print "ERROR: cannot add VM $vm_name to scenario " . $dh->get_scename . " (vm $vm_name already exists)\n";
+        print "\nERROR: cannot add VM $vm_name to scenario " . $dh->get_scename . " (vm $vm_name already exists)\n";
     } else {
     	wlog (N, "Adding $vm_name to scenario " . $dh->get_scename . ".", $logp); 
   	
@@ -2589,7 +2583,7 @@ sub modify_del_vm {
 
     my $vm_name = $del_vm->getAttribute('name');
     if( ! $doc->exists("/vnx/vm[\@name='$vm_name']") ) {
-        print "ERROR: cannot del VM $vm_name from scenario " . $dh->get_scename . " (VM does not exists)\n";
+        print "\nERROR: cannot del VM $vm_name from scenario " . $dh->get_scename . " (VM does not exists)\n";
     } else {
         my $mode = $del_vm->getAttribute('mode');
         wlog (N, "Deleting VM $vm_name from scenario " . $dh->get_scename . ".", $logp);
@@ -2599,11 +2593,11 @@ sub modify_del_vm {
             mode_shutdown('do_exe_cmds', \@del_vms);
         } 
         elsif ( $mode eq 'destroy' ) {
-            mode_shutdown('do_not_exe_cmds', \@del_vms);
-            mode_destroy(\@del_vms);
+            mode_shutdown('kill', \@del_vms);
+            mode_undefine(\@del_vms);
         } 
         else {
-            wlog (N, "ERROR: unknown mode ($mode) in <del_vm> tag.", $logp);
+            wlog (N, "\nERROR: unknown mode ($mode) in <del_vm> tag.", $logp);
         }
 
         # Remove VM from XML doc
@@ -2626,13 +2620,19 @@ sub mode_suspend {
       my $vm = $vm_ordered[$i];
       my $vm_name = $vm->getAttribute("name");
       my $merged_type = $dh->get_vm_merged_type($vm);
+      
+      if ($exemode != $EXE_DEBUG) {
+            $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+                unless scenario_exists($dh->get_scename);
+      }
 
       # call the corresponding vmAPI
       my $vm_type = $vm->getAttribute("type");
       wlog (N, "Suspending virtual machine '$vm_name' of type '$merged_type'...");
       my $error = "VNX::vmAPI_$vm_type"->suspend_vm($vm_name, $merged_type);
-      if ($error ne 0) {
-          wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->suspend_vm returns " . $error);
+      print "*** $error \n";
+      if ($error) {
+          wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->suspend_vm returns '" . $error . "'\n$hline");
           next
       }
       wlog (N, "...OK");
@@ -2655,12 +2655,17 @@ sub mode_resume {
       my $vm_name = $vm->getAttribute("name");
       my $merged_type = $dh->get_vm_merged_type($vm);
  
+      if ($exemode != $EXE_DEBUG) {
+         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+         unless scenario_exists($dh->get_scename);
+      }
+ 
       # call the corresponding vmAPI
       my $vm_type = $vm->getAttribute("type");
       wlog (N, "Resuming virtual machine '$vm_name' of type '$merged_type'...");
       my $error = "VNX::vmAPI_$vm_type"->resume_vm($vm_name, $merged_type);
-      if ($error ne 0) {
-          wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->resume_vm returns " . $error);
+      if ($error) {
+          wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->resume_vm returns '" . $error . "'\n$hline");
           next
       }
       wlog (N, "...OK");
@@ -2686,12 +2691,17 @@ sub mode_save {
       my $merged_type = $dh->get_vm_merged_type($vm);
       $filename = $dh->get_vm_dir($vm_name) . "/" . $vm_name . "_savefile";
 
+      if ($exemode != $EXE_DEBUG) {
+          $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+             unless scenario_exists($dh->get_scename);
+      }
+
       # call the corresponding vmAPI
       my $vm_type = $vm->getAttribute("type");
       wlog (N, "Pausing virtual machine '$vm_name' of type '$merged_type' and saving state to disk...");
       my $error = "VNX::vmAPI_$vm_type"->save_vm($vm_name, $merged_type, $filename);
-      if ($error ne 0) {
-        wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->save_vm returns " . $error);
+      if ($error) {
+        wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->save_vm returns '" . $error . "'\n$hline");
         next
       }
       wlog (N, "...OK");
@@ -2706,8 +2716,13 @@ sub mode_save {
 #
 sub mode_restore {
 
-   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
-   my $filename;
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
+    my $filename;
+
+    if ($exemode != $EXE_DEBUG) {
+        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+            unless scenario_exists($dh->get_scename);
+    }
    
    for ( my $i = 0; $i < @vm_ordered; $i++) {
     
@@ -2721,8 +2736,8 @@ sub mode_restore {
       my $vm_type = $vm->getAttribute("type");
       wlog (N, "Restoring virtual machine '$vm_name' of type '$merged_type' state from disk...");
       my $error = "VNX::vmAPI_$vm_type"->restore_vm($vm_name, $merged_type, $filename);
-      if ($error ne 0) {
-          wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->restore_vm returns " . $error);
+      if ($error) {
+          wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->restore_vm returns '" . $error . "'\n$hline");
           next
       }
       wlog (N, "...OK");
@@ -2737,24 +2752,29 @@ sub mode_restore {
 #
 sub mode_reset {
 	
-   my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
+    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
    
-   for ( my $i = 0; $i < @vm_ordered; $i++) {
+    if ($exemode != $EXE_DEBUG) {
+        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+            unless scenario_exists($dh->get_scename);
+    }
+   
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
    	
-      my $vm = $vm_ordered[$i];
-      my $vm_name = $vm->getAttribute("name");
-      my $merged_type = $dh->get_vm_merged_type($vm);
-      # call the corresponding vmAPI
-      my $vm_type = $vm->getAttribute("type");
-      wlog (N, "Reseting virtual machine '$vm_name' of type '$merged_type'...");
-      my $error = "VNX::vmAPI_$vm_type"->reset_vm($vm_name, $merged_type);
-      if ($error ne 0) {
-          wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->reset_vm returns " . $error);
-          next
-      }
-      wlog (N, "...OK");
-      change_vm_status($vm_name,"running");
-   }
+        my $vm = $vm_ordered[$i];
+        my $vm_name = $vm->getAttribute("name");
+        my $merged_type = $dh->get_vm_merged_type($vm);
+        # call the corresponding vmAPI
+        my $vm_type = $vm->getAttribute("type");
+        wlog (N, "Reseting virtual machine '$vm_name' of type '$merged_type'...");
+        my $error = "VNX::vmAPI_$vm_type"->reset_vm($vm_name, $merged_type);
+        if ($error) {
+            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->reset_vm returns '" . $error . "'\n$hline");
+            next
+        }
+        wlog (N, "...OK");
+        change_vm_status($vm_name,"running");
+    }
 }
 
 
@@ -2845,8 +2865,8 @@ sub mode_showstatus {
     if ( -f $dh->get_sim_dir($scename) . "/lock") {
         wlog (N, "\nVNX show-status mode:  Scenario $scename (running)\n$hline");     
 
-	    wlog (N, sprintf (" %-20s %-20s %-14s %-20s", 'VM name', 'Type', 'Status', 'Hypervisor status') );
-	    wlog (N, sprintf (" %-20s %-20s %-14s %-20s", '-------', '----', '------', '-----------------') );
+	    wlog (N, sprintf (" %-20s %-20s %-14s %-20s", 'VM name', 'Type', 'VNX status', 'Hypervisor status') );
+	    wlog (N, sprintf (" %-20s %-20s %-14s %-20s", '-------', '----', '----------', '-----------------') );
 	
 	    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
 	    for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -2859,8 +2879,8 @@ sub mode_showstatus {
 	        my $state;
 	        my $hstate;
             my $error = "VNX::vmAPI_${vm_type}"->get_state_vm($vm_name, \$state, \$hstate);
-            if ($error ne 0) {
-                wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->get_state_vm returns " . $error);
+            if ($error) {
+                wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->get_state_vm returns '" . $error . "'\n$hline");
                 $hstate = '--';
             }
 	        wlog (N, sprintf (" %-20s %-20s %-14s %-20s", $vm_name, $merged_type, $status, $hstate) );  
@@ -3861,8 +3881,8 @@ sub create_bridges_for_virtual_bridged_networks  {
         my $external_if = $net->getAttribute("external");
         my $vlan        = $net->getAttribute("vlan");
 
-        wlog (VVV, "vnet_exists_br($net_name, 'openvswitch') returns " . vnet_exists_br($net_name, 'openvswitch'), $logp);
-        wlog (VVV, "vnet_exists_br($net_name, 'virtual_bridge') returns " . vnet_exists_br($net_name, 'virtual_bridge'), $logp);
+        wlog (VVV, "vnet_exists_br($net_name, 'openvswitch') returns '" . vnet_exists_br($net_name, 'openvswitch'), $logp);
+        wlog (VVV, "vnet_exists_br($net_name, 'virtual_bridge') returns '" . vnet_exists_br($net_name, 'virtual_bridge'), $logp);
 
         if ( vnet_exists_br($net_name, 'openvswitch') && $mode eq 'virtual_bridge' ) {
             $execution->smartdie ("\nERROR: Cannot create virtual bridge $net_name. An Openvswitch with the same name already exists.")
@@ -4140,7 +4160,7 @@ sub hostif_addr_conf {
                         $ipv4_effective_mask = slashed_to_dotted_mask($1);
                     }
                 } else {
-                    wlog (N, "WARNING (host): no mask defined for $ip address of host interface. Using default mask ($ipv4_effective_mask)");
+                    wlog (N, "$hline\nWARNING: no mask defined for $ip address of host interface. Using default mask ($ipv4_effective_mask)\n$hline");
                 }
                 $ip_addr = NetAddr::IP->new($ip, $ipv4_effective_mask);
             }
@@ -4300,10 +4320,15 @@ sub mode_execute {
         @vm_ordered = $dh->get_vm_to_use_ordered;    
     }
 
+    if ($exemode != $EXE_DEBUG) {
+        $execution->smartdie ("cannot execute commands '$seq_str'; scenario " . $dh->get_scename . " is not started\n")
+            unless scenario_exists($dh->get_scename);
+    }
+
     my $seq_str_expanded = cmdseq_expand ($seq_str);
     wlog (V, "Command sequence '$seq_str' expanded to '$seq_str_expanded'", $logp);
 
-    # $seq can be a comma separated list of command tags
+    # $seq_str_expanded is a comma separated list of command tags
     my @seqs = split /,/, $seq_str_expanded; 
 
     foreach my $seq (@seqs) {
@@ -4313,7 +4338,8 @@ sub mode_execute {
 	    my $num_plugin_ftrees = 0;
 	    my $num_plugin_execs  = 0;
 	    my $num_ftrees = 0;
-	    my $num_execs  = 0;
+        my $num_execs  = 0;
+        my $num_host_execs = 0;
 	
 	   	# If -B, block until ready
 	   	if ($opts{B}) {
@@ -4340,10 +4366,11 @@ sub mode_execute {
 	        my $merged_type = $dh->get_vm_merged_type($vm);
 	        my $vm_type = $vm->getAttribute("type");
 	
-	        # If parameter $type is different from 'all', only execute command for the VM type indicated
-	        if ( ($type ne 'all') && ($type ne $vm_type) ) {
-	            next
-	        }
+	        # If parameter $type is different from 'all', only execute commands for the 
+	        # VM types indicated by $type
+            if ( $type ne 'all')  {
+				next unless ($type =~ /(^${vm_type},)|(,${vm_type},)|(,${vm_type}$)/);
+            }
 	
 	        my @plugin_ftree_list = ();
 	        my @plugin_exec_list = ();
@@ -4368,8 +4395,8 @@ sub mode_execute {
 		    	                         $vm_name, $merged_type, $seq, $vm,  
 		    	                         \@plugin_ftree_list, \@plugin_exec_list, 
 		    	                         \@ftree_list, \@exec_list);
-		        if ($error ne 0) {
-		            wlog (N, "...ERROR: VNX::vmAPI_${vm_type}->execute_cmd returns " . $error);
+		        if ($error) {
+		            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->execute_cmd returns '" . $error . "'\n$hline");
 		        } else {
 		            wlog (N, "...OK");
 		        }
@@ -4377,16 +4404,18 @@ sub mode_execute {
 	        }
 		}
 	
+        if ( $type eq 'all' && !defined($ref_vms) ) {
+            wlog (N, "Calling execute_host_cmd with seq '$seq'"); 
+            $num_host_execs = execute_host_command($seq);
+        }
+
 	    wlog (VVV, "Total number of commands executed for seq $seq:", $logp);
-	    wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs, user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs", $logp);
-		if ( ($num_plugin_ftrees + $num_plugin_execs + $num_ftrees + $num_execs == 0) && ($seq ne 'on_boot') && ($seq ne 'on_shutdown')) {
-	        wlog(N, "--");
-			wlog(N, "-- ERROR: no commands found for tag '$seq'");
-	        wlog(N, "--");
+	    wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs,", $logp); 
+	    wlog (VVV, "   user-defined_filetrees=$num_ftrees, user-defined_execs=$num_execs,", $logp);
+	    wlog (VVV, "   host-user-defined-execs=$num_host_execs", $logp);
+		if ( ($num_plugin_ftrees + $num_plugin_execs + $num_ftrees + $num_execs + $num_host_execs == 0) && ($seq ne 'on_boot') && ($seq ne 'on_shutdown')) {
+			wlog(N, "--\n-- ERROR: no commands executed for tag '$seq'");
 		}
-	    if ( $type eq 'all' && !defined($ref_vms) ) {
-	        exec_command_host($seq);
-	    }
     }           
 }
 
@@ -4472,7 +4501,7 @@ sub get_vm_ftrees_and_execs {
 
         if (keys(%files) > 0 ) {
             my $res=`tree $files_dir`; 
-            wlog (VVV, "getFiles returns " . keys(%files) . " files/dirs for vm $vm_name:\n $res", $logp);
+            wlog (VVV, "getFiles returns '" . keys(%files) . " files/dirs for vm $vm_name:\n $res", $logp);
         } else {
             wlog (VVV, "getFiles returns no files/dirs for vm $vm_name", $logp);
         }
@@ -4557,7 +4586,7 @@ sub get_vm_ftrees_and_execs {
             $execution->smartdie("plugin $plugin getCommands($vm_name,$seq) error: $error");
         }
 
-        wlog (VVV, "getCommands returns " . scalar(@commands) . " commands", $logp);
+        wlog (VVV, "getCommands returns '" . scalar(@commands) . " commands", $logp);
         if (scalar(@commands) > 0) { 
             $vm_plugin_execs  += scalar(@commands);
         } 
@@ -4614,13 +4643,13 @@ sub get_vm_ftrees_and_execs {
 	                if ( $merged_type eq "libvirt-kvm-windows" ) { # Windows vm
 	                    if  ( !( $root =~ /\$/ ) ) {     # ...and $file[0] (dst dir) does not end with a "\"
 	                        # Add a slash; <filetree> root attribute must be a directory
-                            wlog (N, "WARNING: root attribute must be a directory (end with a \"\\\") in " . $filetree->toString(1));
+                            wlog (N, "$hline\nWARNING: root attribute must be a directory (end with a \"\\\") in " . $filetree->toString(1) . "\n$hline");
                             $filetree->setAttribute( root => "$root\\" );
 	                    }
 	                } else { # not windows
 	                    if  ( !( $root =~ /\/$/ ) ) {     # ...and $file[0] (dst dir) does not end with a "/"
 	                        # Add a slash; <filetree> root attribute must be a directory
-		                    wlog (N, "WARNING: root attribute must be a directory (end with a \"/\") in " . $filetree->toString(1));
+		                    wlog (N, "$hline\nWARNING: root attribute must be a directory (end with a \"/\") in " . $filetree->toString(1) . "\n$hline");
 		                    $filetree->setAttribute( root => "$root/" );
 	                    }
 	                }
@@ -5128,7 +5157,7 @@ sub get_kernel_pids {
 
 # hosts_mapping_patch
 #
-# Inserts UMLs names in the /etc/hosts file, when <host_mapping> is presented
+# Inserts VMs names in the /etc/hosts file, when <host_mapping> is presented
 # Arguments:
 #
 #    - First: lines to add, in a string
@@ -5177,11 +5206,11 @@ change_to_root();
 
    # Status list:
    # 
-   # 0 -> before VNUML section
-   # 1 -> inside VNUML section, before scenario subsection
+   # 0 -> before VNX section
+   # 1 -> inside VNX section, before scenario subsection
    # 2 -> inside simultaion subsection
-   # 3 -> after scenario subsection, inside VNUML section
-   # 4 -> after VNUML section
+   # 3 -> after scenario subsection, inside VNX section
+   # 4 -> after VNX section
    my $status = 0;
 
    while (<HOST_FILE>) {
@@ -5221,14 +5250,14 @@ change_to_root();
 
    # Check the final status when the hosts file has ended
    if ($status == 0) {
-      # No VNUML section found
+      # No VNX section found
       print FIRST "\# VNX BEGIN -- DO NOT EDIT!!!\n";
       print FIRST "\n";
       print THIRD "\n";
       print THIRD "\# VNX END\n";
    }
    elsif ($status == 1) {
-     # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
+     # Found VNX BEGIN but not found VNX END. Buggy situation? Trying to do the best
      print THIRD "\n";
      print THIRD "\# VNX END\n";
    }
@@ -5238,7 +5267,7 @@ change_to_root();
      print THIRD "\# VNX END\n";
    }
    elsif ($status == 3) {
-     # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
+     # Found VNX BEGIN but not found VNX END. Buggy situation? Trying to do the best
      print THIRD "\n";
      print THIRD "\# VNX END\n";
    }
@@ -5298,11 +5327,11 @@ change_to_root();
 
     # Status list:
     # 
-    # 0 -> before VNUML section
-    # 1 -> inside VNUML section, before scenario subsection
+    # 0 -> before VNX section
+    # 1 -> inside VNX section, before scenario subsection
     # 2 -> inside simultaion subsection
-    # 3 -> after scenario subsection, inside VNUML section
-    # 4 -> after VNUML section
+    # 3 -> after scenario subsection, inside VNX section
+    # 4 -> after VNX section
     my $status = 0;
 
     while (<HOST_FILE>) {
@@ -5342,14 +5371,14 @@ change_to_root();
 
    # Check the final status when the hosts file has ended
    if ($status == 0) {
-      # No VNUML section found
+      # No VNX section found
       print FIRST "\# VNX BEGIN -- DO NOT EDIT!!!\n";
       print FIRST "\n";
       print THIRD "\n";
       print THIRD "\# VNX END\n";
    }
    elsif ($status == 1) {
-     # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
+     # Found VNX BEGIN but not found VNX END. Buggy situation? Trying to do the best
      print THIRD "\n";
      print THIRD "\# VNX END\n";
    }
@@ -5359,7 +5388,7 @@ change_to_root();
      print THIRD "\# VNX END\n";
    }
    elsif ($status == 3) {
-     # Found VNUML BEGIN but not found VNUML END. Buggy situation? Trying to do the best
+     # Found VNX BEGIN but not found VNX END. Buggy situation? Trying to do the best
      print THIRD "\n";
      print THIRD "\# VNX END\n";
    }
@@ -6135,9 +6164,9 @@ sub mgmt_sock_destroy {
 #
 sub vnx_die {
    my $mess = shift;
-   printf "--------------------------------------------------------------------------------\n";
+   printf "$hline\n";
    printf "ERROR in %s (%s):\n%s \n", (caller(1))[3], (caller(0))[2], $mess;
-   printf "--------------------------------------------------------------------------------\n";
+   printf "$hline\n";
    exit 1;   
 }
 
@@ -6328,9 +6357,9 @@ sub print_version {
         pre_wlog ("                        `888'       8       `888    d8'  `888b   ");
         pre_wlog ("                         `8'       o8o        `8  o888o  o88888o ");
         pre_wlog ("");
-        pre_wlog ("                             Virtual Networks over LinuX");
-        pre_wlog ("                              http://www.dit.upm.es/vnx      ");
-        pre_wlog ("                                    vnx\@dit.upm.es          ");
+        pre_wlog ("                             Virtual Networks over LinuX         ");
+        pre_wlog ("                                 http://vnx.dit.upm.es           ");
+        pre_wlog ("                                    vnx\@dit.upm.es              ");
         pre_wlog ("");
         pre_wlog ("                 Departamento de Ingeniería de Sistemas Telemáticos");
         pre_wlog ("                              E.T.S.I. Telecomunicación");
@@ -6385,7 +6414,7 @@ my $usage = <<EOF;
 Usage: 
   [sudo] vnx -f VNX_file --create          [-M vm_list] [options]
   [sudo] vnx -f VNX_file --execute cmd_seq [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --shutdown        [-M vm_list] [options]
+  [sudo] vnx -f VNX_file --shutdown --kill [-M vm_list] [options]
   [sudo] vnx -f VNX_file --destroy         [-M vm_list] [options]
   [sudo] vnx -f VNX_file --define          [-M vm_list] [options]
   [sudo] vnx -f VNX_file --start           [-M vm_list] [options]

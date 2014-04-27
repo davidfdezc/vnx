@@ -190,7 +190,6 @@ sub check_doc {
 	my $max_name_length = 12;
 	
 	# Get arguments
-#	my $dh= shift;
 	my $bp = shift;
 	my $uid = shift;
 	
@@ -213,11 +212,11 @@ sub check_doc {
 	   my $ssh_key = &do_path_expansion(&text_tag($ssh_key));
 	   return "$ssh_key is not a valid absolute filename" unless &valid_absolute_filename($ssh_key);
 	   unless (-r $ssh_key) {
-	       change_to_root();
+root();
 	       if (-r $ssh_key) {
                 return "$ssh_key (ssh key file) does not exist or is not readable" unless (-r $ssh_key);
 	       }	
-	       back_to_user();
+user();
 	   }
     }
 
@@ -497,7 +496,7 @@ sub check_doc {
       return "vm name \"$name\" can not containt whitespaces"
       	if ($name =~ /\s/);
 
-      # Calculate the efective basedir (laterly used for <filetree> checkings)
+      # Calculate the efective basedir (lately used for <filetree> checkings)
       my $effective_basedir = $dh->get_default_basedir;
       my @basedir_list = $vm->getElementsByTagName("basedir");
       if (@basedir_list == 1) {
@@ -1036,7 +1035,7 @@ sub check_doc {
    if (@host_list > 0) {
       foreach my $exec ($host_list[0]->getElementsByTagName("exec")) {
       	 my $seq = $exec->getAttribute("seq");
-         if ($exec->getAttribute("user") ne "") {
+         unless (empty ($exec->getAttribute("user") ) ) {
             return "the use of user attribute in <exec> is forbidden within <host> in command sequence '$seq'";
          }
       }

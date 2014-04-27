@@ -82,13 +82,14 @@ my $union_type;
 sub init {
 
     my $logp = "vbox-init> ";
-#    $union_type = get_conf_value ($vnxConfigFile, 'lxc', 'union_type', 'root');
-#    if (empty($union_type)) {
-#        $union_type = 'overlayfs'; # default value
-#    } elsif ( ($union_type ne 'overlayfs') && ($union_type ne 'aufs') ){
-#        $execution->smartdie ("ERROR in $vnxConfigFile, value of 'union_type' \nparameter in [lxc] section unknown (should be overlayfs or aufs).")
-#    }
-#    wlog (VVV, "vbox-union_type=$union_type");
+    
+    my $error;
+
+    return unless ( $dh->any_vmtouse_of_type('vbox') );
+    
+    # Init code
+    
+    return $error;  
 }
 
 # ---------------------------------------------------------------------------------------
@@ -103,7 +104,7 @@ sub init {
 #   - $vm_doc: XML document describing the virtual machines
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -116,7 +117,7 @@ sub define_vm {
 
     my $logp = "vbox-define_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-    my $error = 0;
+    my $error;
     my $extConfFile;
 
     my $global_doc = $dh->get_doc;
@@ -587,7 +588,7 @@ back_to_user();
 #   - $type: the merged type of the virtual machine (e.g. lxc)
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -600,7 +601,7 @@ sub undefine_vm {
     my $logp = "vbox-undefine_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
     my $con;
 
 return "not implemented yet....";
@@ -652,7 +653,7 @@ return "not implemented yet....";
 #   - $type: the merged type of the virtual machine 
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -665,7 +666,7 @@ sub destroy_vm {
     my $logp = "vbox-destroy_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
     my $con;
 
 return "not implemented yet....";
@@ -725,7 +726,7 @@ return "not implemented yet....";
 #   - $no_consoles: if true, virtual machine consoles are not opened
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -739,7 +740,7 @@ sub start_vm {
     my $logp = "vbox-start_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
     my $con;
     
     #
@@ -882,7 +883,7 @@ return "not implemented yet....";
 #   - $type: the merged type of the virtual machine
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -895,7 +896,7 @@ sub shutdown_vm {
     my $logp = "vbox-shutdown_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
 
     # Sample code
     print "Shutting down vm $vm_name of type $type\n" if ($exemode == $EXE_VERBOSE);
@@ -940,7 +941,7 @@ sub shutdown_vm {
 #   - $filename: the name of the file to save the VM state to
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -954,7 +955,7 @@ sub save_vm {
     my $logp = "vbox-save_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
 
 return "not implemented yet....";
 
@@ -979,7 +980,7 @@ return "not implemented yet....";
 #   - $filename: the name of the file with the VM state
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -993,7 +994,7 @@ sub restore_vm {
     my $logp = "vbox-restore_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
 
 return "not implemented yet....";
 
@@ -1025,7 +1026,7 @@ return "not implemented yet....";
 #   - $type: the merged type of the virtual machine
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1038,7 +1039,7 @@ sub suspend_vm {
     my $logp = "vbox-suspend_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
 
 return "not implemented yet....";
 
@@ -1067,7 +1068,7 @@ return "not implemented yet....";
 #   - $type: the merged type of the virtual machine
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1080,7 +1081,7 @@ sub resume_vm {
     my $logp = "vbox-resume_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
 
 return "not implemented yet....";
 
@@ -1112,7 +1113,7 @@ return "not implemented yet....";
 #   - $type: the merged type of the virtual machine
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1125,7 +1126,7 @@ sub reboot_vm {
     my $logp = "vbox-reboot_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
 
 return "not implemented yet....";
 
@@ -1155,7 +1156,7 @@ return "not implemented yet....";
 #   - $type: the merged type of the virtual machine
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1196,12 +1197,13 @@ return "not implemented yet....";
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
-#   - $ref_state: reference to a variable that will hold the state of VM in VNX terms 
-#                 (undefined, defeined, running, suspended, hibernated)
-#   - $ref_hstate: reference to a variable that will hold the state of VM in hipervisor terms 
+#   - $ref_hstate: reference to a variable that will hold the state of VM as reported by the hipervisor 
+#   - $ref_vstate: reference to a variable that will hold the equivalent VNX state (undefined, defined, 
+#                  running, suspended, hibernated) to the state reported by the supervisor (a best effort
+#                  mapping among both state spaces is done) 
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1209,18 +1211,18 @@ sub get_state_vm {
 
     my $self   = shift;
     my $vm_name = shift;
-    my $ref_state = shift;
     my $ref_hstate = shift;
+    my $ref_vstate = shift;
 
     my $logp = "lxc-get_status_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name ...)", $logp);
 
-    my $error = 0;
+    my $error;
 
-    $$ref_state = "--";
+    $$ref_vstate = "--";
     $$ref_hstate = "--";
     
-    wlog (VVV, "state=$$ref_state, hstate=$$ref_hstate, error=$error");
+    wlog (VVV, "state=$$ref_vstate, hstate=$$ref_hstate, error=$error");
     return $error;
 }
 
@@ -1242,7 +1244,7 @@ sub get_state_vm {
 #   - $exec_list_ref: a reference to an array with the user-defined <exec> commands
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1258,7 +1260,7 @@ sub execute_cmd {
     my $ftree_list_ref        = shift;
     my $exec_list_ref         = shift;
 
-    my $error = 0;
+    my $error;
 
     my $logp = "vbox-execute_cmd-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)", $logp);

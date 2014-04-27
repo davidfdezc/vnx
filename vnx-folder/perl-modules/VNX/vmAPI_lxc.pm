@@ -38,15 +38,12 @@ our @EXPORT = qw(
   init
   define_vm
   undefine_vm
-  destroy_vm
   start_vm
   shutdown_vm
-  save_vm
-  restore_vm
   suspend_vm
   resume_vm
-  reboot_vm
-  reset_vm
+  save_vm
+  restore_vm
   get_state_vm
   execute_cmd
   );
@@ -73,6 +70,7 @@ use IO::Socket::UNIX qw( SOCK_STREAM );
 use constant USE_UNIX_SOCKETS => 0;  # Use unix sockets (1) or TCP (0) to communicate with virtual machine 
 my $lxc_dir="/var/lib/lxc";
 my $union_type;
+my $aa_unconfined;
 
 # ---------------------------------------------------------------------------------------
 #
@@ -82,20 +80,39 @@ my $union_type;
 sub init {
 
     my $logp = "lxc-init> ";
+    my $error;
+    
+    return unless ( $dh->any_vmtouse_of_type('lxc') );
+    
     $union_type = get_conf_value ($vnxConfigFile, 'lxc', 'union_type', 'root');
     if (empty($union_type)) {
         $union_type = 'overlayfs'; # default value
     } elsif ( ($union_type ne 'overlayfs') && ($union_type ne 'aufs') ){
-        $execution->smartdie ("ERROR in $vnxConfigFile, value of 'union_type' \nparameter in [lxc] section unknown (should be overlayfs or aufs).")
+        $error = "in $vnxConfigFile, incorrect value ($union_type) assigned to 'union_type' \nparameter in [lxc] section (should be overlayfs or aufs).";
     }
-    wlog (VVV, "lxc-union_type=$union_type");
+    wlog (VVV, "LXC conf: union_type=$union_type");
+
+    $aa_unconfined = get_conf_value ($vnxConfigFile, 'lxc', 'aa_unconfined', 'root');
+    if (empty($aa_unconfined)) {
+        $aa_unconfined = 'no'; # default value
+    } elsif ( ($aa_unconfined ne 'yes') && ($aa_unconfined ne 'no') ){
+        $error = "in $vnxConfigFile, incorrect value ($aa_unconfined) assigned to 'aa_unconfined' \nparameter in [lxc] section (should be yes or no).";
+    }
+    wlog (VVV, "LXC conf: aa_unconfined=$aa_unconfined");
+
+    # Check whether LXC is installed (by executing lxc-version)
+    system("lxc-version 2> /dev/null");
+    if ( $? != 0 ) {
+    	$error = "Cannot execute 'lxc-version' command, check LXC is installed in the system.";
+    }
+    return $error;
 }
 
 # ---------------------------------------------------------------------------------------
 #
 # define_vm
 #
-# Defined a virtual machine 
+# Defines a LXC virtual machine
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
@@ -103,7 +120,7 @@ sub init {
 #   - $vm_doc: XML document describing the virtual machines
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -116,7 +133,7 @@ sub define_vm {
 
     my $logp = "lxc-define_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-    my $error = 0;
+    my $error;
     my $extConfFile;
 
     my $global_doc = $dh->get_doc;
@@ -138,7 +155,7 @@ sub define_vm {
     	    	
         # Check if an LXC VM with the same name is already defined
         if ( -d "$lxc_dir/$vm_name") {
-            $error = "ERROR: a LXC vm named $vm_name already exists. Check $lxc_dir/$vm_name directory content.";
+            $error = "A LXC vm named $vm_name already exists. Check $lxc_dir/$vm_name directory content.";
             return $error;
         }
 
@@ -293,10 +310,13 @@ change_to_root();
             #$execution->execute( $logp, "echo 'iface lo inet loopback' >> $vm_etc_net_ifs" );
 
         }                       
-        # Change to unconfined mode to avoid problems with apparmor
-        $execution->execute( $logp, "", *CONFIG_FILE );
-        $execution->execute( $logp, "# Set unconfined to avoid problems with apparmor", *CONFIG_FILE );
-        $execution->execute( $logp, "lxc.aa_profile=unconfined", *CONFIG_FILE );
+
+        # Change to unconfined mode to avoid problems with apparmor if configured
+        if ( $aa_unconfined eq 'yes' ){
+	        $execution->execute( $logp, "", *CONFIG_FILE );
+	        $execution->execute( $logp, "# Set unconfined to avoid problems with apparmor", *CONFIG_FILE );
+	        $execution->execute( $logp, "lxc.aa_profile=unconfined", *CONFIG_FILE );
+        }
 
         close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
@@ -521,27 +541,27 @@ back_to_user();
 #
 # undefine_vm
 #
-# Undefines a virtual machine 
+# Undefines a LXC virtual machine, deleting all associated state and files 
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
 #   - $type: the merged type of the virtual machine (e.g. lxc)
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
 sub undefine_vm {
 
-    my $self   = shift;
-    my $vm_name = shift;
-    my $type   = shift;
+    my $self      = shift;
+    my $vm_name   = shift;
+    my $type      = shift;
 
     my $logp = "lxc-undefine_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
     my $con;
 
     #
@@ -555,13 +575,13 @@ sub undefine_vm {
         if ( -l "$lxc_dir/$vm_name") {
             #my $a = `stat -c "%d:%i" $lxc_dir/$vm_name`; my $b = `stat -c "%d:%i" $vm_lxc_dir`;
             #wlog (VVV, "a=$a, b=$b");
-            if ( `stat -c "%d:%i" $lxc_dir/$vm_name` eq `stat -c "%d:%i" $vm_lxc_dir`) {
+            if ( `stat -c "%d:%i" $lxc_dir/$vm_name/` eq `stat -c "%d:%i" $vm_lxc_dir/`) {
                 $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " $lxc_dir/$vm_name" );
             } else {
-                $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
+                $error="A directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
             }
         } elsif ( -d "$lxc_dir/$vm_name") {
-            $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
+            $error="A directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
         }
 
         # Umount the overlay filesystem
@@ -580,81 +600,11 @@ sub undefine_vm {
     }
 }
 
-# ---------------------------------------------------------------------------------------
-#
-# destroy_vm
-#
-# Destroys a virtual machine 
-#
-# Arguments:
-#   - $vm_name: the name of the virtual machine
-#   - $type: the merged type of the virtual machine 
-# 
-# Returns:
-#   - 0 if no error
-#   - string describing error, in case of error
-#
-# ---------------------------------------------------------------------------------------
-sub destroy_vm {
-
-    my $self   = shift;
-    my $vm_name = shift;
-    my $type   = shift;
-
-    my $logp = "lxc-destroy_vm-$vm_name> ";
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-
-    my $error = 0;
-    my $con;
-    
-    
-    #
-    # destroy_vm for lxc
-    #
-    if ($type eq "lxc") {
-
-        my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
-
-        #my $a = `stat -c "%d:%i" $lxc_dir/$vm_name/`; my $b = `stat -c "%d:%i" $vm_lxc_dir/`;
-        #wlog (VVV, "$lxc_dir/$vm_name/=$a, $vm_lxc_dir/=$b");
-        
-
-        $execution->execute( $logp, "lxc-kill -n $vm_name");
-
-        # Remove symlink to VM in /var/lib/lxc/ if existant  
-        if ( -l "$lxc_dir/$vm_name") {
-            #my $a = `stat -c "%d:%i" $lxc_dir/$vm_name/`; my $b = `stat -c "%d:%i" $vm_lxc_dir/`;
-            #wlog (VVV, "a=$a, b=$b");
-            if ( `stat -c "%d:%i" $lxc_dir/$vm_name/` eq `stat -c "%d:%i" $vm_lxc_dir/`) {
-                $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " $lxc_dir/$vm_name" );
-            } else {
-                $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
-            }
-        } elsif ( -d "$lxc_dir/$vm_name") {
-            $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
-        }
-
-        # Umount the overlay filesystem
-        $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $vm_lxc_dir );
-
-        # Delete COW files directory
-        my $vm_cow_dir = $dh->get_vm_dir($vm_name);
-        $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $vm_cow_dir . "/fs/*" );
-
-        return $error;
-
-    }
-    else {
-        $error = "destroy_vm for type $type not implemented yet.\n";
-        return $error;
-    }
-}
-
-# ---------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------
 #
 # start_vm
 #
-# Starts a virtual machine already defined with define_vm
+# Starts a LXC virtual machine. The VM should already be in 'defined' state. 
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
@@ -662,7 +612,7 @@ sub destroy_vm {
 #   - $no_consoles: if true, virtual machine consoles are not opened
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -676,7 +626,7 @@ sub start_vm {
     my $logp = "lxc-start_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
     my $con;
     
     #
@@ -700,17 +650,17 @@ sub start_vm {
         # If host_mapping is in use and the vm has a management interface, 
         # then we have to add an entry for this vm in $dh->get_sim_dir/hostlines file
         if ( $dh->get_host_mapping ) {
-        	my @vm_ordered = $dh->get_vm_ordered;
-	        for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
-	        	my $vm = $vm_ordered[$i];
-	            my $name = $vm->getAttribute("name");
-	            unless ( $name eq $vm_name ) { next; }
-						    		
-				# Check whether the vm has a management interface enabled
-				my $mng_if_value = &mng_if_value($vm);
-				unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
+            my @vm_ordered = $dh->get_vm_ordered;
+            for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+                my $vm = $vm_ordered[$i];
+                my $name = $vm->getAttribute("name");
+                unless ( $name eq $vm_name ) { next; }
+                                    
+                # Check whether the vm has a management interface enabled
+                my $mng_if_value = &mng_if_value($vm);
+                unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
                             
-                 	# Get the vm management ip address 
+                    # Get the vm management ip address 
                     my %net = &get_admin_address( 'file', $vm_name );
                     # Add it to hostlines file
                     open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
@@ -718,7 +668,7 @@ sub start_vm {
                         unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
                     print HOSTLINES $net{'vm'}->addr() . " $vm_name\n";
                     close HOSTLINES;
-                }	    		
+                }               
             }
         }
         
@@ -737,41 +687,102 @@ sub start_vm {
 #
 # shutdown_vm
 #
-# Shutdowns a virtual machine
+# Stops a LXC virtual machine. The VM should be in 'running' state. If $kill is not defined,
+# an ordered shutdown request is sent to VM; if $kill is defined, a power-off is issued.  
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
 #   - $type: the merged type of the virtual machine
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
 sub shutdown_vm {
 
-    my $self   = shift;
+    my $self    = shift;
     my $vm_name = shift;
-    my $type   = shift;
+    my $type    = shift;
+    my $kill    = shift;
 
     my $logp = "lxc-shutdown_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
-
-    # Sample code
-    print "Shutting down vm $vm_name of type $type\n" if ($exemode == $EXE_VERBOSE);
+    my $error;
 
     #
     # shutdown_vm for lxc
     #
     if ($type eq "lxc") {
-    	
+
+        if (defined($kill)) {
+        	# Kill the VM
+            $execution->execute( $logp, "lxc-stop -k -n $vm_name");
+        } else {
+        	# Shutdown the VM
+            $execution->execute( $logp, "lxc-stop -W -n $vm_name");
+        }
+        return $error;
+    }
+    else {
+        $error = "Type is not yet supported\n";
+        return $error;
+    }
+}
+
+=BEGIN
+# ---------------------------------------------------------------------------------------
+#
+# destroy_vm
+#
+# Destroys a LXC virtual machine 
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine 
+# 
+# Returns:
+#   - undefined or '' if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
+sub destroy_vm {
+
+    my $self   = shift;
+    my $vm_name = shift;
+    my $type   = shift;
+
+    my $logp = "lxc-destroy_vm-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
+
+    my $error;
+    my $con;
+    
+    #
+    # destroy_vm for lxc
+    #
+    if ($type eq "lxc") {
+
+        $error = $self->shutdown_vm($vm_name, $type, 'kill');
+        if ( $error ne 0 ) {
+            wlog (N, "...ERROR: VNX::vmAPI_${type}->shutdown_vm returns " . $error);
+        }
+        $error = $self->undefine_vm($vm_name, $type);
+
+BEGIN
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
-        $execution->execute( $logp, "lxc-stop -s -W -n $vm_name");
+
+        #my $a = `stat -c "%d:%i" $lxc_dir/$vm_name/`; my $b = `stat -c "%d:%i" $vm_lxc_dir/`;
+        #wlog (VVV, "$lxc_dir/$vm_name/=$a, $vm_lxc_dir/=$b");
+        
+
+        $execution->execute( $logp, "lxc-stop -k -n $vm_name");
 
         # Remove symlink to VM in /var/lib/lxc/ if existant  
         if ( -l "$lxc_dir/$vm_name") {
+            #my $a = `stat -c "%d:%i" $lxc_dir/$vm_name/`; my $b = `stat -c "%d:%i" $vm_lxc_dir/`;
+            #wlog (VVV, "a=$a, b=$b");
             if ( `stat -c "%d:%i" $lxc_dir/$vm_name/` eq `stat -c "%d:%i" $vm_lxc_dir/`) {
                 $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " $lxc_dir/$vm_name" );
             } else {
@@ -780,110 +791,39 @@ sub shutdown_vm {
         } elsif ( -d "$lxc_dir/$vm_name") {
             $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
         }
-    	
-        return $error;
-    }
-    else {
-        $error = "Type is not yet supported\n";
-        return $error;
-    }
-}
 
+        # Umount the overlay filesystem
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $vm_lxc_dir );
 
-# ---------------------------------------------------------------------------------------
-#
-# save_vm
-#
-# Stops a virtual machine and saves its status to disk
-#
-# Arguments:
-#   - $vm_name: the name of the virtual machine
-#   - $type: the merged type of the virtual machine
-#   - $filename: the name of the file to save the VM state to
-# 
-# Returns:
-#   - 0 if no error
-#   - string describing error, in case of error
-#
-# ---------------------------------------------------------------------------------------
-sub save_vm {
-
-    my $self     = shift;
-    my $vm_name  = shift;
-    my $type     = shift;
-    my $filename = shift;
-
-    my $logp = "lxc-save_vm-$vm_name> ";
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-
-    my $error = 0;
-
-    # Sample code
-    print "save_vm: saving vm $vm_name of type $type\n" if ($exemode == $EXE_VERBOSE);
-
-    if ( $type eq "lxc" ) {
-        return $error;
-
-    }
-}
-
-# ---------------------------------------------------------------------------------------
-#
-# restore_vm
-#
-# Restores the status of a virtual machine from a file previously saved with save_vm
-#
-# Arguments:
-#   - $vm_name: the name of the virtual machine
-#   - $type: the merged type of the virtual machine
-#   - $filename: the name of the file with the VM state
-# 
-# Returns:
-#   - 0 if no error
-#   - string describing error, in case of error
-#
-# ---------------------------------------------------------------------------------------
-sub restore_vm {
-
-    my $self     = shift;
-    my $vm_name   = shift;
-    my $type     = shift;
-    my $filename = shift;
-
-    my $logp = "lxc-restore_vm-$vm_name> ";
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-
-    my $error = 0;
-
-    print
-      "restore_vm: restoring vm $vm_name of type $type from file $filename\n";
-
-    #
-    # restore_vm for lxc
-    #
-    if ($type eq "lxc") {
-
+        # Delete COW files directory
+        my $vm_cow_dir = $dh->get_vm_dir($vm_name);
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $vm_cow_dir . "/fs/*" );
+END
+cut
         return $error;
 
     }
     else {
-        $error = "Type is not yet supported\n";
+        $error = "destroy_vm for type $type not implemented yet.\n";
         return $error;
     }
 }
+=END
+=cut
+
 
 # ---------------------------------------------------------------------------------------
 #
 # suspend_vm
 #
-# Stops a virtual machine and saves its status to memory
+# Stops a LXC virtual machine and saves its status to memory
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
 #   - $type: the merged type of the virtual machine
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -896,15 +836,17 @@ sub suspend_vm {
     my $logp = "lxc-suspend_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
 
     #
     # suspend_vm for lxc
     #
     if ($type eq "lxc") {
 
-        return $error;
+        # Suspend the VM to memory
+        $execution->execute( $logp, "lxc-freeze -n $vm_name");
 
+        return $error;
     }
     else {
         $error = "Type is not yet supported\n";
@@ -923,7 +865,7 @@ sub suspend_vm {
 #   - $type: the merged type of the virtual machine
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -936,15 +878,15 @@ sub resume_vm {
     my $logp = "lxc-resume_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
-
-    # Sample code
-    print "resume_vm: resuming vm $vm_name\n" if ($exemode == $EXE_VERBOSE);
+    my $error;
 
     #
     # resume_vm for lxc
     #
     if ($type eq "lxc") {
+
+        # resume the VM from memory
+        $execution->execute( $logp, "lxc-unfreeze -n $vm_name");
 
         return $error;
 
@@ -957,6 +899,86 @@ sub resume_vm {
 
 # ---------------------------------------------------------------------------------------
 #
+# save_vm
+#
+# Stops a virtual machine and saves its status to disk
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine
+#   - $filename: the name of the file to save the VM state to
+# 
+# Returns:
+#   - undefined or '' if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
+sub save_vm {
+
+    my $self     = shift;
+    my $vm_name  = shift;
+    my $type     = shift;
+    my $filename = shift;
+
+    my $logp = "lxc-save_vm-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
+
+    my $error;
+
+
+    if ( $type eq "lxc" ) {
+        $error = "save_vm not implemented for $type";
+        return $error;
+
+    }
+}
+
+# ---------------------------------------------------------------------------------------
+#
+# restore_vm
+#
+# Restores the status of a virtual machine from a file previously saved with save_vm
+#
+# Arguments:
+#   - $vm_name: the name of the virtual machine
+#   - $type: the merged type of the virtual machine
+#   - $filename: the name of the file with the VM state
+# 
+# Returns:
+#   - undefined or '' if no error
+#   - string describing error, in case of error
+#
+# ---------------------------------------------------------------------------------------
+sub restore_vm {
+
+    my $self     = shift;
+    my $vm_name   = shift;
+    my $type     = shift;
+    my $filename = shift;
+
+    my $logp = "lxc-restore_vm-$vm_name> ";
+    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
+
+    my $error;
+
+    #
+    # restore_vm for lxc
+    #
+    if ($type eq "lxc") {
+
+        $error = "save_vm not implemented for $type";
+        return $error;
+
+    }
+    else {
+        $error = "Type is not yet supported\n";
+        return $error;
+    }
+}
+
+=BEGIN
+# ---------------------------------------------------------------------------------------
+#
 # reboot_vm
 #
 # Reboots a virtual machine
@@ -966,7 +988,7 @@ sub resume_vm {
 #   - $type: the merged type of the virtual machine
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -979,12 +1001,15 @@ sub reboot_vm {
     my $logp = "lxc-reboot_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-    my $error = 0;
+    my $error;
 
     #
     # reboot_vm for lxc
     #
     if ($type eq "lxc") {
+
+        # reboot the VM
+        $execution->execute( $logp, "lxc-stop -r -n $vm_name");
 
         return $error;
 
@@ -1007,7 +1032,7 @@ sub reboot_vm {
 #   - $type: the merged type of the virtual machine
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1030,6 +1055,12 @@ sub reset_vm {
     #
     if ($type eq "lxc") {
 
+        $error = $self->shutdown_vm($vm_name, $type, 'kill');
+        if ( $error ne 0 ) {
+            wlog (N, "...ERROR: VNX::vmAPI_${type}->shutdown_vm returns " . $error);
+        }
+        $error = $self->start($vm_name, $type);
+
         return $error;
 
     }else {
@@ -1037,6 +1068,8 @@ sub reset_vm {
         return $error;
     }
 }
+=END
+=cut
 
 # ---------------------------------------------------------------------------------------
 #
@@ -1046,12 +1079,13 @@ sub reset_vm {
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
-#   - $ref_state: reference to a variable that will hold the state of VM in VNX terms 
-#                 (undefined, defeined, running, suspended, hibernated)
-#   - $ref_hstate: reference to a variable that will hold the state of VM in hipervisor terms 
+#   - $ref_hstate: reference to a variable that will hold the state of VM as reported by the hipervisor 
+#   - $ref_vstate: reference to a variable that will hold the equivalent VNX state (undefined, defined, 
+#                  running, suspended, hibernated) to the state reported by the supervisor (a best effort
+#                  mapping among both state spaces is done) 
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1059,21 +1093,21 @@ sub get_state_vm {
 
     my $self   = shift;
     my $vm_name = shift;
-    my $ref_state = shift;
     my $ref_hstate = shift;
+    my $ref_vstate = shift;
 
     my $logp = "lxc-get_status_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name ...)", $logp);
 
-    my $error = 0;
+    my $error;
 
-    $$ref_state = "--";
+    $$ref_vstate = "--";
     $$ref_hstate = `lxc-info -n $vm_name -s | awk '{print \$2}'`;
     chomp ($$ref_hstate); 
     
-    if    ($$ref_hstate eq 'RUNNING') { $$ref_state = 'running'}
-    elsif ($$ref_hstate eq 'STOPPED') { $$ref_state = 'defined'}
-    wlog (VVV, "state=$$ref_state, hstate=$$ref_hstate, error=$error");
+    if    ($$ref_hstate eq 'RUNNING') { $$ref_vstate = 'running'}
+    elsif ($$ref_hstate eq 'STOPPED') { $$ref_vstate = 'defined'}
+    wlog (VVV, "state=$$ref_vstate, hstate=$$ref_hstate, error=$error");
     return $error;
 }
 
@@ -1095,7 +1129,7 @@ sub get_state_vm {
 #   - $exec_list_ref: a reference to an array with the user-defined <exec> commands
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1111,7 +1145,7 @@ sub execute_cmd {
     my $ftree_list_ref        = shift;
     my $exec_list_ref         = shift;
 
-    my $error = 0;
+    my $error;
 
     my $logp = "lxc-execute_cmd-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)", $logp);

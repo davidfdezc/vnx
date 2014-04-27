@@ -1787,27 +1787,39 @@ sub get_seqs {
     return %vm_seqs;
 }
 
-# any_kvm_vm
 #
-# Checks if the virtual scenario contains a KVM virtual machine
-# Used to know whether the KVM modules have to be loaded
+# any_vmtouse_of_type
 #
-sub any_kvm_vm {
-    my $self = shift;
+# Checks if there is any VM of type $type in the list of virtual virtual 
+# machines to use ($dh->get_vm_to_use_ordered)
+#
+sub any_vmtouse_of_type {
 
-    my $found = 'false';
+    my $self = shift;
+    my $type = shift;
+    my $subtype = shift;
+    my $os = shift;
+
+    my $logp="any_vmtouse_of_type> ";
+    wlog (VVV, "Looking for VM of type type=$type, subtype=" . str($subtype) . ", os=" . str($os), $logp);
+
+    my $compare_subtype=defined($subtype);
+    my $compare_os=defined($os);
+    my $found;
 
     my $global_doc = $dh->get_doc;
-    my @vm_ordered = $dh->get_vm_ordered;
-    
-    for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+    my @vm_ordered = $dh->get_vm_to_use_ordered;
 
-        my $vm = $vm_ordered[$i];
-        if ( ($vm->getAttribute("type")    eq 'libvirt') &&
-             ($vm->getAttribute("subtype") eq 'kvm') ) {
+    foreach my $vm (@vm_ordered) {    
+
+        if ( ($vm->getAttribute("type")    eq $type    ) &&
+             ( !$compare_subtype || $vm->getAttribute("subtype") eq $subtype ) &&
+             ( !$compare_os      || $vm->getAttribute("os")      eq $os      ) ) {
+            wlog (VVV, "VM of type $type-" . str($subtype) . "-" . str($os) . " found", $logp);
             return 'true'     	
         }
     }
+    wlog (VVV, "No VM of type $type-" . str($subtype) . "-" . str($os) . " found", $logp);
     return $found;
 }
 

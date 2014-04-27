@@ -102,7 +102,6 @@ use VNX::Globals;
 use VNX::DataHandler;
 use VNX::Execution;
 use VNX::BinariesData;
-#use VNX::Arguments;
 use VNX::CheckSemantics;
 use VNX::TextManipulation;
 use VNX::NetChecks;
@@ -137,7 +136,12 @@ my $M_flag;       # passed from createVM to halt
 #
 # ---------------------------------------------------------------------------------------
 sub init {
-	my $logp = "uml-init> ";	
+	my $logp = "uml-init> ";
+	my $error;
+
+    return unless ( $dh->any_vmtouse_of_type('uml') );
+	
+	return $error;	
 }
 
 # ---------------------------------------------------------------------------------------
@@ -152,7 +156,7 @@ sub init {
 #   - $vm_doc: XML document describing the virtual machines
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -168,7 +172,7 @@ sub define_vm {
 	
 	$curr_uml = $vm_name;
 
-	my $error = 0;
+	my $error;
 
 	if ( $type ne "uml" ) {
 		$error = "$sub_name called with type $type (should be uml)\n";
@@ -189,7 +193,7 @@ sub define_vm {
 #   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -202,7 +206,7 @@ sub undefine_vm {
     my $logp = "uml-undefine_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-	my $error = 0;
+	my $error;
 
 	if ( $type ne "uml" ) {
         $error = "$sub_name called with type $type (should be uml)\n";
@@ -224,7 +228,7 @@ sub undefine_vm {
 #   - $no_consoles: if true, virtual machine consoles are not opened
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -240,7 +244,7 @@ sub start_vm {
 	
 	$curr_uml = $vm_name;
 
-	my $error = 0;
+	my $error;
 
 	if ( $type ne "uml" ) {
         $error = "$sub_name called with type $type (should be uml)\n";
@@ -850,7 +854,7 @@ sub start_vm {
 #   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -863,7 +867,7 @@ sub destroy_vm {
     my $logp = "uml-destroy_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-	my $error = 0;
+	my $error;
 	
 	if ( $type ne "uml" ) {
         $error = "$sub_name called with type $type (should be uml)\n";
@@ -946,7 +950,7 @@ sub destroy_vm {
 #   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -960,7 +964,7 @@ sub shutdown_vm {
     my $logp = "uml-shutdown_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-	my $error = 0;
+	my $error;
 
 	if ( $type ne "uml" ) {
         $error = "$sub_name called with type $type (should be uml)\n";
@@ -983,7 +987,7 @@ sub shutdown_vm {
 #   - $filename: the name of the file to save the VM state to
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -997,7 +1001,7 @@ sub save_vm {
 	my $logp = "uml-save_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-	my $error = 0;
+	my $error;
 
 	if ( $type ne "uml" ) {
         $error = "$sub_name called with type $type (should be uml)\n";
@@ -1021,7 +1025,7 @@ sub save_vm {
 #   - $filename: the name of the file with the VM state
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1035,7 +1039,7 @@ sub restore_vm {
     my $logp = "uml-restore_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-	my $error = 0;
+	my $error;
 
 	if ( $type ne "uml" ) {
         $error = "$sub_name called with type $type (should be uml)\n";
@@ -1059,7 +1063,7 @@ sub restore_vm {
 #   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1072,7 +1076,7 @@ sub suspend_vm {
     my $logp = "uml-suspend_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-	my $error = 0;
+	my $error;
 
 	if ( $type ne "uml" ) {
         $error = "$sub_name called with type $type (should be uml)\n";
@@ -1096,7 +1100,7 @@ sub suspend_vm {
 #   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1109,7 +1113,7 @@ sub resume_vm {
     my $logp = "uml-resume_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-	my $error = 0;
+	my $error;
 
 	if ( $type ne "uml" ) {
         $error = "$sub_name called with type $type (should be uml)\n";
@@ -1132,7 +1136,7 @@ sub resume_vm {
 #   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1145,7 +1149,7 @@ sub reboot_vm {
     my $logp = "uml-reboot_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
 
-	my $error = 0;
+	my $error;
 
 	if ( $type ne "uml" ) {
         $error = "$sub_name called with type $type (should be uml)\n";
@@ -1168,7 +1172,7 @@ sub reboot_vm {
 #   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1201,12 +1205,13 @@ sub reset_vm {
 #
 # Arguments:
 #   - $vm_name: the name of the virtual machine
-#   - $ref_state: reference to a variable that will hold the state of VM in VNX terms 
-#                 (undefined, defeined, running, suspended, hibernated)
-#   - $ref_hstate: reference to a variable that will hold the state of VM in hipervisor terms 
+#   - $ref_hstate: reference to a variable that will hold the state of VM as reported by the hipervisor 
+#   - $ref_vstate: reference to a variable that will hold the equivalent VNX state (undefined, defined, 
+#                  running, suspended, hibernated) to the state reported by the supervisor (a best effort
+#                  mapping among both state spaces is done) 
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------
@@ -1214,18 +1219,18 @@ sub get_state_vm {
 
     my $self   = shift;
     my $vm_name = shift;
-    my $ref_state = shift;
     my $ref_hstate = shift;
+    my $ref_vstate = shift;
 
     my $logp = "lxc-get_status_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name ...)", $logp);
 
-    my $error = 0;
+    my $error;
 
-    $$ref_state = "--";
+    $$ref_vstate = "--";
     $$ref_hstate = "--";
     
-    wlog (VVV, "state=$$ref_state, hstate=$$ref_hstate, error=$error");
+    wlog (VVV, "state=$$ref_vstate, hstate=$$ref_hstate, error=$error");
     return $error;
 }
 
@@ -1247,7 +1252,7 @@ sub get_state_vm {
 #   - $exec_list_ref: a reference to an array with the user-defined <exec> commands
 # 
 # Returns:
-#   - 0 if no error
+#   - undefined or '' if no error
 #   - string describing error, in case of error
 #
 # ---------------------------------------------------------------------------------------

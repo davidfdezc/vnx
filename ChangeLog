@@ -1,3 +1,16 @@
+27/04/2014
+
+- vmAPI simplified: destroy_vm, reboot_vm and reset_vm eliminated. vmAPIs maintain 
+  only this basic primitives: define_vm, undefine_vm, start_vm, shutdown_vm, suspend_vm, 
+  resume_vm, save_vm, restore_vm, get_state_vm and execute_cmd. Other primitives are implemented 
+  from vnx.pl code in terms of basic primitives. For example: destroy_vm=shutdown_vm+undefine_vm
+    - shutdown_vm: new parameter to define if shutdown is gracefull or is a poweroff
+    - new vnx option --recreate which is a destroy+create  
+- Added wlog (E, ...) option to write error messages
+- vmAPI_dynamips: much code cleanup, rewritten the procedures to send commands to dynamips 
+  hypervisor. get_state_vm implemented
+  
+
 19/04/2014
 
 - Execution.pm: added pause_if_interactive (or pii) sub.
