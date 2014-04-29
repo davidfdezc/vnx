@@ -308,7 +308,15 @@ e-mail: vnx@dit.upm.es
           <xs:restriction base="xs:NMTOKEN">
             <xs:enumeration value="virtual_bridge"/>
             <xs:enumeration value="uml_switch"/>
-	    <xs:enumeration value="openvswitch"/>
+            <xs:enumeration value="openvswitch"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute default="yes" name="managed" use="optional">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="yes"/>
+            <xs:enumeration value="no"/>
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>

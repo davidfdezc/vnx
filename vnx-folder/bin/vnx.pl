@@ -981,7 +981,7 @@ sub build_topology{
     $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " '<'!-- copied by $basename at $now --'>' >> ".$dh->get_sim_dir."/$input_file_basename");       
     $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " '<'!-- original path: ".abs_path($dh->get_input_file)." --'>' >> ".$dh->get_sim_dir."/$input_file_basename");
 
-    # To make lock file (it exists while topology is running)
+    # To make lock file (it exists while scenario is running)
     $execution->execute( $logp, $bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_sim_dir . "/lock");
 
     # Create the mgmn_net socket when <vmmgnt type="net">, if needed
@@ -3880,16 +3880,28 @@ sub create_bridges_for_virtual_bridged_networks  {
         my $mode        = $net->getAttribute("mode");
         my $external_if = $net->getAttribute("external");
         my $vlan        = $net->getAttribute("vlan");
+        my $managed     = $net->getAttribute("managed");
 
-        wlog (VVV, "vnet_exists_br($net_name, 'openvswitch') returns '" . vnet_exists_br($net_name, 'openvswitch'), $logp);
-        wlog (VVV, "vnet_exists_br($net_name, 'virtual_bridge') returns '" . vnet_exists_br($net_name, 'virtual_bridge'), $logp);
+        my $ovs_exists = vnet_exists_br($net_name, 'openvswitch');
+        my $vb_exists  = vnet_exists_br($net_name, 'virtual_bridge');
+        
+        wlog (VVV, "vnet_exists_br($net_name, 'openvswitch') returns '" . $ovs_exists, $logp);
+        wlog (VVV, "vnet_exists_br($net_name, 'virtual_bridge') returns '" . $vb_exists, $logp);
 
-        if ( vnet_exists_br($net_name, 'openvswitch') && $mode eq 'virtual_bridge' ) {
+        if ( $ovs_exists && $mode eq 'virtual_bridge' ) {
             $execution->smartdie ("\nERROR: Cannot create virtual bridge $net_name. An Openvswitch with the same name already exists.")
-        } elsif ( vnet_exists_br($net_name, 'virtual_bridge') && $mode eq 'openvswitch' ) {
+        } elsif ( $vb_exists && $mode eq 'openvswitch' ) {
             $execution->smartdie ("\nERROR: Cannot create an Openvswitch with name $net_name. A virtual bridge with the same name already exists.")
         }
-        unless ( vnet_exists_br($net_name, $mode) ) {
+        
+        # If the bridge is non-managed (i.e with attribute managed='no') and it 
+        # does not exist raise an error
+        if ( str($managed) eq 'no' && ! vnet_exists_br($net_name, $mode) ) {
+        	$execution->smartdie ("\nERROR: Bridge $net_name does not exist and it's configured with attribute managed='no'.\n" . 
+        	                      "       Non-managed bridges are not created/destroyed by VNX. They must exist in advance.")
+        }
+        
+        unless ( vnet_exists_br($net_name, $mode) || str($managed) eq 'no' ) {
             if ($mode eq "virtual_bridge") {
                 # If bridged does not exists, we create and set up it
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addbr $net_name");
@@ -5014,10 +5026,11 @@ sub bridges_destroy {
         # To get attributes
         my $net_name = $net->getAttribute("name");
         my $mode = $net->getAttribute("mode");
+        my $managed     = $net->getAttribute("managed");
 
     	wlog (VVV, "net=$net_name", $logp);
     	
-        if ($mode ne "uml_switch") {
+        if ( ! str($managed) eq 'no' && $mode ne "uml_switch") {
 #pak();
             # Set bridge down and remove it only in the case there isn't any associated interface 
             my @br_ifs = vnet_ifs($net_name,$mode);  

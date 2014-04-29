@@ -100,10 +100,10 @@ sub init {
     }
     wlog (VVV, "LXC conf: aa_unconfined=$aa_unconfined");
 
-    # Check whether LXC is installed (by executing lxc-version)
-    system("lxc-version 2> /dev/null");
+    # Check whether LXC is installed (by executing lxc-info)
+    system("which lxc-info 2> /dev/null");
     if ( $? != 0 ) {
-    	$error = "Cannot execute 'lxc-version' command, check LXC is installed in the system.";
+    	$error = "Cannot find 'lxc-info' command, check that LXC is installed in the system.";
     }
     return $error;
 }
@@ -1099,7 +1099,7 @@ sub get_state_vm {
     my $logp = "lxc-get_status_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name ...)", $logp);
 
-    my $error;
+    my $error = '';
 
     $$ref_vstate = "--";
     $$ref_hstate = `lxc-info -n $vm_name -s | awk '{print \$2}'`;
