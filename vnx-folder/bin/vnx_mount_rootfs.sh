@@ -39,16 +39,17 @@ VNXACED_BUILT='DD/MM/YYYY'
 USAGE="
 Usage: 
   - Mount disk image:
-          vnx_mount_rootfs [-t <type>] -r <rootfsname> <mnt_dir>
+          vnx_mount_rootfs [-t <type>] [-p <partnumber>] -r <rootfsname> <mnt_dir>
 
   - Unmount disk image:
           vnx_mount_rootfs -u <mnt_dir>
-
+          
 Options:    -t <type>       -> type of image: raw, qcow2, vmdk, vdi
             -r <rootfsname> -> rootfs file
             -p <partnumber> -> number of partition to mount (defaults to 1)
             <mnt_dir>       -> mount directory
             -u              -> unmount rootfs
+            -b              -> do not print headers (silent mode)
 "
 
 HEADER1="
@@ -64,68 +65,105 @@ type=""      # type of vm image (raw, qcow2, vmdk and vdi)
 partnum="1"  # number of partition to mount
 i=1          # counter of args processed
 
+# Exit codes:
+#   0  -> OK
+#   1  -> Error in command line parameters 
+#   2  -> Mount directory does not exist
+#   3  -> No rootfs specified. Use -r option to specify it
+#   4  -> Image file does not exist or it is not readable
+#   5  -> Unknown rootfs type. use -t option to specify the type
+#   6  -> qcow2 image format used but 'qemu-nbd' command not installed
+#   7  -> Cannot load 'nbd' module needed by 'qemu-nbd' command
+#   8  -> Cannot mount image in mountdir
+#   9  -> Cannot connect $dev device to rootfs $rootfs
+#   10 -> Cannot mount $dev on $mountdir
+#   11 -> Cannot unmount $mountdir
+#   12 -> Cannot free nbd block device"
+
+
+#
+# Write message in standard output having into account 
+# silent mode (-b) user selection
+#
+write_msg (){
+    #echo "brief=$brief"
+    if [[ ! $brief ]]; then
+        echo "$1"
+    fi
+}
+
 # 
 # Command line option processing
 #
 if [ $# -eq 0 ]
 then
-  echo "$HEADER1"
-  echo "$USAGE"
-  exit 1
+    write_msg "$HEADER1"
+    write_msg "$USAGE"
+    exit 1
 fi
 
-while getopts "ut:r:" opt; do
+while getopts ":ubt:r:p:" opt; do
     case $opt in
 
     u)
         #echo "-u was triggered" >&2
         umount="yes"
-    i=$[i+1]
+        i=$[i+1]
         ;;
     t)
         #echo "-t was triggered, Parameter: $OPTARG" >&2
-    type=$OPTARG
-    if [[ "$type" != 'raw' && "$type" != 'qcow2' && "$type" != 'vmdk' && "$type" != 'vdi' ]] ; then
-            echo ""       
-            echo "ERROR. Invalid type in -t option: $type" >&2
-            echo "$USAGE"
+        type=$OPTARG
+        if [[ "$type" != 'raw' && "$type" != 'qcow2' && "$type" != 'vmdk' && "$type" != 'vdi' ]] ; then
+            write_msg ""       
+            write_msg "ERROR. Invalid type in -t option: $type" >&2
+            write_msg "$USAGE"
             exit 1
-    fi
-    i=$[i+2]
+        fi
+        i=$[i+2]
         ;;
     r)
         #echo "-r was triggered, Parameter: $OPTARG" >&2
-    rootfs=$OPTARG
-    if [[ "$rootfs" == "" ]] ; then        
-            echo ""       
-            echo "ERROR. Invalid rootfs in -r option: $rootfs" >&2
-            echo "$USAGE"
+        rootfs=$OPTARG
+        if [[ "$rootfs" == "" ]] ; then        
+            write_msg ""       
+            write_msg "ERROR. Invalid rootfs in -r option: $rootfs" >&2
+            write_msg "$USAGE"
             exit 1
-    fi
-    i=$[i+2]
+        fi
+        i=$[i+2]
         ;;
     p)
         #echo "-p was triggered, Parameter: $OPTARG" >&2
-    partnum=$OPTARG
-    if [[ "$partnum" -le "0" || "$partnum" -gt "10" ]] ; then        
-            echo ""       
-            echo "ERROR. Invalid partition number: $partnum" >&2
-            echo "$USAGE"
+        partnum=$OPTARG
+        if [[ "$partnum" -le "0" || "$partnum" -gt "10" ]] ; then        
+            write_msg ""       
+            write_msg "ERROR. Invalid partition number: $partnum" >&2
+            write_msg "$USAGE"
             exit 1
-    fi
-    i=$[i+2]
+        fi
+        i=$[i+2]
         ;;
-
+    b)
+        #echo "-b was triggered" >&2
+        brief="yes"
+        i=$[i+1]
+        ;;
+    *)
+        write_msg "Invalid option: -$OPTARG" >&2
+        write_msg "$USAGE"
+        exit 1
+        ;;
+      
     esac
 done
 
 # mount dir is the last argument
 eval mountdir=\$$i
 if [[ ! -d "$mountdir" ]]; then
-    echo ""       
-    echo "ERROR. Mount directory does not exist." >&2
-    echo "$USAGE"
-    exit 1
+    write_msg ""       
+    write_msg "ERROR. Mount directory does not exist." >&2
+    #write_msg "$USAGE"
+    exit 2
 fi
 # Convert mountdir to absolute path
 mountdir=$( readlink -f $mountdir )
@@ -135,15 +173,15 @@ mountdir=$( readlink -f $mountdir )
 #
 if [[ "$umount" == "no" ]]; then 
     if [[ "$rootfs" == "" ]] ; then
-        echo ""       
-        echo "ERROR. No rootfs specified. Use -r option to specify it" >&2
-        echo "$USAGE"
-        exit 1
+        write_msg ""       
+        write_msg "ERROR. No rootfs specified. Use -r option to specify it" >&2
+        write_msg "$USAGE"
+        exit 3
     elif [[ ! -f "$rootfs" || ! -r "$rootfs" ]]; then
-        echo ""       
-        echo "ERROR. File $rootfs does not exist or it is not readable." >&2
-        echo "$USAGE"
-        exit 1
+        write_msg ""       
+        write_msg "ERROR. File $rootfs does not exist or it is not readable." >&2
+        #write_msg "$USAGE"
+        exit 4
    fi
 fi
 
@@ -157,17 +195,17 @@ if [[ "$umount" == "no" && $type == "" ]] ; then
     elif [[ $( echo $rootfs | egrep '\.vdi$' ) ]]; then
         type="vdi"
     else
-        if [[ "$( file -b "$rootfs" | egrep 'QEMU QCOW Image (v2)' )" ]]; then
+        if [[ "$( file -b "$rootfs" | egrep 'QEMU QCOW Image' )" ]]; then
             type="qcow2"
         elif [[ "$( file -b "$rootfs" | egrep 'VMware4 disk image' )" ]]; then
             type="vmdk"
         elif [[ "$( file -b "$rootfs" | egrep 'VirtualBox Disk Image' )" ]]; then
             type="vdi"
         else        
-            echo ""       
-            echo "ERROR. Unknown rootfs type. use -t option to specify the type" >&2
-            echo "$USAGE"
-            exit 1
+            write_msg ""       
+            write_msg "ERROR. Unknown rootfs type. use -t option to specify the type" >&2
+            write_msg "$USAGE"
+            exit 5
         fi
     fi
 fi
@@ -179,28 +217,28 @@ fi
 #
 if [[ $type == "qcow2" || $type == "vmdk" || $type == "vdi" ]]; then
     if ! hash qemu-nbd &> /dev/null ; then 
-        echo ""
-        echo "ERROR. qcow2 image format used but 'qemu-nbd' command not installed."
-        exit 1
+        write_msg ""
+        write_msg "ERROR. $type image format used but 'qemu-nbd' command not installed."
+        exit 6
     fi
 
     if ! lsmod | grep nbd &> /dev/null ; then 
-        echo "Module nbd not loaded. Loading it..."
+        write_msg "Module nbd not loaded. Loading it..."
         if ! modprobe nbd max_part=16; then 
-            echo ""
-            echo "ERROR. Can not load 'nbd' module needed by 'qemu-nbd' command."
-            exit 1
+            write_msg ""
+            write_msg "ERROR. Cannot load 'nbd' module needed by 'qemu-nbd' command."
+            exit 7
         fi
     fi
 
 fi
 
-echo "$HEADER1"
+write_msg "$HEADER1"
 
 if [[ $umount == "no" ]]; then
-    echo "mounting $rootfs of type $type in $mountdir..."
+    write_msg "mounting $rootfs of type $type in $mountdir..."
 else
-    echo "unmounting $mountdir..."
+    write_msg "unmounting $mountdir..."
 fi
 
 if [[ $umount == "no" ]]; then
@@ -211,9 +249,9 @@ if [[ $umount == "no" ]]; then
     if [[ $type == "raw" ]]; then
         # Mount raw disk
         if ! mount -o loop "$rootfs" "$mountdir"; then
-            echo "" 
-            echo "ERROR. Can not mount $rootfs in $mountdir."
-            exit 1
+            write_msg "" 
+            write_msg "ERROR. Cannot mount $rootfs in $mountdir."
+            exit 8
         fi
     else
         # Mount qcow2/vmdk/vdi disk
@@ -221,27 +259,27 @@ if [[ $umount == "no" ]]; then
         for dev in /dev/nbd{?,??}; do 
             devname=$( basename $dev )
             if lsblk | grep $devname &> /dev/null ; then 
-                echo "$dev in use"
+                write_msg "$dev in use"
             else
                 break                
             fi
         done
-        echo "Using $dev" 
-        echo "qemu-nbd -n -c $dev $rootfs"
+        write_msg "Using $dev" 
+        write_msg "qemu-nbd -n -c $dev $rootfs"
         if ! qemu-nbd -n -c $dev "$rootfs"; then 
-            echo ""
-            echo "ERROR. Can not connect $dev device to rootfs $rootfs."
+            write_msg ""
+            write_msg "ERROR. Cannot connect $dev device to rootfs $rootfs."
             qemu-nbd -d $dev
-            exit 1
+            exit 9
         fi
         #read -p "Press any key..."
         sleep 1
         # Mount rootfs
         if ! mount ${dev}p${partnum} $mountdir; then 
-            echo ""
-            echo "ERROR. Can not mount $dev on $mountdir."
+            write_msg ""
+            write_msg "ERROR. Cannot mount $dev on $mountdir."
             qemu-nbd -d $dev
-            exit 1
+            exit 10
         fi
     fi    
 else 
@@ -252,36 +290,39 @@ else
     if mount | grep "$mountdir " | grep "/dev/nbd"; then
         # Unmount qcow2/vmdk/vdi disk
         # Get block device
-        partition=$( mount | grep "$mountdir " | awk '{print $1}' )
-        echo "partition=$partition"
-        dev=$( echo "$partition" | sed -e 's/p[0-9][0-9]\?$//' )
-        echo "dev=$dev"
-        # Unmount qcow2/vmdk/vdi disk
-        if ! umount $mountdir; then 
-            echo ""
-            echo "ERROR. Can not unmount $mountdir."
-            exit 1
-        fi
-        # Free ndb block device
-        if ! qemu-nbd -d $dev; then 
-            echo ""
-            echo "ERROR. Can free nbd block device $dev."
-            exit 1
-        fi
-        sleep 1
-        # kill the qemu-nbd process: it seems it does not die
-        # and remains running eating cpu...
-        pid=$( ps uax | grep "qemu-nbd" | grep "$dev" | awk '{print $2}' )
-        if [[ "$pid" != "" ]]; then 
-            kill -9 $pid
-        fi
+        partitions=$( mount | grep " $mountdir " | awk '{print $1}' )
+        
+        while read -r partition; do
+            write_msg "partition=$partition"
+            dev=$( echo "$partition" | sed -e 's/p[0-9][0-9]\?$//' )
+            write_msg "dev=$dev"
+            # Unmount qcow2/vmdk/vdi disk
+            if ! umount $mountdir; then 
+                write_msg ""
+                write_msg "ERROR. Cannot unmount $mountdir."
+                exit 11
+            fi
+            # Free ndb block device
+            if ! qemu-nbd -d $dev; then 
+                write_msg ""
+                write_msg "ERROR. Cannot free nbd block device $dev."
+                exit 12
+            fi
+            sleep 1
+            # kill the qemu-nbd process: it seems it does not die
+            # and remains running eating cpu...
+            pid=$( ps uax | grep "qemu-nbd" | grep "$dev" | awk '{print $2}' )
+            if [[ "$pid" != "" ]]; then 
+                kill -9 $pid
+            fi
+        done <<< "$partitions"
     else 
         # Unmount raw disk
         # Mount raw disk
         if ! umount $mountdir; then 
-            echo ""
-            echo "ERROR. Can not unmount $mountdir."
-            exit 1
+            write_msg ""
+            write_msg "ERROR. Cannot unmount $mountdir."
+            exit 11
         fi
     fi
 fi

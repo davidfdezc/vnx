@@ -208,10 +208,43 @@ change_to_root();
         $execution->execute( $logp, $bd->get_binaries_path_ref->{"ln"} . " -s $vm_lxc_dir $lxc_dir/$vm_name" );
         
         die "ERROR: variable vm_lxc_dir is empty" unless ($vm_lxc_dir ne '');
+
+        # Variables pointing to rootfs directory nad config and fstab files
         my $vm_lxc_rootfs="${vm_lxc_dir}/rootfs";
         my $vm_lxc_config="${vm_lxc_dir}/config";
         my $vm_lxc_fstab="${vm_lxc_dir}/fstab";
+        
+        #
+        # Guess image OS distro
+        #
+        my $rootfs_mount_dir = $vm_lxc_rootfs;
+        my $get_os_distro_code = get_code_of_get_os_distro();
 
+        # Big danger if rootfs mount directory ($rootfs_mount_dir) is empty: 
+        # host files will be modified instead of rootfs image ones
+        unless ( defined($rootfs_mount_dir) && $rootfs_mount_dir ne '' && $rootfs_mount_dir ne '/' ) {
+            die;
+        }
+
+        # First, copy "get_os_distro" script to /tmp on image
+        my $get_os_distro_file = "$rootfs_mount_dir/tmp/get_os_distro"; 
+        open (GETOSDISTROFILE, "> $get_os_distro_file"); # or vnx_die ("cannot open file $get_os_distro_file");
+        print GETOSDISTROFILE "$get_os_distro_code";
+        close (GETOSDISTROFILE); 
+        system "chmod +x $rootfs_mount_dir/tmp/get_os_distro";
+        
+        # Second, execute the script chrooted to the image
+        my $os_distro = `LANG=C chroot $rootfs_mount_dir /tmp/get_os_distro`;
+        my @platform = split(/,/, $os_distro);
+            
+        wlog (VVV, "Image OS detected: $platform[0],$platform[1],$platform[2],$platform[3],$platform[4],$platform[5]", $logp);
+        
+        # Third, delete the script
+        system "rm $rootfs_mount_dir/tmp/get_os_distro";
+        
+        #
+        # Root filesystem configuration
+        #
         # Configure /etc/hostname and /etc/hosts files in VM
         # echo lxc1 > /var/lib/lxc/lxc1/rootfs/etc/hostname
         $execution->execute( $logp, "echo $vm_name > ${vm_lxc_rootfs}/etc/hostname" ); 
@@ -243,8 +276,10 @@ change_to_root();
         # Set lxc.rootfs: lxc.rootfs = $vm_lxc_dir/rootfs
         $execution->execute( $logp, "lxc.rootfs = $vm_lxc_dir/rootfs", *CONFIG_FILE );
         
-        # Set lxc.mount: lxc.mount = $vm_lxc_dir/fstab
-        $execution->execute( $logp, "lxc.mount = $vm_lxc_dir/fstab", *CONFIG_FILE );
+        unless ($platform[0] eq 'Linux' && $platform[1] eq 'Debian') {
+	        # Set lxc.mount: lxc.mount = $vm_lxc_dir/fstab
+	        $execution->execute( $logp, "lxc.mount = $vm_lxc_dir/fstab", *CONFIG_FILE );
+        }
         
         #
         # Configure network interfaces
@@ -287,7 +322,7 @@ change_to_root();
             $execution->execute( $logp, "lxc.network.veth.pair=$vm_name-e$id", *CONFIG_FILE );
             $execution->execute( $logp, "lxc.network.hwaddr=$mac", *CONFIG_FILE );
             if ($id != 0) {
-            	if (get_net_by_mode($net,"openvswitch") == 0){
+            	if ($dh->get_net_mode($net) eq "virtual_bridge"){
 	                $execution->execute( $logp, "# bridge if connects to", *CONFIG_FILE );
 	                $execution->execute( $logp, "lxc.network.link=$net", *CONFIG_FILE );
             	}
@@ -311,7 +346,7 @@ change_to_root();
 
         }                       
 
-        # Change to unconfined mode to avoid problems with apparmor if configured
+        # Change to unconfined mode to avoid problems with apparmor if configured in /etc/vnx.conf
         if ( $aa_unconfined eq 'yes' ){
 	        $execution->execute( $logp, "", *CONFIG_FILE );
 	        $execution->execute( $logp, "# Set unconfined to avoid problems with apparmor", *CONFIG_FILE );
@@ -320,185 +355,15 @@ change_to_root();
 
         close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
-        #
-        # VM autoconfiguration 
-        #
-        # Adapted from 'autoconfigure_ubuntu' fuction in vnxaced.pl             
-        #
-    	# TODO: generalize to other Linux distributions
-    	
-	    # Files modified
-	    my $interfaces_file = ${vm_lxc_rootfs} . "/etc/network/interfaces";
-	    my $sysctl_file     = ${vm_lxc_rootfs} . "/etc/sysctl.conf";
-	    my $hosts_file      = ${vm_lxc_rootfs} . "/etc/hosts";
-	    my $hostname_file   = ${vm_lxc_rootfs} . "/etc/hostname";
-	    my $resolv_file     = ${vm_lxc_rootfs} . "/etc/resolv.conf";
-	    my $rules_file      = ${vm_lxc_rootfs} . "/etc/udev/rules.d/70-persistent-net.rules";
-
-	    # Backup and delete /etc/resolv.conf file
-	    system "cp $resolv_file ${resolv_file}.bak";
-	    system "rm -f $resolv_file";
-	        
-	    # before the loop, backup /etc/udev/...70 and /etc/network/interfaces
-	    # and erase their contents
-	    wlog (VVV, "configuring $rules_file and $interfaces_file...", $logp);
-	    #system "cp $rules_file $rules_file.backup";
-	    system "echo \"\" > $rules_file";
-	    open RULES, ">" . $rules_file or print "error opening $rules_file";
-	    system "cp $interfaces_file $interfaces_file.backup";
-	    system "echo \"\" > $interfaces_file";
-	    open INTERFACES, ">" . $interfaces_file or print "error opening $interfaces_file";
-	
-	    print INTERFACES "\n";
-	    print INTERFACES "auto lo\n";
-	    print INTERFACES "iface lo inet loopback\n";
-	
-	    # Network routes configuration: <route> tags
-	    my @ip_routes;   # Stores the route configuration lines
-        foreach my $route ($vm->getElementsByTagName("route")) {
-	    	
-	        my $route_type = $route->getAttribute("type");
-	        my $route_gw   = $route->getAttribute("gw");
-	        my $route_data = $route->getFirstChild->getData;
-	        if ($route_type eq 'ipv4') {
-	            if ($route_data eq 'default') {
-	                push (@ip_routes, "   up route add -net default gw " . $route_gw . "\n");
-	            } else {
-	                push (@ip_routes, "   up route add -net $route_data gw " . $route_gw . "\n");
-	            }
-	        } elsif ($route_type eq 'ipv6') {
-	            if ($route_data eq 'default') {
-	                push (@ip_routes, "   up route -A inet6 add default gw " . $route_gw . "\n");
-	            } else {
-	                push (@ip_routes, "   up route -A inet6 add $route_data gw " . $route_gw . "\n");
-	            }
-	        }
-	    }   
-	
-	    # Network interfaces configuration: <if> tags
-        foreach my $if ($vm->getElementsByTagName("if")) {
-	        my $id    = $if->getAttribute("id");
-	        my $net   = str($if->getAttribute("net"));
-	        my $mac   = $if->getAttribute("mac");
-	        $mac =~ s/,//g;
-	
-	        my $ifName;
-	        # Special case: loopback interface
-	        if ( $net eq "lo" ) {
-	            $ifName = "lo:" . $id;
-	        } else {
-	            $ifName = "eth" . $id;
-	        }
-	
-	        print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac .  "\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $ifName . "\"\n\n";
-	        print INTERFACES "auto " . $ifName . "\n";
-	
-	        my $ipv4_tag_list = $if->getElementsByTagName("ipv4");
-	        my $ipv6_tag_list = $if->getElementsByTagName("ipv6");
-	
-	        if ( ($ipv4_tag_list->size == 0 ) && ( $ipv6_tag_list->size == 0 ) ) {
-	            # No addresses configured for the interface. We include the following commands to 
-	            # have the interface active on start
-	            print INTERFACES "iface " . $ifName . " inet manual\n";
-	            print INTERFACES "  up ifconfig " . $ifName . " 0.0.0.0 up\n";
-	        } else {
-	            # Config IPv4 addresses
-	            for ( my $j = 0 ; $j < $ipv4_tag_list->size ; $j++ ) {
-	
-	                my $ipv4_tag = $ipv4_tag_list->item($j);
-	                my $mask    = $ipv4_tag->getAttribute("mask");
-	                my $ip      = $ipv4_tag->getFirstChild->getData;
-	
-	                if ($j == 0) {
-	                    print INTERFACES "iface " . $ifName . " inet static\n";
-	                    print INTERFACES "   address " . $ip . "\n";
-	                    print INTERFACES "   netmask " . $mask . "\n";
-	                } else {
-	                    print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet add " . $ip . " netmask " . $mask . "\n";
-	                }
-	            }
-	            # Config IPv6 addresses
-	            for ( my $j = 0 ; $j < $ipv6_tag_list->size ; $j++ ) {
-	
-	                my $ipv6_tag = $ipv6_tag_list->item($j);
-	                my $ip    = $ipv6_tag->getFirstChild->getData;
-	                my $mask = $ip;
-	                $mask =~ s/.*\///;
-	                $ip =~ s/\/.*//;
-	
-	                if ($j == 0) {
-	                    print INTERFACES "iface " . $ifName . " inet6 static\n";
-	                    print INTERFACES "   address " . $ip . "\n";
-	                    print INTERFACES "   netmask " . $mask . "\n\n";
-	                } else {
-	                    print INTERFACES "   up /sbin/ifconfig " . $ifName . " inet6 add " . $ip . "/" . $mask . "\n";
-	                }
-	            }
-	            # TODO: To simplify and avoid the problems related with some routes not being installed 
-	                            # due to the interfaces start order, we add all routes to all interfaces. This should be 
-	                            # refined to add only the routes going to each interface
-	            print INTERFACES @ip_routes;
-	
-	        }
-	    }
-	        
-	    close RULES;
-	    close INTERFACES;
-	        
-	    # Packet forwarding: <forwarding> tag
-	    my $ipv4Forwarding = 0;
-	    my $ipv6Forwarding = 0;
-	    my $forwardingTaglist = $vm->getElementsByTagName("forwarding");
-	    my $numforwarding = $forwardingTaglist->size;
-	    for (my $j = 0 ; $j < $numforwarding ; $j++){
-	        my $forwardingTag   = $forwardingTaglist->item($j);
-	        my $forwarding_type = $forwardingTag->getAttribute("type");
-	        if ($forwarding_type eq "ip"){
-	            $ipv4Forwarding = 1;
-	            $ipv6Forwarding = 1;
-	        } elsif ($forwarding_type eq "ipv4"){
-	            $ipv4Forwarding = 1;
-	        } elsif ($forwarding_type eq "ipv6"){
-	            $ipv6Forwarding = 1;
-	        }
-	    }
-	    wlog (VVV, "configuring ipv4 ($ipv4Forwarding) and ipv6 ($ipv6Forwarding) forwarding in $sysctl_file...", $logp);
-	    system "echo >> $sysctl_file ";
-	    system "echo '# Configured by VNXACED' >> $sysctl_file ";
-	    system "echo 'net.ipv4.ip_forward=$ipv4Forwarding' >> $sysctl_file ";
-	    system "echo 'net.ipv6.conf.all.forwarding=$ipv6Forwarding' >> $sysctl_file ";
-	
-	    # Configuring /etc/hosts and /etc/hostname
-	    #write_log ("   configuring $hosts_file and /etc/hostname...");
-	    #system "cp $hosts_file $hosts_file.backup";
-	
-	    #/etc/hosts: insert the new first line
-	    #system "sed '1i\ 127.0.0.1  $vm_name    localhost.localdomain   localhost' $hosts_file > /tmp/hosts.tmp";
-	    #system "mv /tmp/hosts.tmp $hosts_file";
-	
-	    #/etc/hosts: and delete the second line (former first line)
-	    #system "sed '2 d' $hosts_file > /tmp/hosts.tmp";
-	    #system "mv /tmp/hosts.tmp $hosts_file";
-	
-	    #/etc/hosts: insert the new second line
-	    #system "sed '2i\ 127.0.1.1  $vm_name' $hosts_file > /tmp/hosts.tmp";
-	    #system "mv /tmp/hosts.tmp $hosts_file";
-	
-	    #/etc/hosts: and delete the third line (former second line)
-	    #system "sed '3 d' $hosts_file > /tmp/hosts.tmp";
-	    #system "mv /tmp/hosts.tmp $hosts_file";
-	
-	    #/etc/hostname: insert the new first line
-	    #system "sed '1i\ $vm_name' $hostname_file > /tmp/hostname.tpm";
-	    #system "mv /tmp/hostname.tpm $hostname_file";
-	
-	    #/etc/hostname: and delete the second line (former first line)
-	    #system "sed '2 d' $hostname_file > /tmp/hostname.tpm";
-	    #system "mv /tmp/hostname.tpm $hostname_file";
-	
-	    #system "hostname $vm_name";
-	    
-	    # end of vm autoconfiguration
+        # Call the VM autoconfiguration function
+        if ($platform[0] eq 'Linux'){
+            if    ($platform[1] eq 'Ubuntu')   { autoconfigure_debian_ubuntu ($dom, $rootfs_mount_dir, 'ubuntu') }           
+            elsif ($platform[1] eq 'Debian')   { autoconfigure_debian_ubuntu ($dom, $rootfs_mount_dir, 'debian') }           
+            elsif ($platform[1] eq 'Fedora')   { autoconfigure_redhat ($dom, $rootfs_mount_dir, 'fedora') }
+            elsif ($platform[1] eq 'CentOS')   { autoconfigure_redhat ($dom, $rootfs_mount_dir, 'centos') }
+        } else {
+            return "Platform not supported. LXC can only be used to start Linux images.";
+        }
 
 back_to_user();     
 
@@ -1411,138 +1276,6 @@ sub execute_filetree {
             wlog(N, $res, $logp) if ($res ne ''); 
         }
     }
-}
-
-
-#
-# get_net_by_type
-#
-# Returns a network whose name is the first argument and whose type is second
-# argument (may be "*" if the type doesn't matter). If there is no net with
-# the given constrictions, 0 value is returned
-#
-# Note the default type is "lan"
-#
-sub get_net_by_type {
-
-    my $name_target = shift;
-    my $type_target = shift;
-
-    my $doc = $dh->get_doc;
-
-    # To get list of defined <net>
-    #my $net_list = $doc->getElementsByTagName("net");
-
-    # To process list
-    #for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
-    foreach my $net ($doc->getElementsByTagName("net")) {
-        #my $net  = $net_list->item($i);
-        my $name = $net->getAttribute("name");
-        my $type = $net->getAttribute("type");
-
-        if (   ( $name_target eq $name )
-            && ( ( $type_target eq "*" ) || ( $type_target eq $type ) ) )
-        {
-            return $net;
-        }
-
-        # Special case (implicit lan)
-        if (   ( $name_target eq $name )
-            && ( $type_target eq "lan" )
-            && ( $type eq "" ) )
-        {
-            return $net;
-        }
-    }
-
-    return 0;
-}
-
-
-
-###################################################################
-# get_net_by_mode
-#
-# Returns a network whose name is the first argument and whose mode is second
-# argument (may be "*" if the type doesn't matter). If there is no net with
-# the given constrictions, 0 value is returned
-#
-# Note the default type is "lan"
-#
-sub get_net_by_mode {
-
-    my $name_target = shift;
-    my $type_target = shift;
-
-    my $doc = $dh->get_doc;
-
-    # To get list of defined <net>
-    #my $net_list = $doc->getElementsByTagName("net");
-
-    # To process list
-    #for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
-    foreach my $net ($doc->getElementsByTagName("net")) {
-        #my $net  = $net_list->item($i);
-        my $name = $net->getAttribute("name");
-        my $mode = $net->getAttribute("mode");
-
-        if (   ( $name_target eq $name )
-            && ( $type_target eq $mode ) )
-        {
-            return $net;
-        }
-    }
-
-    return 0;
-}
-###################################################################
-# get_ip_hostname
-#
-# Return a suitable IP address to being added to the /etc/hosts file of the
-# virtual machine passed as first argument (as node)
-#
-# In the current implementation, the first IP address for no management if is used.
-# Only works for IPv4 addresses
-#
-# If no valid IP address if found or IPv4 has been disabled (with -6), returns 0.
-#
-sub get_ip_hostname {
-
-    return 0 unless ( $dh->is_ipv4_enabled );
-
-    my $vm = shift;
-
-    # To check <mng_if>
-    #my $mng_if_value = &mng_if_value( $dh, $vm );
-    my $mng_if_value = &mng_if_value( $vm );
-
-    #my $if_list = $vm->getElementsByTagName("if");
-    #for ( my $i = 0 ; $i < $if_list->getLength ; $i++ ) {
-    foreach my $if ($vm->getElementsByTagName("if")) {
-        my $id = $if->getAttribute("id");
-        if (   ( $id == 0 )
-            && $dh->get_vmmgmt_type ne 'none'
-            && ( $mng_if_value ne "no" ) )
-        {
-
-            # Skip the management interface
-            # Actually is a redundant checking, because check_semantics doesn't
-            # allow a id=0 <if> if managemente interface hasn't been disabled
-            next;
-        }
-        my @ipv4_list = $if->getElementsByTagName("ipv4");
-        if ( @ipv4_list != 0 ) {
-            my $ip = &text_tag( $ipv4_list[0] );
-            if ( &valid_ipv4_with_mask($ip) ) {
-                $ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
-                $ip = "$1.$2.$3.$4";
-            }
-            return $ip;
-        }
-    }
-
-    # No valid IPv4 found
-    return 0;
 }
 
 

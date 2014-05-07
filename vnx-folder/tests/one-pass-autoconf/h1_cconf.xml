@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<create_conf>
+  <id>h1-vV0sdD</id>
+  <vm name="h1">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <mem>65536</mem>
+    <kernel>default</kernel>
+    <console id="0" display="no"></console>
+    <console id="1" display="yes"></console>
+    <if id="1" net="Net0" mac=",02:fd:00:00:00:01" netType="virtual_bridge">
+      <ipv4 mask="255.255.255.0">10.0.0.2</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.0.1">default</route>
+  </vm>
+</create_conf>

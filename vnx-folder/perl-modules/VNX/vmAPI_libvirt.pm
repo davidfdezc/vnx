@@ -67,6 +67,7 @@ use IO::Socket::UNIX qw( SOCK_STREAM );
 
 
 use constant USE_UNIX_SOCKETS => 0;  # Use unix sockets (1) or TCP (0) to communicate with virtual machine 
+my $one_pass_autoconf;
 
 
 # ---------------------------------------------------------------------------------------
@@ -82,8 +83,13 @@ sub init {
     return unless ( $dh->any_vmtouse_of_type('libvirt','kvm') );
 
 	# get hypervisor from config file
-	$hypervisor = &get_conf_value ($vnxConfigFile, 'libvirt', 'hypervisor', 'root');
+	$hypervisor = get_conf_value ($vnxConfigFile, 'libvirt', 'hypervisor', 'root');
 	if (!defined $hypervisor) { $hypervisor = $LIBVIRT_DEFAULT_HYPERVISOR };
+
+    # get one_pass_autoconf parameter from config file
+    $one_pass_autoconf = get_conf_value ($vnxConfigFile, 'libvirt', 'one_pass_autoconf', 'root');
+    if (!defined $one_pass_autoconf) { $one_pass_autoconf = $DEFAULT_ONE_PASS_AUTOCONF };
+
 	
 root();
 
@@ -263,7 +269,7 @@ sub define_vm {
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
 		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
-		my $filesystem        = $filesystemTag->getFirstChild->getData;
+		$filesystem           = $filesystemTag->getFirstChild->getData;
 
 		if ( $filesystem_type eq "cow" ) {
 
@@ -622,8 +628,6 @@ user();
         };
         if ($@) { return "Error calling $hypervisor hypervisor " . $@->stringify(); }
 
-		return $error;
-
 	}
 	
 	#
@@ -653,7 +657,7 @@ user();
 		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
 		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
-		my $filesystem        = $filesystemTag->getFirstChild->getData;
+		$filesystem           = $filesystemTag->getFirstChild->getData;
         if ( $filesystem_type eq "cow" ) {
 			
 			my $cow_fs;
@@ -902,7 +906,7 @@ user();
 			my $id    = $if->getAttribute("id");
 			my $net   = $if->getAttribute("net");
             my $mac   = $if->getAttribute("mac");
-            my $netType = $if->getAttribute("netType");
+            my $net_mode = $dh->get_net_mode($net) unless ($id == 0);
 
 			# Ignore loopback interfaces (they are configured by the ACED daemon and
 			# should not be processed by libvirt)
@@ -929,7 +933,7 @@ user();
 			    $source_tag->addChild( $init_xml->createAttribute( bridge => $net ) );
 
                 # Ex: <virtualport type="openvswitch"/>
-                if ($netType eq "openvswitch"){
+                if ($net_mode eq "openvswitch"){
                     my $virtualswitch_tag = $init_xml->createElement('virtualport');
                     $interface_tag->addChild($virtualswitch_tag);
                     $virtualswitch_tag->addChild($init_xml->createAttribute( type => 'openvswitch' ) );
@@ -1257,12 +1261,123 @@ user();
         };
         if ($@) { return "Error calling $hypervisor hypervisor " . $@->stringify(); }
 
-		return $error;
-
 	} else {
 		$error = "define_vm for type $type not implemented yet";
 		return $error;
 	}
+	
+	
+    # Do one-pass autoconfiguration if configured in vnx.conf and if it is possible 
+    # depending on image type (by now only for Linux systems)
+    if ( ($one_pass_autoconf eq 'yes') && ($type eq "libvirt-kvm-linux") ) {
+
+        wlog (V, "One-pass autoconfiguration", $logp);
+
+        my $rootfs_mount_dir = $dh->get_vm_dir($vm_name) . '/mnt';
+
+        my $get_os_distro_code = get_code_of_get_os_distro();
+
+        # Big danger if rootfs mount directory ($rootfs_mount_dir) is empty: 
+        # host files will be modified instead of rootfs image ones
+        unless ( defined($rootfs_mount_dir) && $rootfs_mount_dir ne '' && $rootfs_mount_dir ne '/' ) {
+            die;
+        }
+
+        #
+        # Mount the root filesystem
+        # We loop mounting all image partitions till we find a /etc directory
+        # 
+        my $mounted;
+        for ( my $i = 1; $i < 5; $i++) {
+
+            wlog (VVV,  "Trying: vnx_mount_rootfs -p $i -r $filesystem $rootfs_mount_dir", $logp);
+            system "vnx_mount_rootfs -b -p $i -r $filesystem $rootfs_mount_dir";
+            if ( $? != 0 ) {
+                wlog (VVV,  "Cannot mount partition $i of '$filesystem'", $logp);
+                next
+            } else {
+                system "ls $rootfs_mount_dir/etc  > /dev/null 2>&1";
+                unless ($?) {
+                    $mounted='true';
+                    last    
+                } else {
+                    wlog (VVV,  "/etc not found in partition $i of '$filesystem'", $logp);
+                }
+            }
+            system "vnx_mount_rootfs -b -u $rootfs_mount_dir";
+        }
+
+        unless ($mounted) {
+            wlog (VVV,  "cannot mount '$filesystem'. One-pass-autoconfiguration not possible", $logp);
+            #exit (1);
+        }
+        
+		#
+		# Guess image OS distro
+		#
+		# First, copy "get_os_distro" script to /tmp on image
+		my $get_os_distro_file = "$rootfs_mount_dir/tmp/get_os_distro"; 
+		open (GETOSDISTROFILE, "> $get_os_distro_file"); # or vnx_die ("cannot open file $get_os_distro_file");
+		print GETOSDISTROFILE "$get_os_distro_code";
+		close (GETOSDISTROFILE); 
+		system "chmod +x $rootfs_mount_dir/tmp/get_os_distro";
+		#pak();
+		
+		# Second, execute the script chrooted to the image
+		my $os_distro = `LANG=C chroot $rootfs_mount_dir /tmp/get_os_distro`;
+		my @platform = split(/,/, $os_distro);
+		    
+		wlog (VVV, "Image OS detected: $platform[0],$platform[1],$platform[2],$platform[3],$platform[4],$platform[5]", $logp);
+		
+		# Third, delete the script
+		system "rm $rootfs_mount_dir/tmp/get_os_distro";
+		#pak("get_os_distro deleted");        
+
+		# Parse VM config file
+		my $parser = XML::LibXML->new;
+		my $dom    = $parser->parse_file( $dh->get_vm_dir($vm_name) . "/${vm_name}_cconf.xml" );
+		
+		# Call autoconfiguration
+		if ($platform[0] eq 'Linux'){
+		    
+            if    ($platform[1] eq 'Ubuntu') { autoconfigure_debian_ubuntu ($dom, $rootfs_mount_dir, 'ubuntu') }           
+            elsif ($platform[1] eq 'Debian') { autoconfigure_debian_ubuntu ($dom, $rootfs_mount_dir, 'debian') }           
+		    elsif ($platform[1] eq 'Fedora') { autoconfigure_redhat ($dom, $rootfs_mount_dir, 'fedora') }
+		    #elsif ($platform[1] eq 'CentOS') { autoconfigure_redhat ($dom, $rootfs_mount_dir, 'centos') }
+		    
+		#} elsif ($platform[0] eq 'FreeBSD'){
+		#        wlog (VVV,  "FreeBSD");
+		#        autoconfigure_freebsd ($dom, $rootfs_mount_dir)
+		        
+		} else {
+		    wlog (VVV, "One-pass-autoconfiguration not possible for this platform ($platform[0]). Only available for Linux.");
+            return $error;
+		}
+		
+		# Get the id from the VM config file 
+		my $cid   = $dom->getElementsByTagName("id")->[0]->getFirstChild->getData;
+		chomp($cid);
+		
+		# And save it to the VNACED_STATUS file
+		my $vnxaced_status_file = $rootfs_mount_dir . $VNXACED_STATUS;
+		system "sed -i -e '/cmd_id/d' $vnxaced_status_file" if (-f $vnxaced_status_file);
+		system "echo \"cmd_id=$cid\" >> $vnxaced_status_file";
+
+        # Set the VNACED_STATUS variable 'on_boot_cmds_pending' to yes 
+        system "sed -i -e '/on_boot_cmds_pending/d' $vnxaced_status_file" if (-f $vnxaced_status_file);
+        system "echo \"on_boot_cmds_pending=yes\" >> $vnxaced_status_file";
+
+        # Set the VNACED_STATUS variable 'exec_mode' 
+        system "sed -i -e '/exec_mode/d' $vnxaced_status_file" if (-f $vnxaced_status_file);
+        system "echo \"exec_mode=$exec_mode\" >> $vnxaced_status_file";
+
+        # Dismount the rootfs image        
+        system "vnx_mount_rootfs -b -u $rootfs_mount_dir";
+        
+    }
+	
+    return $error;
+	
 }
 
 # ---------------------------------------------------------------------------------------
@@ -2178,7 +2293,7 @@ user();
         $$ref_vstate='undefined';
     }
     
-    wlog (VVV, "state=$$ref_vstate, hstate=$$ref_hstate, error=$error");
+    wlog (VVV, "state=$$ref_vstate, hstate=$$ref_hstate, error=" . str($error));
     return $error;
 
 # NOTE: Other way of getting the status is using virsh:
@@ -2874,52 +2989,6 @@ sub execute_cmd {
 
     return $error;
 }
-
-
-###################################################################
-# get_net_by_type
-#
-# Returns a network whose name is the first argument and whose type is second
-# argument (may be "*" if the type doesn't matter). If there is no net with
-# the given constrictions, 0 value is returned
-#
-# Note the default type is "lan"
-#
-sub get_net_by_type {
-
-	my $name_target = shift;
-	my $type_target = shift;
-
-	my $doc = $dh->get_doc;
-
-	# To get list of defined <net>
-	#my $net_list = $doc->getElementsByTagName("net");
-
-	# To process list
-	#for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
-	foreach my $net ($doc->getElementsByTagName("net")) {
-		#my $net  = $net_list->item($i);
-		my $name = $net->getAttribute("name");
-		my $type = $net->getAttribute("type");
-
-		if (   ( $name_target eq $name )
-			&& ( ( $type_target eq "*" ) || ( $type_target eq $type ) ) )
-		{
-			return $net;
-		}
-
-		# Special case (implicit lan)
-		if (   ( $name_target eq $name )
-			&& ( $type_target eq "lan" )
-			&& ( $type eq "" ) )
-		{
-			return $net;
-		}
-	}
-
-	return 0;
-}
-
 
 
 ###################################################################

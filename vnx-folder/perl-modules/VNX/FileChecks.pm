@@ -134,10 +134,10 @@ sub do_path_expansion {
 #
 sub get_conf_value {
 
-    my $confFile = shift;
-    my $section  = shift;
-    my $param    = shift;
-    my $root     = shift;
+    my $conf_file = shift;
+    my $section   = shift;
+    my $param     = shift;
+    my $root      = shift;
 
     my $result;
 
@@ -161,7 +161,7 @@ if (defined($root)) {
 	);
 
 	# read the vnx config file
-	$vnx_config->file($confFile);
+	$vnx_config->file($conf_file);
 if (defined($root)) {
     back_to_user();
 }
@@ -172,6 +172,73 @@ if (defined($root)) {
 	}
 
 }
+
+=BEGIN
+
+ 20140501: Does not work at all....seems AppConfig is not designed to save values to files...
+ 
+# set_conf_value 
+#
+# Sets a value to a configuration file
+#
+# Returns ...
+# 
+# Parameters:
+# - conf_file: confifuration file
+# - section:   the section name where the parameter is ('' if global parameter)
+# - param:     the parameter name
+# - value:     the new value of the parameter
+# - root:      if defined, we change to root user before reading the config file 
+#
+sub set_conf_value {
+
+    my $conf_file = shift;
+    my $section   = shift;
+    my $param     = shift;
+    my $value     = shift;
+    my $root      = shift;
+
+    my $result;
+
+print "conf_file=$conf_file, section=$section, param=$param, value=$value\n";
+if (defined($root)) {
+    change_to_root();
+}
+
+    sub error_management2 {
+        print "** error writing config value\n";
+    }
+   
+    my $vnx_config = AppConfig->new(
+        {   CASE  => 0,                     # Case insensitive
+            ERROR => \&error_management2,    # Error control function
+            CREATE => 1,                    # Variables that weren't previously defined, are created
+            GLOBAL => {
+                DEFAULT  => "<undef>",      # Default value for all variables
+                ARGCOUNT => ARGCOUNT_ONE,   # All variables contain a single value...
+            }
+        }
+    );
+
+    # read the vnx config file
+    $vnx_config->file($conf_file);
+    if ($section eq '' ) {
+    	print "** no section\n";
+    	#$vnx_config->define("$param=s");
+        $result = $vnx_config->set($param, $value);
+        print "result=$result\n";
+    } else {
+        $result = $vnx_config->set($section . "_" . $param, $value );            
+        print "result=$result\n";
+    }
+if (defined($root)) {
+    back_to_user();
+}
+    return $result;  
+
+}
+=END
+=cut
 
 # get_abs_path
 # 

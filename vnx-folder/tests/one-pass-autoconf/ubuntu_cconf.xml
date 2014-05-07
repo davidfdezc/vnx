@@ -1,0 +1,18 @@
+<create_conf>
+  <id>ubuntu-ta7sWo</id>
+  <vm name="ubuntu">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
+    <mem>262144</mem>
+    <kernel>default</kernel>
+    <console id="0" display="yes"></console>
+    <console id="1" display="yes"></console>
+    <if mac=",02:fd:00:04:00:00" id="0">
+      <ipv4 mask="255.255.255.252">10.250.0.14</ipv4>
+    </if>
+    <if id="1" net="Net0" mac=",02:fd:00:04:00:01" netType="virtual_bridge">
+      <ipv4 mask="255.255.255.0">10.0.0.4</ipv4>
+    </if>
+    <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
+    <exec seq="on_boot" type="verbatim" ostype="system">cp /root/on_boot.txt /root/on_boot2.txt</exec>
+  </vm>
+</create_conf>

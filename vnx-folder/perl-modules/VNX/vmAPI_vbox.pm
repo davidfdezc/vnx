@@ -1222,7 +1222,7 @@ sub get_state_vm {
     $$ref_vstate = "--";
     $$ref_hstate = "--";
     
-    wlog (VVV, "state=$$ref_vstate, hstate=$$ref_hstate, error=$error");
+    wlog (VVV, "state=$$ref_vstate, hstate=$$ref_hstate, error=" . str($error));
     return $error;
 }
 
@@ -1529,137 +1529,6 @@ sub execute_filetree {
     }
 }
 
-
-#
-# get_net_by_type
-#
-# Returns a network whose name is the first argument and whose type is second
-# argument (may be "*" if the type doesn't matter). If there is no net with
-# the given constrictions, 0 value is returned
-#
-# Note the default type is "lan"
-#
-sub get_net_by_type {
-
-    my $name_target = shift;
-    my $type_target = shift;
-
-    my $doc = $dh->get_doc;
-
-    # To get list of defined <net>
-    #my $net_list = $doc->getElementsByTagName("net");
-
-    # To process list
-    #for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
-    foreach my $net ($doc->getElementsByTagName("net")) {
-        #my $net  = $net_list->item($i);
-        my $name = $net->getAttribute("name");
-        my $type = $net->getAttribute("type");
-
-        if (   ( $name_target eq $name )
-            && ( ( $type_target eq "*" ) || ( $type_target eq $type ) ) )
-        {
-            return $net;
-        }
-
-        # Special case (implicit lan)
-        if (   ( $name_target eq $name )
-            && ( $type_target eq "lan" )
-            && ( $type eq "" ) )
-        {
-            return $net;
-        }
-    }
-
-    return 0;
-}
-
-
-
-###################################################################
-# get_net_by_mode
-#
-# Returns a network whose name is the first argument and whose mode is second
-# argument (may be "*" if the type doesn't matter). If there is no net with
-# the given constrictions, 0 value is returned
-#
-# Note the default type is "lan"
-#
-sub get_net_by_mode {
-
-    my $name_target = shift;
-    my $type_target = shift;
-
-    my $doc = $dh->get_doc;
-
-    # To get list of defined <net>
-    #my $net_list = $doc->getElementsByTagName("net");
-
-    # To process list
-    #for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
-    foreach my $net ($doc->getElementsByTagName("net")) {
-        #my $net  = $net_list->item($i);
-        my $name = $net->getAttribute("name");
-        my $mode = $net->getAttribute("mode");
-
-        if (   ( $name_target eq $name )
-            && ( $type_target eq $mode ) )
-        {
-            return $net;
-        }
-    }
-
-    return 0;
-}
-###################################################################
-# get_ip_hostname
-#
-# Return a suitable IP address to being added to the /etc/hosts file of the
-# virtual machine passed as first argument (as node)
-#
-# In the current implementation, the first IP address for no management if is used.
-# Only works for IPv4 addresses
-#
-# If no valid IP address if found or IPv4 has been disabled (with -6), returns 0.
-#
-sub get_ip_hostname {
-
-    return 0 unless ( $dh->is_ipv4_enabled );
-
-    my $vm = shift;
-
-    # To check <mng_if>
-    #my $mng_if_value = &mng_if_value( $dh, $vm );
-    my $mng_if_value = &mng_if_value( $vm );
-
-    #my $if_list = $vm->getElementsByTagName("if");
-    #for ( my $i = 0 ; $i < $if_list->getLength ; $i++ ) {
-    foreach my $if ($vm->getElementsByTagName("if")) {
-        my $id = $if->getAttribute("id");
-        if (   ( $id == 0 )
-            && $dh->get_vmmgmt_type ne 'none'
-            && ( $mng_if_value ne "no" ) )
-        {
-
-            # Skip the management interface
-            # Actually is a redundant checking, because check_semantics doesn't
-            # allow a id=0 <if> if managemente interface hasn't been disabled
-            next;
-        }
-        my @ipv4_list = $if->getElementsByTagName("ipv4");
-        if ( @ipv4_list != 0 ) {
-            my $ip = &text_tag( $ipv4_list[0] );
-            if ( &valid_ipv4_with_mask($ip) ) {
-                $ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
-                $ip = "$1.$2.$3.$4";
-            }
-            return $ip;
-        }
-    }
-
-    # No valid IPv4 found
-    return 0;
-}
 
 
 ###################################################################

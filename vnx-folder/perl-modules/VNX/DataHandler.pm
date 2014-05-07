@@ -1241,8 +1241,8 @@ sub is_ipv4_enabled {
 # is found
 #
 sub check_tag_attribute {
-	my $self = shift;
 
+	my $self = shift;
 	my $tag = shift;
 	my $attribute = shift;
 	my $matches = 0;
@@ -1250,18 +1250,11 @@ sub check_tag_attribute {
 	my $doc = $self->{'doc'};
 
    	# To get list of defined tags
-   	#my $tag_list = $doc->getElementsByTagName($tag);
-
-   	# To process list
-   	#for ( my $i = 0; $i < $tag_list->getLength; $i++ ) {
 	foreach my $tag ($doc->getElementsByTagName($tag)) {
-
-      #my $tag = $tag_list->item($i);
 
       # To try getting attribute
 		my $attribute_value = $tag->getAttribute($attribute);
 
-        #unless ($attribute_value =~ /^$/) {
         unless (empty($attribute_value)) {
 			$matches++;
 		}
@@ -1280,18 +1273,15 @@ sub check_tag_attribute {
 # Overriding criterium: equal id attribute.
 #
 sub merge_console {
+
     my $self = shift;
-   
 	my $vm = shift;
 	my @list = ();
    
 	# First, add from vm_defaults
 	my @vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
 	if (@vm_defaults_list == 1) {
-		#my $console_list = $vm_defaults_list[0]->getElementsByTagName("console");
-		#for (my $i = 0; $i < $console_list->getLength; $i++) {
       	foreach my $console ($vm_defaults_list[0]->getElementsByTagName("console")) {
-			#my $console = $console_list->item($i);
 			my $id = $console->getAttribute("id");
 			unless (&console_in_vm($self,$vm,$id)) {
 				push (@list, $console);
@@ -1300,8 +1290,6 @@ sub merge_console {
 	}
    
 	# Second, add from the vm
-	#my $console_list = $vm->getElementsByTagName("console");
-	#for (my $i = 0; $i < $console_list->getLength; $i++) {
     foreach my $console ($vm->getElementsByTagName("console")) {		
 		push (@list, $console);
 	}
@@ -1317,8 +1305,8 @@ sub merge_console {
 # Overriding criterium: equal type attribute and and tag value
 #
 sub merge_route {
+
     my $self = shift;
-   
     my $vm = shift;
     my @list = ();
    
@@ -1326,9 +1314,7 @@ sub merge_route {
     my @vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
     if (@vm_defaults_list == 1) {
         my $route_list = $vm_defaults_list[0]->getElementsByTagName("route");
-        #for (my $i = 0; $i < $route_list->getLength; $i++) {
         foreach my $route ( $vm_defaults_list[0]->getElementsByTagName("route") ) {
-            #my $route = $route_list->item($i);
             my $route_type = $route->getAttribute("type");
             my $route_dest = &text_tag($route);
             unless (&route_in_vm($self,$vm,$route_type,$route_dest)) {
@@ -1338,14 +1324,11 @@ sub merge_route {
     }
    
     # Second, add from the vm
-    #my $route_list = $vm->getElementsByTagName("route");
-    #for (my $i = 0; $i < $route_list->getLength; $i++) {
     foreach my $route ( $vm->getElementsByTagName("route") ) {	    	
         push (@list, $route);
     }
    
     return @list;
-
 }
 
 # merge_user
@@ -1356,18 +1339,15 @@ sub merge_route {
 # Overriding criterium: equal username attribute
 #
 sub merge_user {
-    my $self = shift;
 
+    my $self = shift;
     my $vm = shift;
     my @list = ();
    
     # First, add from vm_defaults
     my @vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
     if (@vm_defaults_list == 1) {
-        #my $user_list = $vm_defaults_list->item(0)->getElementsByTagName("user");
-        #for (my $i = 0; $i < $user_list->getLength; $i++) {
         foreach my $user ($vm_defaults_list[0]->getElementsByTagName("user")) { 
-            #my $user = $user_list->item($i);
             my $username = $user->getAttribute("username");
             unless (&user_in_vm($self,$vm,$username)) {
                 push (@list, $user);
@@ -1376,8 +1356,6 @@ sub merge_user {
     }
    
     # Second, add from the vm
-    #my $user_list = $vm->getElementsByTagName("user");
-    #for (my $i = 0; $i < $user_list->getLength; $i++) {
     foreach my $user ($vm->getElementsByTagName("user")) { 
         push (@list, $user);
     }
@@ -1394,8 +1372,8 @@ sub merge_user {
 # (after chompslash)
 #
 sub merge_filetree {
-    my $self = shift;
 
+    my $self = shift;
     my $vm = shift;
     my @list = ();
    
@@ -1403,9 +1381,7 @@ sub merge_filetree {
     my @vm_defaults_list = $self->{'doc'}->getElementsByTagName("vm_defaults");
     if (@vm_defaults_list == 1) {
         my $filetree_list = $vm_defaults_list[0]->getElementsByTagName("filetree");
-        #for (my $i = 0; $i < $filetree_list->getLength; $i++) {
         foreach my $filetree ($vm_defaults_list[0]->getElementsByTagName("filetree")) { 
-            #my $filetree = $filetree_list->item($i);
             my $when = $filetree->getAttribute("seq");
             my $root = $filetree->getAttribute("root");
             my $target = &text_tag($filetree);
@@ -1416,8 +1392,6 @@ sub merge_filetree {
     }
    
     # Second, add from the vm
-    #my $filetree_list = $vm->getElementsByTagName("filetree");
-    #for (my $i = 0; $i < $filetree_list->getLength; $i++) {
     foreach my $filetree ($vm->getElementsByTagName("filetree")) {
         push (@list, $filetree);
     }
@@ -1504,13 +1478,11 @@ sub vmmgmt {
 # - id attribute in <console>
 #
 sub console_in_vm {
-    my $self = shift;
 
+    my $self = shift;
     my $vm = shift;
     my $id = shift;
    
-    #my $console_list = $vm->getElementsByTagName("console");
-    #for (my $i=0; $i < $console_list->getLength; $i++) {
     foreach my $console ($vm->getElementsByTagName("console")) {
         if ($console->getAttribute("id") eq $id) {
             return 1;
@@ -1518,7 +1490,6 @@ sub console_in_vm {
     }
    
     return 0;
-
 }
 
 # route_in_vm
@@ -1530,14 +1501,12 @@ sub console_in_vm {
 # - destination (value of tag <route>)
 #
 sub route_in_vm {
-    my $self = shift;
 
+    my $self = shift;
     my $vm = shift;
     my $type = shift;
     my $dest = shift;
    
-    #my $route_list = $vm->getElementsByTagName("route");
-    #for (my $i=0; $i < $route_list->getLength; $i++) {
     foreach my $route ($vm->getElementsByTagName("route")) {
         if (($route->getAttribute("type") eq $type) && (&text_tag($route) eq $dest)) {
             return 1;
@@ -1556,13 +1525,11 @@ sub route_in_vm {
 # - username attribute in <user>
 #
 sub user_in_vm {
-    my $self = shift;
 
+    my $self = shift;
     my $vm = shift;
     my $username = shift;
    
-    #my $user_list = $vm->getElementsByTagName("user");
-    #for (my $i=0; $i < $user_list->getLength; $i++) {
    	foreach my $user ($vm->getElementsByTagName("user")) {
         if ($user->getAttribute("username") eq $username) {
             return 1;
@@ -1583,16 +1550,14 @@ sub user_in_vm {
 # - target (<filetree> tag value)
 #
 sub filetree_in_vm {
-   my $self = shift;
-
-   my $vm = shift;
-   my $when = shift;
-   my $root = shift;
-   my $target = shift;
+    
+    my $self = shift;
+    my $vm = shift;
+    my $when = shift;
+    my $root = shift;
+    my $target = shift;
    
-   #my $filetree_list = $vm->getElementsByTagName("filetree");
-   #for (my $i=0; $i < $filetree_list->getLength; $i++) {
-   	foreach my $filetree ($vm->getElementsByTagName("filetree")) {
+    foreach my $filetree ($vm->getElementsByTagName("filetree")) {
         if (($filetree->getAttribute("seq") eq $when) &&
             ($filetree->getAttribute("root") eq $root) &&
             (&chompslash(&text_tag($filetree)) eq &chompslash($target))) {
@@ -1614,10 +1579,7 @@ sub get_net_type {
    	my $self = shift;
 	my $netName = shift;
 	
-	#my $net_list = $self->{'doc'}->getElementsByTagName("net");
-	#for (my $i = 0; $i < $net_list->getLength; $i++) {
 	foreach my $net ($self->{'doc'}->getElementsByTagName("net")) {
-	    #my $net = $net_list->item ($i);
 	    my $name = $net->getAttribute ("name");
         if ($name eq $netName) {
 	    	return $net->getAttribute ("type");
@@ -1634,10 +1596,7 @@ sub get_net_mode {
     my $self = shift;
     my $netName = shift;
     
-    #my $net_list = $self->{'doc'}->getElementsByTagName("net");
-    #for (my $i = 0; $i < $net_list->getLength; $i++) {
     foreach my $net ($self->{'doc'}->getElementsByTagName("net")) {
-        #my $net = $net_list->item ($i);
         my $name = $net->getAttribute ("name");
         if ($name eq $netName) {
             return $net->getAttribute ("mode");
@@ -1654,10 +1613,7 @@ sub get_net_extif {
     my $self = shift;
     my $netName = shift;
     
-    #my $net_list = $self->{'doc'}->getElementsByTagName("net");
-    #for (my $i = 0; $i < $net_list->getLength; $i++) {
     foreach my $net ($self->{'doc'}->getElementsByTagName("net")) {
-        #my $net = $net_list->item ($i);
         my $name = $net->getAttribute ("name");
         if ($name eq $netName) {
             return $net->getAttribute ("external");
@@ -1674,10 +1630,7 @@ sub get_net_vlan {
     my $self = shift;
     my $netName = shift;
     
-    #my $net_list = $self->{'doc'}->getElementsByTagName("net");
-    #for (my $i = 0; $i < $net_list->getLength; $i++) {
     foreach my $net ($self->{'doc'}->getElementsByTagName("net")) {
-        #my $net = $net_list->item ($i);
         my $name = $net->getAttribute ("name");
         if ($name eq $netName) {
             return $net->getAttribute ("vlan");
@@ -1706,18 +1659,11 @@ sub get_vms_in_a_net {
 	my @vms;
 	my @ifs;
 	
-	#my $vms = $self->{'doc'}->getElementsByTagName("vm");
-	#for (my $i = 0; $i < $vms->getLength; $i++) {
 	foreach my $vm ($self->{'doc'}->getElementsByTagName("vm")) {
         my $found;
-	    #my $vm = $vms->item ($i);
 	    my $name = $vm->getAttribute ("name");
 		# Network interfaces loop
-        #my $ifs = $vm->getElementsByTagName ("if");
-        #my $n = $ifs->getLength;
-        #for (my $j = 0; $j < $n; $j++) {
         foreach my $if ($vm->getElementsByTagName ("if")) {
-            #my $if = $ifs->item ($j);
             my $id = $if->getAttribute ("id");
             my $net = $if->getAttribute ("net");
             if ($net eq $netName) {
@@ -1773,13 +1719,9 @@ sub get_seqs {
     unless (defined($vm)) {
     	$vm = $self->{'doc'}
     }
-    #my $filetree_list = $vm->getElementsByTagName("filetree");
-    #for ( my $j = 0 ; $j < $filetree_list->getLength ; $j++ ) {
     foreach my $filetree ($vm->getElementsByTagName("filetree")) {
         $vm_seqs{$filetree->getAttribute('seq')} = 'yes';
     }
-    #my $exec_list = $vm->getElementsByTagName("exec");
-    #for ( my $j = 0 ; $j < $exec_list->getLength ; $j++ ) {
     foreach my $exec ($vm->getElementsByTagName("exec")) {
         $vm_seqs{$exec->getAttribute('seq')} = 'yes';
     }

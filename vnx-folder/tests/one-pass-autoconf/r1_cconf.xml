@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<create_conf>
+  <id>r1-k2SyQg</id>
+  <vm name="r1">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <mem>65536</mem>
+    <kernel>default</kernel>
+    <console id="0" display="no"></console>
+    <console id="1" display="yes"></console>
+    <if id="1" net="Net0" mac=",02:fd:00:00:02:01" netType="virtual_bridge">
+      <ipv4 mask="255.255.255.0">10.0.0.1</ipv4>
+    </if>
+    <if id="2" net="Net1" mac=",02:fd:00:00:02:02" netType="virtual_bridge">
+      <ipv4 mask="255.255.255.0">10.0.1.1</ipv4>
+    </if>
+    <if id="3" net="Net3" mac=",02:fd:00:00:02:03" netType="virtual_bridge">
+      <ipv4 mask="255.255.255.0">10.0.3.1</ipv4>
+    </if>
+    <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
+    <forwarding type="ip"/>
+  </vm>
+</create_conf>

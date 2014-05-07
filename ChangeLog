@@ -1,3 +1,24 @@
+7/5/2014
+- Added examples simple_ubuntu_*_inet.xml to show how to connect VMs to Internets using libvirt virbr0 
+  bridge and "managed" <net> attribute. Also, a minor bug related to managed attribute corrected.
+- Added global mode too --show-status option. Now "vnx --show-status" shows the list of scenarios active 
+  (the ones with a file in $vnx_dir/scenarios/<scenario_name>/lock).
+- One-pass autoconfiguration functionality included for Linux qcow2 rootfilesystems.
+  A new config parameter has been created to activate or not this funcionality:   
+  
+        [libvirt]
+        one_pass_autoconf=yes
+
+- Added client dhcp autoconfiguration: 'dhcp' value is allowed in <ipv4> and <ipv6> tags.
+- Added support in LXC for Debian images
+
+
+29/04/2014
+
+- Added new attribute 'managed' to <net> tag. When managed=no, VNX does neither create nor destroy 
+  the bridge associated with the net. Very useful to create VMs with interfaces joined to virbr0 
+  bridge of libvirt and have an easy connection to Internet.
+
 27/04/2014
 
 - vmAPI simplified: destroy_vm, reboot_vm and reset_vm eliminated. vmAPIs maintain 

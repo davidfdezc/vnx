@@ -62,6 +62,7 @@ our @EXPORT = qw(
 	$DEFAULT_CLUSTER_CONF_FILE
     $EDIV_SEG_ALGORITHMS_DIR
     $EDIV_LOGS_DIR
+    $VNXACED_STATUS
     
     $H2VM_BASE_PORT
     $H2VM_PORT 
@@ -75,7 +76,8 @@ our @EXPORT = qw(
 	$LIBVIRT_DEFAULT_HYPERVISOR        
     $LIBVIRT_KVM_HYPERVISOR        
     $LIBVIRT_VBOX_HYPERVISOR        
-
+    $DEFAULT_ONE_PASS_AUTOCONF
+    
 	$DYNAMIPS_DEFAULT_PORT        
 	$DYNAMIPS_DEFAULT_IDLE_PC
 	$SERLINE_BASE_PORT
@@ -152,6 +154,8 @@ Readonly::Scalar our $DEFAULT_VMFS_ON_TMP => 'no';
 Readonly::Scalar our $DEFAULT_CLUSTER_CONF_FILE => '/etc/vnx.conf';  # '/etc/ediv/cluster.conf';
 Readonly::Scalar our $EDIV_SEG_ALGORITHMS_DIR => '/usr/share/vnx/lib/seg-alg';
 Readonly::Scalar our $EDIV_LOGS_DIR => '/var/log/vnx';
+Readonly::Scalar our $VNXACED_STATUS => '/root/.vnx/vnxaced.status';
+
 
 # Host to virtual machines communication channel
 Readonly::Scalar our $H2VM_BASE_PORT => '13000';     # Initial TCP port for host to virtual machines channels 
@@ -168,7 +172,9 @@ our $CONS_PORT = $CONS_BASE_PORT; # Points to the next TCP port to be used for c
 # Libvirt
 Readonly::Scalar our $LIBVIRT_DEFAULT_HYPERVISOR => 'qemu:///system';        
 Readonly::Scalar our $LIBVIRT_KVM_HYPERVISOR => 'qemu:///system';        
-Readonly::Scalar our $LIBVIRT_VBOX_HYPERVISOR => 'vbox:///system';        
+Readonly::Scalar our $LIBVIRT_VBOX_HYPERVISOR => 'vbox:///system'; 
+Readonly::Scalar our $DEFAULT_ONE_PASS_AUTOCONF => 'no'; 
+       
 
 # Dynamips
 Readonly::Scalar our $DYNAMIPS_DEFAULT_PORT    => '7200';        
