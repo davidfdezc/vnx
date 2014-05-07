@@ -146,6 +146,9 @@ my @opt_s_allowed_modes = ('create', 'start', 'shutdown', 'destroy', 'execute', 
 my @opt_f_allowed_modes = ('define', 'undefine', 'start', 'create', 'shutdown', 'destroy', 'execute', 'save', 'restore',  
                            'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
 
+# Modes allowed without -f or -s option  
+my @no_opt_f_or_s_allowed_modes = ('version', 'help', 'show-map', 'show-status', 'clean-host', 'create-rootfs', 'modify-rootfs');
+
 # Modes that do not need exclusive access (no lock file needed)   
 my @no_lock_modes = ('show-map', 'show-status'); 
 
@@ -306,7 +309,7 @@ $>=$uid;
    	  	usage();
       	vnx_die ("Option -f requires any of the following modes: " . print_modes(\@opt_f_allowed_modes) . "\n");
    	}
-    if  ( !$opts{f} && !$opts{'scenario'} && any_mode_set(\@opt_f_allowed_modes) ) {
+    if  ( !$opts{f} && !$opts{'scenario'} && ! any_mode_set(\@no_opt_f_or_s_allowed_modes) ) {
         usage();
         vnx_die ("Option -f or -s missing\n");
     }
@@ -546,6 +549,11 @@ back_to_user();
         exit(0);
     }
     
+    # Mode show-status without scenario being specified
+    if ($opts{'show-status'} && !$opts{'f'} && !$opts{'scenario'}) {
+        mode_showstatus($vnx_dir, 'global');
+        exit(0);
+    }
    	
    	# Delete LOCK file if -D option included
    	if ($opts{D}) {
@@ -819,7 +827,7 @@ back_to_user();
      	mode_showmap();
    	}
     elsif ($mode eq 'show-status') {
-        mode_showstatus();
+        mode_showstatus($vnx_dir, 'detailed');
     }
    	elsif ($mode eq 'console') {
      	if ($exemode != $EXE_DEBUG) {
@@ -1374,12 +1382,13 @@ sub make_vmAPI_doc {
             $if_tag->addChild( $dom->createAttribute( id => $id));
             $if_tag->addChild( $dom->createAttribute( net => $net));
             $if_tag->addChild( $dom->createAttribute( mac => $mac));
-            
-            if (get_net_by_mode($net,"virtual_bridge") != 0){
-                $if_tag->addChild( $dom->createAttribute( netType => "virtual_bridge"));
-            } elsif(get_net_by_mode($net,"openvswitch") != 0){
-                $if_tag->addChild( $dom->createAttribute( netType => "openvswitch"));
-            }
+ 
+# BORRAR           
+#            if (get_net_by_mode($net,"virtual_bridge") != 0){
+#                $if_tag->addChild( $dom->createAttribute( netType => "virtual_bridge"));
+#            } elsif(get_net_by_mode($net,"openvswitch") != 0){
+#                $if_tag->addChild( $dom->createAttribute( netType => "openvswitch"));
+#            }
 
             my $name = $if->getAttribute("name");
             unless (empty($name)) { 
@@ -1720,7 +1729,7 @@ sub mode_undefine{
         # Delete all files in scenario but the scenario map (<scename>.png or svg) 
         #$execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_sim_dir . "/*");
         $execution->execute($logp, $bd->get_binaries_path_ref->{"find"} . " " . $dh->get_sim_dir . "/* " . 
-                             "! -name *.png ! -name *.svg -delete");
+                             "! -name '*.png' ! -name '*.svg' -delete");
 
         if ($vmfs_on_tmp eq 'yes') {
                 $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " 
@@ -2858,37 +2867,70 @@ sub mode_showmap {
 #
 sub mode_showstatus {
 	
-    my $doc = $dh->get_doc;
+	my $vnx_dir = shift;
+	my $type = shift;
 
-    my $scename = $dh->get_scename;
+    wlog (VVV, "mode_showstatus: mode=$type");
+    if ($type eq 'global') {
 
-    if ( -f $dh->get_sim_dir($scename) . "/lock") {
-        wlog (N, "\nVNX show-status mode:  Scenario $scename (running)\n$hline");     
-
-	    wlog (N, sprintf (" %-20s %-20s %-14s %-20s", 'VM name', 'Type', 'VNX status', 'Hypervisor status') );
-	    wlog (N, sprintf (" %-20s %-20s %-14s %-20s", '-------', '----', '----------', '-----------------') );
-	
-	    my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
-	    for ( my $i = 0; $i < @vm_ordered; $i++) {
-	        my $vm = $vm_ordered[$i];
-	        my $vm_name = $vm->getAttribute("name");
-            my $vm_type = $vm->getAttribute("type");
-	        my $merged_type = $dh->get_vm_merged_type($vm);
-	        my $status = get_vm_status($vm_name);
+        if ( system "ls $vnx_dir/scenarios/*/lock > /dev/null 2>&1" ) {
+            wlog (N, "\nVNX show-status mode:  No active scenarios found\n$hline");     
+        	
+        } else {
+	        wlog (N, "\nVNX show-status mode:  Scenarios created (lock file found)\n$hline");     
+            wlog (N, sprintf (" %-30s %-20s", 'Scenario name', 'Comand to get detailed info') );
+            wlog (N, sprintf (" %-30s %-20s", '-------------', '---------------------------') );
+	            
+	        my $res = `ls $vnx_dir/scenarios/`;
+	        #print "$res\n";
 	        
-	        my $state;
-	        my $hstate;
-            my $error = "VNX::vmAPI_${vm_type}"->get_state_vm($vm_name, \$state, \$hstate);
-            if ($error) {
-                wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->get_state_vm returns '" . $error . "'\n$hline");
-                $hstate = '--';
-            }
-	        wlog (N, sprintf (" %-20s %-20s %-14s %-20s", $vm_name, $merged_type, $status, $hstate) );  
-	    }
-	    wlog (N, "$hline\n");
+	        opendir (DIR, "$vnx_dir/scenarios") or vnx_die ($!);
+	        my @dir = readdir DIR;
+	        foreach my $scen (@dir) {
+	            #print "Checking $vnx_dir/scenarios/$scen/lock\n";
+	            if (-f "$vnx_dir/scenarios/$scen/lock" ) {
+                    wlog (N, sprintf (" %-30s %-20s", $scen, "vnx -s $scen -b --show-status" ) );
+	            }
+	        }        
+	        closedir DIR;
+            wlog (N, "$hline\n");
+        }
+    	
     } else {
-        wlog (N, "\nVNX show-status mode:  Scenario $scename not started\n$hline\n");
-    }	         
+        
+        my $doc = $dh->get_doc;
+        my $scename = $dh->get_scename;
+
+	    if ( -f $dh->get_sim_dir($scename) . "/lock") {
+	        wlog (N, "\nVNX show-status mode:  Scenario $scename (running)\n$hline");     
+	
+	        wlog (N, sprintf (" %-20s %-20s %-14s %-20s", 'VM name', 'Type', 'VNX status', 'Hypervisor status') );
+	        wlog (N, sprintf (" %-20s %-20s %-14s %-20s", '-------', '----', '----------', '-----------------') );
+	    
+	        my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
+	        for ( my $i = 0; $i < @vm_ordered; $i++) {
+	            my $vm = $vm_ordered[$i];
+	            my $vm_name = $vm->getAttribute("name");
+	            my $vm_type = $vm->getAttribute("type");
+	            my $merged_type = $dh->get_vm_merged_type($vm);
+	            my $status = get_vm_status($vm_name);
+	            
+	            my $state;
+	            my $hstate;
+	            my $error = "VNX::vmAPI_${vm_type}"->get_state_vm($vm_name, \$state, \$hstate);
+	            if ($error) {
+	                wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->get_state_vm returns '" . $error . "'\n$hline");
+	                $hstate = '--';
+	            }
+	            wlog (N, sprintf (" %-20s %-20s %-14s %-20s", $vm_name, $merged_type, $status, $hstate) );  
+	        }
+	        wlog (N, "$hline\n");
+	    } else {
+	        wlog (N, "\nVNX show-status mode:  Scenario $scename not started\n$hline\n");
+	    }            
+    	
+    }
+
 }
 
 #
@@ -5019,6 +5061,7 @@ sub bridges_destroy {
         @nets = $doc->getElementsByTagName("net");    
     }
 
+    my $logp = "bridges_destroy> ";
     wlog (VVV, "bridges_destroy called", $logp);
     # To get list of defined <net>
    	foreach my $net (@nets) {
@@ -5026,12 +5069,11 @@ sub bridges_destroy {
         # To get attributes
         my $net_name = $net->getAttribute("name");
         my $mode = $net->getAttribute("mode");
-        my $managed     = $net->getAttribute("managed");
+        my $managed     = str($net->getAttribute("managed"));
 
-    	wlog (VVV, "net=$net_name", $logp);
+    	wlog (VVV, "net=$net_name, mode=$mode, managed='" . $managed . "'", $logp);
     	
-        if ( ! str($managed) eq 'no' && $mode ne "uml_switch") {
-#pak();
+        if ( !($managed eq 'no') && ($mode ne "uml_switch") ) {
             # Set bridge down and remove it only in the case there isn't any associated interface 
             my @br_ifs = vnet_ifs($net_name,$mode);  
             #wlog (N, "OVS a eliminar @br_ifs", $logp);

@@ -1034,8 +1034,8 @@ sub autoconfigure_ubuntu {
     my $virtualmTag     = $virtualmTagList->item(0);
     my $vm_name       = $virtualmTag->getAttribute("name");
 
-    my $hostname_vm = `hostname`;
-    $hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
+    #my $hostname_vm = `hostname`;
+    #$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
     $vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 
     # Files modified
@@ -1240,8 +1240,8 @@ sub autoconfigure_fedora {
     my $virtualmTag = $global_node->getElementsByTagName("vm")->item(0);
     my $vm_name     = $virtualmTag->getAttribute("name");
 
-    my $hostname_vm = `hostname`;
-    $hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
+    #my $hostname_vm = `hostname`;
+    #$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
     $vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 
     # Files modified
@@ -1489,8 +1489,8 @@ sub autoconfigure_freebsd {
     my $virtualmTag = $global_node->getElementsByTagName("vm")->item(0);
     my $vm_name     = $virtualmTag->getAttribute("name");
 
-    my $hostname_vm = `hostname -s`;
-    $hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
+    #my $hostname_vm = `hostname -s`;
+    #$hostname_vm =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
     $vm_name =~ s/^\s*(\S*(?:\s+\S+)*)\s*$/$1/;
 
     # IF prefix names assigned to interfaces  

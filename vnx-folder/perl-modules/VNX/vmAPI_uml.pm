@@ -1975,12 +1975,7 @@ sub get_net_by_mode {
 	my $doc = $dh->get_doc;
 
 	# To get list of defined <net>
-	#my $net_list = $doc->getElementsByTagName("net");
-
-	# To process list
-	#for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
 	foreach my $net ($doc->getElementsByTagName("net")) {
-		#my $net  = $net_list->item($i);
 		my $name = $net->getAttribute("name");
 		my $mode = $net->getAttribute("mode");
 
@@ -2799,12 +2794,7 @@ sub get_net_by_type {
 	my $doc = $dh->get_doc;
 
 	# To get list of defined <net>
-	#my $net_list = $doc->getElementsByTagName("net");
-
-	# To process list
-	#for ( my $i = 0 ; $i < $net_list->getLength ; $i++ ) {
 	foreach my $net ($doc->getElementsByTagName("net")) {
-		#my $net  = $net_list->item($i);
 		my $name = $net->getAttribute("name");
 		my $type = $net->getAttribute("type");
 

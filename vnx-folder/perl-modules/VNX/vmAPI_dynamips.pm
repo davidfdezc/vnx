@@ -498,8 +498,8 @@ sub create_router_conf {
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, extConfFile=$extConfFile ...)", "$logp");
 
 	# Load and parse libvirt XML definition of virtual machine
-	my $vmXMLFile = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml';
-	open XMLFILE, "$vmXMLFile" or return "can not open $vmXMLFile file";
+	my $vm_xml_file = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml';
+	open XMLFILE, "$vm_xml_file" or return "can not open $vm_xml_file file";
 	my $doc = do { local $/; <XMLFILE> };
 	close XMLFILE;
 
@@ -629,9 +629,9 @@ sub create_router_conf {
 # ---------------------------------------------------------------------------------------
 sub undefine_vm{
 
-	my $self   = shift;
+	my $self    = shift;
 	my $vm_name = shift;
-	my $type   = shift;
+	my $type    = shift;
 
     my $logp = "dynamips-undefine_vm-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
@@ -649,15 +649,23 @@ sub undefine_vm{
     $res = dyn_cmd($t, "vm delete $vm_name", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
 
-    # Load and parse libvirt XML definition of virtual machine
-    my $vmXMLFile = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml';
-    if (-e $vmXMLFile) {
-        open XMLFILE, "$vmXMLFile" or return "can not open $vmXMLFile file";
+    # Remove vm directory content, all but VM XML specification file
+    #$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_vm_dir($vm_name) . "/*" );
+    $execution->execute( $logp, $bd->get_binaries_path_ref->{"find"} . " " . 
+                                $dh->get_vm_dir($vm_name) . "/* " . "! -name '*.xml' -delete");
+
+    #
+    # Contact dynamips hypervisor and destroy the nio interfaces associated with the router
+    #
+    # Load and parse VM XML definition of virtual machine
+    my $vm_xml_file = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml';
+    if (-e $vm_xml_file) {
+        open XMLFILE, "$vm_xml_file" or return "can not open $vm_xml_file file";
         my $doc = do { local $/; <XMLFILE> };
         close XMLFILE;
-        my $parser       = XML::LibXML->new();
-        my $dom          = $parser->parse_string($doc);
-        my $vm = $dom->getElementsByTagName("vm")->item(0);
+        my $parser = XML::LibXML->new();
+        my $dom    = $parser->parse_string($doc);
+        my $vm     = $dom->getElementsByTagName("vm")->item(0);
     
         foreach my $if ($vm->getElementsByTagName("if")) {
             my $ifName = $if->getAttribute("name");
@@ -667,16 +675,14 @@ sub undefine_vm{
             if ( $ifName =~ /^[gfeGFE]/ ) {
 			    $res = dyn_cmd($t, "nio delete nio_tap_$vm_name$slot$dev", \@lines, \$ret_code, \$ret_str );
 			    return $res if ($res);
-                #t_print ($t, "nio delete nio_tap_$vm_name$slot$dev", $logp);
-                #my $line = t_getline ($t, $logp);
             }
             elsif ( $ifName =~ /^[sS]/ ) {
                 $res = dyn_cmd($t, "nio delete nio_udp_$vm_name$slot$dev", \@lines, \$ret_code, \$ret_str );
                 return $res if ($res);
-                #t_print ($t, "nio delete nio_udp_$vm_name$slot$dev", $logp);
-                #$line = t_getline ($t, $logp);
             }
         }
+        # Remove VM XML specification file
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -f $vm_xml_file" );
     }
     $t->close;
     
@@ -727,9 +733,9 @@ sub destroy_vm{
 	# using the "nio create_tap" or "nio create_udp" commands 
 
 	# Load and parse libvirt XML definition of virtual machine
-	my $vmXMLFile = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml';
-	if (-e $vmXMLFile) {
-		open XMLFILE, "$vmXMLFile" or return "can not open $vmXMLFile file";
+	my $vm_xml_file = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml';
+	if (-e $vm_xml_file) {
+		open XMLFILE, "$vm_xml_file" or return "can not open $vm_xml_file file";
 		my $doc = do { local $/; <XMLFILE> };
 		close XMLFILE;
         my $parser       = XML::LibXML->new();
@@ -803,8 +809,6 @@ sub start_vm {
     if ( $error = t_connect(\$t) ) { return $error }
     $res = dyn_cmd($t, "vm start $vm_name", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
-    #t_print ($t, "vm start $vm_name", $logp);
-    #my $line = t_getline ($t, $logp);
 
     # Read the console file and start the active consoles,
 	# unless options -n|--no_console were specified by the user

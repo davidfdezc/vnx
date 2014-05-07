@@ -209,7 +209,7 @@ sub check_doc {
 
     # 3. To check <ssh_key>
     foreach my $ssh_key ($doc->getElementsByTagName("ssh_key")) {
-	   my $ssh_key = &do_path_expansion(&text_tag($ssh_key));
+	   my $ssh_key = &do_path_expansion(text_tag($ssh_key));
 	   return "$ssh_key is not a valid absolute filename" unless &valid_absolute_filename($ssh_key);
 	   unless (-r $ssh_key) {
 root();
@@ -222,14 +222,14 @@ user();
 
     # 4. To check <shell>
     foreach my $shell ($doc->getElementsByTagName("shell")) {
-        my $shell = &do_path_expansion(&text_tag($shell));
+        my $shell = &do_path_expansion(text_tag($shell));
         return "$shell (shell) is not a valid absolute filename" unless &valid_absolute_filename($shell);
     }
 
     # 5. To check <tun_device>
     #my $tun_device_list = $doc->getElementsByTagName("tun_device");
     #if ($tun_device_list->getLength != 0) {
-    #   my $tun_device = &text_tag($tun_device_list->item(0));
+    #   my $tun_device = text_tag($tun_device_list->item(0));
     #   return "$tun_device is not a valid absolute filename" unless &valid_absolute_filename($tun_device);
     #}
     #if (&tundevice_needed($dh,$dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
@@ -246,7 +246,7 @@ user();
 
     # 6. To check <basedir>
     foreach my $basedir ($doc->getElementsByTagName("basedir")) {
-        my $basedir = &do_path_expansion(&text_tag($basedir));
+        my $basedir = &do_path_expansion(text_tag($basedir));
         return $basedir . " (basedir) is not a valid absolute directory name" 
             unless &valid_absolute_directoryname($basedir);
         return $basedir . " (basedir) does not exist or is not readable (user $uid_name)"
@@ -258,7 +258,7 @@ user();
 	# 7a. Valid network, mask and offset
 	if ($dh->get_vmmgmt_type ne 'none') {
 		return "<vm_mgmt> network attribute \"".$dh->get_vmmgmt_net."\" is invalid"
-			unless (&valid_ipv4($dh->get_vmmgmt_net));
+			unless (valid_ipv4($dh->get_vmmgmt_net));
 		return "<vm_mgmt> mask attribute \"".$dh->get_vmmgmt_mask."\" is invalid (must be between 8 and 30)"
 			unless ($dh->get_vmmgmt_mask =~ /^\d+$/ && $dh->get_vmmgmt_mask >= 8 && $dh->get_vmmgmt_mask <= 30);
 		return "<vm_mgmt> offset attribute ".$dh->get_vmmgmt_offset." is too large for mask ".$dh->get_vmmgmt_mask
@@ -500,7 +500,7 @@ user();
       my $effective_basedir = $dh->get_default_basedir;
       my @basedir_list = $vm->getElementsByTagName("basedir");
       if (@basedir_list == 1) {
-         $effective_basedir = &text_tag($basedir_list[0]);
+         $effective_basedir = text_tag($basedir_list[0]);
       }
 
       # 9a. To check if the same name has been seen before
@@ -528,7 +528,7 @@ user();
             my $mng_if_value = $dh->get_default_mng_if;
             my @mng_if_list = $vm->getElementsByTagName("mng_if");
             if (@mng_if_list == 1) {
-                $mng_if_value = &text_tag($mng_if_list[0]);
+                $mng_if_value = text_tag($mng_if_list[0]);
             }
 
             # 9b. To check id 0 is not used
@@ -591,7 +591,7 @@ user();
 			 unless ($username =~ /[A-Za-z0-9_]+/);
 		 my %user_groups;
 		 foreach my $group ($user->getElementsByTagName("group")) {
-			my $group = &text_tag($group);
+			my $group = text_tag($group);
 			$user_groups{$group} = 1;
 			return "Invalid group $group for user $username"
 				unless ($group =~ /[A-Za-z0-9_]+/);
@@ -602,7 +602,7 @@ user();
 
         #11. To check <filetree>
         foreach my $ftree ($vm->getElementsByTagName("filetree")) {      	
-            my $filetree = &text_tag($ftree);
+            my $filetree = text_tag($ftree);
             my $root = $ftree->getAttribute("root");
             # Calculate the efective filetree
             my $filetree_effective;
@@ -693,7 +693,7 @@ user();
     #12. To check <filesystem>
     $> = $uid if ($is_root);
     foreach my $fsystem ($doc->getElementsByTagName("filesystem")) {   	
-        my $filesystem = &do_path_expansion(&text_tag($fsystem));
+        my $filesystem = &do_path_expansion(text_tag($fsystem));
         my $filesystem_type = $fsystem->getAttribute("type");
         if ($filesystem_type eq "hostfs") {         	
             # 12a. <filesystem> are valid, readable/executable files
@@ -712,7 +712,7 @@ user();
         else {
             #12a (again). <filesystem> are valid, readable/executable files
             # DFC 25/4/2011: allowed relative filesystem paths following rules descried in FileChecks->get_abs_path
-            $filesystem = &get_abs_path ($filesystem);
+            $filesystem = get_abs_path ($filesystem);
             # return "$filesystem (filesystem) is not a valid absolute filename" unless &valid_absolute_filename($filesystem);
             return "$filesystem (filesystem) does not exist or is not readable (user $uid_name)" unless (-r $filesystem);
             if ($filesystem_type eq "direct") {
@@ -731,7 +731,7 @@ user();
    foreach my $kernel ($doc->getElementsByTagName("kernel")) {
       #my $kernel = $kernel_list->item(0);
       # 13a. <kernel> are valid, readable/executable files
-      my $kernel_exe = &do_path_expansion(&text_tag($kernel));
+      my $kernel_exe = &do_path_expansion(text_tag($kernel));
       return "$kernel_exe (kernel) is not a valid absolute filename" unless &valid_absolute_filename($kernel_exe);
       return "$kernel_exe (kernel) does not exist or is not readable/executable (user $uid_name)" unless (-r $kernel_exe && -x _);
       # 13b. initrd checking
@@ -800,7 +800,7 @@ user();
          my $ip = $phyif->getAttribute("ip");
       
          # To check if valid IPv6 address
-         unless (&valid_ipv6_with_mask($ip)) {
+         unless (valid_ipv6_with_mask($ip)) {
             return "'$ip' is not a valid IPv6 address with mask (/64 for example) in a <physicalif> ip";
          }
          
@@ -812,7 +812,7 @@ user();
          # the physicalif_config in vnumlparser.pl deals rightfully with emtpy values
          #unless ($gw =~ /^$/ ) {
          unless (empty($gw)) {
-            unless (&valid_ipv6($gw)) {
+            unless (valid_ipv6($gw)) {
                return "'$gw' is not a valid IPv6 address in a <physicalif> gw";
             }
          }
@@ -838,7 +838,7 @@ user();
          my $ip = $phyif->getAttribute("ip");
       
          # To check if valid IPv4 address
-         unless (&valid_ipv4($ip)) {
+         unless (valid_ipv4($ip)) {
             return "'$ip' is not a valid IPv4 address in a <physicalif> ip";
          }
 
@@ -847,7 +847,7 @@ user();
          $mask="255.255.255.0" if (empty($mask));
 
          # To check if valid IPv4 mask
-         unless (&valid_ipv4_mask($mask)) {
+         unless (valid_ipv4_mask($mask)) {
             return "'$mask' is not a valid IPv4 netmask in a <physicalif> mask attribute";
          }
          
@@ -859,7 +859,7 @@ user();
          # the physicalif_config in vnumlparser.pl deals rightfully with emtpy values
          #unless ($gw =~ /^$/ ) {
          unless (empty($gw)) {
-            unless (&valid_ipv4($gw)) {
+            unless (valid_ipv4($gw)) {
                return "'$gw' is not a valid IPv4 address in a <physicalif> gw";
             }
          }
@@ -868,23 +868,23 @@ user();
 
    # 16. To check IPv4 addresses
    foreach my $ipv4s ($doc->getElementsByTagName("ipv4")) {
-      my $ipv4 = &text_tag($ipv4s);
+      my $ipv4 = text_tag($ipv4s);
+      if ($ipv4 eq 'dhcp') { next }
       my $mask = $ipv4s->getAttribute("mask");
-      #if ($mask eq '') {
       if (empty($mask)) {
          # Doesn't has mask attribute, mask would be implicit in address
-         unless (&valid_ipv4($ipv4) || &valid_ipv4_with_mask($ipv4)) {
+         unless (valid_ipv4($ipv4) || valid_ipv4_with_mask($ipv4)) {
             return "'$ipv4' is not a valid IPv4 address (Z.Z.Z.Z) or IPv4 address with implicit mask (Z.Z.Z.Z/M, M<=32) in a <ipv4>";
          }
       }
       else {
-         unless (&valid_ipv4_mask($mask)) {
+         unless (valid_ipv4_mask($mask)) {
             return "'$mask' is not a valid IPv4 netmask in a <ipv4> mask attribute";
          }
-         if (&valid_ipv4_with_mask($ipv4)) {
+         if (valid_ipv4_with_mask($ipv4)) {
             return "mask attribute and implicit mask (Z.Z.Z.Z/M, M<=32) are not simultanelly allowed in <ipv4>";
          }
-         unless (&valid_ipv4($ipv4)) {
+         unless (valid_ipv4($ipv4)) {
             return "'$ipv4' is not a valid IPv4 address (Z.Z.Z.Z) in a <ipv4>";
          }
       }
@@ -892,22 +892,23 @@ user();
 
    # 17. To check IPv6 addresses
    foreach my $ipv6s ($doc->getElementsByTagName("ipv6")) {
-      my $ipv6 = &text_tag($ipv6s);
+      my $ipv6 = text_tag($ipv6s);
+      if ($ipv6 eq 'dhcp') { next }
       my $mask = $ipv6s->getAttribute("mask");      
       if (empty($mask)) {
          # Doesn't has mask attribute, mask would be implicit in address
-         unless (&valid_ipv6($ipv6) || &valid_ipv6_with_mask($ipv6)) {
+         unless (valid_ipv6($ipv6) || valid_ipv6_with_mask($ipv6)) {
             return "'$ipv6' is not a valid IPv6 address (Z:Z:Z:Z:Z:Z:Z:Z) or IPv6 address with implicit mask (Z:Z:Z:Z:Z:Z:Z:Z/M, M<=128) in a <ipv6>";
          }
       }
       else {
-         unless (&valid_ipv6_mask($mask)) {
+         unless (valid_ipv6_mask($mask)) {
             return "'$mask' is not a valid IPv6 netmask in a <ipv6> mask attribute";
          }
-         if (&valid_ipv6_with_mask($ipv6)) {
+         if (valid_ipv6_with_mask($ipv6)) {
             return "mask attribute and implicit mask (Z:Z:Z:Z:Z:Z:Z:Z/M, M<=129) are not simultanelly allowed in <ipv6>";
          }
-         unless (&valid_ipv6($ipv6)) {
+         unless (valid_ipv6($ipv6)) {
             return "'$ipv6' is not a valid IPv4 address (Z:Z:Z:Z:Z:Z:Z:Z) in a <ipv6>";
          }
       }
@@ -916,22 +917,22 @@ user();
 
    # 18. To check addresses related with <route> tag
    foreach my $route ($doc->getElementsByTagName("route")) {
-      my $route_dest = &text_tag($route);
+      my $route_dest = text_tag($route);
       my $route_gw = $route->getAttribute("gw");
       my $route_type = $route->getAttribute("type");
       if ($route_type eq "ipv4") {
-         unless (($route_dest eq "default")||(&valid_ipv4_with_mask($route_dest))) {
+         unless (($route_dest eq "default")||(valid_ipv4_with_mask($route_dest))) {
             return "'$route_dest' is not a valid IPv4 address with mask (Z.Z.Z.Z/M) in a <route>";
          }
-         unless (&valid_ipv4($route_gw)) {
+         unless (valid_ipv4($route_gw)) {
             return "'$route_gw' is not a valid IPv4 address (Z.Z.Z.Z) for a <route> gw";
          }
       }
       elsif ($route_type eq "ipv6") {
-         unless (($route_dest eq "default")||(&valid_ipv6_with_mask($route_dest))) {
+         unless (($route_dest eq "default")||(valid_ipv6_with_mask($route_dest))) {
             return "'$route_dest' is not a valid IPv6 address with mask (only Z:Z:Z:Z:Z:Z:Z:Z/M is supported by the time) in a <route>";
          }
-         unless (&valid_ipv6($route_gw)) {
+         unless (valid_ipv6($route_gw)) {
             return "'$route_gw' is not a valid IPv6 address (only Z:Z:Z:Z:Z:Z:Z:Z is supported by the time) in a <route> gw";
          } 
       }
@@ -943,7 +944,7 @@ user();
 
    # 19. To check <bw>
    foreach my $bw_tag ($doc->getElementsByTagName("bw")) {
-      my $bw = &text_tag($bw_tag);
+      my $bw = text_tag($bw_tag);
       return "<bw> value $bw is not a valid integer number" unless ($bw =~ /^\d+$/);
    }
    
@@ -1043,7 +1044,7 @@ user();
 
 	# 23. To check that <mem> tag is specified in Megabytes or Gigabytes
 	foreach my $mem_tag ($doc->getElementsByTagName("mem")) {
-      	my $mem = &text_tag($mem_tag);
+      	my $mem = text_tag($mem_tag);
 		if ( $mem !~ /[MG]$/ ) {
 			return "<mem> tag sintax error ($mem); memory values must end with 'M' or 'G'";
 		}
@@ -1133,7 +1134,7 @@ user();
 	
 	# Check that files specified in <conf> tag exist and are readable
     foreach my $conf ($doc->getElementsByTagName("conf")) {
-       $conf = &get_abs_path (&text_tag($conf));
+       $conf = get_abs_path (text_tag($conf));
        # <conf> are valid, readable/executable files
        return "$conf (conf) does not exist or is not readable/executable (user $uid_name)" unless (-r $conf);
     }
