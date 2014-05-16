@@ -94,7 +94,7 @@ sub init {
 root();
 
 	# load kvm modules
-    system("kvm-ok > /dev/null");
+    system "kvm-ok > /dev/null";
     if ( $? == -1 ) {
         system("kvm-ok"); # To show command output on screen
         $error = "The scenario contains KVM virtual machines, but the command 'kvm-ok' reports no host support for KVM.";
@@ -181,11 +181,10 @@ sub define_vm {
 	my $con;
 
     my $vm = $dh->get_vm_byname ($vm_name);
-    wlog (VVV, "---- " . $vm->getAttribute("name"), $logp);
-    wlog (VVV, "---- " . $vm->getAttribute("exec_mode"), $logp);
 
     my $exec_mode   = $dh->get_vm_exec_mode($vm);
-    wlog (VVV, "---- vm_exec_mode = $exec_mode", $logp);
+    my $vm_arch = $vm->getAttribute("arch");
+    if (empty($vm_arch)) { $vm_arch = 'i686' }  # default value
 
     if ( ($exec_mode ne "cdrom") && ($exec_mode ne "sdisk") ) {
         $execution->smartdie( "execution mode $exec_mode not supported for VM of type $type" );
@@ -337,11 +336,7 @@ sub define_vm {
 		$domain_tag->addChild($os_tag);
 		my $type_tag = $init_xml->createElement('type');
 		$os_tag->addChild($type_tag);
-		
-        my $vm_arch = $vm->getAttribute("arch");
-		unless (empty($vm_arch)) {
-		  $type_tag->addChild( $init_xml->createAttribute( arch => "$vm_arch" ) );	
-		}
+        $type_tag->addChild( $init_xml->createAttribute( arch => "$vm_arch" ) );	
 
         # DFC 23/6/2011: Added machine attribute to avoid a problem in CentOS hosts
 		$type_tag->addChild( $init_xml->createAttribute( machine => "pc" ) );
@@ -377,7 +372,7 @@ sub define_vm {
 		my $emulator_tag = $init_xml->createElement('emulator');
 		$devices_tag->addChild($emulator_tag);
 
-        if ($vm->getAttribute("arch") eq "x86_64" ) {
+        if ($vm_arch eq "x86_64" ) {
             #$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
             $emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/qemu-system-x86_64") );
         } else {
@@ -750,10 +745,8 @@ user();
 		$domain_tag->addChild($os_tag);
 		my $type_tag = $init_xml->createElement('type');
 		$os_tag->addChild($type_tag);
-        my $vm_arch = $vm->getAttribute("arch");
-		unless (empty($vm_arch)) {
-		  $type_tag->addChild( $init_xml->createAttribute( arch => "$vm_arch" ) );	
-		}
+        $type_tag->addChild( $init_xml->createAttribute( arch => "$vm_arch" ) );	
+
 		# DFC 23/6/2011: Added machine attribute to avoid a problem in CentOS hosts
 		$type_tag->addChild( $init_xml->createAttribute( machine => "pc" ) );
 		$type_tag->addChild( $init_xml->createTextNode("hvm") );
@@ -788,7 +781,7 @@ user();
 		my $emulator_tag = $init_xml->createElement('emulator');
 		$devices_tag->addChild($emulator_tag);
 
-        if ($vm->getAttribute("arch") eq "x86_64" ) {
+        if ($vm_arch eq "x86_64" ) {
             #$emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/kvm") );
             $emulator_tag->addChild( $init_xml->createTextNode("/usr/bin/qemu-system-x86_64") );
         } else {
@@ -1291,7 +1284,8 @@ user();
         for ( my $i = 1; $i < 5; $i++) {
 
             wlog (VVV,  "Trying: vnx_mount_rootfs -p $i -r $filesystem $rootfs_mount_dir", $logp);
-            system "vnx_mount_rootfs -b -p $i -r $filesystem $rootfs_mount_dir";
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -p $i -r $filesystem $rootfs_mount_dir");
+            #system "vnx_mount_rootfs -b -p $i -r $filesystem $rootfs_mount_dir";
             if ( $? != 0 ) {
                 wlog (VVV,  "Cannot mount partition $i of '$filesystem'", $logp);
                 next
@@ -1304,7 +1298,8 @@ user();
                     wlog (VVV,  "/etc not found in partition $i of '$filesystem'", $logp);
                 }
             }
-            system "vnx_mount_rootfs -b -u $rootfs_mount_dir";
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
+            #system "vnx_mount_rootfs -b -u $rootfs_mount_dir";
         }
 
         unless ($mounted) {
@@ -1324,11 +1319,26 @@ user();
 		#pak();
 		
 		# Second, execute the script chrooted to the image
-		my $os_distro = `LANG=C chroot $rootfs_mount_dir /tmp/get_os_distro`;
+		my $os_distro = `LANG=C chroot $rootfs_mount_dir /tmp/get_os_distro 2> /dev/null`;
 		my @platform = split(/,/, $os_distro);
-		    
-		wlog (VVV, "Image OS detected: $platform[0],$platform[1],$platform[2],$platform[3],$platform[4],$platform[5]", $logp);
-		
+        
+        # Check consistency of VM definition and hardware platform 
+        # We cannot use the information returned by get_os_distro ($platform[5]) because as it is executed 
+        # using chroot and returns the host info, not the rootfs image. We use the command file instead
+        my $rootfs_arch;
+        if    ( `file $rootfs_mount_dir/bin/bash | grep 32-bit` ) { $rootfs_arch = 'i686' }
+        elsif ( `file $rootfs_mount_dir/bin/bash | grep 64-bit` ) { $rootfs_arch = 'x86_64' }
+
+        wlog (V, "Image OS detected: $platform[0],$platform[1],$platform[2],$platform[3]," . str($rootfs_arch), $logp);
+
+        if ( defined($rootfs_arch) && $vm_arch ne $rootfs_arch ) {
+            # Delete script, dismount the rootfs image and return error        
+            system "rm $rootfs_mount_dir/tmp/get_os_distro";
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
+            #system "vnx_mount_rootfs -b -u $rootfs_mount_dir";
+            return "Inconsistency detected between VM $vm_name architecture defined in XML ($vm_arch) and rootfs architecture ($platform[5])";
+        } 
+
 		# Third, delete the script
 		system "rm $rootfs_mount_dir/tmp/get_os_distro";
 		#pak("get_os_distro deleted");        
@@ -1359,6 +1369,7 @@ user();
 		chomp($cid);
 		
 		# And save it to the VNACED_STATUS file
+        system "mkdir -p ${rootfs_mount_dir}/${VNXACED_STATUS_DIR}" unless (-d $rootfs_mount_dir . $VNXACED_STATUS);
 		my $vnxaced_status_file = $rootfs_mount_dir . $VNXACED_STATUS;
 		system "sed -i -e '/cmd_id/d' $vnxaced_status_file" if (-f $vnxaced_status_file);
 		system "echo \"cmd_id=$cid\" >> $vnxaced_status_file";
@@ -1372,7 +1383,7 @@ user();
         system "echo \"exec_mode=$exec_mode\" >> $vnxaced_status_file";
 
         # Dismount the rootfs image        
-        system "vnx_mount_rootfs -b -u $rootfs_mount_dir";
+        $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
         
     }
 	
@@ -1432,17 +1443,17 @@ user();
 					}
 	                wlog (V, "VM succesfully undefined.", $logp);
 		            # Remove vm directory content
-                    $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_vm_dir($vm_name) . "/*.xml"
-                                         . $dh->get_vm_dir($vm_name) . "/run/*" . $dh->get_vm_dir($vm_name) . "/fs/*"
-                                         . $dh->get_vm_dir($vm_name) . "/tmp/*" );
+                    $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_vm_dir($vm_name) . "/*.xml "
+                                         . $dh->get_vm_dir($vm_name) . "/run/* " . $dh->get_vm_dir($vm_name) . "/fs/* "
+                                         . $dh->get_vm_dir($vm_name) . "/tmp/* " );
 user();
 	                return $error;
 				}
 			}
             # Remove vm directory content
-            $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_vm_dir($vm_name) . "/*.xml"
-                                 . $dh->get_vm_dir($vm_name) . "/run/*" . $dh->get_vm_dir($vm_name) . "/fs/*"
-                                 . $dh->get_vm_dir($vm_name) . "/tmp/*" );
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_vm_dir($vm_name) . "/*.xml "
+                                 . $dh->get_vm_dir($vm_name) . "/run/* " . $dh->get_vm_dir($vm_name) . "/fs/* "
+                                 . $dh->get_vm_dir($vm_name) . "/tmp/* " );
 			$error = "VM $vm_name does not exist";
 user();
         };

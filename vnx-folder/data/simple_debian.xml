@@ -7,8 +7,8 @@ VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
 Name:        simple_debian
-Description: Just one Debian virtual machine connected to a Network named Net0 with address 10.0.0.24. 
-             The host has an interface in Net0 with address 10.0.0.1  
+Description: Just one Debian virtual machine connected to a Network named Net0 with address 10.1.0.24. 
+             The host has an interface in Net0 with address 10.1.0.1  
              This simple scenario is supposed to be used for testing the different 
              types of virtual machines supported by VNX. You can start several simple_*.xml
              scenarios and test the connectivity among virtual machines and the host, as all
@@ -46,7 +46,7 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_debian</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.24/24</ipv4>
+      <ipv4>10.1.0.24/24</ipv4>
     </if>
 
     <!-- Virtual machine command examples -->
@@ -87,7 +87,7 @@ SPAIN
 
   <host>
     <hostif net="Net0">
-       <ipv4>10.0.0.1/24</ipv4>
+       <ipv4>10.1.0.1/24</ipv4>
     </hostif>
   </host>
   

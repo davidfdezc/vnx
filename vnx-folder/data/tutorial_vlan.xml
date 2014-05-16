@@ -7,8 +7,8 @@ VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
 Name:        simple_ubuntu-gui
-Description: Just one Ubuntu virtual machine with GUI connected to a Network named Net0 with address 10.0.0.5. 
-             The host has an interface in Net0 with address 10.0.0.1  
+Description: Just one Ubuntu virtual machine with GUI connected to a Network named Net0 with address 10.1.0.5. 
+             The host has an interface in Net0 with address 10.1.0.1  
              This simple scenario is supposed to be used for testing the different 
              types of virtual machines supported by VNX. You can start several simple_*.xml
              scenarios and test the connectivity among virtual machines and the host, as all
@@ -52,7 +52,7 @@ SPAIN
     <vlan trunk='yes'>
      <tag id='2'/>
       </vlan>
-      <ipv4>10.0.0.1/24</ipv4>
+      <ipv4>10.1.0.1/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
@@ -67,7 +67,7 @@ SPAIN
      <tag id='1'/>
      <tag id='2'/>
       </vlan>
-      <ipv4>10.0.0.2/24</ipv4>
+      <ipv4>10.1.0.2/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>
@@ -81,7 +81,7 @@ SPAIN
       <vlan >
      <tag id='2'/>
       </vlan>
-      <ipv4>10.0.0.3/24</ipv4>
+      <ipv4>10.1.0.3/24</ipv4>
     </if>
     <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile</filetree>
     <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile</filetree>

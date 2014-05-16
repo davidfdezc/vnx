@@ -101,7 +101,7 @@ sub init {
     wlog (VVV, "LXC conf: aa_unconfined=$aa_unconfined");
 
     # Check whether LXC is installed (by executing lxc-info)
-    system("which lxc-info 2> /dev/null");
+    system("which lxc-info > /dev/null 2>&1");
     if ( $? != 0 ) {
     	$error = "Cannot find 'lxc-info' command, check that LXC is installed in the system.";
     }
@@ -142,12 +142,10 @@ sub define_vm {
     my $filesystem;
 
     my $vm = $dh->get_vm_byname ($vm_name);
-    wlog (VVV, "---- " . $vm->getAttribute("name"), $logp);
-    wlog (VVV, "---- " . $vm->getAttribute("exec_mode"), $logp);
-
     my $exec_mode   = $dh->get_vm_exec_mode($vm);
-    wlog (VVV, "---- vm_exec_mode = $exec_mode", $logp);
-
+    my $vm_arch = $vm->getAttribute("arch");
+    if (empty($vm_arch)) { $vm_arch = 'i686' }  # default value
+    
     #
     # define_vm for lxc
     #
@@ -236,8 +234,23 @@ change_to_root();
         # Second, execute the script chrooted to the image
         my $os_distro = `LANG=C chroot $rootfs_mount_dir /tmp/get_os_distro`;
         my @platform = split(/,/, $os_distro);
-            
-        wlog (VVV, "Image OS detected: $platform[0],$platform[1],$platform[2],$platform[3],$platform[4],$platform[5]", $logp);
+
+        # Check consistency of VM definition and hardware platform 
+        # We cannot use the information returned by get_os_distro ($platform[5]) because as it is executed 
+        # using chroot and returns the host info, not the rootfs image. We use the command file instead
+        my $rootfs_arch;
+        if    ( `file $rootfs_mount_dir/bin/bash | grep 32-bit` ) { $rootfs_arch = 'i686' }
+        elsif ( `file $rootfs_mount_dir/bin/bash | grep 64-bit` ) { $rootfs_arch = 'x86_64' }
+
+        wlog (V, "Image OS detected: $platform[0],$platform[1],$platform[2],$platform[3]," . str($rootfs_arch), $logp);
+
+        if ( defined($rootfs_arch) && $vm_arch ne $rootfs_arch ) {
+            # Delete script, dismount the rootfs image and return error        
+            system "rm $rootfs_mount_dir/tmp/get_os_distro";
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
+            #system "vnx_mount_rootfs -b -u $rootfs_mount_dir";
+            return "Inconsistency detected between VM $vm_name architecture defined in XML ($vm_arch) and rootfs architecture ($platform[5])";
+        } 
         
         # Third, delete the script
         system "rm $rootfs_mount_dir/tmp/get_os_distro";
@@ -499,9 +512,43 @@ sub start_vm {
     #
     if ($type eq "lxc") {
 
+        # Check that the filesystem is mounted (it could be the case that the scenario
+        # was in 'defined' state and the host has been rebooted)
+        
+
+
+        # Load and parse VM XML config file
+        my $parser = XML::LibXML->new();
+        my $doc = $parser->parse_file( $dh->get_vm_dir($vm_name) . "/${vm_name}_cconf.xml");
+        my $vm  = $doc->getElementsByTagName("vm")->item(0);
+        my $filesystem_type   = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
+        my $filesystem        = $vm->getElementsByTagName("filesystem")->item(0)->getFirstChild->getData;
         my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
-#pak ("before: lxc-start -n $vm_name -f $vm_lxc_dir/config");        
-        my $res = $execution->execute( $logp, "lxc-start -d -n $vm_name -f $vm_lxc_dir/config");
+
+        if ( $filesystem_type eq "cow" ) {
+            
+            # Check if $vm_lxc_dir is mounted
+            system "mount | cut -d ' ' -f 3 | grep '^$vm_lxc_dir' > /dev/null";
+            if ( $? != 0 ) {  # overlay filesystem is not mounted
+
+                wlog (V, "overlay filesystem of VM $vm_name not mounted; remounting", $logp);
+	            # Directory where COW files are going to be stored (upper dir in terms of overlayfs) 
+	            my $vm_cow_dir = $dh->get_vm_fs_dir($vm_name);
+	
+	            # Mount the overlay filesystem
+	            if ($union_type eq 'overlayfs') {
+	                # Ex: mount -t overlayfs -o upperdir=/tmp/lxc1,lowerdir=/var/lib/lxc/vnx_rootfs_lxc_ubuntu-13.04-v025/ none /var/lib/lxc/lxc1
+	                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t overlayfs -o upperdir=" . $vm_cow_dir . 
+	                                     ",lowerdir=" . $filesystem . " none " . $vm_lxc_dir );
+	            } elsif ($union_type eq 'aufs') {
+	                # Ex: mount -t aufs -o br=/tmp/lxc1-rw:/var/lib/lxc/vnx_rootfs_lxc_ubuntu-12.04-v024/=ro none /tmp/lxc1
+	                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t aufs -o br=" . $vm_cow_dir . 
+	                                     ":" . $filesystem . "/=ro none " . $vm_lxc_dir );
+	            }
+            }
+        }        
+
+        my $res = $execution->execute( $logp, $bd->get_binaries_path_ref->{"lxc-start"} . " -d -n $vm_name -f $vm_lxc_dir/config");
         if ($res) { 
             wlog (N, "$res", $logp)
         }
@@ -583,10 +630,10 @@ sub shutdown_vm {
 
         if (defined($kill)) {
         	# Kill the VM
-            $execution->execute( $logp, "lxc-stop -k -n $vm_name");
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"lxc-stop"} . " -k -n $vm_name");
         } else {
         	# Shutdown the VM
-            $execution->execute( $logp, "lxc-stop -W -n $vm_name");
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"lxc-stop"} . " -W -n $vm_name");
         }
         return $error;
     }
@@ -595,86 +642,6 @@ sub shutdown_vm {
         return $error;
     }
 }
-
-=BEGIN
-# ---------------------------------------------------------------------------------------
-#
-# destroy_vm
-#
-# Destroys a LXC virtual machine 
-#
-# Arguments:
-#   - $vm_name: the name of the virtual machine
-#   - $type: the merged type of the virtual machine 
-# 
-# Returns:
-#   - undefined or '' if no error
-#   - string describing error, in case of error
-#
-# ---------------------------------------------------------------------------------------
-sub destroy_vm {
-
-    my $self   = shift;
-    my $vm_name = shift;
-    my $type   = shift;
-
-    my $logp = "lxc-destroy_vm-$vm_name> ";
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-
-    my $error;
-    my $con;
-    
-    #
-    # destroy_vm for lxc
-    #
-    if ($type eq "lxc") {
-
-        $error = $self->shutdown_vm($vm_name, $type, 'kill');
-        if ( $error ne 0 ) {
-            wlog (N, "...ERROR: VNX::vmAPI_${type}->shutdown_vm returns " . $error);
-        }
-        $error = $self->undefine_vm($vm_name, $type);
-
-BEGIN
-        my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
-
-        #my $a = `stat -c "%d:%i" $lxc_dir/$vm_name/`; my $b = `stat -c "%d:%i" $vm_lxc_dir/`;
-        #wlog (VVV, "$lxc_dir/$vm_name/=$a, $vm_lxc_dir/=$b");
-        
-
-        $execution->execute( $logp, "lxc-stop -k -n $vm_name");
-
-        # Remove symlink to VM in /var/lib/lxc/ if existant  
-        if ( -l "$lxc_dir/$vm_name") {
-            #my $a = `stat -c "%d:%i" $lxc_dir/$vm_name/`; my $b = `stat -c "%d:%i" $vm_lxc_dir/`;
-            #wlog (VVV, "a=$a, b=$b");
-            if ( `stat -c "%d:%i" $lxc_dir/$vm_name/` eq `stat -c "%d:%i" $vm_lxc_dir/`) {
-                $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " $lxc_dir/$vm_name" );
-            } else {
-                $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
-            }
-        } elsif ( -d "$lxc_dir/$vm_name") {
-            $error="ERROR: a directory $lxc_dir/$vm_name exists but does not point to VM $vm_name directories. Remove it manually if not used."
-        }
-
-        # Umount the overlay filesystem
-        $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $vm_lxc_dir );
-
-        # Delete COW files directory
-        my $vm_cow_dir = $dh->get_vm_dir($vm_name);
-        $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $vm_cow_dir . "/fs/*" );
-END
-cut
-        return $error;
-
-    }
-    else {
-        $error = "destroy_vm for type $type not implemented yet.\n";
-        return $error;
-    }
-}
-=END
-=cut
 
 
 # ---------------------------------------------------------------------------------------
@@ -709,7 +676,7 @@ sub suspend_vm {
     if ($type eq "lxc") {
 
         # Suspend the VM to memory
-        $execution->execute( $logp, "lxc-freeze -n $vm_name");
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"lxc-freeze"} . " -n $vm_name");
 
         return $error;
     }
@@ -751,7 +718,7 @@ sub resume_vm {
     if ($type eq "lxc") {
 
         # resume the VM from memory
-        $execution->execute( $logp, "lxc-unfreeze -n $vm_name");
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"lxc-unfreeze"} . " -n $vm_name");
 
         return $error;
 
@@ -841,100 +808,6 @@ sub restore_vm {
     }
 }
 
-=BEGIN
-# ---------------------------------------------------------------------------------------
-#
-# reboot_vm
-#
-# Reboots a virtual machine
-#
-# Arguments:
-#   - $vm_name: the name of the virtual machine
-#   - $type: the merged type of the virtual machine
-# 
-# Returns:
-#   - undefined or '' if no error
-#   - string describing error, in case of error
-#
-# ---------------------------------------------------------------------------------------
-sub reboot_vm {
-
-    my $self   = shift;
-    my $vm_name = shift;
-    my $type   = shift;
-
-    my $logp = "lxc-reboot_vm-$vm_name> ";
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-
-    my $error;
-
-    #
-    # reboot_vm for lxc
-    #
-    if ($type eq "lxc") {
-
-        # reboot the VM
-        $execution->execute( $logp, "lxc-stop -r -n $vm_name");
-
-        return $error;
-
-    }
-    else {
-        $error = "Type is not yet supported\n";
-        return $error;
-    }
-
-}
-
-# ---------------------------------------------------------------------------------------
-#
-# reset_vm
-#
-# Restores the status of a virtual machine form a file previously saved with save_vm
-#
-# Arguments:
-#   - $vm_name: the name of the virtual machine
-#   - $type: the merged type of the virtual machine
-# 
-# Returns:
-#   - undefined or '' if no error
-#   - string describing error, in case of error
-#
-# ---------------------------------------------------------------------------------------
-sub reset_vm {
-
-    my $self   = shift;
-    my $vm_name = shift;
-    my $type   = shift;
-
-    my $logp = "lxc-reset_vm-$vm_name> ";
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-
-    my $error;
-
-    # Sample code
-    print "reset_vm: reseting vm $vm_name\n" if ($exemode == $EXE_VERBOSE);
-
-    #
-    # reset_vm for lxc
-    #
-    if ($type eq "lxc") {
-
-        $error = $self->shutdown_vm($vm_name, $type, 'kill');
-        if ( $error ne 0 ) {
-            wlog (N, "...ERROR: VNX::vmAPI_${type}->shutdown_vm returns " . $error);
-        }
-        $error = $self->start($vm_name, $type);
-
-        return $error;
-
-    }else {
-        $error = "Type is not yet supported\n";
-        return $error;
-    }
-}
-=END
-=cut
 
 # ---------------------------------------------------------------------------------------
 #
@@ -1014,7 +887,6 @@ sub execute_cmd {
 
     my $logp = "lxc-execute_cmd-$vm_name> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$merged_type, seq=$seq ...)", $logp);
-
 
     my $random_id  = &generate_random_string(6);
 
@@ -1100,7 +972,7 @@ sub execute_cmd {
         #
         
         # 1 - Plugins <exec> tags
-        wlog (VVV, "execute_cmd: number of plugin <exec> = " . scalar(@{$plugin_ftree_list_ref}), $logp);
+        wlog (VVV, "execute_cmd: number of plugin <exec> = " . scalar(@{$plugin_exec_list_ref}), $logp);
         
         foreach my $cmd (@{$plugin_exec_list_ref}) {
             # Add the <exec> tag to the command.xml file
@@ -1121,13 +993,13 @@ sub execute_cmd {
         	$command =~ s/'/'\\''/g;
         	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
             wlog (V, "executing user defined exec command '$command'", $logp);
-        	my $cmd_output = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$command'");
+        	my $cmd_output = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$command'");
             wlog (N, "$cmd_output", '') if ($cmd_output ne '');
         	
         }
 
         # 2 - User defined <exec> tags
-        wlog (VVV, "execute_cmd: number of user-defined <exec> = " . scalar(@{$ftree_list_ref}), $logp);
+        wlog (VVV, "execute_cmd: number of user-defined <exec> = " . scalar(@{$exec_list_ref}), $logp);
         
         foreach my $cmd (@{$exec_list_ref}) {
             # Add the <exec> tag to the command.xml file
@@ -1148,7 +1020,7 @@ sub execute_cmd {
         	$command =~ s/'/'\\''/g;
         	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
             wlog (V, "executing user defined exec command '$command'", $logp);
-        	my $cmd_output = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$command'");
+        	my $cmd_output = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$command'");
             wlog (N, "$cmd_output", '') if ($cmd_output ne '');
         }
 
@@ -1234,12 +1106,12 @@ sub execute_filetree {
             wlog (VVV, $file . "," . $fname, $logp);
             if ( ($user ne '') or ($group ne '')  ) {
                 my $cmd="chown -R $user.$group $root/$fname"; 
-                my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+                my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
                 wlog(N, $res, $logp) if ($res ne ''); 
             }
             if ( $perms ne '' ) {
                 my $cmd="chmod -R $perms $root/$fname"; 
-                my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+                my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
                 wlog(N, $res, $logp) if ($res ne ''); 
             }
         }
@@ -1267,12 +1139,12 @@ sub execute_filetree {
         # Change owner and permissions of file $root if specified in <filetree>
         if ( ($user ne '') or ($group ne '') ) {
             $cmd="chown -R $user.$group $root"; 
-            my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+            my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
             wlog(N, $res, $logp) if ($res ne ''); 
         }
         if ( $perms ne '' ) {
             $cmd="chmod -R $perms $root";
-            my $res = $execution->execute_getting_output( $logp, "lxc-attach -n $vm_name -- $shell -c '$cmd'");
+            my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
             wlog(N, $res, $logp) if ($res ne ''); 
         }
     }

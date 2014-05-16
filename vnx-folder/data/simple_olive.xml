@@ -7,8 +7,8 @@ VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
 Name:        simple_olive
-Description: Just one Olive router connected to a Network named Net0 with address 10.0.0.13. 
-             The host has an interface in Net0 with address 10.0.0.1  
+Description: Just one Olive router connected to a Network named Net0 with address 10.1.0.13. 
+             The host has an interface in Net0 with address 10.1.0.1  
              This simple scenario is supposed to be used for testing the different 
              types of virtual machines supported by VNX. You can start several simple_*.xml
              scenarios and test the connectivity among virtual machines and the host, as all
@@ -41,10 +41,10 @@ SPAIN
     <mem>256M</mem>
     <conf>conf/juniper.conf</conf>
     <if id="1" net="Net0" name="fxp0">
-      <ipv4>10.0.0.13/24</ipv4>
+      <ipv4>10.1.0.13/24</ipv4>
       <ipv6>2001:db8::13/64</ipv6>
     </if>
-    <route type="ipv4" gw="10.0.0.1">default</route>
+    <route type="ipv4" gw="10.1.0.1">default</route>
 
     <!-- Virtual machine command examples -->
 
@@ -67,7 +67,7 @@ SPAIN
     <exec seq="on_boot" type="verbatim" ostype="system">cp /root/on_boot.txt /root/on_boot2.txt</exec>
 
     <exec seq="config1"       type="verbatim" ostype="load">override conf/juniper.conf</exec>
-    <exec seq="configif"      type="verbatim" ostype="set">set interfaces fxp0 unit 0 family inet address 10.0.0.10/24</exec>
+    <exec seq="configif"      type="verbatim" ostype="set">set interfaces fxp0 unit 0 family inet address 10.1.0.10/24</exec>
     <exec seq="enable-ssh"    type="verbatim" ostype="set">set system services ssh</exec>
     <exec seq="enable-telnet" type="verbatim" ostype="set">set system services telnet</exec>
     <exec seq="showint"       type="verbatim" ostype="show">show interfaces</exec>
@@ -80,7 +80,7 @@ SPAIN
 
   <host>
     <hostif net="Net0">
-       <ipv4>10.0.0.1/24</ipv4>
+       <ipv4>10.1.0.1/24</ipv4>
     </hostif>
   </host>
   

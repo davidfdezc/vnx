@@ -39,7 +39,7 @@ SPAIN
   <vm name="s1" type="lxc">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net0">
-      <ipv4>10.0.1.1/24</ipv4>
+      <ipv4>10.1.1.1/24</ipv4>
     </if>
     <!-- Copy dhcp server config (dhcp.conf) -->
     <filetree seq="on_boot" root="/etc/dhcp/">conf/tutorial_lxc_wifi/s1/dhcpd.conf</filetree>
@@ -57,7 +57,7 @@ SPAIN
 
   <host>
     <hostif net="Net0">
-       <ipv4>10.0.1.2/24</ipv4>
+       <ipv4>10.1.1.2/24</ipv4>
     </hostif>
   </host>
 

@@ -6,9 +6,8 @@
 VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
-Name:        simple_metasploitable
-Description: Just one virtual machine running the metasploitable rootfs connected to a Network 
-             named Net0 with address 10.1.0.18. 
+Name:        simple_lxc_ubuntu
+Description: Just one Ubuntu virtual machine connected to a Network named Net0 with address 10.1.0.4. 
              The host has an interface in Net0 with address 10.1.0.1  
              This simple scenario is supposed to be used for testing the different 
              types of virtual machines supported by VNX. You can start several simple_*.xml
@@ -29,29 +28,34 @@ SPAIN
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
     <version>2.0</version>
-    <scenario_name>simple_ubuntu</scenario_name>
-    <automac offset="18"/>
-    <!--vm_mgmt type="none" /-->
-    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="68">
+    <scenario_name>simple_lxc_ubuntu64</scenario_name>
+    <automac offset="4"/>
+    <!--vm_mgmt type="none" /!-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="12">
        <host_mapping />
     </vm_mgmt> 
     <vm_defaults>
-	    <console id="0" display="yes"/>
-	    <console id="1" display="yes"/>
+        <console id="0" display="no"/>
+        <console id="1" display="yes"/>
     </vm_defaults>
   </global>
     
   <net name="Net0" mode="virtual_bridge" />
+  <net name="Net1" mode="virtual_bridge" />
   
-  <vm name="ubuntu" type="libvirt" subtype="kvm" os="linux" exec_mode="sdisk">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_metasploitable</filesystem>
-    <mem>256M</mem>
+  <vm name="ubuntu64" type="lxc" exec_mode="lxc-attach" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_ubuntu64</filesystem>
     <if id="1" net="Net0">
-      <ipv4>10.1.0.18/24</ipv4>
+      <ipv4>10.1.0.4/24</ipv4>
     </if>
+    <if id="2" net="Net1">
+      <ipv4>10.0.1.4/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.1.0.1">default</route>
 
     <!-- Virtual machine command examples -->
 
+    <!-- filetree commands -->    
     <!-- Copy file conf/on_boot.txt to /root directory during 
          vm startup. All filetree and exec commands with seq='on_boot
          are automatically executed during vm startup -->
@@ -66,7 +70,7 @@ SPAIN
 
     <!-- Copy file conf/on_shutdown.txt to /root directory just before 
          vm shutdown. All filetree and exec commands with seq='on_shutdown
-         are automatically executed before sending the shutdown signam to the vm -->
+         are automatically executed before sending the shutdown signal to the vm -->
     <filetree seq="on_shutdown" root="/root/">conf/on_shutdown.txt</filetree>
 
     <!-- exec commands -->    
@@ -74,8 +78,8 @@ SPAIN
     <exec seq="on_boot" type="verbatim">cp /root/on_boot.txt /root/on_boot2.txt</exec>
     
     <!-- Start/stop apache www server -->
-    <exec seq="start-www" type="verbatim" ostype="system">/etc/init.d/apache2 start</exec>
-    <exec seq="stop-www" type="verbatim"  ostype="system">/etc/init.d/apache2 stop</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>
     
     <!-- Simple command to move a file -->
     <exec seq="movefile" type="verbatim"  ostype="system">mv /tmp/vnx.txt /root/</exec>

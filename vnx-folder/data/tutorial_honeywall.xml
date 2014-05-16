@@ -9,8 +9,8 @@ VNX Sample scenarios
 Name:        tutorial_honeywall
 Description: A simple scenario made of two networks (Net1 and Net2) connected at level 2 by
              a honeywall virtual machine, and two hosts (h1 and h2) connected to Net1 and Net 2.
-             honeywall virtual machine has a management interface (10.0.0.17) connected to a third virtual
-             network (Net0), where the host has a virtual interface (10.0.0.1)
+             honeywall virtual machine has a management interface (10.1.0.17) connected to a third virtual
+             network (Net0), where the host has a virtual interface (10.1.0.1)
 
 
 This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
@@ -51,7 +51,7 @@ SPAIN
     <if id="2" net="Net2">
     </if>
     <if id="3" net="Net0">
-      <ipv4>10.0.0.17/24</ipv4>
+      <ipv4>10.1.0.17/24</ipv4>
     </if>
   </vm>
 
@@ -59,7 +59,7 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>128M</mem>
     <if id="1" net="Net1">
-      <ipv4>10.0.1.1/24</ipv4>
+      <ipv4>10.1.1.1/24</ipv4>
     </if>
   </vm>
 
@@ -72,7 +72,7 @@ SPAIN
   </vm>
   <host>
     <hostif net="Net0">
-       <ipv4>10.0.0.1/24</ipv4>
+       <ipv4>10.1.0.1/24</ipv4>
     </hostif>
   </host>
   

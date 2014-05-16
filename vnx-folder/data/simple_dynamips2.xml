@@ -7,8 +7,8 @@ VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
 Name:        simple_dynamips2
-Description: Just one Dynamips C7200 router connected to a Network named Net0 with address 10.0.0.12. 
-             The host has an interface in Net0 with address 10.0.0.1  
+Description: Just one Dynamips C7200 router connected to a Network named Net0 with address 10.1.0.12. 
+             The host has an interface in Net0 with address 10.1.0.1  
              This simple scenario is supposed to be used for testing the different 
              types of virtual machines supported by VNX. You can start several simple_*.xml
              scenarios and test the connectivity among virtual machines and the host, as all
@@ -48,7 +48,7 @@ SPAIN
   	<console id="1" display="yes"/>
 	<if id="0" net="vm_mgmt" name="fa0/0"/>
 	<if id="1" net="Net0" name="fa0/1">
-		<ipv4>10.0.0.12/24</ipv4>
+		<ipv4>10.1.0.12/24</ipv4>
 		<ipv6>2001:db8::12/64</ipv6>
     </if>
     <exec seq="brief"    type="verbatim" ostype="show">show ip interface brief</exec>
@@ -61,7 +61,7 @@ SPAIN
 
   <host>
     <hostif net="Net0">
-       <ipv4>10.0.0.1/24</ipv4>
+       <ipv4>10.1.0.1/24</ipv4>
     </hostif>
   </host>  
 

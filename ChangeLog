@@ -1,3 +1,25 @@
+16/5/2014
+- LXC: start_vm now checks if the overlay filesystem is mounted before starting the VM, remounting it in case it is not.
+- Added support for LXC in modify-rootfs option:
+    vnx --modify-rootfs ROOTFS_file [--rootfs-type ROOTFS_type] 
+  The type of the rootfs is optional. Values 'libvirt-kvm' and 'lxc' are allowed. 
+  If no type is specified, we check if the rootfs is LXC (easy to guess looking for 
+  config file and rootfs directory) and if not, set to 'libvirt-kvm' default value. 
+- Mode start now checks whether the network virtual topology is created, and rebuild it of not. That allows to shutdown a scenario and restart it after a host reboot.
+- New option '--exe-cli' for execution of commands in VMs directly specified from the command line:
+
+    vnx -f tutorial_ubuntu.xml -v --exe-cli service apache2 start -M h4
+
+- vmAPI_libvirt and vmAPI_lxc: added a check to see if VM definition and rootfs image are consistent in relation to hardware platform (32 or 64 bits).
+  
+- install_vnx: now vnx_update, vnx_update_host and vnx_download_rootfs are copied to /usr/bin to be accesible without path. 
+
+- Changed all IP addresses of example scenarios from 10.0.0.X to 10.1.0.X to avoid conflicts with lxcbr0 assigned addresses.  
+
+- Tested support for Fedora 20 and FreeBSD 10.0
+
+- vnxaced modified to use the same autoconfigure_* functions used in vnx
+
 7/5/2014
 - Added examples simple_ubuntu_*_inet.xml to show how to connect VMs to Internets using libvirt virbr0 
   bridge and "managed" <net> attribute. Also, a minor bug related to managed attribute corrected.
@@ -11,7 +33,6 @@
 
 - Added client dhcp autoconfiguration: 'dhcp' value is allowed in <ipv4> and <ipv6> tags.
 - Added support in LXC for Debian images
-
 
 29/04/2014
 

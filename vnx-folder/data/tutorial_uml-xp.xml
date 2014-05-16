@@ -28,32 +28,32 @@ See the tutorial/index.html document for details
 
   <vm name="h1" type="uml" subtype="" os="">
     <if id="1" net="Net0">
-      <ipv4>10.0.0.1/24</ipv4>
+      <ipv4>10.1.0.1/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.0.3">default</route>
+    <route type="ipv4" gw="10.1.0.3">default</route>
   </vm>
 
   <vm name="h2" type="libvirt" subtype="kvm" os="windows">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_winxp</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.2/24</ipv4>
+      <ipv4>10.1.0.2/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.0.3">default</route>
+    <route type="ipv4" gw="10.1.0.3">default</route>
     <exec seq="calc" type="verbatim" ostype="system">calc.exe</exec>
   </vm>
 
   <vm name="h3" type="uml" subtype="" os="">
     <if id="1" net="Net0">
-      <ipv4>10.0.0.3/24</ipv4>
+      <ipv4>10.1.0.3/24</ipv4>
     </if>
     <if id="2" net="Net1">
-      <ipv4>10.0.1.1/24</ipv4>
+      <ipv4>10.1.1.1/24</ipv4>
     </if>
     <if id="3" net="Net3">
-      <ipv4>10.0.3.1/24</ipv4>
+      <ipv4>10.1.3.1/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
+    <route type="ipv4" gw="10.1.1.2">10.1.2.0/24</route>
     <forwarding type="ip" />
   </vm>
 
@@ -61,12 +61,12 @@ See the tutorial/index.html document for details
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_winxp</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net1">
-      <ipv4>10.0.1.2/24</ipv4>
+      <ipv4>10.1.1.2/24</ipv4>
     </if>
     <if id="2" net="Net2">
-      <ipv4>10.0.2.1/24</ipv4>
+      <ipv4>10.1.2.1/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.1.1">default</route>
+    <route type="ipv4" gw="10.1.1.1">default</route>
     <forwarding type="ip" />
   </vm>
 
@@ -74,16 +74,16 @@ See the tutorial/index.html document for details
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net2">
-      <ipv4>10.0.2.2/24</ipv4>
+      <ipv4>10.1.2.2/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.2.1">default</route>
+    <route type="ipv4" gw="10.1.2.1">default</route>
   </vm>
 
   <host>
     <hostif net="Net3">
-       <ipv4>10.0.3.2/24</ipv4>
+       <ipv4>10.1.3.2/24</ipv4>
     </hostif>
-    <route type="ipv4" gw="10.0.3.1">10.0.0.0/16</route>
+    <route type="ipv4" gw="10.1.3.1">10.1.0.0/16</route>
   </host>
 
 </vnx>

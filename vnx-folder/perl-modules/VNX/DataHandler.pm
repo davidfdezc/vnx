@@ -1720,14 +1720,42 @@ sub get_seqs {
     	$vm = $self->{'doc'}
     }
     foreach my $filetree ($vm->getElementsByTagName("filetree")) {
-        $vm_seqs{$filetree->getAttribute('seq')} = 'yes';
+
+        my @seqs = split /,/, $filetree->getAttribute('seq'); 
+        foreach my $seq (@seqs) {
+            $vm_seqs{$seq} = 'yes';
+        }
     }
     foreach my $exec ($vm->getElementsByTagName("exec")) {
-        $vm_seqs{$exec->getAttribute('seq')} = 'yes';
+        my @seqs = split /,/, $exec->getAttribute('seq'); 
+        foreach my $seq (@seqs) {
+            $vm_seqs{$seq} = 'yes';
+        }
     }
 
     return %vm_seqs;
 }
+
+#
+# get_seq_desc
+#
+# Returns the text value of an <seq_help> tag with sequence = $seq
+# or none if not found 
+#
+sub get_seq_desc {
+       
+    my $self = shift;
+    my $seq = shift;
+
+    my $doc = $self->{'doc'};
+    foreach my $exechelp ($doc->getElementsByTagName("seq_help")) {         
+        if ($exechelp->getAttribute('seq') eq $seq) {
+            return text_tag($exechelp);         
+        } 
+    }
+}
+
+
 
 #
 # any_vmtouse_of_type

@@ -140,10 +140,10 @@ my $logp = "host> ";
 #'define', 'undefine', 'create', 'start', 'shutdown', 'destroy', 'execute', 'modify', 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'show-map', 'console', 'console-info', 'exe-info', 'clean-host', 'create-rootfs', 'modify-rootfs', 'version', 'help', 
 
 # Modes allowed with --scenario|-s option  
-my @opt_s_allowed_modes = ('create', 'start', 'shutdown', 'destroy', 'execute', 'modify', 'save', 'restore', 
+my @opt_s_allowed_modes = ('create', 'start', 'shutdown', 'destroy', 'execute', 'exe-cli', 'modify', 'save', 'restore', 
                            'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
 # Modes allowed with -f option  
-my @opt_f_allowed_modes = ('define', 'undefine', 'start', 'create', 'shutdown', 'destroy', 'execute', 'save', 'restore',  
+my @opt_f_allowed_modes = ('define', 'undefine', 'start', 'create', 'shutdown', 'destroy', 'execute', 'exe-cli', 'save', 'restore',  
                            'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
 
 # Modes allowed without -f or -s option  
@@ -151,6 +151,12 @@ my @no_opt_f_or_s_allowed_modes = ('version', 'help', 'show-map', 'show-status',
 
 # Modes that do not need exclusive access (no lock file needed)   
 my @no_lock_modes = ('show-map', 'show-status'); 
+
+# Modes allowed with rootfs-type
+my @opt_rootfstype_modes = ('create-rootfs', 'modify-rootfs'); 
+
+# To store command in "exe-cli" mode
+my @exe_cli;
 
 
 main();
@@ -173,10 +179,10 @@ sub main {
     Getopt::Long::Configure ( qw{no_auto_abbrev no_ignore_case } ); # case sensitive single-character options
     GetOptions (\%opts,
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P', 'modify|m=s', 'scenario|s=s', 
-                'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'recreate', 'execute|x=s',
+                'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'recreate', 'execute|x=s', 'exe-cli=s{1,}' => \@exe_cli, 
                 'show-map:s', 'show-status', 'console:s', 'console-info', 'exe-info', 'clean-host',
                 'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y',
-                'help|h', 'v', 'vv', 'vvv', 'version|V',
+                'rootfs-type=s', 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'user|u:s', '4', '6', 'D', 'no-console|n', 'intervm-delay=s',
                 'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k' 
@@ -298,27 +304,8 @@ $>=$uid;
 
    	# To check arguments consistency
    	
-   	#pre_wlog("opt_scenario=" . $opts{scenario});
+   	#pre_wlog("exe-cli=" . join(' ', @exe_cli) );
    	
-    # 0. Check -f and -s options dependencies
-    if  ( $opts{'scenario'}  && ! any_mode_set(\@opt_s_allowed_modes) ) {
-        usage();
-        vnx_die ("Option -s requires any of the following modes: " . print_modes(\@opt_s_allowed_modes) . "\n");    	
-    } 
-   	if  ( $opts{f}  && ! any_mode_set(\@opt_f_allowed_modes) ) {
-   	  	usage();
-      	vnx_die ("Option -f requires any of the following modes: " . print_modes(\@opt_f_allowed_modes) . "\n");
-   	}
-    if  ( !$opts{f} && !$opts{'scenario'} && ! any_mode_set(\@no_opt_f_or_s_allowed_modes) ) {
-        usage();
-        vnx_die ("Option -f or -s missing\n");
-    }
-    if  ( $opts{scenario} && $opts{'create'} && !$opts{'M'} ) {
-        usage();
-        vnx_die ("Option -s combined with --create|-t option is only valid when used together with -M\n");
-    }
-
-
    	# 1. To use -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start,
    	# --undefine, --save, --restore, --suspend, --resume, --reboot, --reset, --console, --console-info at the same time
    
@@ -338,7 +325,8 @@ $>=$uid;
     if ($opts{'reboot'})           { $how_many_args++; $mode_args .= 'reboot ';        $mode = "reboot";       }
     if ($opts{'reset'})            { $how_many_args++; $mode_args .= 'reset ';         $mode = "reset";        }
     if ($opts{'recreate'})         { $how_many_args++; $mode_args .= 'recreate ';      $mode = "recreate";     }
-   	if ($opts{'execute'})          { $how_many_args++; $mode_args .= 'execute|x ';     $mode = "execute";	   }
+    if ($opts{'execute'})          { $how_many_args++; $mode_args .= 'execute|x ';     $mode = "execute";      }
+    if (@exe_cli)                  { $how_many_args++; $mode_args .= 'exe-cli ';       $mode = "exe-cli";      }
     if ($opts{'modify'})           { $how_many_args++; $mode_args .= 'modify|m ';      $mode = "modify";       }
    	if ($opts{'version'})          { $how_many_args++; $mode_args .= 'version|V ';     $mode = "version";      }
    	if ($opts{'help'})             { $how_many_args++; $mode_args .= 'help|h ';        $mode = "help";         }
@@ -362,11 +350,34 @@ $>=$uid;
    	if ( ($how_many_args lt 1) && (!$opts{D}) ) {
       	usage();
       	vnx_die ("missing main mode option. Specify one of the following options: \n" . 
-      	          "  -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, -m|--modify, --define, \n" . 
-      	          "  --undefine, --start, --suspend, --resume, --save, --restore, --reboot, --reset, --recreate,\n" . 
-      	          "  --show-map, --show-status, --console, --console-info, --clean-host, --create-rootfs, \n" . 
-      	          "  --modify-rootfs, -V or -H\n");
+      	          "  -t|--create, -d|--shutdown, -V, -P|--destroy, -m|--modify, --define, --undefine, \n" . 
+      	          "  --start, --suspend, --resume, --save, --restore, --reboot, --reset, --recreate,\n" . 
+      	          "  -x|--execute, --exe-cli, --show-map, --show-status, --console, --console-info, \n" . 
+      	          "  --clean-host, --create-rootfs, --modify-rootfs, -V or -H\n");
    	}
+
+    # 0. Check -f and -s options dependencies
+    if  ( $opts{'rootfs-type'}  && ! any_mode_set(\@opt_rootfstype_modes) ) {
+        usage();
+        vnx_die ("Option --rootfs-type requires any of the following modes: " . print_modes(\@opt_rootfstype_modes) . "\n");
+    }
+    if  ( $opts{'scenario'}  && ! any_mode_set(\@opt_s_allowed_modes) ) {
+        usage();
+        vnx_die ("Option -s requires any of the following modes: " . print_modes(\@opt_s_allowed_modes) . "\n");        
+    } 
+    if  ( $opts{'f'}  && ! any_mode_set(\@opt_f_allowed_modes) ) {
+        usage();
+        vnx_die ("Option -f requires any of the following modes: " . print_modes(\@opt_f_allowed_modes) . "\n");
+    }
+    if  ( !$opts{'f'} && !$opts{'scenario'} && ! any_mode_set(\@no_opt_f_or_s_allowed_modes) ) {
+        usage();
+        vnx_die ("Option -f or -s missing\n");
+    }
+    if  ( $opts{'scenario'} && $opts{'create'} && !$opts{'M'} ) {
+        usage();
+        vnx_die ("Option -s combined with --create|-t option is only valid when used together with -M\n");
+    }
+
    	if (($opts{kill}) && (!($opts{'shutdown'}))) { 
       	usage(); 
       	vnx_die ("Option --kill|k only makes sense with -d|--shutdown mode\n"); 
@@ -394,9 +405,9 @@ $>=$uid;
       	usage();
       	vnx_die ("-4 and -6 can not be used at the same time\n");
    	}
-   	if ( $opts{'no-console'} && (!($opts{'create'}))) {
+   	if ( $opts{'no-console'} && (!($opts{'create'}) && !($opts{'start'}))) {
       	usage();
-      	vnx_die ("Option -n|--no-console only makes sense with -t|--create mode\n");
+      	vnx_die ("Option -n|--no-console only makes sense with -t|--create or --start mode\n");
    	}
 
     if ( $opts{'modify'} && (!($opts{'scenario'}))) {
@@ -522,29 +533,12 @@ $>=$uid;
     
     # Create root filesystem pseudomode
     if ($opts{'create-rootfs'}) {
-change_to_root();
-        unless ( -f $opts{'create-rootfs'} ) {
-            vnx_die ("file $opts{'create-rootfs'} is not valid (perhaps does not exists)");
-        }
-        wlog (VVV, "install-media = $opts{'install-media'}", $logp);
-        unless ( $opts{'install-media'} ) {
-            vnx_die ("option 'install-media' not defined");
-        }
-        unless ( $opts{'install-media'} && -f $opts{'install-media'} ) {
-            vnx_die ("file $opts{'install-media'} is not valid (perhaps does not exists)");
-        }
-back_to_user();        
         mode_createrootfs($tmp_dir, $vnx_dir);
         exit(0);
     }
 
     # Modify root filesystem pseudomode
     if ($opts{'modify-rootfs'}) {
-change_to_root();
-        unless ( -f $opts{'modify-rootfs'} ) {
-            vnx_die ("file $opts{'modify-rootfs'} is not valid (perhaps does not exists)");
-        }
-back_to_user();
         mode_modifyrootfs($tmp_dir, $vnx_dir);
         exit(0);
     }
@@ -645,40 +639,54 @@ back_to_user();
 	        vnx_die ("Olive XML configuration file ($oliveConfFile) validation failed:\n$error\n");
 		}
 	}
-   	# 6b (delayed because it required the $dh object constructed)
    	# To check optional screen binaries
    	$bd->add_additional_screen_binaries();
    	if (($opts{e}) && ($bd->check_binaries_screen != 0)) {
       	vnx_die ("screen related binary is missing\n");
    	}
 
-   	# 6c (delayed because it required the $dh object constructed)
    	# To check optional uml_switch binaries 
    	$bd->add_additional_uml_switch_binaries();
    	if (($bd->check_binaries_switch != 0)) {
       	vnx_die ("uml_switch related binary is missing\n");
    	}
 
-   	# 6d (delayed because it required the $dh object constructed)
    	# To check optional binaries for virtual bridge
    	$bd->add_additional_bridge_binaries();   
    	if ($bd->check_binaries_bridge != 0) {
       	vnx_die ("virtual bridge related binary is missing\n");  
    	}
 
-    # 6e (delayed because it required the $dh object constructed)
     # To check xterm binaries
     $bd->add_additional_xterm_binaries();
     if (($bd->check_binaries_xterm != 0)) {
         vnx_die ("xterm related binary is missing\n");
     }
 
-    # 6f (delayed because it required the $dh object constructed)
     # To check optional binaries for VLAN support
     $bd->add_additional_vlan_binaries();   
     if ($bd->check_binaries_vlan != 0) {
         vnx_die ("VLAN related binary is missing\n");  
     }   
+
+    # To check optional binaries for LXC support
+    $bd->add_additional_lxc_binaries();   
+    if ($bd->check_binaries_lxc != 0) {
+        vnx_die ("LXC related binary is missing\n");  
+    }   
+
+    # To check optional binaries for libvirt support
+    $bd->add_additional_libvirt_binaries();   
+    if ($bd->check_binaries_libvirt != 0) {
+        vnx_die ("Libvirt related binary is missing\n");  
+    }   
+
+    # To check optional binaries for KVM support
+    $bd->add_additional_kvm_binaries();   
+    if ($bd->check_binaries_kvm != 0) {
+        vnx_die ("KVM related binary is missing\n");  
+    }   
+
 
     # Complete fields in Execution object that need the DataHandler and
     # the binaries_path hash built
@@ -814,6 +822,9 @@ back_to_user();
    	elsif ($mode eq 'execute') {
       	mode_execute($cmdseq, 'all');
    	}
+    elsif ($mode eq 'exe-cli') {
+        mode_execli();
+    }
     elsif ($mode eq 'modify') {
         # Modify scenario mode
 change_to_root();
@@ -845,6 +856,12 @@ back_to_user();
    	}
     elsif ($mode eq 'exe-info') {
         mode_exeinfo();
+    }
+    elsif ($mode eq 'save-scenario') {
+        mode_savescenario($vnx_dir);
+    }
+    elsif ($mode eq 'restore-scenario') {
+        mode_restorescenario($vnx_dir);
     }
    
     else {
@@ -880,7 +897,11 @@ sub any_mode_set {
 
     my $res=0;	
 	foreach my $opt (@opt_list) {
-        if (defined($opts{$opt}))  { return 1 } 
+        if ($opt eq 'exe-cli') {
+        	if (@exe_cli)  { return 1 } 
+        } else {
+            if (defined($opts{$opt}))  { return 1 } 
+        }
 	}
 	return $res;
 }
@@ -1455,11 +1476,10 @@ sub make_vmAPI_doc {
                       # Check the value of the mask attribute
                       my $ipv6_effective_mask = "/64"; # Default mask value        
                       my $ipv6_mask_attr = $ipv6->getAttribute("mask");
-                      if ($ipv6_mask_attr ne "") {
+                      if ( ! empty($ipv6_mask_attr) ) {
                          # Note that, in the case of IPv6, mask are always slashed
                          $ipv6_effective_mask = $ipv6_mask_attr;
                       }
-                      
                       $ipv6_tag->addChild($dom->createTextNode("$ip$ipv6_effective_mask"));
                     }          
                 }
@@ -1710,7 +1730,12 @@ sub mode_undefine{
         my $error = "VNX::vmAPI_$vm_type"->undefine_vm($vm_name, $merged_type);
         if ($error) {
             wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->undefine_vm returns '" . $error . "'\n$hline");
-            next;
+            if ($error eq "VM $vm_name does not exist") {
+                change_vm_status($vm_name,"undefined");
+            } else {
+                wlog (N, "Virtual machine $vm_name cannot be undefined.");
+            }
+            next
         }
         wlog (N, "...OK");
         
@@ -1898,6 +1923,17 @@ sub mode_start {
         $execution->smartdie ("ERROR, scenario " . $dh->get_scename . " not started\n");
     }
 
+    # Check whether the virtual network topology (bridges and interfaces) is created
+    # and if not, rebuild it. It could be the case that the host has been rebooted 
+    # with an scenario defined or running, and the bridges and interfaces have been
+    # lost after reboot. 
+    if (! is_topology_running() ) {
+pak();
+        # Recreate topology
+        wlog (V, "Virtual network not created. Restarting topology.", $logp);
+        build_topology();
+    }
+
     @vm_ordered = start_vms(\@vm_ordered);
         
     # Configure network related aspects
@@ -1932,6 +1968,34 @@ sub mode_start {
     # Print information about vm consoles
     print_consoles_info();
 }
+
+#
+# is_topology_running()
+#
+# Returns:
+#  - 'true' if all the bridges of the scenario are running 
+#  - undef if any bridge is not created
+#
+sub is_topology_running {
+	
+	my $logp = "is_topology_running> ";
+    my @nets;
+    my $doc = $dh->get_doc;
+    @nets = $doc->getElementsByTagName("net");   
+      
+    foreach my $net (@nets) {
+        my $net_name    = $net->getAttribute("name");
+        my $mode        = $net->getAttribute("mode");
+        if ( vnet_exists_br($net_name, $mode) ) {
+        	 next 
+        } else {
+        	wlog (VVV, "Bridge $net_name not created", $logp);
+        	return; 
+        }	
+    }
+    return 'true';
+}
+
 
 #
 # start_vms
@@ -2216,8 +2280,8 @@ sub mode_shutdown {
         my $merged_type = $dh->get_vm_merged_type($vm);
         my $vm_status = get_vm_status($vm_name);
 
-        # Raise an error if the VM is not in 'running', 'suspended' or 'hibernated' state
-        unless ( ($vm_status eq 'running') || ($vm_status eq 'suspended') || ($vm_status eq 'hibernated') ){
+        # Raise an error if the VM is not in 'running', 'suspended' or 'hibernated' state. 
+        unless ( defined($kill) || ($vm_status eq 'running' || $vm_status eq 'suspended' || $vm_status eq 'hibernated') ){
             wlog (N, "\nERROR: cannot shutdown a virtual machine '$vm_name' not in 'running', 'suspended' or 'hibernated' state (status=$vm_status).\n");
             next;
         }        
@@ -2231,7 +2295,11 @@ sub mode_shutdown {
         my $error = "VNX::vmAPI_$vm_type"->shutdown_vm($vm_name, $merged_type, $kill);
         if ($error) {
             wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->shutdown_vm returns '" . $error . "'\n$hline");
-            wlog (N, "Virtual machine $vm_name cannot be shutdown.");
+            if ($error eq "VM $vm_name does not exist") {
+            	change_vm_status($vm_name,"defined");
+            } else {
+                wlog (N, "Virtual machine $vm_name cannot be shutdown.");
+            }
             next
         }
         wlog (N, "...OK");
@@ -2942,7 +3010,7 @@ sub mode_exeinfo {
  
     my $doc = $dh->get_doc;
     
-    wlog (N, "\nVNX exe-info mode:");     
+    wlog (N, "\nVNX exe-info mode:\n");     
 
     my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
     for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -2955,13 +3023,14 @@ sub mode_exeinfo {
         # Get descriptions of user-defines commands
         my %vm_seqs = $dh->get_seqs($vm);      
              
-        wlog (N, "User-defined commands for vm '$vm_name'");
+        wlog (N, "VM $vm_name user-defined commands:");
         wlog (N, $hline);
         if ( keys(%vm_seqs) > 0) {
-            wlog (N, sprintf (" %-24s %s", 'Seq', 'Description') );
+            wlog (N, sprintf (" %-24s%s", 'Seq', 'Description') );
+            wlog (N, sprintf (" %-24s%s", '---', '-----------') );
             foreach my $seq ( keys %vm_seqs ) {
-                my $msg = sprintf (" %-24s %s", $seq, get_seq_desc($seq));
-                wlog (N, $msg);
+                print sprintf (" %-24s", $seq);
+                print format_text($dh->get_seq_desc($seq), 80, 22);
             }
         } else {
             wlog (N, "None defined");
@@ -2970,11 +3039,12 @@ sub mode_exeinfo {
              
         # Get descriptions of plugin commands
         foreach my $plugin (@plugins) {
-            wlog (N, "Plugin '$plugin' commands for vm '$vm_name'");
+            wlog (N, "VM $vm_name plugin '$plugin' commands");
             wlog (N, $hline);
             my %seq_desc = $plugin->getSeqDescriptions($vm_name, '');
             if ( keys(%seq_desc) > 1) {
                 wlog (N, sprintf (" %-24s %s", 'Seq', 'Description') );
+                wlog (N, sprintf (" %-24s %s", '---', '-----------') );
 		        foreach my $seq ( keys %seq_desc ) {
                     unless ($seq eq '_VMLIST') {
                         my $msg = sprintf (" %-24s %s", $seq, $seq_desc{$seq});
@@ -2987,22 +3057,53 @@ sub mode_exeinfo {
             wlog (N, "");
         }
         
-        wlog (N, $hline);
+        #wlog (N, $hline);
     }           
 
     # Show command sequences defined (<com-seq> tags)
     if ( $doc->exists("/vnx/global/cmd-seq") ) {
         wlog (N, "Global user defined command sequences ");
         wlog (N, $hline);
+        
+=BEGIN        
         wlog (N, sprintf (" %-24s", 'Seq') );
+        wlog (N, sprintf (" %-24s", '---') );
         foreach my $cmd_seq ( $doc->findnodes("/vnx/global/cmd-seq") ) {
             my $seq_str = $cmd_seq->getFirstChild->getData;
             my $seq = $cmd_seq->getAttribute("seq");
-            wlog (N, sprintf (" %-24s %-30s", $seq, 'Defined as:  ' . $seq_str) );
-            wlog (N, sprintf (" %-24s %-30s", '',   'Expanded as: ' . cmdseq_expand($seq_str) ) );
+            wlog (N, sprintf (" %-24s %-12s %-s" , $seq, 'Defined as:',  $seq_str) );
+            wlog (N, sprintf (" %-24s %-12s %-s", ''   , 'Expanded as:', cmdseq_expand($seq_str) ) );
+            wlog (N, sprintf (" %-24s %-12s %-s", ''   , 'Description:', $dh->get_seq_desc($seq) ) );
         }        
         wlog (N, $hline);
+=END
+=cut
+        foreach my $cmd_seq ( $doc->findnodes("/vnx/global/cmd-seq") ) {
+            my $seq_str = $cmd_seq->getFirstChild->getData;
+            my $seq = $cmd_seq->getAttribute("seq");
+
+            wlog (N, sprintf ("%-24s", "Seq: $seq") );
+
+            wlog (N, sprintf ("  %-12s %-s", 'Defined as:',  $seq_str) );
+            wlog (N, sprintf ("  %-12s %-s", 'Expanded as:', cmdseq_expand($seq_str) ) );
+            print sprintf ("  %-12s ", 'Description:');
+            print format_text($dh->get_seq_desc($seq), 80, 12);
+            print "\n";
+            
+        }        
+        #wlog (N, $hline);
+
+
     }
+}
+
+sub format_text {
+	my $text = shift;
+	my $width = shift;
+	my $indent = shift;
+	
+    my $indent_str = sprintf ("%${indent}s", '');
+    return `echo "$text" | fmt -t -w $width | sed '2,100s/^/$indent_str/'`;
 }
 
 #
@@ -3167,11 +3268,34 @@ sub mode_createrootfs {
     my $vcpu;         # Number of virtual CPUs 
     my $default_vcpu = "1";
  
-    my $instal_cdrom = $opts{'install-media'};
-    if (! -e $instal_cdrom) {
-    	vnx_die ("installation cdrom image ($instal_cdrom) not found");
-    }
  
+    my $rootfs = $opts{'create-rootfs'};
+    my $install_media = $opts{'install-media'};
+    
+    # Set rootfs type     
+    my $rootfs_type;
+    if (!$opts{'rootfs-type'} || $opts{'rootfs-type'} eq 'libvirt-kvm' ) {
+            # If no type was specified, we set it to the default value
+            $rootfs_type = 'libvirt-kvm';   
+    } elsif ( $opts{'rootfs-type'} eq 'lxc' ) {
+        vnx_die ("'lxc' VM type not supported in --create-rootfs mode.");
+    } else {
+        vnx_die ("Incorrect type ($opts{'rootfs-type'}) specified for --rootfs-type");
+    }
+
+change_to_root();
+    unless ( -f $rootfs ) {
+        vnx_die ("file $rootfs is not valid\n(it does not exists or it is not a plain file)");
+    }
+    wlog (VVV, "install-media = $install_media", $logp);
+    unless ( $install_media ) {
+        vnx_die ("option 'install-media' not defined");
+    }
+    unless ( $install_media && -f $install_media ) {
+        vnx_die ("file $install_media is not valid (perhaps does not exists)");
+    }
+back_to_user();        
+  
     # Set memory value
     if ($opts{'mem'}) {
         $mem = $opts{'mem'}
@@ -3205,14 +3329,14 @@ sub mode_createrootfs {
         $vcpu = $default_vcpu;
     }
 
-    my $rootfs_name = basename $opts{'create-rootfs'};
+    my $rootfs_name = basename $rootfs;
     $rootfs_name .= "-" . int(rand(10000));
 
     # Create a temp directory to store everything
     my $base_dir = `mktemp --tmpdir=$tmp_dir -td vnx_create_rootfs.XXXXXX`;
     chomp ($base_dir);
-    my $rootfs_fname = `readlink -f $opts{'create-rootfs'}`; chomp ($rootfs_fname);
-    my $cdrom_fname  = `readlink -f $opts{'install-media'}`; chomp ($cdrom_fname);
+    my $rootfs_fname = `readlink -f $rootfs`; chomp ($rootfs_fname);
+    my $cdrom_fname  = `readlink -f $install_media`; chomp ($cdrom_fname);
     my $vm_xml_fname = "$base_dir/${rootfs_name}.xml";
 
     # Get a free port for h2vm channel
@@ -3300,7 +3424,7 @@ EOF
     close (XMLFILE); 
 
 change_to_root();
-    wlog (N, "-- Starting a virtual machine with root filesystem $opts{'create-rootfs'}");
+    wlog (N, "-- Starting a virtual machine with root filesystem $rootfs");
     system "virsh create $vm_xml_fname"; 
     system "virt-viewer $rootfs_name &"; 
 back_to_user();
@@ -3329,9 +3453,65 @@ sub mode_modifyrootfs {
  
     use constant USE_CDROM_FORMAT => 0;  # 
     
+    my $rootfs = $opts{'modify-rootfs'};
+    $rootfs =~ s/\/$//; # Drop trailing slash if it exists
+
+change_to_root();
+    unless ( -f $rootfs || -d $rootfs ) {
+        vnx_die ("file or directory $opts{'modify-rootfs'} is not valid.");
+    }
+back_to_user();
+    
+    # Set rootfs type     
+    my $rootfs_type;
+    if (!$opts{'rootfs-type'}) {
+    	# No type specified. Let's try to guess the type... 
+    	if (-d $rootfs  && -f $rootfs . "/config" && -d $rootfs . "/rootfs" ) {
+    		
+    		# Get the rootfs directory pointed by config file 
+    		my $lxc_rootfs_config_line = `cat $rootfs/config | grep '^lxc.rootfs'`;
+    		chomp ($lxc_rootfs_config_line);
+            my @fields = split /=/, $lxc_rootfs_config_line; 
+            my $rootfs_dir = $fields[1];
+            $rootfs_dir =~ s/^\s//; # Delete leading spaces
+
+            # Check if it exists
+            unless (-d $rootfs_dir ) {
+                vnx_die ("rootfs directory $rootfs_dir specified in 'lxc.rootfs' line\nof $rootfs/config file does not exist or it is not a directory.");
+            } 
+            
+            # And check if it points to the rootfs directory under $rootfs to avoid stupid errors 
+            # when copying or moving LXC images...
+            unless ( `stat -c "%d:%i" $rootfs/rootfs` eq `stat -c "%d:%i" $rootfs_dir`) {
+                pre_wlog ("$hline\nWARNING!\nlxc.rootfs line in LXC config file:\n" . 
+                          "  $lxc_rootfs_config_line\ndoes not point to rootfs subdirectory under the directory specified:\n  $rootfs/rootfs\n$hline");
+			    my $answer;
+			    unless ($opts{'yes'}) {
+			        print ("Do you want to continue (yes/no)? ");
+			        $answer = readline(*STDIN);
+			    } else {
+			        $answer = 'yes'; 
+			    }
+			    unless ( $answer =~ /^yes/ ) {
+			        pre_wlog ("Exiting...\n$hline");
+			        exit;
+			    }
+            }
+            $rootfs_type = 'lxc';   
+    	} else {
+	        # Set it to default value
+	        $rootfs_type = 'libvirt-kvm';   
+    	}
+    } elsif ( $opts{'rootfs-type'} ne 'libvirt-kvm' && $opts{'rootfs-type'} ne 'lxc' ) {
+        vnx_die ("Incorrect type ($opts{'rootfs-type'}) specified for --rootfs-type");
+    } else {
+        $rootfs_type = $opts{'rootfs-type'};   
+    }
+       
     # Set memory value
     if ($opts{'mem'}) {
-        $mem = $opts{'mem'}
+        $mem = $opts{'mem'};
+        pre_wlog ("WARNING: --mem option ignored for LXC VMs") if (!$rootfs_type eq 'lxc');
     } else {
         $mem = $default_mem;
     }
@@ -3362,175 +3542,196 @@ sub mode_modifyrootfs {
         $vcpu = $default_vcpu;
     }
     
-    my $rootfs_name = basename $opts{'modify-rootfs'};
+    my $rootfs_name = basename $rootfs;
     $rootfs_name .= "-" . int(rand(10000));
 
-    # Create a temp directory to store everything
-    my $base_dir = `mktemp --tmpdir=$tmp_dir -td vnx_modify_rootfs.XXXXXX`;
-    chomp ($base_dir);
-    my $rootfs_fname = `readlink -f $opts{'modify-rootfs'}`; chomp ($rootfs_fname);
-    my $vm_xml_fname = "$base_dir/${rootfs_name}.xml";
+    if ( $rootfs_type eq 'lxc' ) {
 
-    if ( defined($opts{'update-aced'}) ) {
-
-        wlog (N, "mode_modifyrootfs: update-aced option selected ($opts{'update-aced'})");
-  	    #
-	    # Create shared disk with latest versions of VNXACE daemon
-	    #
-        my $content_dir;
-        my $make_iso_cmd;
-        my $sdisk_mount;
+        pre_wlog ("Modifying LXC rootfs...");
         
-if (USE_CDROM_FORMAT) {
+        # Check if LXC config file exists
+        vnx_die ("ERROR: cannot start LXC VM. Config file (" . $rootfs . "/config) not found." ) unless (-f $rootfs . "/config");
+        
+        # Generate random id (http://answers.oreilly.com/topic/416-how-to-generate-random-numbers-in-perl/)
+        my @chars = ( "A" .. "Z", "a" .. "z", 0 .. 9 );
+        my $id = join("", @chars[ map { rand @chars } ( 1 .. 8 ) ]);
 
-        # Check mkisofs or genisoimage binary is available
-        $make_iso_cmd = 'mkisofs';
-        my $fail = system ("which $make_iso_cmd > /dev/null");
-        if ($fail) { # Try genisoimage 
-            wlog (N, "mkisofs not found; trying genisoimage");
-            $make_iso_cmd = 'genisoimage';
-            $fail = system("which $make_iso_cmd > /dev/null");
-            if ($fail) { 
-               vnx_die ("ERROR: neither mkisofs nor genisoimage binaries found\n"); 
-            }
-        } 
-        my $where = `which $make_iso_cmd`;
-        chomp($where);
-        $make_iso_cmd = $where;
-        wlog (VVV, "make_iso_cmd=$make_iso_cmd", $logp);
+        pre_wlog ("...vnx-$id");
 
-        # Create temp directory to store VNXACED
-        my $content_dir="$base_dir/iso-content";
-        wlog (N, "Creating iso-content temp directory ($content_dir)...");
-        system "mkdir $content_dir";
-	
-} else {
-
-        # Create the shared filesystem 
-        $sdisk_fname = $base_dir . "/sdisk.img";
-        # TODO: change the fixed 50M to something configurable
-        $execution->execute($logp,  $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
-        # format shared disk as msdos partition
-        $execution->execute($logp,  $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
-        # Create mount directory
-        $sdisk_mount = "$base_dir/mnt/";
-        $execution->execute($logp,  "mkdir -p $sdisk_mount");
-        # Mount the shared disk to copy filetree files
-        $execution->execute($logp,  $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_mount );
-
-        # Set content directory
-        $content_dir="$sdisk_mount";
-	
-}	    
-  
-	    # Calculate VNX aced dir
-	    my $vnxaced_dir = $VNX_INSTALL_DIR . "/aced"; 
-	    wlog (VVV, "VNX aced dir=$vnxaced_dir", $logp);
-
-	    my $aced_tar_file;
-	    if ($opts{'update-aced'} eq '') {
-	        # ACED tar file not specified: we copy all the latest versions found in vnx/aced directory
-	        my $aced_dir = abs_path( "${vnxaced_dir}" );
-            my $found = 0;
+        
+        my $res = $execution->execute( $logp, "lxc-start -n vnx-$id -f $rootfs/config");
+        if ($res) { 
+            wlog (N, "$res", $logp)
+        }
             
-            # Linux/FreeBSD
-	        my @files = <${aced_dir}/vnx-aced-lf-*>; 
-	        @files = reverse sort @files;
-	        $aced_tar_file = $files[0];
-	        if (defined($aced_tar_file) && $aced_tar_file ne ''){
-	            system "mkdir $content_dir/vnxaced-lf";
-	            system "tar xfz $aced_tar_file -C $content_dir/vnxaced-lf --strip-components=1";
-                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-lf)...");
-	            $found = 1;
-	        }
-            # Olive
-            @files = <${aced_dir}/vnx-aced-olive-*>; 
-            @files = reverse sort @files;
-            $aced_tar_file = $files[0];
-            if (defined($aced_tar_file) && $aced_tar_file ne ''){
-                system "mkdir $content_dir/vnxaced-olive";
-                system "tar xfz $aced_tar_file -C $content_dir/vnxaced-olive --strip-components=1";
-                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-olive)...");
-                $found = 1;
-            }
-            # Windows
-            @files = <${aced_dir}/vnx-aced-win-*>; 
-            @files = reverse sort @files;
-            $aced_tar_file = $files[0];
-            if (defined($aced_tar_file) && $aced_tar_file ne ''){
-                system "mkdir $content_dir/vnxaced-win";
-                system "cp $aced_tar_file $content_dir/vnxaced-win";
-                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-win)...");
-                $found = 1;
-            }
-            if (!$found) {
-                vmx_die ("No VNXACED file specified and no VNXACE tar files found in $aced_dir\n");
-            }
-	        
-	    } else {
-	        my $aced_tar_file = abs_path($opts{'update-aced'});
-	        if (! -e $aced_tar_file) {
-	            vnx_die ("VNXACE tar file ($aced_tar_file) not found");
-	            exit (1);
-	        }
-            if ($aced_tar_file =~ /vnx-aced-lf/) {         # Linux/FreeBSD
-                system "mkdir $content_dir/vnxaced-lf";
-                system "tar xfz $aced_tar_file -C $content_dir/vnxaced-lf --strip-components=1";
-            } elsif ($aced_tar_file =~ /vnx-aced-olive/) { # Olive
-                system "mkdir $content_dir/vnxaced-olive";
-                system "tar xfz $aced_tar_file -C $content_dir/vnxaced-olive --strip-components=1";
-            } elsif ($aced_tar_file =~ /vnx-aced-win/) {   # Windows
-                system "mkdir $content_dir/vnxaced-win";
-                system "cp $aced_tar_file $content_dir/vnxaced-win";
-            } else {
-                system "cp $aced_tar_file $content_dir";            	
-            }
-	    }
+    } elsif ( $rootfs_type eq 'libvirt-kvm' ) {
 
+	    # Create a temp directory to store everything
+	    my $base_dir = `mktemp --tmpdir=$tmp_dir -td vnx_modify_rootfs.XXXXXX`;
+	    chomp ($base_dir);
+	    my $rootfs_fname = `readlink -f $rootfs`; chomp ($rootfs_fname);
+	    my $vm_xml_fname = "$base_dir/${rootfs_name}.xml";
+	
+	    if ( defined($opts{'update-aced'}) ) {
+	
+	        wlog (N, "mode_modifyrootfs: update-aced option selected ($opts{'update-aced'})");
+	        #
+	        # Create shared disk with latest versions of VNXACE daemon
+	        #
+	        my $content_dir;
+	        my $make_iso_cmd;
+	        my $sdisk_mount;
+        
 if (USE_CDROM_FORMAT) {
 
-        wlog (N, "-- Creating iso filesystem...");
-        wlog (VVV, "--    $make_iso_cmd -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
-              " -allow-lowercase -allow-multidot -d -o $base_dir/vnx_update.iso $content_dir", $logp);
-        system "$make_iso_cmd -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
-              " -allow-lowercase -allow-multidot -d -o $base_dir/vnx_update.iso $content_dir";
-        #print "--   rm -rf $content_dir\n";
-        system "rm -rf $content_dir";
-        
-        $sdisk_fname = "$base_dir/vnx_update.iso";
+	        # Check mkisofs or genisoimage binary is available
+	        $make_iso_cmd = 'mkisofs';
+	        my $fail = system ("which $make_iso_cmd > /dev/null");
+	        if ($fail) { # Try genisoimage 
+	            wlog (N, "mkisofs not found; trying genisoimage");
+	            $make_iso_cmd = 'genisoimage';
+	            $fail = system("which $make_iso_cmd > /dev/null");
+	            if ($fail) { 
+	               vnx_die ("ERROR: neither mkisofs nor genisoimage binaries found\n"); 
+	            }
+	        } 
+	        my $where = `which $make_iso_cmd`;
+	        chomp($where);
+	        $make_iso_cmd = $where;
+	        wlog (VVV, "make_iso_cmd=$make_iso_cmd", $logp);
+	
+	        # Create temp directory to store VNXACED
+	        my $content_dir="$base_dir/iso-content";
+	        wlog (N, "Creating iso-content temp directory ($content_dir)...");
+	        system "mkdir $content_dir";
+    
+} else {
+
+	        # Create the shared filesystem 
+	        $sdisk_fname = $base_dir . "/sdisk.img";
+	        # TODO: change the fixed 50M to something configurable
+	        $execution->execute($logp,  $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
+	        # format shared disk as msdos partition
+	        $execution->execute($logp,  $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
+	        # Create mount directory
+	        $sdisk_mount = "$base_dir/mnt/";
+	        $execution->execute($logp,  "mkdir -p $sdisk_mount");
+	        # Mount the shared disk to copy filetree files
+	        $execution->execute($logp,  $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_mount );
+	
+	        # Set content directory
+	        $content_dir="$sdisk_mount";
+	    
+}       
+	  
+	        # Calculate VNX aced dir
+	        my $vnxaced_dir = $VNX_INSTALL_DIR . "/aced"; 
+	        wlog (VVV, "VNX aced dir=$vnxaced_dir", $logp);
+	
+	        my $aced_tar_file;
+	        if ($opts{'update-aced'} eq '') {
+	            # ACED tar file not specified: we copy all the latest versions found in vnx/aced directory
+	            my $aced_dir = abs_path( "${vnxaced_dir}" );
+	            my $found = 0;
+	            
+	            # Linux/FreeBSD
+	            my @files = <${aced_dir}/vnx-aced-lf-*>; 
+	            @files = reverse sort @files;
+	            $aced_tar_file = $files[0];
+	            if (defined($aced_tar_file) && $aced_tar_file ne ''){
+	                system "mkdir $content_dir/vnxaced-lf";
+	                system "tar xfz $aced_tar_file -C $content_dir/vnxaced-lf --strip-components=1";
+	                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-lf)...");
+	                $found = 1;
+	            }
+	            # Olive
+	            @files = <${aced_dir}/vnx-aced-olive-*>; 
+	            @files = reverse sort @files;
+	            $aced_tar_file = $files[0];
+	            if (defined($aced_tar_file) && $aced_tar_file ne ''){
+	                system "mkdir $content_dir/vnxaced-olive";
+	                system "tar xfz $aced_tar_file -C $content_dir/vnxaced-olive --strip-components=1";
+	                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-olive)...");
+	                $found = 1;
+	            }
+	            # Windows
+	            @files = <${aced_dir}/vnx-aced-win-*>; 
+	            @files = reverse sort @files;
+	            $aced_tar_file = $files[0];
+	            if (defined($aced_tar_file) && $aced_tar_file ne ''){
+	                system "mkdir $content_dir/vnxaced-win";
+	                system "cp $aced_tar_file $content_dir/vnxaced-win";
+	                wlog (N, "-- Copied $aced_tar_file to shared disk (directory vnxaced-win)...");
+	                $found = 1;
+	            }
+	            if (!$found) {
+	                vmx_die ("No VNXACED file specified and no VNXACE tar files found in $aced_dir\n");
+	            }
+	            
+	        } else {
+	            my $aced_tar_file = abs_path($opts{'update-aced'});
+	            if (! -e $aced_tar_file) {
+	                vnx_die ("VNXACE tar file ($aced_tar_file) not found");
+	                exit (1);
+	            }
+	            if ($aced_tar_file =~ /vnx-aced-lf/) {         # Linux/FreeBSD
+	                system "mkdir $content_dir/vnxaced-lf";
+	                system "tar xfz $aced_tar_file -C $content_dir/vnxaced-lf --strip-components=1";
+	            } elsif ($aced_tar_file =~ /vnx-aced-olive/) { # Olive
+	                system "mkdir $content_dir/vnxaced-olive";
+	                system "tar xfz $aced_tar_file -C $content_dir/vnxaced-olive --strip-components=1";
+	            } elsif ($aced_tar_file =~ /vnx-aced-win/) {   # Windows
+	                system "mkdir $content_dir/vnxaced-win";
+	                system "cp $aced_tar_file $content_dir/vnxaced-win";
+	            } else {
+	                system "cp $aced_tar_file $content_dir";                
+	            }
+	        }
+
+if (USE_CDROM_FORMAT) {
+	
+	        wlog (N, "-- Creating iso filesystem...");
+	        wlog (VVV, "--    $make_iso_cmd -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
+	              " -allow-lowercase -allow-multidot -d -o $base_dir/vnx_update.iso $content_dir", $logp);
+	        system "$make_iso_cmd -nobak -follow-links -max-iso9660-filename -allow-leading-dots -pad -quiet " .
+	              " -allow-lowercase -allow-multidot -d -o $base_dir/vnx_update.iso $content_dir";
+	        #print "--   rm -rf $content_dir\n";
+	        system "rm -rf $content_dir";
+	        
+	        $sdisk_fname = "$base_dir/vnx_update.iso";
 
 } else {
 
-        # Unmount shared disk
-        $execution->execute($logp,  $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_mount );
-        # sdisk_fname already set
+	        # Unmount shared disk
+	        $execution->execute($logp,  $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_mount );
+	        # sdisk_fname already set
 
 }
 
-	    $vm_libirt_xml_hdb = <<EOF;
+            $vm_libirt_xml_hdb = <<EOF;
 <disk type="file" device="disk">
     <source file="$sdisk_fname"/>
     <target dev="hdb"/>
 </disk>
 EOF
+	
+	    } else {
+	        $vm_libirt_xml_hdb = "";
+	    }
+	
+	    # Get a free port for h2vm channel
+	    $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);    
+	
+	    # Create the VM libvirt XML
+	    #
+	    # Variables:
+	    #  $rootfs_name, rootfs file name
+	    #  $rootfs_fname, rootfs complete file name (with path)
+	    #  $sdisk_fname; # shared disk complete file name 
+	    #  $h2vm_port;   # host tcp port used to access the the host-to-VM comms channel 
+	    #  $vm_libirt_xml_hdb;
 
-    } else {
-    	$vm_libirt_xml_hdb = "";
-    }
-
-    # Get a free port for h2vm channel
-    $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);    
-
-    # Create the VM libvirt XML
-    #
-    # Variables:
-    #  $rootfs_name, rootfs file name
-    #  $rootfs_fname, rootfs complete file name (with path)
-    #  $sdisk_fname; # shared disk complete file name 
-    #  $h2vm_port;   # host tcp port used to access the the host-to-VM comms channel 
-    #  $vm_libirt_xml_hdb;
-
-    my $vm_libirt_xml = <<EOF;
+        my $vm_libirt_xml = <<EOF;
 <?xml version="1.0" encoding="UTF-8"?>
 <domain type="kvm" xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">
   <name>$rootfs_name</name>
@@ -3574,92 +3775,114 @@ EOF
 </domain>
 
 EOF
-
-    
-    # Create XML file
-    open (XMLFILE, "> $vm_xml_fname") or vnx_die ("cannot open file $vm_xml_fname");
-    print XMLFILE "$vm_libirt_xml";
-    wlog (VVV, "-- Libvirt XML file:\n$vm_libirt_xml");   
-    close (XMLFILE); 
-
+	
+	    
+	    # Create XML file
+	    open (XMLFILE, "> $vm_xml_fname") or vnx_die ("cannot open file $vm_xml_fname");
+	    print XMLFILE "$vm_libirt_xml";
+	    wlog (VVV, "-- Libvirt XML file:\n$vm_libirt_xml");   
+	    close (XMLFILE); 
+	
 change_to_root();
-    wlog (N, "-- Starting a virtual machine with root filesystem $opts{'modify-rootfs'}");
-    system "virsh create $vm_xml_fname"; 
-    system "virt-viewer $rootfs_name &"; 
-    
-    # Wait till the VM has started
-    my $vmsocket = IO::Socket::INET->new(
-                    Proto    => "tcp",
-                    PeerAddr => "localhost",
-                    PeerPort => "$h2vm_port",
-                ) or vnx_die ("Can't connect to virtual machine H2VM port: $!\n");
-
-    $vmsocket->flush; # delete socket buffers, just in case...  
-    print $vmsocket "hello\n";
-    wlog (N, "-- Waiting for virtual machine to start...");
-    
-    #print $vmsocket "nop\n";
-
-    my $t = time();
-    my $timeout = 120; # secs
-
-    while (1) {
+	    wlog (N, "-- Starting a virtual machine with root filesystem $rootfs");
+	    system "virsh create $vm_xml_fname"; 
+	    system "virt-viewer $rootfs_name &"; 
+	    
+	    # Wait till the VM has started
+	    my $vmsocket = IO::Socket::INET->new(
+	                    Proto    => "tcp",
+	                    PeerAddr => "localhost",
+	                    PeerPort => "$h2vm_port",
+	                ) or vnx_die ("Can't connect to virtual machine H2VM port: $!\n");
+	
+	    $vmsocket->flush; # delete socket buffers, just in case...  
+	    print $vmsocket "hello\n";
+	    wlog (N, "-- Waiting for virtual machine to start...");
+	    
+	    #print $vmsocket "nop\n";
+	
+	    my $t = time();
+	    my $timeout = 120; # secs
+	
+	    while (1) {
+	        
+	        $vmsocket->flush;
+	        print $vmsocket "hello\n";
+	        my $res = recv_sock ($vmsocket);
+	        wlog (VVV, "    res=$res", $logp);
+	        last if ( $res =~ /^OK/);
+	        if ( time() - $t > $timeout) {
+	            vnx_die ("Timeout waiting for virtual machine to start.")
+	        }
+	    }     
+	    wlog (N, "-- Virtual machine started OK.");
+	    
+	    # Update VNXACED if requested
+	    if ( defined($opts{'update-aced'}) ) {
+	    
+	        if (!$opts{yes}) {
+	            wlog (N, "-- Do you want to update VNXACED in virtual machine (y/n)?");
+	            my $line = readline(*STDIN);
+	            unless ( $line =~ /^[yY]/ ) {
+	                wlog (N, "-- VNXACED not updated");
+	                exit (0);
+	            } 
+	        }    
+	        wlog (N, "-- Updating VNXACED...VM should now be updated and halted. If not, update VNXACED manually.");
+	        print $vmsocket "vnxaced_update sdisk\n";
+	    
+	    }
+back_to_user();    
     	
-        $vmsocket->flush;
-        print $vmsocket "hello\n";
-    	my $res = recv_sock ($vmsocket);
-    	wlog (VVV, "    res=$res", $logp);
-    	last if ( $res =~ /^OK/);
-    	if ( time() - $t > $timeout) {
-    		vnx_die ("Timeout waiting for virtual machine to start.")
-    	}
-    }     
-    wlog (N, "-- Virtual machine started OK.");
-    
-    # Update VNXACED if requested
-    if ( defined($opts{'update-aced'}) ) {
-    
-        if (!$opts{yes}) {
-            wlog (N, "-- Do you want to update VNXACED in virtual machine (y/n)?");
-            my $line = readline(*STDIN);
-            unless ( $line =~ /^[yY]/ ) {
-                wlog (N, "-- VNXACED not updated");
-                exit (0);
-            } 
-        }    
-        wlog (N, "-- Updating VNXACED...VM should now be updated and halted. If not, update VNXACED manually.");
-        print $vmsocket "vnxaced_update sdisk\n";
-    
     }
-    back_to_user();    
+
+}
+
+#
+# ------------------------------------------------------------------------------
+#                         S A V E  S C E N A R I O  M O D E
+# ------------------------------------------------------------------------------
+#
+sub mode_savescenario {
+    
+    my $vnx_dir = shift;
+     
+    wlog (N, "\nVNX save-scenario mode:");
+    
+    my $scen_name = $opts{'scenario'};
+    my $scen_dir = "$vnx_dir/scenarios/$scen_name/${scen_name}.xml";
+  
+    # Steps
+    # - Unmount everything under $scen_dir (in LXC, overlay filesystems remain mounted in defined state)
+    
+    # - Calculate md5sums of the filesystems used, to check in destination machine that they are the same.
+    #   Save the md5sum values in a file (which one?)
+    
+    # - Create a tgz file with all the content under $scen_dir       
+
+
+
+    # Ideas: 
+    # - pack the rootfs's also 
+    
+}
+
+#
+# ------------------------------------------------------------------------------
+#                       R E S T O R E  S C E N A R I O  M O D E
+# ------------------------------------------------------------------------------
+#
+sub mode_restorecenario {
+ 
+    my $doc = $dh->get_doc;
+    
+    wlog (N, "\nVNX restore-scenario mode:");     
+
 }
 
 #
 # ------------------------------------------------------------------------------
 #
-
-#
-# get_seq_desc
-#
-# Returns the text value of an <seq_help> tag with sequence = $seq
-# or none if not found 
-#
-sub get_seq_desc {
-       
-    my $seq = shift;
-
-    my $doc = $dh->get_doc;
-    #my $exechelp_list = $doc->getElementsByTagName("seq_help");
-    #for ( my $j = 0 ; $j < $exechelp_list->getLength ; $j++ ) {
-    foreach my $exechelp ($doc->getElementsByTagName("seq_help")) {     	
-        #my $exechelp = $exechelp_list->item($j);
-        #wlog (VVV, $exechelp->toString());
-        if ($exechelp->getAttribute('seq') eq $seq) {
-            return text_tag($exechelp);        	
-        } 
-    }
-}
-
 
 # 
 # configure_switched_networks
@@ -4241,7 +4464,7 @@ sub hostif_addr_conf {
                 # Check the value of the mask attribute
                 my $ipv6_effective_mask = "/64"; # Default mask value          
                 my $ipv6_mask_attr = $ipv6->getAttribute("mask");
-                if ($ipv6_mask_attr ne "") {
+                if ( !empty($ipv6_mask_attr) ) {
                     # Note that, in the case of IPv6, mask are always slashed
                     $ipv6_effective_mask = $ipv6_mask_attr;
                 }
@@ -4799,6 +5022,84 @@ sub get_vm_ftrees_and_execs {
 }
 
 
+#
+# ------------------------------------------------------------------------------
+#                           E X E C L I   M O D E
+# ------------------------------------------------------------------------------
+#
+# execute commands in VMs directly specified in command line
+#
+# Arguments:
+#   -  
+#
+sub mode_execli {
+
+    #my $seq_str  = shift;
+    #my $type = shift;
+
+    my $ref_vms = shift;
+    my @vm_ordered;
+    if ( defined($ref_vms) ) {
+        # List of VMs to use passed as parameter
+        @vm_ordered = @{$ref_vms};  
+    } else {
+        # List not specified, get the list of vms 
+        # to process having into account -M option
+        @vm_ordered = $dh->get_vm_to_use_ordered;    
+    }
+
+    if ($exemode != $EXE_DEBUG) {
+        $execution->smartdie ("cannot execute commands on scenario " . $dh->get_scename . " (not started)\n")
+            unless scenario_exists($dh->get_scename);
+    }
+
+    wlog (N, "\nVNX exe-cli mode:\n$hline");     
+
+    my $cmd = join(" ",@exe_cli);
+    wlog (N, "Executing '$cmd' command on VMs: " . get_vmnames(\@vm_ordered, ",") . "\n");     
+
+    my $vm_name = "test";
+
+    my $exec_tag = XML::LibXML::Element->new('exec');
+    $exec_tag->setAttribute('seq', 'exe-cli');
+    $exec_tag->setAttribute('type', 'verbatim');
+    $exec_tag->setAttribute('ostype', 'system');
+    $exec_tag->appendTextNode($cmd);
+
+    wlog (VVV,  "exec tag: " . $exec_tag->toString(1));
+
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
+        my $vm_name = $vm->getAttribute("name");
+        my $merged_type = $dh->get_vm_merged_type($vm);
+        my $vm_status = get_vm_status($vm_name);
+        my $vm_type = $vm->getAttribute("type");
+
+        # Skip this VM if not running
+        unless ($vm_status eq 'running') {
+            wlog (N, "\nERROR: cannot execute command on virtual machine '$vm_name' (not running, status=$vm_status)\n");
+            next
+        }        
+
+        my @plugin_ftree_list = ();
+        my @plugin_exec_list = ();
+        my @ftree_list = ();
+        my @exec_list = ();
+        $exec_list[0] = $exec_tag;
+
+        wlog (N, "Calling execute_cmd for vm '$vm_name'..."); 
+        my $error = "VNX::vmAPI_$vm_type"->execute_cmd(
+                                         $vm_name, $merged_type, 'exe-cli', $vm,  
+                                         \@plugin_ftree_list, \@plugin_exec_list, 
+                                         \@ftree_list, \@exec_list);
+        if ($error) {
+            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->execute_cmd returns '" . $error . "'\n$hline");
+        } else {
+            wlog (N, "...OK");
+        }
+    }    	
+}
+
 
 ######################################################
 # To restore host configuration
@@ -4807,7 +5108,6 @@ sub host_unconfig {
 
    my $doc = $dh->get_doc;
 
-#pak('host_unconfig');
    # If host <host> is not present, there is nothing to unconfigure
    return if (!$doc->getElementsByTagName("host"));
 
@@ -6467,43 +6767,47 @@ sub usage {
 my $usage = <<EOF;
 
 Usage: 
-  [sudo] vnx -f VNX_file --create          [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --execute cmd_seq [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --shutdown --kill [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --destroy         [-M vm_list] [options]
   [sudo] vnx -f VNX_file --define          [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --start           [-M vm_list] [options]
   [sudo] vnx -f VNX_file --undefine        [-M vm_list] [options]
+  [sudo] vnx -f VNX_file --start           [-M vm_list] [options]
+  [sudo] vnx -f VNX_file --shutdown --kill [-M vm_list] [options]
+  [sudo] vnx -f VNX_file --create          [-M vm_list] [options]
+  [sudo] vnx -f VNX_file --destroy         [-M vm_list] [options]
   [sudo] vnx -f VNX_file --save            [-M vm_list] [options]
   [sudo] vnx -f VNX_file --restore         [-M vm_list] [options]
   [sudo] vnx -f VNX_file --suspend         [-M vm_list] [options]
   [sudo] vnx -f VNX_file --resume          [-M vm_list] [options]
   [sudo] vnx -f VNX_file --reboot          [-M vm_list] [options]
   [sudo] vnx -f VNX_file --reset           [-M vm_list] [options]
+  [sudo] vnx -f VNX_file --execute cmd_seq [-M vm_list] [options]
+  [sudo] vnx -f VNX_file --exe-cli cmd     [-M vm_list] [options]
   [sudo] vnx -f VNX_file --show-map [svg|png]
+  [sudo] vnx -f VNX_file --show-status [-b]
   vnx -h
   vnx -V
+  [sudo] vnx --show-status
   [sudo] vnx --clean-host
   [sudo] vnx --create-rootfs ROOTFS_file --install-media MEDIA_file 
   [sudo] vnx --modify-rootfs ROOTFS_file [--update-aced]
 
 Main modes:
-  --create|-t   -> create the complete scenario defined in VNX_file, or just
-                   start the virtual machines (VM) specified with -M option.
-  --execute|-x cmd_seq -> execute the commands tagged 'cmd_seq' in VNX_file.
-  --shutdown|-d -> destroy current scenario, or the VMs specified in -M option.
-  --destroy|-P  -> purge (destroy) the whole scenario, or just the VMs 
-                   specified in -M option, (Warning: it will remove VM COWed
-                   filesystems! Any changes in VMs will be lost).
   --define      -> define (but not start) the whole scenario, or just the VMs
                    speficied in -M option.
   --undefine    -> undefine the scenario or the VMs speficied with -M. 
   --start       -> start the scenario or the VMs speficied with -M.
+  --shutdown|-d -> destroy current scenario, or the VMs specified in -M option.
+  --create|-t   -> create the complete scenario defined in VNX_file, or just
+                   start the virtual machines (VM) specified with -M option.
+  --destroy|-P  -> purge (destroy) the whole scenario, or just the VMs 
+                   specified in -M option, (Warning: it will remove VM COWed
+                   filesystems! Any changes in VMs will be lost).
   --save        -> save the scenario to disk or the VMs speficied with -M.
   --restore     -> restore the scenario from disk or the VMs speficied with -M.
   --suspend     -> suspend the scenario to memory or the VMs speficied with -M.
   --resume      -> resume the scenario from memory or the VMs speficied with -M.
   --reboot      -> reboot the scenario or the VMs speficied with -M.
+  --execute|-x cmd_seq -> execute the commands tagged 'cmd_seq' in VNX_file.
+  --exe-cli cmd -> execute the command specified in all VMS or the ones specified in -M option.
 
 Virtual machines list specification:
   -M vm_list    -> list of VM names separated by ','
@@ -6524,12 +6828,13 @@ Console management modes:
 Other modes:
   --show-map [format] -> shows a map of the network scenarios build using graphviz.
                      png and svg formats supported (defaults to svg).
-  --show-status   -> shows the status of an scenario and its virtual machines.                     
+  --show-status   -> shows the scenarios started (if no scenario specified) or the status 
+                      of the VMs of the scenario specified.
   --exe-info      -> show information about the commands available in VNX_file.
   --create-rootfs -> starts a virtual machine to create a rootfs. 
                      Use --install-media option to specify installation media.
   --modify-rootfs -> starts a virtual machine using the rootfs specified in
-                     order to modify it (install software, modify config, etc).
+                     order to modify it (install software, change config, etc).
   --clean-host    -> WARNING! WARNING! WARNING!
                      This option completely restarts the host status.
                      It kills (power-off) all libvirt, UML and dynamips virtual

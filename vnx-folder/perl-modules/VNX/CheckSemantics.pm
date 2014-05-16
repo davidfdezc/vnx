@@ -655,7 +655,7 @@ user();
         #if ($vm_arch ne '') { # A value for arch is specified
         unless (empty($vm_arch)) { # A value for arch is specified
 
-            if ($vm_type eq "libvirt") {
+            if ($vm_type eq "libvirt" || $vm_type eq "lxc") {
                 if ( ($vm_arch ne 'i686') && ($vm_arch ne 'x86_64') ) {
                     return "invalid attribute value (arch='$vm_arch') in VM '$name'. Valid values: i686, x86_64";
                 }        	
