@@ -154,15 +154,18 @@ cp $VERBOSE bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
 
 # Delete vnx_modify_rootfs* -> obsoleted by vnx --modify-rootfs option
 rm -f $VERBOSE /usr/share/vnx/bin/vnx_modify_rootfs*
-#cp $VERBOSE bin/vnx_modify_rootfs.sh /usr/share/vnx/bin/vnx_modify_rootfs
-#cp $VERBOSE bin/vnx_modify_rootfs2.sh /usr/share/vnx/bin/vnx_modify_rootfs2
 
-cp $VERBOSE bin/vnx_update.sh /usr/share/vnx/bin/vnx_update
+cp $VERBOSE bin/vnx_update.sh /usr/bin/vnx_update
 cp $VERBOSE bin/vnx_update_host.sh /usr/share/vnx/bin/vnx_update_host
 cp $VERBOSE bin/vnx_set_def_rootfs.pl /usr/share/vnx/bin/vnx_set_def_rootfs
-cp $VERBOSE bin/vnx_download_rootfs.sh /usr/share/vnx/bin/vnx_download_rootfs
-cp $VERBOSE bin/vnx_mount_rootfs.sh /usr/share/vnx/bin/vnx_mount_rootfs
+cp $VERBOSE bin/vnx_download_rootfs.sh /usr/bin/vnx_download_rootfs
+cp $VERBOSE bin/vnx_mount_rootfs.sh /usr/bin/vnx_mount_rootfs
+# Delete old versions copied to /usr/share/bin
+rm -f /usr/share/vnx/bin/vnx_download_rootfs
+rm -f /usr/share/vnx/bin/vnx_mount_rootfs
+rm -f /usr/share/vnx/bin/vnx_update
 chmod 755 /usr/share/vnx/bin/*
+chmod 755 /usr/bin/vnx_*
 
 #
 # Copy vnx config file

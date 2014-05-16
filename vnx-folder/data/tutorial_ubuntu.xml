@@ -47,9 +47,9 @@ SPAIN
     <console id="0" display="yes"/>
     <console id="1" display="no"/>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.2/24</ipv4>
+      <ipv4>10.1.0.2/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.0.1">default</route>
+    <route type="ipv4" gw="10.1.0.1">default</route>
     
     <filetree seq="vnxtxt" root="/tmp/">conf/txtfile</filetree>
 
@@ -66,7 +66,7 @@ SPAIN
     <exec seq="vnxtxtoff" type="verbatim" ostype="system">pkill gedit; rm /tmp/vnx.*</exec>
 
     <!-- Start firefox and connect to h3 web server -->
-    <exec seq="www-h3"    type="verbatim" ostype="xexec">firefox http://10.0.2.2</exec>
+    <exec seq="www-h3"    type="verbatim" ostype="xexec">firefox http://10.1.2.2</exec>
     <exec seq="www-h3-off" type="verbatim" ostype="system">pkill firefox</exec>
 
     <!-- Start calculator  -->
@@ -79,24 +79,24 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>128M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.3/24</ipv4>
+      <ipv4>10.1.0.3/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.0.1">default</route>
+    <route type="ipv4" gw="10.1.0.1">default</route>
   </vm>
 
   <vm name="r1" type="libvirt" subtype="kvm" os="linux">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>128M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.1/24</ipv4>
+      <ipv4>10.1.0.1/24</ipv4>
     </if>
     <if id="2" net="Net1">
-      <ipv4>10.0.1.1/24</ipv4>
+      <ipv4>10.1.1.1/24</ipv4>
     </if>
     <if id="3" net="Net3">
-      <ipv4>10.0.3.1/24</ipv4>
+      <ipv4>10.1.3.1/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.1.2">10.0.2.0/24</route>
+    <route type="ipv4" gw="10.1.1.2">10.1.2.0/24</route>
     <forwarding type="ip" />
   </vm>
 
@@ -104,12 +104,12 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>128M</mem>
     <if id="1" net="Net1" name="s1/0">
-      <ipv4>10.0.1.2/24</ipv4>
+      <ipv4>10.1.1.2/24</ipv4>
     </if>
     <if id="2" net="Net2" name="e0/0">
-      <ipv4>10.0.2.1/24</ipv4>
+      <ipv4>10.1.2.1/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.1.1">default</route>
+    <route type="ipv4" gw="10.1.1.1">default</route>
     <forwarding type="ip" />
   </vm>
 
@@ -117,9 +117,9 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
    <mem>128M</mem>
    <if id="1" net="Net2">
-      <ipv4>10.0.2.2/24</ipv4>
+      <ipv4>10.1.2.2/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.2.1">default</route>
+    <route type="ipv4" gw="10.1.2.1">default</route>
     <!-- Copy the files under conf/tutorial_ubuntu/h3 to vm /var/www directory -->
     <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h3</filetree>
     <!-- Start/stop apache www server -->
@@ -132,9 +132,9 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu</filesystem>
     <mem>128M</mem>
     <if id="1" net="Net2">
-      <ipv4>10.0.2.3/24</ipv4>
+      <ipv4>10.1.2.3/24</ipv4>
     </if>
-    <route type="ipv4" gw="10.0.2.1">default</route>    
+    <route type="ipv4" gw="10.1.2.1">default</route>    
     <!-- Copy the files under conf/tutorial_ubuntu/h4 to vm /var/www directory -->
     <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h4</filetree>
     <!-- Start/stop apache www server -->
@@ -145,9 +145,9 @@ SPAIN
   
   <host>
     <hostif net="Net3">
-       <ipv4>10.0.3.2/24</ipv4>
+       <ipv4>10.1.3.2/24</ipv4>
     </hostif>
-    <route type="ipv4" gw="10.0.3.1">10.0.0.0/16</route>
+    <route type="ipv4" gw="10.1.3.1">10.1.0.0/16</route>
   </host>
 
 </vnx>

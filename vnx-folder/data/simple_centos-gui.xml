@@ -7,8 +7,8 @@ VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
 Name:        simple_centos-gui
-Description: Just one CentOS virtual machine connected to a Network named Net0 with address 10.0.0.16. 
-             The host has an interface in Net0 with address 10.0.0.1  
+Description: Just one CentOS virtual machine connected to a Network named Net0 with address 10.1.0.16. 
+             The host has an interface in Net0 with address 10.1.0.1  
              This simple scenario is supposed to be used for testing the different 
              types of virtual machines supported by VNX. You can start several simple_*.xml
              scenarios and test the connectivity among virtual machines and the host, as all
@@ -47,7 +47,7 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_centos-gui</filesystem>
     <mem>512M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.0.0.16/24</ipv4>
+      <ipv4>10.1.0.16/24</ipv4>
     </if>
     
     <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile/vnx.txt</filetree>
@@ -82,7 +82,7 @@ SPAIN
 
   <host>
     <hostif net="Net0">
-       <ipv4>10.0.0.1/24</ipv4>
+       <ipv4>10.1.0.1/24</ipv4>
     </hostif>
   </host>
   

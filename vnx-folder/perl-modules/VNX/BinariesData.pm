@@ -56,7 +56,7 @@ sub new {
    "ifconfig", "cp", "cat", "lsof", "chown",
    "hostname", "route", "scp", "chmod", "ssh", "uml_mconsole",                                                                             
    "date", "ps", "grep", "kill", "ln", "mkisofs", "mktemp", "su", "find",
-   "qemu-img", "mkfs.msdos", "mount", "umount", "virsh", "sed", "ip");
+   "qemu-img", "mkfs.msdos", "mount", "umount", "sed", "ip", "vnx_mount_rootfs");
    
    # List of optional binaries for xterm, vlan, screen and
    # uml_switch (defaults are empty: the add_additional_*_binaries 
@@ -66,6 +66,10 @@ sub new {
    my @binaries_screen = ();
    my @binaries_switch = ();
    my @binaries_bridge = ();
+   my @binaries_lxc = ();
+   my @binaries_libvirt = ();
+   my @binaries_kvm = ();
+   
 
    # Hash to store paths of binaries (empty util check_binaries method is called)
    my %bp;
@@ -77,6 +81,9 @@ sub new {
    $self->{'binaries_switch'} = \@binaries_switch;
    $self->{'binaries_bridge'} = \@binaries_bridge;
    $self->{'binaries_xterm'} = \@binaries_xterm;
+   $self->{'binaries_lxc'} = \@binaries_lxc;
+   $self->{'binaries_libvirt'} = \@binaries_libvirt;
+   $self->{'binaries_kvm'} = \@binaries_kvm;
    $self->{'binaries_path'} = \%bp;
 
    return $self;  
@@ -266,6 +273,62 @@ sub add_additional_bridge_binaries {
     
 }
 
+# add_additional_lxc_binaries
+#
+# Arguments:
+#   - The DataHandler object describing the VNX XML specification
+#
+sub add_additional_lxc_binaries {
+    my $self = shift;
+   
+    my $ovs;
+            
+    my @list = ();
+    if ( $dh->any_vmtouse_of_type('lxc') ) {
+        push (@list, "lxc-info");
+        push (@list, "lxc-start");
+        push (@list, "lxc-stop");
+        push (@list, "lxc-freeze");
+        push (@list, "lxc-unfreeze");
+        push (@list, "lxc-attach");
+    }
+    $self->{'binaries_lxc'} = \@list;
+    #print "list=@list\n";    
+}
+
+# add_additional_libvirt_binaries
+#
+# Arguments:
+#   - The DataHandler object describing the VNX XML specification
+#
+sub add_additional_libvirt_binaries {
+    my $self = shift;
+              
+    my @list = ();
+    if ( $dh->any_vmtouse_of_type('libvirt') ) {
+        push (@list, "virsh");
+    }
+    $self->{'binaries_libvirt'} = \@list;
+    #print "list=@list\n";    
+}
+
+# add_additional_kvm_binaries
+#
+# Arguments:
+#   - The DataHandler object describing the VNX XML specification
+#
+sub add_additional_kvm_binaries {
+    my $self = shift;
+            
+    my @list = ();
+    if ( $dh->any_vmtouse_of_type('libvirt', 'kvm') ) {
+        push (@list, "kvm-ok");
+    }
+    $self->{'binaries_kvm'} = \@list;
+    #print "list=@list\n";    
+}
+
+
 # check_binaries_mandatory
 sub check_binaries_mandatory {
     my $self = shift; 
@@ -310,6 +373,30 @@ sub check_binaries_bridge {
 sub check_binaries_xterm {
    my $self = shift;   
    my $ref = $self->{'binaries_xterm'};
+   my @list = @$ref;
+   return &check_binaries($self, @list); 
+}
+
+# check_binaries_lxc
+sub check_binaries_lxc {
+   my $self = shift;   
+   my $ref = $self->{'binaries_lxc'};
+   my @list = @$ref;
+   return &check_binaries($self, @list); 
+}
+
+# check_binaries_libvirt
+sub check_binaries_libvirt {
+   my $self = shift;   
+   my $ref = $self->{'binaries_libvirt'};
+   my @list = @$ref;
+   return &check_binaries($self, @list); 
+}
+
+# check_binaries_kvm
+sub check_binaries_kvm {
+   my $self = shift;   
+   my $ref = $self->{'binaries_kvm'};
    my @list = @$ref;
    return &check_binaries($self, @list); 
 }

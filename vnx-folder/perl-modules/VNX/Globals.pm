@@ -53,6 +53,9 @@ our @EXPORT = qw(
     $uid_name
     $vmfs_on_tmp
     $hline
+    $hline10
+    $hline50
+    $hline100
 
     $VNX_INSTALL_DIR
 	$DEFAULT_TMP_DIR
@@ -62,6 +65,7 @@ our @EXPORT = qw(
 	$DEFAULT_CLUSTER_CONF_FILE
     $EDIV_SEG_ALGORITHMS_DIR
     $EDIV_LOGS_DIR
+    $VNXACED_STATUS_DIR
     $VNXACED_STATUS
     
     $H2VM_BASE_PORT
@@ -142,7 +146,11 @@ our $vmfs_on_tmp;   # Loads the value of vmfs_on_tmp global config value
                     # Used to move the cow and sdisk filesystems to the tmp directory
                     # (used to solve a problem in DIT-UPM laboratories, where root user 
                     # cannot write to network-mounted user directories)  
-our $hline = "----------------------------------------------------------------------------------"; # Just a horizontal line...
+our $hline10 = "----------"; # Just a horizontal line of 10 '-'
+our $hline50 = "--------------------------------------------------"; # Just a horizontal line of 50 '-'
+our $hline100 = "----------------------------------------------------------------------------------------------------"; # Just a horizontal line of 100 '-'
+our $hline = $hline100;
+#our $hline = "----------------------------------------------------------------------------------"; # Just a horizontal line...
 
 
 # Configuration files and directories
@@ -154,7 +162,8 @@ Readonly::Scalar our $DEFAULT_VMFS_ON_TMP => 'no';
 Readonly::Scalar our $DEFAULT_CLUSTER_CONF_FILE => '/etc/vnx.conf';  # '/etc/ediv/cluster.conf';
 Readonly::Scalar our $EDIV_SEG_ALGORITHMS_DIR => '/usr/share/vnx/lib/seg-alg';
 Readonly::Scalar our $EDIV_LOGS_DIR => '/var/log/vnx';
-Readonly::Scalar our $VNXACED_STATUS => '/root/.vnx/vnxaced.status';
+Readonly::Scalar our $VNXACED_STATUS_DIR => '/root/.vnx';
+Readonly::Scalar our $VNXACED_STATUS => $VNXACED_STATUS_DIR . '/vnxaced.status';
 
 
 # Host to virtual machines communication channel
