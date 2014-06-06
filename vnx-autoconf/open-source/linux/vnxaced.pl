@@ -47,7 +47,9 @@ my $VNXACED_BUILT='DD/MM/YYYY';
 
 use constant VNXACED_PID => '/var/run/vnxaced.pid';
 use constant VNXACED_LOG => '/var/log/vnxaced.log';
-use constant VNXACED_STATUS => '/root/.vnx/vnxaced.status';
+use constant VNXACED_STATUS_DIR => '/root/.vnx';
+use constant VNXACED_STATUS => VNXACED_STATUS_DIR . '/vnxaced.status';
+use constant VNXACED_STATUS_TEST_FILE => VNXACED_STATUS_DIR . '/testfs';
 
 use constant FREEBSD_CD_DIR => '/cdrom';
 use constant LINUX_CD_DIR   => '/media/cdrom';
@@ -374,6 +376,11 @@ sub listen {
     my $on_boot_cmds_pending = get_conf_value (VNXACED_STATUS, 'on_boot_cmds_pending');
     if ($on_boot_cmds_pending eq 'yes') {
  
+        wlog (V, "Checking whether the filesystem is ready for writing");
+        if (my $res = wait_till_filesystem_ready_for_writing()) {
+            wlog (V, $res);
+        	exit(1);
+        }
         wlog (V, "Executing on_boot commands if specified");
         # It's pending, generate an 'exeCommand' to 
         my $exec_mode = get_conf_value (VNXACED_STATUS, 'exec_mode');
@@ -1242,7 +1249,7 @@ sub autoconfigure_debian_ubuntu {
         if ( !defined($net) && $id == 0 ) {
             $if_name = "eth" . $id;
         } elsif ( $net eq "lo" ) {
-            $if_name = "lo" . $id;
+            $if_name = "lo:" . $id;
         } else {
             $if_name = "eth" . $id;
         }
@@ -1261,7 +1268,11 @@ sub autoconfigure_debian_ubuntu {
         if ( (@ipv4_tag_list == 0 ) && ( @ipv6_tag_list == 0 ) ) {
             # No addresses configured for the interface. We include the following commands to 
             # have the interface active on start
-            print INTERFACES "iface " . $if_name . " inet manual\n";
+            if ( $net eq "lo" ) {
+                print INTERFACES "iface " . $if_name . " inet static\n";
+            } else {
+                print INTERFACES "iface " . $if_name . " inet manual\n";
+            }
             print INTERFACES "  up ifconfig " . $if_name . " 0.0.0.0 up\n";
         } else {
             # Config IPv4 addresses
@@ -1272,7 +1283,7 @@ sub autoconfigure_debian_ubuntu {
                 my $ip   = $ipv4->getFirstChild->getData;
 
                 if ($ip eq 'dhcp') {
-                        print INTERFACES "iface " . $if_name . " inet dhcp\n";                  
+                    print INTERFACES "iface " . $if_name . " inet dhcp\n";                  
                 } else {
                     if ($j == 0) {
                         print INTERFACES "iface " . $if_name . " inet static\n";
@@ -1455,7 +1466,7 @@ sub autoconfigure_redhat {
         if ( !defined($net) && $id == 0 ) {
             $if_name = "eth" . $id;
         } elsif ( $net eq "lo" ) {
-            $if_name = "lo" . $id;
+            $if_name = "lo:" . $id;
         } else {
             $if_name = "eth" . $id;
         }
@@ -1480,14 +1491,19 @@ sub autoconfigure_redhat {
         if ($os_type eq 'CentOS') { 
             print IF_FILE "DEVICE=$if_name\n";
         }
-        print IF_FILE "HWADDR=$mac\n";
+        if ( $net ne "lo" ) {
+            print IF_FILE "HWADDR=$mac\n";
+        }
         print IF_FILE "TYPE=Ethernet\n";
-        #print IF_FILE "BOOTPROTO=none\n";
+        print IF_FILE "BOOTPROTO=none\n";
         print IF_FILE "ONBOOT=yes\n";
         if ($os_type eq 'fedora') { 
             print IF_FILE "NAME=\"Auto $if_name\"\n";
         } elsif ($os_type eq 'centos') { 
             print IF_FILE "NAME=\"$if_name\"\n";
+        }
+        if ( $net eq "lo" ) {
+            print IF_FILE "NM_CONTROLLED=no\n";
         }
 
         print IF_FILE "IPV6INIT=yes\n";
@@ -1985,6 +2001,33 @@ sub vnxaced_die {
     wlog (V, $err_msg); 
     die "$err_msg\n";
 
+}
+
+sub wait_till_filesystem_ready_for_writing {
+	
+	my $test_file = VNXACED_STATUS_TEST_FILE;
+    my $tout = 10;
+    my $res;
+    {   # Loop till the file system is ready for writing...
+        eval {
+            $tout--;
+            open OFILE, "> ${test_file}" or die "OFILE $!";
+        };
+        last unless $@;
+        if ($@) {
+            write_console "$@\n";
+            if ($tout) {
+                write_console ("Waiting for file $test_file to be ready...");
+                sleep 3;
+                redo;
+            } else {
+                $res = 'ERROR: cannot write to filesystem';
+                return;
+            }
+        }
+    }
+    close OFILE;
+    return $res;
 }
 
 1;

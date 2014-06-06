@@ -151,7 +151,7 @@ sub open_console {
         unless (defined $getLineOnly) {
             # Kill the console if already opened
             #print "`ps uax | grep \"virsh -c $hypervisor console $vm_name\" | awk '{ print \$2 }'`\n";
-            my $pids = `ps uax | grep "virsh -c $hypervisor console $vm_name" | grep -v grep | awk '{ print \$2 }'`;
+            my $pids = `ps uax | grep "virsh -c $hypervisor console ${vm_name}\$" | grep -v grep | awk '{ print \$2 }'`;
             $pids =~ s/\R/ /g;
             if ($pids) {
                 wlog (V, "killing consoles processes: $pids", $logp);
@@ -223,6 +223,24 @@ sub open_console {
 	unless (defined($getLineOnly)) {
         $execution->execute_root($logp, $exeLine .  ">/dev/null 2>&1 &");
 		#$execution->execute( $logp, $exeLine .  ">/dev/null 2>&1 &");
+	}
+	my $win_cfg = get_console_win_info($vm_name, $con_id);
+	if (defined($win_cfg)) {
+		# Wait for window to be ready
+		my $timeout = 10;
+		while (! `wmctrl -l | grep "$vm_name - "`) {
+			sleep 0.5;
+			$timeout--;
+			unless ($timeout) { 
+				wlog (V, "time out waiting for console window to be ready ($vm_name, $con_id)", $logp)
+			} 
+		}
+        my @win_info = split( /:/, $win_cfg );
+        $execution->execute($logp, "wmctrl -r \"$vm_name - \" -e 0,$win_info[0]");
+        $execution->execute($logp, "wmctrl -a \"$vm_name - \"");
+        if ($win_info[1] eq 'yes') {
+            $execution->execute($logp, "wmctrl -r \"$vm_name - \" -b toggle,above");
+        }
 	}
 	return $exeLine;
 }
@@ -297,6 +315,31 @@ sub start_consoles_from_console_file {
 		} 
 	}
 
+}
+
+sub get_console_win_info {
+	
+	my $vm_name = shift;
+	my $con_id  = shift;
+	
+    my $logp = "get_console_win_pos> ";
+	
+	my $cfg_file = $dh->get_cfg_file();
+	my $win_cfg; 
+	
+	if ($cfg_file) {
+		
+        my $parser = XML::LibXML->new();
+        my $doc = $parser->parse_file($cfg_file);
+        
+        if( $doc->exists("/vnx_cfg/vm[\@name='$vm_name']") ){
+            my @vms = $doc->findnodes("/vnx_cfg/vm[\@name='$vm_name']");
+            my $on_top = $vms[0]->getAttribute('ontop');
+            if (!defined($on_top)) { $on_top = 'no' }; 
+            $win_cfg = $vms[0]->getAttribute('win') . ":$on_top";   
+        }
+	}
+    return $win_cfg;
 }
 
 ###################################################################
@@ -505,7 +548,7 @@ sub autoconfigure_debian_ubuntu {
         if ( !defined($net) && $id == 0 ) {
         	$if_name = "eth" . $id;
         } elsif ( $net eq "lo" ) {
-            $if_name = "lo" . $id;
+            $if_name = "lo:" . $id;
         } else {
             $if_name = "eth" . $id;
         }
@@ -524,7 +567,11 @@ sub autoconfigure_debian_ubuntu {
         if ( (@ipv4_tag_list == 0 ) && ( @ipv6_tag_list == 0 ) ) {
             # No addresses configured for the interface. We include the following commands to 
             # have the interface active on start
-            print INTERFACES "iface " . $if_name . " inet manual\n";
+            if ( $net eq "lo" ) {
+	            print INTERFACES "iface " . $if_name . " inet static\n";
+            } else {
+                print INTERFACES "iface " . $if_name . " inet manual\n";
+            }
             print INTERFACES "  up ifconfig " . $if_name . " 0.0.0.0 up\n";
         } else {
             # Config IPv4 addresses
@@ -535,10 +582,10 @@ sub autoconfigure_debian_ubuntu {
                 my $ip   = $ipv4->getFirstChild->getData;
 
                 if ($ip eq 'dhcp') {
-                        print INTERFACES "iface " . $if_name . " inet dhcp\n";                	
+                    print INTERFACES "iface " . $if_name . " inet dhcp\n";                	
                 } else {
 	                if ($j == 0) {
-	                    print INTERFACES "iface " . $if_name . " inet static\n";
+                        print INTERFACES "iface " . $if_name . " inet static\n";
 	                    print INTERFACES "   address " . $ip . "\n";
 	                    print INTERFACES "   netmask " . $mask . "\n";
 	                } else {
@@ -561,7 +608,7 @@ sub autoconfigure_debian_ubuntu {
                         print INTERFACES "iface " . $if_name . " inet6 dhcp\n";                  
                 } else {
 	                if ($j == 0) {
-	                    print INTERFACES "iface " . $if_name . " inet6 static\n";
+                        print INTERFACES "iface " . $if_name . " inet6 static\n";
 	                    print INTERFACES "   address " . $ip . "\n";
 	                    print INTERFACES "   netmask " . $mask . "\n";
 	                } else {
@@ -707,7 +754,7 @@ sub autoconfigure_redhat {
     for (my $i = 0 ; $i < @if_list ; $i++){
         my $if  = $if_list[$i];
         my $id  = $if->getAttribute("id");
-        my $net = $if->getAttribute("net");
+        my $net = str($if->getAttribute("net"));
         my $mac = $if->getAttribute("mac");
         $mac =~ s/,//g;
             
@@ -718,7 +765,7 @@ sub autoconfigure_redhat {
         if ( !defined($net) && $id == 0 ) {
             $if_name = "eth" . $id;
         } elsif ( $net eq "lo" ) {
-            $if_name = "lo" . $id;
+            $if_name = "lo:" . $id;
         } else {
             $if_name = "eth" . $id;
         }
@@ -733,24 +780,29 @@ sub autoconfigure_redhat {
 
         my $if_file;
         if ($os_type eq 'fedora') { 
-           $if_file = "$sysconfnet_dir/ifcfg-Auto_$if_name";
-        } elsif ($os_type eq 'centos') { 
+            $if_file = "$sysconfnet_dir/ifcfg-Auto_$if_name";
+        } elsif ($os_type eq 'centos') {  
             $if_file = "$sysconfnet_dir/ifcfg-$if_name";
         }
         system "echo \"\" > $if_file";
         open IF_FILE, ">" . $if_file or return "error opening $if_file";
     
-        if ($os_type eq 'CentOS') { 
+        if ($os_type eq 'CentOS' || $net eq "lo") { 
             print IF_FILE "DEVICE=$if_name\n";
         }
-        print IF_FILE "HWADDR=$mac\n";
+        if ( $net ne "lo" ) {
+            print IF_FILE "HWADDR=$mac\n";
+        }
         print IF_FILE "TYPE=Ethernet\n";
-        #print IF_FILE "BOOTPROTO=none\n";
+        print IF_FILE "BOOTPROTO=none\n";
         print IF_FILE "ONBOOT=yes\n";
         if ($os_type eq 'fedora') { 
             print IF_FILE "NAME=\"Auto $if_name\"\n";
         } elsif ($os_type eq 'centos') { 
             print IF_FILE "NAME=\"$if_name\"\n";
+        }
+        if ( $net eq "lo" ) {
+            print IF_FILE "NM_CONTROLLED=no\n";
         }
 
         print IF_FILE "IPV6INIT=yes\n";

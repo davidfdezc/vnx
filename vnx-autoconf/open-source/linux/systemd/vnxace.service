@@ -1,5 +1,6 @@
 [Unit]
 Description=VNXACE
+After=local-fs.target
 
 [Service]
 PIDFile=/var/run/vnxaced.pid

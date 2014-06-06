@@ -207,6 +207,11 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
 	    my $net2 = $net;
     	$net2 =~ tr/-/_/;        
         #print "  if: $id $net \n";
+
+        if ($net eq 'lo') {
+        	print "lo_$vmname [shape=\"point\", width=0.15, label=\"lo\", tooltip=\"$vmname loopback interface\"];"
+        };
+        
         my $ipaddrs;
         foreach my $ipv4s ($if->getElementsByTagName ("ipv4")) {
             my $ipv4 = $ipv4s->getChildNodes->[0];
@@ -234,8 +239,13 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
             #print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"9\", style=\"bold\" ];\n" ;
             print "$vmname2 -- $net2  [ label = \"$ipaddrs\\nvlans=[$trunk$vlan_tag_list]\", fontsize=\"$edge_fontsize\" ];\n" ;            
         } else {
-            print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
-            print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;                        
+            if ($net eq 'lo') {
+	            print "//   interface $id with IP addresses $ipaddrs connected to network $net\n" ;
+	            print "$vmname2 -- lo_$vmname [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\", len=\"0.8\" ];\n" ;                        
+            } else {
+	            print "//   interface $id with IP addresses $ipaddrs connected to network $net\n" ;
+	            print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;                        
+            }            
         }        
         
     }

@@ -4,6 +4,7 @@
 # Description: vnxaced is VNX Autoconfiguration and Execution Daemon (ACED)
 # Processname: vnxaced
 # Pidfile: /var/run/vnxaced.pid
+# Required-Start:    $local_fs 
 ### BEGIN INIT INFO
 # Provides: vnxaced
 ### END INIT INFO

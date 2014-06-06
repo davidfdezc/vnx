@@ -65,6 +65,7 @@ sub new {
    $self->{'cmd_seq'} = shift;
    $self->{'xml_dir'} = shift;
    $self->{'input_file'} = shift;
+   $self->{'cfg_file'} = shift;
    
    # Build static data array
    my %global_data;
@@ -390,6 +391,15 @@ sub get_xml_dir {
 sub get_input_file {
    my $self = shift;
    return $self->{'input_file'};
+} 
+
+# get_cfg_file
+#
+# Returns the input file name
+#
+sub get_cfg_file {
+   my $self = shift;
+   return $self->{'cfg_file'};
 } 
 
 # get_ssh_version

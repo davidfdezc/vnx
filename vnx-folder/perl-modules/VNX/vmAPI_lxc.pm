@@ -326,6 +326,7 @@ change_to_root();
             my $mac   = $if->getAttribute("mac");
             $mac =~ s/,//; # TODO: why is there a comma before mac addresses?
 
+            if ( $net eq "lo" ) { next }
             $execution->execute( $logp, "", *CONFIG_FILE );
             $execution->execute( $logp, "# interface eth$id", *CONFIG_FILE );
             $execution->execute( $logp, "lxc.network.type=veth", *CONFIG_FILE );
@@ -364,6 +365,8 @@ change_to_root();
 	        $execution->execute( $logp, "", *CONFIG_FILE );
 	        $execution->execute( $logp, "# Set unconfined to avoid problems with apparmor", *CONFIG_FILE );
 	        $execution->execute( $logp, "lxc.aa_profile=unconfined", *CONFIG_FILE );
+            $execution->execute( $logp, "lxc.cgroup.devices.allow = b 7:* rwm", *CONFIG_FILE );
+            $execution->execute( $logp, "lxc.cgroup.devices.allow = c 10:237 rwm", *CONFIG_FILE );
         }
 
         close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );

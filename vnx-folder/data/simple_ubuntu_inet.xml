@@ -46,10 +46,12 @@ SPAIN
     <if id="1" net="Net0">
       <ipv4>10.1.0.4/24</ipv4>
     </if>
-    <if id="2" net="virbr0"/>
+    <if id="2" net="virbr0">
+      <ipv4>dhcp</ipv4>
+    </if>
 
     <!-- Autoconfigure eth2 -->    
-    <exec seq="on_boot" type="verbatim">dhclient eth2</exec>
+    <!--exec seq="on_boot" type="verbatim">dhclient eth2</exec-->
   </vm>
 
 </vnx>
