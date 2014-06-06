@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        simple_centos64-gui
+Description: Just one CentOS virtual machine connected to a Network named Net0 with address 10.1.0.16. 
+             The host has an interface in Net0 with address 10.1.0.1  
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>simple_centos64-gui</scenario_name>
+    <automac offset="16"/>
+    <vm_mgmt type="none" />
+    <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="60">
+       <host_mapping />
+    </vm_mgmt-->     
+    <vm_defaults>
+        <console id="0" display="yes"/>
+        <console id="1" display="yes"/>
+    </vm_defaults>
+  </global>
+    
+  <net name="Net0" mode="virtual_bridge" />
+  
+  <!-- NODES -->
+  <vm name="centos64-gui" type="libvirt" subtype="kvm" os="linux" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_centos64-gui</filesystem>
+    <mem>512M</mem>
+    <if id="1" net="Net0">
+      <ipv4>10.1.0.16/24</ipv4>
+    </if>
+    
+    <filetree seq="vnxtxt" root="/tmp/" perms="644">conf/txtfile/vnx.txt</filetree>
+    <filetree seq="vnxwww" root="/tmp/" perms="644">conf/txtfile/vnx.html</filetree>
+    <filetree seq="start-www" root="/var/www/html/" perms="644">conf/txtfile</filetree>
+
+    <!-- Start xeyes application -->
+    <exec seq="xeyes"     type="verbatim" ostype="xexec">xeyes</exec>
+
+    <!-- Start xeyes application and wait until it is closed -->
+    <exec seq="xeyes2"    type="verbatim" ostype="xsystem">xeyes</exec>
+
+    <!-- Start gedit, maximize the window and show a text file -->
+    <exec seq="vnxtxt"    type="verbatim" ostype="xexec">gedit /tmp/vnx.txt</exec>
+    <exec seq="vnxtxt"    type="verbatim" ostype="xexec">sleep 3; wmctrl -r vnx.txt -b add,maximized_vert,maximized_horz</exec>
+    <exec seq="vnxtxtoff" type="verbatim" ostype="system">pkill gedit; rm /tmp/vnx.*</exec>
+
+    <!-- Start firefox and load vnx.html, copied by means of a <filetree> -->
+    <exec seq="vnxwww"    type="verbatim" ostype="xexec">firefox /tmp/vnx.html</exec>
+    <exec seq="vnxwwwoff" type="verbatim" ostype="system">pkill firefox; rm /tmp/vnx.*</exec>
+
+    <!-- Start calculator  -->
+    <exec seq="calc"      type="verbatim" ostype="xexec">gcalctool</exec>
+    <exec seq="calcoff"   type="verbatim" ostype="system">pkill gcalctool</exec>
+
+    <!-- Start/stop apache www server -->
+    <exec seq="start-www" type="verbatim" ostype="system">service httpd start</exec>
+    <exec seq="stop-www"  type="verbatim" ostype="system">service httpd stop</exec>
+    <exec seq="start-www2" type="verbatim" ostype="exec">service httpd start</exec>
+      
+  </vm>
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.1.0.1/24</ipv4>
+    </hostif>
+  </host>
+  
+</vnx>

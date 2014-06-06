@@ -1,3 +1,51 @@
+6/6/2014
+- loopback interfaces: added support for Ubuntu. In Fedora does not work: addresses added to loopback if, are not configured at startup; you have to do a "ifup lo:3".
+- Included loopback interfaces in maps
+- Created auxiliar config file to store window position and attributes configuration. Example: 
+
+<vnx_cfg>
+<vm name="h1" win="0,0,600,400" ontop="yes"/>
+<vm name="h2" win="0,400,600,400"/>
+<vm name="h3" win="1200,0,600,400"/>
+<vm name="h4" win="1200,400,600,400" ontop="yes"/>
+<vm name="r1" win="400,200,600,400"/>
+<vm name="r2" win="800,200,600,400"/>
+</vnx_cfg>
+
+If a file with the same name as scenario file but with extension .cvnx exists, it is read to get the positions of the consoles.
+  
+- Added local filesystems dependencies to vnxaced configuration to avoid running it before the filesystem is available: 
+  
+  For systemd (vnxace.service):
+  
+  [Unit]
+  Description=VNXACE
+  After=local-fs.target
+  
+  For upstart (vnxace.conf):
+  
+  start on local-filesystems
+  
+  For init.d:
+  
+  # Required-Start:    $local_fs 
+  
+  
+- Added support to use loop devices inside LXC machines by adding:
+
+  lxc.cgroup.devices.allow = b 7:* rwm
+  lxc.cgroup.devices.allow = c 10:237 rwm  
+  
+  when:
+  
+  [lxc]
+  aa_unconfined=yes
+
+  Now a block device for testing can be created inside the VM with:
+  dd if=/dev/zero of=diska bs=1M count=300
+  losetup /dev/loop0 diska
+    
+
 16/5/2014
 - LXC: start_vm now checks if the overlay filesystem is mounted before starting the VM, remounting it in case it is not.
 - Added support for LXC in modify-rootfs option:

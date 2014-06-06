@@ -595,12 +595,20 @@ $>=$uid;
 	#$parser->keep_blanks(0);
     my $doc = $parser->parse_file($input_file);
     
-       	       	
+    # Check if there is a .cvnx file
+    my $cfg_file = $input_file;
+    $cfg_file =~ s{\.[^.]+$}{}; # remove extension
+    $cfg_file .= ".cvnx";
+    unless (-e $cfg_file) {
+        $cfg_file = '';	
+    }
+    pre_wlog ("  CFG file: $cfg_file") if (!$opts{b});
+         
    	# Calculate the directory where the input_file lives
    	#my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
    	# Build the VNX::DataHandler object
-   	$dh = new VNX::DataHandler($execution,$doc,$mode,$opts{M},$opts{H},$cmdseq,$xml_dir,$input_file);
+   	$dh = new VNX::DataHandler($execution,$doc,$mode,$opts{M},$opts{H},$cmdseq,$xml_dir,$input_file,$cfg_file);
    	$dh->set_boot_timeout($boot_timeout);
    	$dh->set_vnx_dir($vnx_dir);
    	$dh->set_tmp_dir($tmp_dir);

@@ -136,6 +136,7 @@ cp $VERBOSE data/*.xsd /usr/share/xml/vnx/
 # Copy examples
 #
 cp $VERBOSE data/*.xml data/*.net /usr/share/vnx/examples/
+cp $VERBOSE data/*.cvnx data/*.net /usr/share/vnx/examples/
 cp $VERBOSE -r data/conf /usr/share/vnx/examples/
 cp $VERBOSE -r data/tutorial_ubuntu_modify /usr/share/vnx/examples/
 chmod 644 /usr/share/vnx/examples/*

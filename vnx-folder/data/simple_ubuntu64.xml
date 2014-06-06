@@ -6,7 +6,7 @@
 VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
-Name:        simple_lxc_ubuntu64
+Name:        simple_ubuntu
 Description: Just one Ubuntu virtual machine connected to a Network named Net0 with address 10.1.0.4. 
              The host has an interface in Net0 with address 10.1.0.1  
              This simple scenario is supposed to be used for testing the different 
@@ -28,30 +28,26 @@ SPAIN
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
     <version>2.0</version>
-    <scenario_name>simple_lxc_ubuntu64</scenario_name>
+    <scenario_name>simple_ubuntu64</scenario_name>
     <automac offset="4"/>
-    <!--vm_mgmt type="none" /!-->
+    <!--vm_mgmt type="none" /-->
     <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="12">
        <host_mapping />
     </vm_mgmt> 
     <vm_defaults>
-        <console id="0" display="no"/>
+        <console id="0" display="yes"/>
         <console id="1" display="yes"/>
     </vm_defaults>
   </global>
     
   <net name="Net0" mode="virtual_bridge" />
-  <net name="Net1" mode="virtual_bridge" />
   
-  <vm name="ubuntu64" type="lxc" exec_mode="lxc-attach" arch="x86_64">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_ubuntu64</filesystem>
+  <vm name="ubuntu64" type="libvirt" subtype="kvm" os="linux" exec_mode="sdisk" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu64</filesystem>
+    <mem>256M</mem>
     <if id="1" net="Net0">
       <ipv4>10.1.0.4/24</ipv4>
     </if>
-    <if id="2" net="Net1">
-      <ipv4>10.0.1.4/24</ipv4>
-    </if>
-    <route type="ipv4" gw="10.1.0.1">default</route>
 
     <!-- Virtual machine command examples -->
 
@@ -70,7 +66,7 @@ SPAIN
 
     <!-- Copy file conf/on_shutdown.txt to /root directory just before 
          vm shutdown. All filetree and exec commands with seq='on_shutdown
-         are automatically executed before sending the shutdown signal to the vm -->
+         are automatically executed before sending the shutdown signam to the vm -->
     <filetree seq="on_shutdown" root="/root/">conf/on_shutdown.txt</filetree>
 
     <!-- exec commands -->    
