@@ -5,7 +5,7 @@
 # Authors: David Fernández
 # Coordinated by: David Fernández (david@dit.upm.es)
 #
-# Copyright (C) 2013   DIT-UPM
+# Copyright (C) 2014   DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -326,7 +326,7 @@ change_to_root();
             my $mac   = $if->getAttribute("mac");
             $mac =~ s/,//; # TODO: why is there a comma before mac addresses?
 
-            if ( $net eq "lo" ) { next }
+            if ( str($net) eq "lo" ) { next }
             $execution->execute( $logp, "", *CONFIG_FILE );
             $execution->execute( $logp, "# interface eth$id", *CONFIG_FILE );
             $execution->execute( $logp, "lxc.network.type=veth", *CONFIG_FILE );
@@ -997,7 +997,7 @@ sub execute_cmd {
         	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
             wlog (V, "executing user defined exec command '$command'", $logp);
         	my $cmd_output = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$command'");
-            wlog (N, "$cmd_output", '') if ($cmd_output ne '');
+            wlog (N, "---\n$cmd_output---", '') if ($cmd_output ne '');
         	
         }
 
@@ -1024,7 +1024,7 @@ sub execute_cmd {
         	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
             wlog (V, "executing user defined exec command '$command'", $logp);
         	my $cmd_output = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$command'");
-            wlog (N, "$cmd_output", '') if ($cmd_output ne '');
+            wlog (N, "---\n$cmd_output---", '') if ($cmd_output ne '');            
         }
 
         # We close file and mark it executable
@@ -1110,12 +1110,12 @@ sub execute_filetree {
             if ( ($user ne '') or ($group ne '')  ) {
                 my $cmd="chown -R $user.$group $root/$fname"; 
                 my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
-                wlog(N, $res, $logp) if ($res ne ''); 
+                wlog (N, "---\n$res---", '') if ($res ne '');                
             }
             if ( $perms ne '' ) {
                 my $cmd="chmod -R $perms $root/$fname"; 
                 my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
-                wlog(N, $res, $logp) if ($res ne ''); 
+                wlog (N, "---\n$res---", '') if ($res ne '');                
             }
         }
             
@@ -1143,12 +1143,12 @@ sub execute_filetree {
         if ( ($user ne '') or ($group ne '') ) {
             $cmd="chown -R $user.$group $root"; 
             my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
-            wlog(N, $res, $logp) if ($res ne ''); 
+            wlog (N, "---\n$res---", '') if ($res ne '');                
         }
         if ( $perms ne '' ) {
             $cmd="chmod -R $perms $root";
             my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
-            wlog(N, $res, $logp) if ($res ne ''); 
+            wlog (N, "---\n$res---", '') if ($res ne '');                
         }
     }
 }

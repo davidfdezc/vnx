@@ -1,3 +1,14 @@
+
+10/6/2014
+
+- Problems detected with LXC when using 'overlayfs' to create COW file systems:
+    - shutdown and restart does not work
+    - java does not work inside VMs (??)
+  Till solved, default LXC overlay mode set to 'aufs'
+
+- New example tutorial_lxc_ubuntu-sdn.xml to show how to use a SDN controller to control Open vSwitch scenario switches. 
+
+
 6/6/2014
 - loopback interfaces: added support for Ubuntu. In Fedora does not work: addresses added to loopback if, are not configured at startup; you have to do a "ifup lo:3".
 - Included loopback interfaces in maps
