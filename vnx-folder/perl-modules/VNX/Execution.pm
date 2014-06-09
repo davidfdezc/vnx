@@ -357,16 +357,10 @@ sub execute_mconsole {
 #
 # Shell commands execution interface. This functions is
 # similar to 'execute' but it returns the command output instead
-# of the command return value ($?)
-#
-# It only implements the Direct Mode: command execution throught 
-# backticks (`') Perl functionality.
+# of the command return value
 #
 # Interactive mode can be used in addition to direct mode ($exe_interactive)
 #
-# Verbose output (when $exe_mode has EXE_DEBUG or EXE_VERBOSE)
-# goes to standard output. It is prefixed with $verb_prompt
-# and, in addition, with D- in debug mode
 
 sub execute_getting_output {
     my $self = shift;
@@ -382,27 +376,37 @@ sub execute_getting_output {
         $command =~ s/\n/\\n/g;
         print sprintf("D-%-8s %s", $verb_prompt, "$command\n");
     }
-    elsif ($exe_mode == $EXE_VERBOSE) {
-        my $cmd_line = $command; $cmd_line =~ s/\n/\\n/g;
-        print_log ($cmd_line, $verb_prompt);      
+    elsif ($exe_mode == $EXE_VERBOSE || $exe_mode == $EXE_NORMAL) {
 
+        my $cmd_line = $command; $cmd_line =~ s/\n/\\n/g;
+        print_log ($cmd_line, $verb_prompt) if ($exe_mode == $EXE_VERBOSE);      
+
+=BEGIN        
+        # This way does not work...commands do not end even when using & to execute in background
         $retval = `( $command ) 2>&1`;
         if ( $execution->get_logfile() ) { # Send output to log file if defined
             system "echo $retval >> " . $execution->get_logfile();
         }
-        if ($exe_interactive) {
-            &press_any_key;
+=END
+=cut
+        
+        my $tmp_file = `mktemp --tmpdir=/tmp -t vnx_cmd_output.XXXXXX`;
+        system "( $command 2>&1 )  > $tmp_file ";
+        # Return command output...
+        $retval = `cat $tmp_file`;
+        if ( $execution->get_logfile() )  {
+            # ...and send it to logfile
+            system "cat $tmp_file >> " . $execution->get_logfile();
         }
-    }
-    elsif ($exe_mode == $EXE_NORMAL) {
-        system "( $command ) > /dev/null 2>&1";
-        $retval = '';
+        # Delete tmp file
+        system "rm -f $tmp_file";
         if ($exe_interactive) {
             &press_any_key;
         }
     }
     return $retval;
 }
+
 
 sub root { change_to_root() }
 

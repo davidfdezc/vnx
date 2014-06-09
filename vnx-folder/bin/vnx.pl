@@ -2715,7 +2715,6 @@ sub mode_suspend {
       my $vm_type = $vm->getAttribute("type");
       wlog (N, "Suspending virtual machine '$vm_name' of type '$merged_type'...");
       my $error = "VNX::vmAPI_$vm_type"->suspend_vm($vm_name, $merged_type);
-      print "*** $error \n";
       if ($error) {
           wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->suspend_vm returns '" . $error . "'\n$hline");
           next
@@ -4610,6 +4609,8 @@ sub mode_execute {
             unless scenario_exists($dh->get_scename);
     }
 
+    my $doc = $dh->get_doc;
+
     my $seq_str_expanded = cmdseq_expand ($seq_str);
     wlog (V, "Command sequence '$seq_str' expanded to '$seq_str_expanded'", $logp);
 
@@ -4689,7 +4690,7 @@ sub mode_execute {
 	        }
 		}
 	
-        if ( $type eq 'all' && !defined($ref_vms) ) {
+        if ( $type eq 'all' && !defined($ref_vms) && $doc->exists("/vnx/host/exec[\@seq='$seq']") ) {
             wlog (N, "Calling execute_host_cmd with seq '$seq'"); 
             $num_host_execs = execute_host_command($seq);
         }

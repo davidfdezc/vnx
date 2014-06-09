@@ -227,12 +227,14 @@ sub open_console {
 	my $win_cfg = get_console_win_info($vm_name, $con_id);
 	if (defined($win_cfg)) {
 		# Wait for window to be ready
-		my $timeout = 10;
+		my $timeout = 5;
 		while (! `wmctrl -l | grep "$vm_name - "`) {
-			sleep 0.5;
+            print ".";
+			sleep 1;
 			$timeout--;
 			unless ($timeout) { 
-				wlog (V, "time out waiting for console window to be ready ($vm_name, $con_id)", $logp)
+				wlog (V, "time out waiting for console window to be ready ($vm_name, $con_id)", $logp);
+                return $exeLine;
 			} 
 		}
         my @win_info = split( /:/, $win_cfg );

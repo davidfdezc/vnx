@@ -6,10 +6,11 @@
 VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
-Name:        tutorial_ubuntu
-Description: As simple tutorial scenario made of 6 LXC Ubuntu virtual machines (4 hosts: h1, h2, h3 and h4; 
-             and 2 routers: r1 and r2) connected through three virtual networks. The host participates 
+Name:        tutorial_lxc_ubuntu-sdn
+Description: As simple tutorial scenario made of 6 Ubuntu virtual machines (4 hosts: h1, h2, h3 and h4; 
+             and 2 routers: r1 and r2) connected through three virtual networks based on Openvswitch. The host participates 
              in the scenario having a network interface in Net3.     
+             Another VM, sdnctrl, run and SDN controller that controls the Openvswitchs of the scenario.
 
 This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
 (www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
@@ -24,7 +25,7 @@ SPAIN
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
     <version>2.0</version>
-    <scenario_name>tutorial_lxc_ubuntu</scenario_name>
+    <scenario_name>tutorial_lxc_ubuntu_sdn</scenario_name>
     <automac/>
     <vm_mgmt type="none" />
     <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="200">
@@ -46,10 +47,11 @@ SPAIN
     
   </global>
 
-  <net name="Net0" mode="virtual_bridge" />
-  <net name="Net1" mode="virtual_bridge" />
-  <net name="Net2" mode="virtual_bridge" />
-  <net name="Net3" mode="virtual_bridge" />
+  <net name="Net0"   mode="openvswitch" controller="tcp:10.1.4.2:6633" />
+  <net name="Net1"   mode="openvswitch" controller="tcp:10.1.4.2:6633" />
+  <net name="Net2"   mode="openvswitch" controller="tcp:10.1.4.2:6633" />
+  <net name="Net3"   mode="openvswitch" controller="tcp:10.1.4.2:6633" />
+  <net name="MgmtNet" mode="openvswitch" />
 
   <vm name="h1" type="lxc">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
@@ -57,6 +59,8 @@ SPAIN
       <ipv4>10.1.0.2/24</ipv4>
     </if>
     <route type="ipv4" gw="10.1.0.1">default</route>   
+    <filetree seq="on_boot" root="/tmp/">conf/tutorial_lxc_ubuntu-sdn/hosts</filetree>
+    <exec seq="on_boot" type="verbatim">cat /tmp/hosts >> /etc/hosts</exec>
   </vm>
 
   <vm name="h2" type="lxc">
@@ -65,10 +69,8 @@ SPAIN
       <ipv4>10.1.0.3/24</ipv4>
     </if>
     <route type="ipv4" gw="10.1.0.1">default</route>
-    <exec seq="ls1" type="verbatim">ls -al /tmp</exec>
-    <exec seq="ls2" type="verbatim">ls -al /root</exec>
-    <exec seq="ls3" type="verbatim">ls -al /usr</exec>
-    <exec seq="ls4" type="verbatim">ls -al /bin</exec>
+    <filetree seq="on_boot" root="/tmp/">conf/tutorial_lxc_ubuntu-sdn/hosts</filetree>
+    <exec seq="on_boot" type="verbatim">cat /tmp/hosts >> /etc/hosts</exec>
   </vm>
 
   <vm name="r1" type="lxc">
@@ -84,6 +86,8 @@ SPAIN
     </if>
     <route type="ipv4" gw="10.1.1.2">10.1.2.0/24</route>
     <forwarding type="ip" />
+    <filetree seq="on_boot" root="/tmp/">conf/tutorial_lxc_ubuntu-sdn/hosts</filetree>
+    <exec seq="on_boot" type="verbatim">cat /tmp/hosts >> /etc/hosts</exec>
   </vm>
 
   <vm name="r2" type="lxc">
@@ -96,6 +100,8 @@ SPAIN
     </if>
     <route type="ipv4" gw="10.1.1.1">default</route>
     <forwarding type="ip" />
+    <filetree seq="on_boot" root="/tmp/">conf/tutorial_lxc_ubuntu-sdn/hosts</filetree>
+    <exec seq="on_boot" type="verbatim">cat /tmp/hosts >> /etc/hosts</exec>
   </vm>
 
   <vm name="h3" type="lxc">
@@ -104,8 +110,10 @@ SPAIN
       <ipv4>10.1.2.2/24</ipv4>
     </if>
     <route type="ipv4" gw="10.1.2.1">default</route>
+    <filetree seq="on_boot" root="/tmp/">conf/tutorial_lxc_ubuntu-sdn/hosts</filetree>
     <!-- Copy the files under conf/tutorial_ubuntu/h3 to vm /var/www directory -->
     <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h3</filetree>
+    <exec seq="on_boot" type="verbatim">cat /tmp/hosts >> /etc/hosts</exec>
     <!-- Start/stop apache www server -->
     <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
     <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
@@ -118,17 +126,45 @@ SPAIN
       <ipv4>10.1.2.3/24</ipv4>
     </if>
     <route type="ipv4" gw="10.1.2.1">default</route>    
+    <filetree seq="on_boot" root="/tmp/">conf/tutorial_lxc_ubuntu-sdn/hosts</filetree>
     <!-- Copy the files under conf/tutorial_ubuntu/h4 to vm /var/www directory -->
     <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h4</filetree>
+    <exec seq="on_boot" type="verbatim">cat /tmp/hosts >> /etc/hosts</exec>
     <!-- Start/stop apache www server -->
     <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
     <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
     <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>    
   </vm>
+
+  <vm name="sdnctrl" type="lxc">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_sdn</filesystem>
+    <if id="1" net="MgmtNet">
+      <ipv4>10.1.4.2/24</ipv4>
+    </if>
+    <route type="ipv4" gw="10.1.2.1">default</route>    
+
+    <filetree seq="on_boot" root="/tmp/">conf/tutorial_lxc_ubuntu-sdn/hosts</filetree>
+    <filetree seq="on_boot" root="/root/floodlight/">conf/tutorial_lxc_ubuntu-sdn/sdnctrl/</filetree>
+
+    <exec seq="on_boot" type="verbatim">cat /tmp/hosts >> /etc/hosts</exec>
+    <exec seq="on_boot" type="verbatim">
+       mkdir -p /etc/floodlight;
+       ln -s /root/floodlight/floodlight.properties /etc/floodlight/;
+    </exec>
+    <exec seq="on_boot" type="verbatim">chmod +x /root/floodlight/start-floodlight</exec>
+    <!--exec seq="on_boot,start_ctrl" type="verbatim">/root/floodlight/start-floodlight</exec-->
+    <exec seq="on_boot,start_ctrl" type="verbatim">java -Dlogback.configurationFile=/root/floodlight/logback.xml -jar /root/floodlight/target/floodlight.jar -cf /etc/floodlight/floodlight.properties &amp;</exec>
+
+    <exec seq="stop_ctrl" type="verbatim">pkill -f "java -Dlogback.configurationFile"</exec>
+
+  </vm>
   
   <host>
     <hostif net="Net3">
        <ipv4>10.1.3.2/24</ipv4>
+    </hostif>
+    <hostif net="MgmtNet">
+       <ipv4>10.1.4.1/24</ipv4>
     </hostif>
     <route type="ipv4" gw="10.1.3.1">10.1.0.0/16</route>
   </host>
