@@ -47,10 +47,10 @@ SPAIN
     
   </global>
 
-  <net name="Net0"   mode="openvswitch" controller="tcp:10.1.4.2:6633" />
-  <net name="Net1"   mode="openvswitch" controller="tcp:10.1.4.2:6633" />
-  <net name="Net2"   mode="openvswitch" controller="tcp:10.1.4.2:6633" />
-  <net name="Net3"   mode="openvswitch" controller="tcp:10.1.4.2:6633" />
+  <net name="Net0"   mode="openvswitch" controller="tcp:10.1.4.2:6633" of_version="OpenFlow10" />
+  <net name="Net1"   mode="openvswitch" controller="tcp:10.1.4.2:6633" of_version="OpenFlow10" />
+  <net name="Net2"   mode="openvswitch" controller="tcp:10.1.4.2:6633" of_version="OpenFlow10" />
+  <net name="Net3"   mode="openvswitch" controller="tcp:10.1.4.2:6633" of_version="OpenFlow10" />
   <net name="MgmtNet" mode="openvswitch" />
 
   <vm name="h1" type="lxc">

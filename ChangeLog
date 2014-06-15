@@ -1,4 +1,10 @@
 
+15/06/2014
+
+- Added attribute 'of_version' to <net>'s based on openvswitch to define the OpenFlow version used. Valid values: OpenFlow10, OpenFlow12, OpenFlow13
+- Added config files to tutorial_lxc_ubuntu-sdn.xml example
+- Added bootstrap.sh script to create a vagrant virtual machine to run VNX
+
 10/6/2014
 
 - Problems detected with LXC when using 'overlayfs' to create COW file systems:

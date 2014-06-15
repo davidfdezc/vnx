@@ -303,6 +303,7 @@ e-mail: vnx@dit.upm.es
       <xs:attribute name="vlan" type="xs:string" use="optional"/>
       <xs:attribute name="capture_file" type="xs:string" use="optional"/>
       <xs:attribute name="controller" type="xs:string" use="optional"/>
+      <xs:attribute name="of_version" type="xs:string" use="optional"/>
       <xs:attribute name="mode" use="required">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
