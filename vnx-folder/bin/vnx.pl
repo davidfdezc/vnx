@@ -4216,6 +4216,10 @@ sub create_bridges_for_virtual_bridged_networks  {
                     my $controller = $net->getAttribute("controller");
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set-controller $net_name $controller");
                 }
+                if($net->getAttribute("of_version") ){
+                    my $of_version = $net->getAttribute("of_version");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name protocols=$of_version");
+                }
         
             }
                         

@@ -321,8 +321,10 @@ user();
     # Process <net> list
     foreach my $net ($doc->getElementsByTagName("net")) {
 
-        # To get name attribute
+        # To get name, type and mode attribute
         my $name = $net->getAttribute("name");
+        my $type = $net->getAttribute("type");
+        my $mode = $net->getAttribute("mode");
       
         # To check name length
         my $upper = $max_name_length + 1;
@@ -332,9 +334,6 @@ user();
         # To check name has no whitespace
         return "net name \"$name\" can not containt whitespaces"
             if ($name =~ /\s/);
-
-        # To get mode attribute
-        my $mode = $net->getAttribute("mode");
 
         # 8a. there are no duplicated net names (<net>) and no name is the reserved word "lo"
         if (defined($net_names{$name})) {
@@ -425,7 +424,6 @@ user();
         }
       
       # 8g. To check only two virtual machines for PPP nets
-      my $type = $net->getAttribute("type");
       if (empty($type)) {
       	 $type = "lan"; # default value
       	 $net->setAttribute("type", "lan")
@@ -467,7 +465,20 @@ user();
 		return "$sock (sock) is not a valid socket" unless (-S _);
 		$> = 0 if ($is_root);
 	  }
+	  
+	  # 8j. Check 'controller' and 'of_version' attributes 
+      my $controller = $net->getAttribute("controller");
+      my $of_version = $net->getAttribute("of_version");
       
+      if ( !empty($controller) && $mode ne 'openvswitch' ) {
+	    return "'controller' attribute can only be used in 'openvswitch' based networks (used in <net name='$name'>)"
+      }
+      if ( !empty($of_version) && $mode ne 'openvswitch' ) {
+        return "'of_version' attribute can only be used in 'openvswitch' based networks (used in <net name='$name'>)"
+      } 
+      if ( !empty($of_version) && $of_version ne 'OpenFlow10' && $of_version ne 'OpenFlow12' && $of_version ne 'OpenFlow13' ) {
+        return "incorrect value in <net> 'of_version' attribute. Valid values: OpenFlow10, OpenFlow12, OpenFlow13"
+      } 
    }
    
    # 9. To check <vm> and <if>
