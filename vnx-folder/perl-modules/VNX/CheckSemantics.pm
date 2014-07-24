@@ -287,6 +287,12 @@ user();
 	if ($dh->get_vmmgmt_type eq 'net') {
 		return "<vm_mgmt> element of type=\"net\" must have exactly one <mgmt_net> child element"
 		  if ($vmmgmt_net_list_len != 1);
+        my $config = str($vmmgmt_net_list[0]->getAttribute("config"));
+        if ( ($config eq 'dhcp') && (@vmmgmt_hostmap_list > 0) ) {
+            return "<host_mapping/> and <mgmt_net config='dhcp'> are not compatible. Use config='manual' to allow <host_mapping/> option"
+        }
+
+=BEGIN
         my $sock = $vmmgmt_net_list[0]->getAttribute("sock");
         unless (empty($sock)) {
 	        my $sock = &do_path_expansion($sock);
@@ -304,6 +310,9 @@ user();
 	              unless (&hostip_exists($dh->get_vmmgmt_hostip, $dh->get_vmmgmt_mask));
 	        }               	
         }
+=END
+=cut        
+        
 
 	} else {
 		return "<vm_mgmt> may only have a <mgmt_net> child if attribute type=\"net\"" if ($vmmgmt_net_list_len > 0);
@@ -1232,6 +1241,61 @@ user();
             
         }               
 	}
+
+    #
+    # Check allowed network configurations for Android VMs
+    # Due to the lack of 'udev' mechanism to name interfaces in Android X86 and the restrictions found 
+    # configuring network interfaces (for example, dhcp only worked in eth1), not all configurations 
+    # are possible. 
+    #
+    # The list of tested and allowd configs follows:
+    #   - mgmt = none
+    #       + config1: no interfaces 
+    #       + config2: if(id=1)->dhcp 
+    #       + config3: if(id=1)->static 
+    #       + config4: if(id=1)->dhcp and if(id=2)->static
+    #   - mgmt = net
+    #       + config5: no interfaces 
+    #       + config6: if(id=1)->static 
+    #   - mgmt = private
+    #       + config7: no interfaces 
+    #       + config8: if(id=1)->dhcp 
+    #       + config9: if(id=1)->dhcp and if(id=2)->static
+    #
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
+        my $name = $vm->getAttribute("name");
+        my $vm_type = $vm->getAttribute("type");               
+        my $merged_type = $dh->get_vm_merged_type ($vm);
+        
+        if ($merged_type eq 'libvirt-kvm-android') {
+        	
+        	my %ifs;
+        	foreach my $if ($vm->getElementsByTagName("if")) {
+                my $id = $if->getAttribute("id");
+                if ($id > 2) { return "only interfaces with id=[1-2] allowed in Android VMs "}
+                my @ipv4s = $if->findnodes('ipv4');
+                if (@ipv4s > 1) { return "only one IPv4 per interface supported in Android VMs (error in interface $id of $name)" }
+                if( $if->exists("ipv6") ){ return "no IPv6 addresses supported in Android VMs (error in interface $id of $name)" }
+  
+                if ( text_tag($ipv4s[0]) eq 'dhcp') { $ifs{$id} = 'dhcp' }
+                else { $ifs{$id} = 'static' }
+        	}        	
+        	
+        	if ($dh->get_vmmgmt_type eq 'net') {
+                if (str($ifs{1}) eq 'dhcp') { return "no DHCP configuration allowed when mgmt='net' (error in interface 1 of $name)" } 
+                if (defined($ifs{2}))  { return "only one interface allowed when mgmt='net' (error in interface 2 of $name)"}
+        	} elsif ($dh->get_vmmgmt_type eq 'private') {
+                if ($ifs{2} eq 'dhcp')  { return "only one interface allowed when mgmt='net' (error in interface 2 of $name)"}
+        	} else { # $dh->get_vmmgmt_type eq none
+                if ( (str($ifs{1}) eq 'static' && str($ifs{2}) eq 'dhcp') ||
+                     (str($ifs{1}) eq 'dhcp' && str($ifs{2}) eq 'dhcp') )
+                 { return "incorrect interfaces configuration (only the interface with id=2 can be configured with DHCP)" }
+                if ( defined($ifs{2}) and !defined($ifs{1})) { return "interface 2 cannot be used if interface 2 is not defined (error in VM $name)"}  
+        	}      	
+        }
+
+    }
    	return 0;
 }
 

@@ -142,6 +142,10 @@ function get_link_name {
    if [[ $1 == *caine* ]] ; then
       echo "rootfs_caine"
    fi
+
+   if [[ $1 == *android* ]] ; then
+      echo "rootfs_android"
+   fi
 }
 
 #------------------------------------------------------------------

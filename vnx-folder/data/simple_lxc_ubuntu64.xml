@@ -57,7 +57,7 @@ SPAIN
 
     <!-- filetree commands -->    
     <!-- Copy file conf/on_boot.txt to /root directory during 
-         vm startup. All filetree and exec commands with seq='on_boot
+         vm startup. All filetree and exec commands with seq='on_boot'
          are automatically executed during vm startup -->
     <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
 

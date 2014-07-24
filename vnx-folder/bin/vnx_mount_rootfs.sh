@@ -8,7 +8,7 @@
 # This file is a part of VNX package (http://vnx.dit.upm.es).
 #
 # Authors: David Fernández (david@dit.upm.es)
-# Copyright (C) 2013,   DIT-UPM
+# Copyright (C) 2014,   DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -161,7 +161,7 @@ done
 eval mountdir=\$$i
 if [[ ! -d "$mountdir" ]]; then
     write_msg ""       
-    write_msg "ERROR. Mount directory does not exist." >&2
+    write_msg "ERROR. Mount directory ($mountdir) does not exist." >&2
     #write_msg "$USAGE"
     exit 2
 fi

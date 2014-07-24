@@ -38,7 +38,16 @@ apt-get -y install qemu-kvm libvirt-bin vlan xterm bridge-utils screen virt-mana
   libnet-ip-perl libreadonly-perl libmath-round-perl libappconfig-perl \
   libdbi-perl graphviz genisoimage gnome-terminal tree libio-pty-perl libsys-virt-perl \
   libfile-homedir-perl curl w3m picocom expect lxc aptsh libxml-tidy-perl inkscape \
-  linux-image-extra-virtual wmctrl
+  linux-image-extra-virtual wmctrl wireshark x11-apps
+
+  # Add sentences to /etc/profile to set DISPLAY variable to host ip address
+  # (needed for windows machines)
+  cat >> /etc/profile <<EOF
+if [ -z \$DISPLAY ]; then
+ export DISPLAY="\$(ip route show default | head -1 | awk '{print \$3}'):0"
+ #echo "Setting DISPLAY to \$DISPLAY"
+fi
+EOF
 
 echo ""
 echo "---- Installing VNX application:"

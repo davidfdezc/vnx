@@ -1,4 +1,61 @@
 
+24/07/2014:
+
+- vnx_update command improved. It allows to:
+   + get a listing of all versions available on VNX repository in "http://idefix.dit.upm.es/vnx" using -l option:
+        vnx_update -l
+   + install a specific version (not the latests) with -v option:
+        vnx_update -v 2.0b.4199
+        
+- <ssh_key> tag:
+   + implemented for LXC VMs
+   + bug corrected for KVM (need to create directory /root/.ssh in VM if non-existant)
+   
+- Bug corrected in -s option: it was supposed that the scenario XML file name was the 
+  value of tag <scenario_name> followed by .xml. Now vnx.pl navigates the scenario directory
+  $vnx_dir/scenarios/$scename to find the XML file, checking errors like no file found or 
+  more than two files found.
+   
+- New kali root filesystem created and simple_kali.xml example improved with Internet connection. 
+  Tests with a 64 bits version of kali failed due to emulated cirrus graphical card used by default 
+  in libvirt. Using another virtual graphics cards (qxl or vmvga for example) works.
+   
+- Added new <video> tag to define the graphical virtual card in libvirt. By now only <video>vmvga</video> defined.
+  
+- Changed the format of shared disk to ext4 for libvirt-kvm-linux to allow copying symbolic links to VMs
+  (not allowed with msdos format used before) 
+  
+- mode 'exe-info': brief format (-b) implemented to just get a space separated list of commands (used for bash autocompletion)
+
+- Added bash autocompletion support to VNX. A vnx autocompletion script is copied to /etc/bash_completion.d/ directory.
+  Now typing "TAB" shows the available VNX options and the available values of some parameters.
+
+- Reimplementation of <vm_mgmt> for type="net" value. 
+
+  <vm_mgmt type="net" network="10.250.0.0" mask="24">
+    <mgmt_net net="mgmt-bridge-name" managed="yes" config="manual/dhcp"/>
+    <host_mapping/>
+  </vm_mgmt>
+
+    + <mgmt_net> 
+        + net attribute: bridge to be used for management interfaces. If it is not defined, use a default value, a bridge named ${scenname}-mgmt
+        + managed attribute: defines if management bridge is managed by VNX or not. Same meaning that "managed" attribute in <net> 
+        + config attribute: management interfaces config mode: "manual" or "dhcp". 
+       
+    + Host address should always be the first address.
+    + sock and hostip attributes eliminated
+    + config=manual and <host_mapping/> options are not compatible by now. One way of implementing host_mapping will
+      be to have a look at dhcp leases files to see the addresses assigned. For example:
+      
+        grep 02:fd:00:04:01:00 /var/lib/libvirt/dnsmasq/*.leases /var/lib/misc/*.leases 
+
+- Corrected bug that prevented host exec 'on_boot' and 'on_shutdown' commands to be executed.
+
+- Notes:
+    + LXC: option unconfined makes dhclient to fail with error: 
+          error while loading shared libraries: libc.so.6: cannot open shared object file: Permission denied
+    
+
 15/06/2014
 
 - Added attribute 'of_version' to <net>'s based on openvswitch to define the OpenFlow version used. Valid values: OpenFlow10, OpenFlow12, OpenFlow13
@@ -131,14 +188,13 @@ If a file with the same name as scenario file but with extension .cvnx exists, i
 17/11/2013:
 - vnx_mount_rootfs tools added
 
-
 - attribute 'gui' in <exec> tags eliminated (obsoleted) 
 
 6/5/2013:
 - vnx help simplified and updated
 
 - User VNX is executed as: -u option implemented 
-  '-u user' or '--user user' option is use to defines the user VNX is 
+  '-u user' or '--user user' option is used to define the user VNX is 
   (mostly) run as. By now, VNX has to be run with root priviledges 
   (from a root shell or sudoed) for creating virtual machines and 
   manipulate bridges and network interfaces.

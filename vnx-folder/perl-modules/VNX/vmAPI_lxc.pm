@@ -264,6 +264,19 @@ change_to_root();
         # Ex: sed -i -e "s/127.0.1.1.*/127.0.1.1   lxc1/" /var/lib/lxc/lxc1/rootfs/etc/host
         $execution->execute( $logp, "sed -i -e 's/127.0.1.1.*/127.0.1.1   $vm_name/' ${vm_lxc_rootfs}/etc/hosts" ); 
 
+        # Copy SSH keys if <ssh> tag specified in scenario
+        if( $dom->exists("/create_conf/vm/ssh_key") ){
+            my @ssh_key_list = $dom->findnodes('/create_conf/vm/ssh_key');
+            # Copy ssh key files content to $ssh_key_dir/ssh_keys file
+            foreach my $ssh_key (@ssh_key_list) {
+                my $key_file = do_path_expansion( text_tag( $ssh_key ) );
+                wlog (V, "<ssh_key> file: $key_file");
+                $execution->execute( $logp, "mkdir ${vm_lxc_rootfs}/root/.ssh/" );
+                $execution->execute( $logp, $bd->get_binaries_path_ref->{"cat"}
+                                     . " $key_file >>" . "${vm_lxc_rootfs}/root/.ssh/authorized_keys" );
+            }
+        }
+
         # Modify LXC VM config file
         # Backup config file just in case...
         $execution->execute( $logp, "cp $vm_lxc_config $vm_lxc_config" . ".bak" ); 
@@ -576,7 +589,7 @@ sub start_vm {
                 unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
                             
                     # Get the vm management ip address 
-                    my %net = &get_admin_address( 'file', $vm_name );
+                    my %net = get_admin_address( 'file', $vm_name );
                     # Add it to hostlines file
                     open HOSTLINES, ">>" . $dh->get_sim_dir . "/hostlines"
                         or $execution->smartdie("can not open $dh->get_sim_dir/hostlines\n")
@@ -1090,10 +1103,10 @@ sub execute_filetree {
     my $cmd;
     if ( $host_root =~ /\/$/ ) {
         # Destination is a directory
-        wlog (VVV, "   Destination is a directory", $logp);
-        unless (-d $root){
+        wlog (VVV, "   Destination is a directory ($host_root)", $logp);
+        unless (-d $host_root){
             wlog (VVV, "   creating unexisting dir '$host_root'...", $logp);
-            system "mkdir -p $root";
+            system "mkdir -p $host_root";
         }
 
         $cmd="cp -vR ${source_path}* $host_root";

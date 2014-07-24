@@ -92,6 +92,14 @@ cp $VERBOSE bin/vnx.pl /usr/bin/vnx
 chmod +x /usr/bin/vnx
 
 #
+# Copy vnx_bash_completion
+#
+if [ -d /etc/bash_completion.d ]; then
+  cp $VERBOSE bin/vnx_bash_completion /etc/bash_completion.d/vnx
+  chmod 644 /etc/bash_completion.d/vnx
+fi
+
+#
 # Copy ediv executables
 #
 cp $VERBOSE bin/ediv_ctl_vnx.pl /usr/bin/ediv
