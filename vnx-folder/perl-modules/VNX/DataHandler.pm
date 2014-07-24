@@ -740,6 +740,8 @@ sub get_default_exec_mode {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_WINDOWS[0];
         } elsif ($merged_type eq 'libvirt-kvm-olive') {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_OLIVE[0];
+        } elsif ($merged_type eq 'libvirt-kvm-android') {
+            $def_execmode = $EXEC_MODES_LIBVIRT_KVM_ANDROID[0];
         } elsif ( ($merged_type eq 'dynamips-3600') or ($merged_type eq 'dynamips-7200') )  {
             $def_execmode = $EXEC_MODES_DYNAMIPS[0];
         } elsif ($merged_type eq 'lxc')  {
@@ -1460,24 +1462,31 @@ sub netconfig {
 # vmmgmt_autoconfigure
 #
 sub vmmgmt {
-   my $self = shift;
+    
+    my $self = shift;
 
-   my $vmmgmt = shift;
-   my $hostip = '';
-   my $autoconfigure = '';
+    my $vmmgmt = shift;
+    my $hostip = '';
+    my $autoconfigure = '';
 
-   my @vmmgmt_net_list = $vmmgmt->getElementsByTagName("mgmt_net");
-   if (@vmmgmt_net_list > 0) {
-		$hostip = $vmmgmt_net_list[0]->getAttribute("hostip");
-		$autoconfigure = $vmmgmt_net_list[0]->getAttribute("autoconfigure");
-	}
+    my @vmmgmt_net_list = $vmmgmt->getElementsByTagName("mgmt_net");
+    if (@vmmgmt_net_list > 0) {
+        #$hostip = $vmmgmt_net_list[0]->getAttribute("hostip");
+        if ( defined($vmmgmt->getAttribute('network')) && defined($vmmgmt->getAttribute('mask'))) {
+	        $hostip = NetAddr::IP->new(str($vmmgmt->getAttribute('network'))."/".str($vmmgmt->getAttribute('mask')))  + 1;
+	        $hostip = $hostip->addr();
+        } else {
+            $hostip = '';
+        }
+        $autoconfigure = $vmmgmt_net_list[0]->getAttribute("autoconfigure");
+    }
 
-   return ($vmmgmt->getAttribute('type'),
-		   $vmmgmt->getAttribute('network'),
-		   $vmmgmt->getAttribute('mask'),
-		   $vmmgmt->getAttribute('offset'),
-	   	   $hostip,
-	   	   $autoconfigure);
+    return ($vmmgmt->getAttribute('type'),
+        $vmmgmt->getAttribute('network'),
+        $vmmgmt->getAttribute('mask'),
+        $vmmgmt->getAttribute('offset'),
+        $hostip,
+        $autoconfigure);
 }
 
 # console_in_vm

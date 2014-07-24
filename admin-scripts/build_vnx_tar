@@ -245,11 +245,12 @@ HNAME=$( hostname -f )
 if [ $UPDATEIDEFIX ]; then
     #echo "Update idefix..."
 	if [ $HNAME = 'idefix.dit.upm.es' -o $HNAME = 'idefix' ]; then
-	  if [ -d /var/www/download/vnx ]; then 
-	    echo "Copying new version to http://idefix.dit.upm.es/download/vnx..."
-	    cp -v distrib/${FNAME}.tgz /var/www/download/vnx
-	    rm -v /var/www/download/vnx/vnx-latest.tgz
-	    ln -s /var/www/download/vnx/${FNAME}.tgz /var/www/download/vnx/vnx-latest.tgz
+	  if [ -d /var/www/download/vnx/src ]; then 
+	    echo "Copying new version to http://idefix.dit.upm.es/download/vnx/src..."
+	    cp -v distrib/${FNAME}.tgz /var/www/download/vnx/src
+	    rm -v /var/www/download/vnx/vnx-latest.tgz /var/www/download/vnx/src/vnx-latest.tgz
+        ln -s /var/www/download/vnx/src/${FNAME}.tgz /var/www/download/vnx/src/vnx-latest.tgz
+        ln -s /var/www/download/vnx/src/vnx-latest.tgz /var/www/download/vnx/vnx-latest.tgz
 	    echo "...done"
 	  fi  
 	fi

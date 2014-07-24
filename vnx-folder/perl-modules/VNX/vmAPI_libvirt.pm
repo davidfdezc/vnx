@@ -32,6 +32,7 @@ package VNX::vmAPI_libvirt;
 use strict;
 use warnings;
 use Exporter;
+use v5.10;
 
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(
@@ -64,7 +65,6 @@ use VNX::vmAPICommon;
 use File::Basename;
 use XML::LibXML;
 use IO::Socket::UNIX qw( SOCK_STREAM );
-
 
 use constant USE_UNIX_SOCKETS => 0;  # Use unix sockets (1) or TCP (0) to communicate with virtual machine 
 my $one_pass_autoconf;
@@ -186,7 +186,7 @@ sub define_vm {
     my $vm_arch = $vm->getAttribute("arch");
     if (empty($vm_arch)) { $vm_arch = 'i686' }  # default value
 
-    if ( ($exec_mode ne "cdrom") && ($exec_mode ne "sdisk") ) {
+    if ( ($exec_mode ne "cdrom") && ($exec_mode ne "sdisk") && !($exec_mode eq "adb" &&  $type eq "libvirt-kvm-android") ) {
         $execution->smartdie( "execution mode $exec_mode not supported for VM of type $type" );
     }       
 
@@ -218,11 +218,17 @@ sub define_vm {
         # qemu-img create jconfig.img 12M
         # TODO: change the fixed 50M to something configurable
         $execution->execute( $logp, $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
-        # mkfs.msdos jconfig.img
-        $execution->execute( $logp, $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
+
+        if ( $type eq "libvirt-kvm-linux" ) {
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mkfs.ext4"} . " -Fq $sdisk_fname" ); 
+        } else {
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
+        }        	
+        
         # Mount the shared disk to copy filetree files
         $sdisk_content = $dh->get_vm_hostfs_dir($vm_name) . "/";
-        $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
+        #$execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
+        $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
         # Create filetree and config dirs in the shared disk
         $execution->execute( $logp, "mkdir -p $sdisk_content/filetree");
         $execution->execute( $logp, "mkdir -p $sdisk_content/config");        	
@@ -239,7 +245,6 @@ sub define_vm {
 			$extConfFile = &get_abs_path ($extConfFile);
 		}
 	}
-
 
 	#
 	# define_vm for libvirt-kvm-windows
@@ -515,6 +520,30 @@ sub define_vm {
 		#print "$consFile: con0=$cons0Display,vnc_display,UNK_VNC_DISPLAY\n" if ($exemode == $EXE_VERBOSE);
 		close (CONS_FILE); 
 
+        # <video> tag
+        if ( $virtualm->exists("./video") ) {
+            my $video_type = $virtualm->findnodes('./video')->[0]->to_literal();
+            wlog (VVV,"video type set to $video_type", $logp);
+            my $video_tag = $init_xml->createElement('video');
+            my $model_tag = $init_xml->createElement('model');
+            $video_tag->addChild($model_tag);
+            my @allowed_video_types = qw/vga cirrus vmvga xen vbox qxl/;
+            if ( grep( /^${video_type}$/, @allowed_video_types ) ) {
+                $model_tag->setAttribute( type => $video_type); 
+                #$video_tag->setAttribute( vram => "9216");
+                #$video_tag->setAttribute( heads => "1");
+                $devices_tag->addChild($video_tag);
+            } else {
+                wlog (N, "WARNING: unknown video card type: $video_type", $logp)            	
+            }
+#            given ($video_type) {
+#                when (@allowed_video_types) 
+#                        { $model_tag->setAttribute( type => $video_type); 
+#                          $devices_tag->addChild($video_tag);                                            }
+#                default { wlog (N, "WARNING: unknown video card type: $video_type", $logp)} 
+#            }
+        }
+
         # <serial> tag --> host to VM (H2VM) communications channel       
 		my $serial_tag = $init_xml->createElement('serial');
         if (USE_UNIX_SOCKETS == 1) { # Use a UNIX socket
@@ -629,10 +658,11 @@ user();
 	# define_vm for libvirt-kvm-linux/freebsd/olive
 	#
 	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")||
-	        ($type eq "libvirt-kvm-olive")||($type eq "libvirt-vbox") ) {
+	        ($type eq "libvirt-kvm-olive")||($type eq "libvirt-vbox") || 
+	        ($type eq "libvirt-kvm-android") ) {
 
         # Create vnxboot.xml file under $sdisk_content directory
-        unless ( $execution->get_exe_mode() eq $EXE_DEBUG ) {
+        unless ( $execution->get_exe_mode() eq $EXE_DEBUG || $type eq "libvirt-kvm-android") {
             open CONFILE, ">$sdisk_content" . "vnxboot.xml"
                 or $execution->smartdie("can not open ${sdisk_content}vnxboot: $!");
             print CONFILE "$vm_doc\n";
@@ -689,13 +719,16 @@ user();
 		my $domain_tag = $init_xml->createElement('domain');
 		$init_xml->addChild($domain_tag);
 
-        if ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")||($type eq "libvirt-kvm-olive") ) {
+        if ( ($type eq "libvirt-kvm-linux") || ($type eq "libvirt-kvm-freebsd")||
+             ($type eq "libvirt-kvm-olive") || ($type eq "libvirt-kvm-android") ) {
     		# Note: changed the first line to 
     		# <domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
     		# to allow the use of <qemu:commandline> tag to especify the bios in Olive routers
     		$domain_tag->addChild( $init_xml->createAttribute( type => "kvm" ) );
-    		$domain_tag->addChild( $init_xml->createAttribute( 'xmlns:qemu' => "http://libvirt.org/schemas/domain/qemu/1.0" ) );
-        } elsif ( $type eq "libvirt-vbox") {
+    		if ($type ne "libvirt-kvm-android" ) {
+                $domain_tag->addChild( $init_xml->createAttribute( 'xmlns:qemu' => "http://libvirt.org/schemas/domain/qemu/1.0" ) );
+    		}
+        } elsif ( ( $type eq "libvirt-vbox") ) {
     		$domain_tag->addChild( $init_xml->createAttribute( type => "vbox" ) );
 	    }
 	            
@@ -713,7 +746,8 @@ user();
 		# </cpu>
 		# Note 21/5/20013: this block prevents freebsd 64 bits to start. 
 		#                  We eliminate it in that case. 
-		unless ( ($type eq "libvirt-kvm-freebsd") & ($vm->getAttribute("arch") eq "x86_64" ) ) {
+		unless ( ($type eq "libvirt-kvm-freebsd") & ($vm->getAttribute("arch") eq "x86_64" ) || 
+		         ($type eq "libvirt-kvm-android") ) {
 	        my $cpu_tag = $init_xml->createElement('cpu');
 	        $domain_tag->addChild($cpu_tag);
 	        $cpu_tag->addChild( $init_xml->createAttribute( match => "minimum" ) );
@@ -748,7 +782,13 @@ user();
         $type_tag->addChild( $init_xml->createAttribute( arch => "$vm_arch" ) );	
 
 		# DFC 23/6/2011: Added machine attribute to avoid a problem in CentOS hosts
-		$type_tag->addChild( $init_xml->createAttribute( machine => "pc" ) );
+		my $machine;
+		if ($type eq 'libvirt-kvm-android') {
+			$machine = 'pc-i440fx-1.5';
+		} else {
+            $machine = 'pc';
+		}
+		$type_tag->addChild( $init_xml->createAttribute( machine => "$machine" ) );
 		$type_tag->addChild( $init_xml->createTextNode("hvm") );
 		my $boot1_tag = $init_xml->createElement('boot');
 		$os_tag->addChild($boot1_tag);
@@ -907,48 +947,56 @@ user();
 			 
 			my $interface_tag;
 			if ($id eq 0){
-				# Commented on 3/5/2012. Now mgmt interfaces are defined in <qemu:commandline> section
 				$mng_if_exists = 1;
 				$mac =~ s/,//;
-				$mng_if_mac = $mac;		
-			}else{
-				$interface_tag = $init_xml->createElement('interface');
-                $devices_tag->addChild($interface_tag);
+				$mng_if_mac = $mac;	
+                # Now mgmt interfaces are defined in <qemu:commandline> section
+                # but for android VMs (they hang when using the present libvirt 
+                # mgmt definition)
+			 	unless ($type eq 'libvirt-kvm-android' ) { next }
+			}
+			$interface_tag = $init_xml->createElement('interface');
+            $devices_tag->addChild($interface_tag);
 				
-                # Ex: <interface type='bridge' name='eth1' onboot='yes'>
-				$interface_tag->addChild( $init_xml->createAttribute( type => 'bridge' ) );
-				$interface_tag->addChild( $init_xml->createAttribute( name => "eth" . $id ) );
-				$interface_tag->addChild( $init_xml->createAttribute( onboot => "yes" ) );
+            # Ex: <interface type='bridge' name='eth1' onboot='yes'>
+			$interface_tag->addChild( $init_xml->createAttribute( type => 'bridge' ) );
+			$interface_tag->addChild( $init_xml->createAttribute( name => "eth" . $id ) );
+			$interface_tag->addChild( $init_xml->createAttribute( onboot => "yes" ) );
 
-			 	# Ex: <source bridge="Net0"/>
-			    my $source_tag = $init_xml->createElement('source');
-			    $interface_tag->addChild($source_tag);
-			    $source_tag->addChild( $init_xml->createAttribute( bridge => $net ) );
+			# Ex: <source bridge="Net0"/>
+			my $source_tag = $init_xml->createElement('source');
+			$interface_tag->addChild($source_tag);
+            if ($id eq 0 && empty($net) && $type eq 'libvirt-kvm-android' ) {
+                $source_tag->addChild( $init_xml->createAttribute( bridge => "${vm_name}-mgmt" ) );
+            } else {
+#print "net=$net\n"; pak();            	
+                $source_tag->addChild( $init_xml->createAttribute( bridge => $net ) );
+            }
 
-                # Ex: <virtualport type="openvswitch"/>
-                if ($net_mode eq "openvswitch"){
-                    my $virtualswitch_tag = $init_xml->createElement('virtualport');
-                    $interface_tag->addChild($virtualswitch_tag);
-                    $virtualswitch_tag->addChild($init_xml->createAttribute( type => 'openvswitch' ) );
-                }
+            # Ex: <virtualport type="openvswitch"/>
+            if (str($net_mode) eq "openvswitch"){
+                my $virtualswitch_tag = $init_xml->createElement('virtualport');
+                $interface_tag->addChild($virtualswitch_tag);
+                $virtualswitch_tag->addChild($init_xml->createAttribute( type => 'openvswitch' ) );
+            }
 
-                # Ex: <target dev="vm1-e1"/>
-                my $target_tag = $init_xml->createElement('target');
-                $interface_tag->addChild($target_tag);
-                $target_tag->addChild( $init_xml->createAttribute( dev => "$vm_name-e$id" ) );
+            # Ex: <target dev="vm1-e1"/>
+            my $target_tag = $init_xml->createElement('target');
+            $interface_tag->addChild($target_tag);
+            $target_tag->addChild( $init_xml->createAttribute( dev => "$vm_name-e$id" ) );
 
-				# Ex: <mac address="02:fd:00:04:01:00"/>
-				my $mac_tag = $init_xml->createElement('mac');
-			    $interface_tag->addChild($mac_tag);
-			    $mac =~ s/,//;
-			    $mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
+			# Ex: <mac address="02:fd:00:04:01:00"/>
+			my $mac_tag = $init_xml->createElement('mac');
+			$interface_tag->addChild($mac_tag);
+			$mac =~ s/,//;
+			$mac_tag->addChild( $init_xml->createAttribute( address => $mac ) );
 
-                # <model type='e1000'/>
-                my $model_tag = $init_xml->createElement('model');
-                $interface_tag->addChild($model_tag);
-                $model_tag->addChild( $init_xml->createAttribute( type => 'e1000' ) );
+            # <model type='e1000'/>
+            my $model_tag = $init_xml->createElement('model');
+            $interface_tag->addChild($model_tag);
+            $model_tag->addChild( $init_xml->createAttribute( type => 'e1000' ) );
 			    
-			}			
+						
 
 			# DFC: set interface model to 'i82559er' in olive router interfaces.
 			#      If using e1000 instead, the interfaces are not created correctly (to further investigate) 
@@ -1109,6 +1157,24 @@ user();
         }
 		close (CONS_FILE); 
 
+        # <video> tag
+        if ( $virtualm->exists("./video") ) {
+            my $video_type = $virtualm->findnodes('./video')->[0]->to_literal();
+            wlog (VVV,"video type set to $video_type", $logp);
+            my $video_tag = $init_xml->createElement('video');
+            my $model_tag = $init_xml->createElement('model');
+            $video_tag->addChild($model_tag);
+            my @allowed_video_types = qw/vga cirrus vmvga xen vbox qxl/;
+            if ( grep( /^${video_type}$/, @allowed_video_types ) ) {
+                $model_tag->setAttribute( type => $video_type); 
+                #$video_tag->setAttribute( vram => "9216");
+                #$video_tag->setAttribute( heads => "1");
+                $devices_tag->addChild($video_tag);
+            } else {
+                wlog (N, "WARNING: unknown video card type: $video_type", $logp)                
+            }
+        }
+
         # <serial> tag --> host to VM (H2VM) communications channel       
         my $serial_tag = $init_xml->createElement('serial');
         if (USE_UNIX_SOCKETS == 1) { # Use a UNIX socket
@@ -1179,9 +1245,11 @@ user();
         }
 		
 		
-		if ($mng_if_exists){		
+        if ($mng_if_exists && $type ne 'libvirt-kvm-android'){      
+		#if ($mng_if_exists){		
 		
             # -device rtl8139,netdev=lan1 -netdev tap,id=lan1,ifname=ubuntu-e0,script=no,downscript=no
+            my $mgmt_eth_type = 'rtl8139';
 		
             my $qemucommandline_tag = $init_xml->createElement('qemu:commandline');
             $domain_tag->addChild($qemucommandline_tag);
@@ -1193,7 +1261,7 @@ user();
             $mng_if_mac =~ s/,//;
             my $qemuarg_tag2 = $init_xml->createElement('qemu:arg');
             $qemucommandline_tag->addChild($qemuarg_tag2);
-            $qemuarg_tag2->addChild( $init_xml->createAttribute( value => "rtl8139,netdev=mgmtif0,mac=$mng_if_mac" ) );
+            $qemuarg_tag2->addChild( $init_xml->createAttribute( value => "$mgmt_eth_type,netdev=mgmtif0,mac=$mng_if_mac" ) );
 				
             my $qemuarg_tag3 = $init_xml->createElement('qemu:arg');
             $qemucommandline_tag->addChild($qemuarg_tag3);
@@ -1304,7 +1372,7 @@ user();
 
         unless ($mounted) {
             wlog (VVV,  "cannot mount '$filesystem'. One-pass-autoconfiguration not possible", $logp);
-            #exit (1);
+            return $error
         }
         
 		#
@@ -1385,6 +1453,63 @@ user();
         # Dismount the rootfs image        
         $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
         
+    } elsif ( $type eq "libvirt-kvm-android") {
+        # Always configure android in this way (no vnxaced available for Android yet)    
+
+        wlog (V, "Android one-pass autoconfiguration", $logp);
+
+        my $rootfs_mount_dir = $dh->get_vm_dir($vm_name) . '/mnt';
+
+        # Big danger if rootfs mount directory ($rootfs_mount_dir) is empty: 
+        # host files will be modified instead of rootfs image ones
+        unless ( defined($rootfs_mount_dir) && $rootfs_mount_dir ne '' && $rootfs_mount_dir ne '/' ) {
+            die;
+        }
+
+        #
+        # Mount the root filesystem
+        # We loop mounting all image partitions till we find a /android*/system/etc directory
+        # 
+        my $mounted;
+        my $android_root;
+        for ( my $i = 1; $i < 5; $i++) {
+
+            wlog (VVV,  "Trying: vnx_mount_rootfs -p $i -r $filesystem $rootfs_mount_dir", $logp);
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -p $i -r $filesystem $rootfs_mount_dir");
+            #system "vnx_mount_rootfs -b -p $i -r $filesystem $rootfs_mount_dir";
+            if ( $? != 0 ) {
+                wlog (VVV,  "Cannot mount partition $i of '$filesystem'", $logp);
+                next
+            } else {
+                system "ls $rootfs_mount_dir/android*/system/etc  > /dev/null 2>&1";
+                unless ($?) {
+                    $mounted='true';
+                    $android_root = $rootfs_mount_dir . "/" . `basename $rootfs_mount_dir/android*`;
+                    chomp($android_root);
+                    print $android_root . "\n";
+                    last    
+                } else {
+                    wlog (VVV,  "/etc not found in partition $i of '$filesystem'", $logp);
+                }
+            }
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
+            #system "vnx_mount_rootfs -b -u $rootfs_mount_dir";
+        }
+
+        unless ($mounted) {
+            wlog (VVV,  "cannot mount '$filesystem'. Android one-pass-autoconfiguration not possible", $logp);
+            return $error
+            #exit (1);
+        }
+
+        # Parse VM config file
+        my $parser = XML::LibXML->new;
+        my $dom    = $parser->parse_file( $dh->get_vm_dir($vm_name) . "/${vm_name}_cconf.xml" );
+    
+        autoconfigure_android ($dom, $android_root);
+        # Dismount the rootfs image        
+        $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
+    
     }
 	
     return $error;
@@ -1422,7 +1547,8 @@ sub undefine_vm {
 	# undefine_vm for libvirt-kvm-windows/linux/freebsd/olive
 	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
-         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") || 
+         ($type eq "libvirt-kvm-android") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -1501,7 +1627,8 @@ sub start_vm {
     # start_vm for libvirt-kvm-windows/linux/freebsd/olive
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
-            ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
+         ($type eq "libvirt-kvm-android") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -1678,7 +1805,8 @@ sub shutdown_vm {
     # shutdown_vm for libvirt-kvm-windows/linux/freebsd#
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
-         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
+         ($type eq "libvirt-kvm-android") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -1731,82 +1859,6 @@ user();
     }
 }
 
-=BEGIN
-# ---------------------------------------------------------------------------------------
-#
-# destroy_vm
-#
-# Destroys a virtual machine 
-#
-# Arguments:
-#   - $vm_name: the name of the virtual machine
-#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
-# 
-# Returns:
-#   - undefined or '' if no error
-#   - string describing error, in case of error
-#
-# ---------------------------------------------------------------------------------------
-sub destroy_vm {
-
-	my $self   = shift;
-	my $vm_name = shift;
-	my $type   = shift;
-
-    my $logp = "libvirt-destroy_vm-$vm_name> ";
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-
-	my $error;
-	my $con;
-	
-	
-	#
-	# destroy_vm for libvirt-kvm-windows/linux/freebsd
-	#
-    if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
-         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
-
-        wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
-        eval { 
-root();
-            $con = Sys::Virt->new( address => $hypervisor, readonly => 0 );
-user();
-        };
-        if ($@) { return "Error connecting to $hypervisor hypervisor " . $@->stringify(); }
-
-        eval {
-root();
-			my @doms = $con->list_domains();
-	
-			$error = "VM $vm_name does not exist";
-			foreach my $listDom (@doms) {
-				my $dom_name = $listDom->get_name();
-				if ( $dom_name eq $vm_name ) {
-					$listDom->destroy();
-					wlog (V, "VM destroyed", $logp);
-	
-					# Delete vm directory (DFC 21/01/2010)
-					last;
-				}
-user();
-			}
-        };
-        if ($@) { return "Error calling $hypervisor hypervisor " . $@->stringify(); }
-
-root();
-		# Remove vm fs directory (cow and iso filesystems)
-		$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . $dh->get_vm_fs_dir($vm_name) . "/*" );
-user();
-		return $error;
-
-	}
-	else {
-		$error = "destroy_vm for type $type not implemented yet";
-		return $error;
-	}
-}
-=END
-=cut
 
 # ---------------------------------------------------------------------------------------
 #
@@ -1839,7 +1891,8 @@ sub suspend_vm {
     # suspend_vm for libvirt-kvm-windows/linux/freebsd
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
-         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
+         ($type eq "libvirt-kvm-android") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -1907,7 +1960,8 @@ sub resume_vm {
     # resume_vm for libvirt-kvm-windows/linux/freebsd
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
-         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
+         ($type eq "libvirt-kvm-android") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2077,8 +2131,8 @@ sub restore_vm {
 	# restore_vm for libvirt-kvm-windows/linux/freebsd#
 	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
-         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) 
-    {
+         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
+         ($type eq "libvirt-kvm-android") ) {
 	    
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2105,144 +2159,7 @@ user();
 	}
 }
 
-=BEGIN
-# ---------------------------------------------------------------------------------------
-#
-# reboot_vm
-#
-# Reboots a virtual machine
-#
-# Arguments:
-#   - $vm_name: the name of the virtual machine
-#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
-# 
-# Returns:
-#   - undefined or '' if no error
-#   - string describing error, in case of error
-#
-# ---------------------------------------------------------------------------------------
-sub reboot_vm {
 
-	my $self   = shift;
-	my $vm_name = shift;
-	my $type   = shift;
-
-    my $logp = "libvirt-reboot_vm-$vm_name> ";
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-
-	my $error;
-	my $con;
-
-	#
-	# reboot_vm for libvirt-kvm-windows/linux/freebsd #
-	#
-    if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
-         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
-
-        wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
-        eval { 
-root();
-            $con = Sys::Virt->new( address => $hypervisor, readonly => 0 );
-user();
-        };
-        if ($@) { return "Error connecting to $hypervisor hypervisor " . $@->stringify(); }
-
-		eval {
-root();
-			my @doms = $con->list_domains();
-			foreach my $listDom (@doms) {
-				my $dom_name = $listDom->get_name();
-				if ( $dom_name eq $vm_name ) {
-					$listDom->reboot(&Sys::Virt::Domain::REBOOT_RESTART);
-user();
-					wlog (V, "VM rebooting", $logp);
-					return $error;
-				}
-			}
-            $error = "VM $vm_name does not exist";
-user();
-		};
-		if ($@) { return "Error calling $hypervisor hypervisor " . $@->stringify(); }
-		
-		return $error;
-
-	}
-	else {
-		$error = "Type is not yet supported";
-		return $error;
-	}
-
-}
-
-# ---------------------------------------------------------------------------------------
-#
-# reset_vm
-#
-# Restores the status of a virtual machine form a file previously saved with save_vm
-#
-# Arguments:
-#   - $vm_name: the name of the virtual machine
-#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
-# 
-# Returns:
-#   - undefined or '' if no error
-#   - string describing error, in case of error
-#
-# ---------------------------------------------------------------------------------------
-sub reset_vm {
-
-	my $self   = shift;
-	my $vm_name = shift;
-	my $type   = shift;
-
-    my $logp = "libvirt-reset_vm-$vm_name> ";
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", $logp);
-
-	my $error;
-	my $con;
-
-	wlog (V, "reseting vm $vm_name", $logp);
-
-	#
-	# reset_vm for libvirt-kvm-windows/linux/freebsd
-	#
-    if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
-         ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ) {
-
-        wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
-        eval { 
-root();
-            $con = Sys::Virt->new( address => $hypervisor, readonly => 0 );
-user();
-        };
-        if ($@) { return "Error connecting to $hypervisor hypervisor " . $@->stringify(); }
-
-        eval {
-root();
-			my @doms = $con->list_domains();
-			foreach my $listDom (@doms) {
-				my $dom_name = $listDom->get_name();
-				if ( $dom_name eq $vm_name ) {
-					$listDom->reboot(&Sys::Virt::Domain::REBOOT_DESTROY);
-user();
-					wlog (V, "VM succesfully reset", $logp);
-					return $error;
-				}
-			}
-            $error = "VM $vm_name does not exist";
-user();
-        };
-        if ($@) { return "Error calling $hypervisor hypervisor " . $@->stringify(); }
-        
-		return $error;
-
-	}else {
-		$error = "Type is not yet supported";
-		return $error;
-	}
-}
-=END
-=cut
 
 # ---------------------------------------------------------------------------------------
 #
@@ -2694,9 +2611,8 @@ sub execute_cmd {
 	#
 	# execute_cmd for LINUX & FREEBSD
 	#
-	} elsif ( ($merged_type eq "libvirt-kvm-linux")   || 
-	          ($merged_type eq "libvirt-kvm-freebsd") || 
-	          ($merged_type eq "libvirt-kvm-olive") )    {
+	} elsif ( ($merged_type eq "libvirt-kvm-linux") || ($merged_type eq "libvirt-kvm-freebsd") || 
+	          ($merged_type eq "libvirt-kvm-olive") ) {
 		
         my $sdisk_content;
         my $sdisk_fname;
@@ -2727,7 +2643,8 @@ sub execute_cmd {
 	        $sdisk_content = $dh->get_vm_hostfs_dir($vm_name);
 	        # Umount first (just in case it was mounted by error)
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
-            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
+            #$execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
 	        # Delete the previous content of the shared disk (although it is done at 
 	        # the end of this sub, we do it again here just in case...) 
 	        $execution->execute( $logp, "rm -rf $sdisk_content/filetree/*");
@@ -2747,7 +2664,8 @@ sub execute_cmd {
         	# ...retrying inmediately seems to solve the problem...
             $retry--; wlog (VVV, "open failed for file $sdisk_content/command.xml...retrying", $logp);
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
-            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
+            #$execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
             if ( $retry ==  0 ) {
                 $execution->smartdie("cannot open " . $dh->get_vm_tmp_dir($vm_name) . "/command.xml $!" ) 
                 unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
@@ -2989,14 +2907,18 @@ sub execute_cmd {
             $vmsocket->close();	        
 	        #readSocketResponse ($vmsocket);
             # Cleaning
-            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
+            #$execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop,uid=$uid " . $sdisk_fname . " " . $sdisk_content );
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -o loop " . $sdisk_fname . " " . $sdisk_content );
             $execution->execute( $logp, "rm -rf $sdisk_content/filetree/*");
             $execution->execute( $logp, "rm -rf $sdisk_content/*.xml");
             $execution->execute( $logp, "rm -rf $sdisk_content/config/*");
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
 	    }
 
-	} 
+	} elsif ( ($merged_type eq "libvirt-kvm-android") ) {
+		$error = "Command execution not supported for libvirt-kvm-android VMs"
+	}
+	
 
     return $error;
 }

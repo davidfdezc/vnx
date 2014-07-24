@@ -41,7 +41,8 @@ our @EXPORT = qw(
 	get_admin_address
 	autoconfigure_debian_ubuntu
 	autoconfigure_redhat
-	autoconfigure_freebsd
+    autoconfigure_freebsd
+    autoconfigure_android
 	get_code_of_get_os_distro
 	);
 
@@ -348,6 +349,11 @@ sub get_console_win_info {
 # get_admin_address
 # 
 # 
+# Arguments:
+# - seed: if seed='file' indicates that the address has to be read from the VM file
+#                        that stores the management address ($dh->get_vm_dir($vm_name).'/mng_ip') 
+#         else ...
+
 # TODO: OBSOLETED...change this description!  
 #
 # Examples: 
@@ -389,16 +395,16 @@ sub get_admin_address {
     if ($seed eq "file"){
         wlog (VV, "seed=$seed, vm_name=$vm_name", $logp);
         # read management ip value from file
-        my $addr_vm   = &get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'addr_vm');
-        my $mask      = &get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'mask');
-        my $addr_host = &get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'addr_host');
+        my $addr_vm   = get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'addr_vm');
+        my $mask      = get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'mask');
+        my $addr_host = get_conf_value ($dh->get_vm_dir($vm_name) . '/mng_ip', '', 'addr_host');
         if ( $addr_vm && $mask && $addr_host ) {
 	        $ip{'vm'} = NetAddr::IP->new($addr_vm,$mask);
 	        $ip{'host'} = NetAddr::IP->new($addr_host,$mask);
 	        wlog (VVV, "returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr, $logp);
         }
     } else {
-    	wlog (VV, "seed=$seed, vm_name=$vm_name, vmmgmt_type=$vmmgmt_type", $logp);
+    	wlog (VV, "seed=$seed, vm_name=$vm_name, vmmgmt_type=$vmmgmt_type, get_vmmgmt_net/mask=" . $dh->get_vmmgmt_net . "/" . $dh->get_vmmgmt_mask, $logp);
         my $net = NetAddr::IP->new($dh->get_vmmgmt_net."/".$dh->get_vmmgmt_mask);
         if ($vmmgmt_type eq 'private') {
             # check to make sure that the address space won't wrap
@@ -410,9 +416,11 @@ sub get_admin_address {
             $ip{'host'} = NetAddr::IP->new($net->addr()."/30") + 1;
             $ip{'vm'}   = NetAddr::IP->new($net->addr()."/30") + 2;
 	
-        } else {
+        } elsif ($vmmgmt_type eq 'net') {
             # vmmgmt type is 'net'
             # don't assign the hostip
+            wlog (VV, "get_vmmgmt_hostip=" . $dh->get_vmmgmt_hostip, $logp);
+
             my $hostip = NetAddr::IP->new($dh->get_vmmgmt_hostip."/".$dh->get_vmmgmt_mask);
             if ($hostip > $net + $dh->get_vmmgmt_offset &&
                 $hostip <= $net + $dh->get_vmmgmt_offset + $seed + 1) {
@@ -425,21 +433,27 @@ sub get_admin_address {
             }
 	
             # return an address in the vmmgmt subnet
-            $ip{'vm'}   = NetAddr::IP->new($net + $dh->get_vmmgmt_offset + $seed + 1 ."/" . $dh->get_vmmgmt_mask) + 1;
+            $ip{'vm'}   = NetAddr::IP->new($net)  + $dh->get_vmmgmt_offset + $seed + 1;
             $ip{'host'} = $hostip;
+            wlog (VV, "returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr, $logp);
+        } else {
+            $ip{'vm'}   = NetAddr::IP->new('0.0.0.0');
+            $ip{'host'} = NetAddr::IP->new('0.0.0.0');
         }
 
-        # create mng_ip file in run dir
-        my $addr_vm_line = "addr_vm=" . $ip{'vm'}->addr();
-        my $mask_line = "mask=" . $ip{'host'}->mask();
-        my $addr_host_line = "addr_host=" . $ip{'host'}->addr();
-        my $mngip_file = $dh->get_vm_dir($vm_name) . '/mng_ip';
-        wlog (VV, "mngip_file=$mngip_file", $logp);
-        open MNGIP, "> $mngip_file"
-            or $execution->smartdie("can not open $mngip_file")
-                unless ( $execution->get_exe_mode() eq $EXE_DEBUG );        
-        print MNGIP "$addr_vm_line\n$mask_line\n$addr_host_line\n";
-        close MNGIP; 
+        if ($vm_name ne '') {
+	        # create mng_ip file in run dir
+	        my $addr_vm_line = "addr_vm=" . $ip{'vm'}->addr();
+	        my $mask_line = "mask=" . $ip{'host'}->mask();
+	        my $addr_host_line = "addr_host=" . $ip{'host'}->addr();
+	        my $mngip_file = $dh->get_vm_dir($vm_name) . '/mng_ip';
+	        wlog (VV, "mngip_file=$mngip_file", $logp);
+	        open MNGIP, "> $mngip_file"
+	            or $execution->smartdie("can not open $mngip_file")
+	                unless ( $execution->get_exe_mode() eq $EXE_DEBUG );        
+	        print MNGIP "$addr_vm_line\n$mask_line\n$addr_host_line\n";
+	        close MNGIP;         	
+        }
         wlog (VV, "returns: addr_vm=". $ip{'vm'}->addr . ", mask=" . $ip{'vm'}->mask . ", addr_host=" . $ip{'host'}->addr, $logp);
     }
 
@@ -1137,6 +1151,221 @@ sub autoconfigure_freebsd {
 
     return $error;            
 }
+
+#
+# autoconfigure for Android
+#
+sub autoconfigure_android {
+    
+    my $dom         = shift; # DOM object of VM XML specification
+    my $rootfs_mdir = shift; # Directory where the rootfs image is mounted
+    my $os_type     = shift; # ubuntu or debian
+    my $error;
+    
+    my $logp = "autoconfigure_android> ";
+
+    wlog (VVV, "rootfs_mdir=$rootfs_mdir", $logp);
+    
+    # Big danger if rootfs mount directory ($rootfs_mdir) is empty: 
+    # host files will be modified instead of rootfs image ones
+    unless ( defined($rootfs_mdir) && $rootfs_mdir ne '' && $rootfs_mdir ne '/' ) {
+        die;
+    }    
+
+    my $vm = $dom->findnodes("/create_conf/vm")->[0];
+    my $vm_name = $vm->getAttribute("name");
+
+    wlog (VVV, "vm_name=$vm_name, rootfs_mdir=$rootfs_mdir", $logp);
+
+    # Files modified
+    my $sysctl_file     = "$rootfs_mdir" . "/system/etc/sysctl.conf";
+    my $build_prop_file = "$rootfs_mdir" . "/system/build.prop";
+    my $init_sh         = "$rootfs_mdir" . "/system/etc/init.sh";
+    my $hosts_file      = "$rootfs_mdir" . "/system/etc/hosts";
+    
+        
+    # Network routes configuration: we read all <route> tags
+    # and store the ip route configuration commands in @ip_routes
+    my @ipv4_routes;       # Stores the IPv4 route configuration lines
+    my @ipv4_routes_gws;   # Stores the IPv4 gateways of each route
+    my @ipv6_routes;       # Stores the IPv6 route configuration lines
+    my @ipv6_routes_gws;   # Stores the IPv6 gateways of each route
+    my @route_list = $vm->getElementsByTagName("route");
+    for (my $j = 0 ; $j < @route_list; $j++){
+        my $route_tag  = $route_list[$j];
+        my $route_type = $route_tag->getAttribute("type");
+        my $route_gw   = $route_tag->getAttribute("gw");
+        my $route      = $route_tag->getFirstChild->getData;
+        if ($route_type eq 'ipv4') {
+            if ($route eq 'default') {
+                push (@ipv4_routes, "ip route add default via " . $route_gw . "\n");
+            } else {
+                push (@ipv4_routes, "ip route add $route via " . $route_gw . "\n");
+            }
+            push (@ipv4_routes_gws, $route_gw);
+        } elsif ($route_type eq 'ipv6') {
+            if ($route eq 'default') {
+                push (@ipv6_routes, "route -A inet6 add default gw " . $route_gw . "\n");
+            } else {
+                push (@ipv6_routes, "   up route -A inet6 add $route gw " . $route_gw . "\n");
+            }
+            push (@ipv6_routes_gws, $route_gw);
+        }
+    }   
+
+    # Network interfaces configuration: <if> tags
+    my @ipv4_ifs;       # Stores the IPv4 interfaces configuration lines
+    my @ipv6_ifs;       # Stores the IPv6 interfaces configuration lines
+    
+    my @if_list = $vm->getElementsByTagName("if");
+    for (my $j = 0 ; $j < @if_list; $j++){
+        my $if  = $if_list[$j];
+        my $id  = $if->getAttribute("id");
+        my $net = $if->getAttribute("net");
+        my $mac = $if->getAttribute("mac");
+        $mac =~ s/,//g;
+
+        if ($id gt 2) { next };
+
+        my $if_name;
+        # Special cases: loopback interface and management
+#        if ( !defined($net) && $id == 0 ) {
+#            $if_name = "eth" . $id;
+#        } elsif ( $net eq "lo" ) {
+#            $if_name = "lo:" . $id;
+#        } else {
+            #$if_name = "eth" . $id;
+            
+        if ($dh->get_vmmgmt_type eq 'net') {
+            if ($id=="0") {
+                $if_name = "eth1";
+            } elsif ($id=="1") {
+                $if_name = "eth0";
+            }
+        } elsif ($dh->get_vmmgmt_type eq 'private') {
+            $if_name = "eth" . $id;
+        } else {
+            if ($id=="1") {
+                $if_name = "eth1";
+            } elsif ($id=="2") {
+                $if_name = "eth0";
+            }        	
+        }
+
+        my @ipv4_tag_list = $if->getElementsByTagName("ipv4");
+        my @ipv6_tag_list = $if->getElementsByTagName("ipv6");
+        my @ipv4_addr_list;
+        my @ipv4_mask_list;
+        my @ipv6_addr_list;
+        my @ipv6_mask_list;
+
+        if ( (@ipv4_tag_list == 0 ) && ( @ipv6_tag_list == 0 ) ) {
+            # No addresses configured for the interface. We include the following commands to 
+            # have the interface active on start
+            #if ( $net eq "lo" ) {
+            #    push (@ipv4_ifs, "iface " . $if_name . " inet static\n");
+            #} else {
+            #    push (@ipv4_ifs, "iface " . $if_name . " inet manual\n");
+            #}
+        } else {
+            # Config IPv4 addresses
+            for ( my $k = 0 ; $k < @ipv4_tag_list ; $k++ ) {
+
+                my $ipv4 = $ipv4_tag_list[$k];
+                my $mask = $ipv4->getAttribute("mask");
+                my $ip   = $ipv4->getFirstChild->getData;
+
+                if ($ip eq 'dhcp') {
+                    #push (@ipv4_ifs, "netcfg " . $if_name . " dhcp\n");         
+                    #push (@ipv4_ifs, "start dhcpd_${if_name}:${if_name}\n"); 
+                    #push (@ipv4_ifs, "dhcpcd -LK -d ${if_name}\n");       
+                    #push (@ipv4_ifs, "setprop net.dns${j} \\\`getprop dhcp.eth${j}.dns1\\\`\n");
+                } else {
+                	
+                    push (@ipv4_ifs, "ip link set " . $if_name . " up\n");
+                    push (@ipv4_ifs, "ip addr add dev " . $if_name . " $ip/$mask\n");
+                    #push (@ipv4_ifs, "ifconfig " . $if_name . " $ip netmask $mask\n");
+                    push (@ipv4_addr_list, $ip);
+                    push (@ipv4_mask_list, $mask);
+                }                
+                
+            }
+            # Config IPv6 addresses
+            for ( my $j = 0 ; $j < @ipv6_tag_list ; $j++ ) {
+
+                my $ipv6 = $ipv6_tag_list[$j];
+                my $ip   = $ipv6->getFirstChild->getData;
+                my $mask = $ip;
+                $mask =~ s/.*\///;
+                $ip =~ s/\/.*//;
+
+                if ($ip eq 'dhcp') {
+                    push (@ipv4_ifs, "netcfg " . $if_name . " dhcp\n"); # TODO: investigate command...                  
+                } else {
+                	push (@ipv6_ifs, "ifconfig " . $if_name . " $ip netmask $mask\n");
+                    push (@ipv6_addr_list, $ip);
+                    push (@ipv6_mask_list, $mask);
+                }
+            }
+
+        }
+    }
+        
+    # Packet forwarding: <forwarding> tag
+    my $ipv4_forwarding = 0;
+    my $ipv6_forwarding = 0;
+    my @forwarding_list = $vm->getElementsByTagName("forwarding");
+    for (my $j = 0 ; $j < @forwarding_list ; $j++){
+        my $forwarding = $forwarding_list[$j];
+        my $forwarding_type = $forwarding->getAttribute("type");
+        if ($forwarding_type eq "ip"){
+            $ipv4_forwarding = 1;
+            $ipv6_forwarding = 1;
+        } elsif ($forwarding_type eq "ipv4"){
+            $ipv4_forwarding = 1;
+        } elsif ($forwarding_type eq "ipv6"){
+            $ipv6_forwarding = 1;
+        }
+    }
+    wlog (VVV, "   configuring ipv4 ($ipv4_forwarding) and ipv6 ($ipv6_forwarding) forwarding in $sysctl_file...", $logp);
+    system "echo >> $sysctl_file ";
+    system "echo '# Configured by VNX' >> $sysctl_file ";
+    system "echo 'net.ipv4.ip_forward=$ipv4_forwarding' >> $sysctl_file ";
+    system "echo 'net.ipv6.conf.all.forwarding=$ipv6_forwarding' >> $sysctl_file ";
+    # Configuring /etc/hosts and /etc/hostname
+    wlog (VVV, "   configuring $hosts_file and $build_prop_file", $logp);
+    system "cp $hosts_file $hosts_file.backup";
+    # Delete loopback entries (127.0.0.1 and 127.0.1.1)
+    system "sed -i -e '/127.0.0.1/d' -e '/127.0.1.1/d' $hosts_file";
+    # Insert the new 127.0.0.1 line
+    system "echo \"127.0.0.1  localhost $vm_name\" >> $hosts_file";
+    # Insert the new 127.0.0.1 line
+    #system "sed -i -e '2i\ 127.0.1.1  $vm_name' $hosts_file";
+    # Change hostname in /system/build.prop
+    system "echo \"net.hostname=$vm_name\" >> $build_prop_file";
+
+    # Configuring init.sh
+    foreach my $if (@ipv4_ifs) {
+    	print $if;
+        system "echo \"$if\" >> $init_sh";
+    }
+    foreach my $if (@ipv6_ifs) {
+        system "echo \"$if\" >> $init_sh";
+    }
+    foreach my $route (@ipv4_routes) {
+        system "echo \"$route\" >> $init_sh";
+    }
+    foreach my $route (@ipv6_routes) {
+        system "echo \"$route\" >> $init_sh";
+    }
+    system "sed -i -e 's/return 0//' $init_sh";
+    system "echo \"return 0\" >> $init_sh";
+    return $error;
+    
+}
+
+#-------------------------------------
+
 
 #
 # Converts a CIDR prefix length to a dot notation mask

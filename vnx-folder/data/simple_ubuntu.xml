@@ -29,6 +29,7 @@ SPAIN
   <global>
     <version>2.0</version>
     <scenario_name>simple_ubuntu</scenario_name>
+    <!--ssh_key>~/.ssh/id_dsa.pub</ssh_key-->
     <automac offset="4"/>
     <!--vm_mgmt type="none" /-->
     <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="12">
@@ -89,6 +90,8 @@ SPAIN
     <hostif net="Net0">
        <ipv4>10.1.0.1/24</ipv4>
     </hostif>
+    <exec seq="on_boot" type="verbatim">echo "ubuntu vm started" > /tmp/ubuntu_status</exec>
+    <exec seq="on_shutdown" type="verbatim">echo "ubuntu vm stopped" > /tmp/ubuntu_status</exec>    
   </host>
   
 </vnx>

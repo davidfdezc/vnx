@@ -6,7 +6,7 @@
 #
 # Author: David Fernández (david@dit.upm.es), based on a previous version for VNUML
 #         made by Francisco J. Monserrat (RedIRIS)
-# Copyright (C) 2011,2013	DIT-UPM
+# Copyright (C) 2011-2014	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN
@@ -181,16 +181,19 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
         }
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "linux")) { 
     	$ctype="linux";
-        $vm_legend{"linux"} = "libvirt kvm Linux"       
+        $vm_legend{"linux"} = "libvirt KVM Linux"       
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "freebsd")) { 
         $ctype="freebsd";
-        $vm_legend{"freebsd"} = "libvirt kvm FreeBSD"       
+        $vm_legend{"freebsd"} = "libvirt KVM FreeBSD"       
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "win")) { 
         $ctype="windows";
-        $vm_legend{"windows"} = "libvirt kvm Windows"       
+        $vm_legend{"windows"} = "libvirt KVM Windows"       
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "olive")) { 
         $ctype="olive";
-        $vm_legend{"olive"} = "libvirt kvm Olive router"       
+        $vm_legend{"olive"} = "libvirt KVM Olive router"       
+    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "android")) { 
+        $ctype="android";
+        $vm_legend{"android"} = "libvirt KVM Android"       
     } elsif ($type eq "lxc") { 
         $ctype=$type;
         $vm_legend{"lxc"} = "Linux Containers"

@@ -7,7 +7,7 @@
 #             Jorge Somavilla (somavilla@dit.upm.es), Jorge Rodriguez (jrodriguez@dit.upm.es), 
 #             Carlos González (carlosgonzalez@dit.upm.es)
 # Coordinated by: David Fernández (david@dit.upm.es)
-# Copyright (C) 2005-2013 DIT-UPM
+# Copyright (C) 2005-2014 DIT-UPM
 #                         Departamento de Ingenieria de Sistemas Telematicos
 #                         Universidad Politecnica de Madrid
 #                         SPAIN
@@ -60,6 +60,7 @@ use Getopt::Long;
 use IO::Socket;
 use NetAddr::IP;
 use Data::Dumper;
+use v5.10;
 
 use XML::LibXML;
 use XML::Tidy;
@@ -185,7 +186,7 @@ sub main {
                 'rootfs-type=s', 'help|h', 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'user|u:s', '4', '6', 'D', 'no-console|n', 'intervm-delay=s',
-                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k' 
+                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k', 'video=s'
     ) or vnx_die("Incorrect usage. Type 'vnx -h' for help"); 
 
     #
@@ -447,7 +448,30 @@ $>=$uid;
         $input_file = $opts{f};
         $xml_dir = (fileparse(abs_path($input_file)))[1];
     } elsif (defined($opts{'scenario'})){
-        $input_file = "$vnx_dir/scenarios/$opts{'scenario'}/$opts{'scenario'}.xml";
+
+        my $scename=$opts{'scenario'};
+        my $scen_dir="$vnx_dir/scenarios/$scename";
+		
+        unless (-d $scen_dir) { vnx_die ("ERROR: no scenario named $scename found in $vnx_dir\n") }
+
+        my @files = glob ($scen_dir . "/*.xml");
+		
+        if ( @files == 0 ) { vnx_die ("ERROR: no scenario XML file not found in $scen_dir\n") }
+        elsif ( @files gt 1 ) {
+            my $found=0;
+            foreach my $file (@files) {
+                if (`grep "<scenario_name>$scename<" $file`) {
+                    $input_file=$file;
+                    $found++;
+                }
+            }
+            if    ($found == 0) { vnx_die ("ERROR: no XML with scenario_name=$scename found in $scen_dir\n") }
+            elsif ($found > 1 ) { vnx_die ("ERROR: two or more XML files with scenario_name=$scename found in $scen_dir\n") }
+        } else {
+            $input_file=$files[0];
+        }
+		#print "escenario XML file: $input_file\n"
+        #$input_file = "$vnx_dir/scenarios/$opts{'scenario'}/$opts{'scenario'}.xml";
         $xml_dir = getcwd();
     } 
     pre_wlog ("  INPUT file: " . $input_file) if ( (!$opts{b}) && ($opts{f} || $opts{scenario}) );
@@ -1021,8 +1045,33 @@ sub build_topology{
     # To make lock file (it exists while scenario is running)
     $execution->execute( $logp, $bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_sim_dir . "/lock");
 
-    # Create the mgmn_net socket when <vmmgnt type="net">, if needed
-    if (($dh->get_vmmgmt_type eq "net") && ($dh->get_vmmgmt_autoconfigure ne "")) {
+    if ( $dh->get_vmmgmt_type eq "net" )  {
+        # Create the mgmn_net
+        my $mgmt_net = $dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("net");
+        if (empty($mgmt_net)) { $mgmt_net = $mgmt_net . "-mgmt" };
+        my $managed = $dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("managed");
+
+        # If the bridge is not managed (i.e with attribute managed='no') and it 
+        # does not exist raise an error
+        if ( str($managed) eq 'no' && $mgmt_net ne $mgmt_net . "-mgmt" && ! vnet_exists_br($mgmt_net, 'virtual_bridge') ) {
+        	
+            $execution->smartdie ("\nERROR: Management bridge $mgmt_net does not exist and it's configured with attribute managed='no'.\n" . 
+                                  "       Non-managed bridges are not created/destroyed by VNX. They must exist in advance.")
+        }
+
+        unless ( vnet_exists_br($mgmt_net, 'virtual_bridge') || str($managed) eq 'no' ) {
+            # If bridged does not exists, we create and set up it
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addbr $mgmt_net");
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $mgmt_net off");
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $mgmt_net up");      
+            
+            # Get config host management interface IP address
+            my %mng_addr = get_admin_address( 0, '', 'net' );
+            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . 
+                                     $mng_addr{'host'}->addr() . "/" . $mng_addr{'vm'}->mask() . " dev $mgmt_net");
+                  
+        }        
+=BEGIN
         if ($> == 0) {
             my $sock = $dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock");
             if (empty($sock)) { $sock = ''}
@@ -1036,6 +1085,8 @@ sub build_topology{
         } else {
             wlog (V, "VNX warning: <mgmt_net> autoconfigure attribute only is used when VNX parser is invoked by root. Ignoring socket autoconfiguration", $logp);
         }
+=END
+=cut        
     }
 
     # 1. To perform configuration for bridged virtual networks (<net mode="virtual_bridge">) and TUN/TAP for management
@@ -1110,7 +1161,7 @@ sub define_vms {
         }
         
         # Create VM XML definition to be passed to vmAPIs define_vm function
-        $vm_doc = make_vmAPI_doc($vm,$mngt_ip_data); 
+        $vm_doc = make_vmAPI_doc($vm, $merged_type, $mngt_ip_data); 
            
         # call the corresponding vmAPI->define_vm
         my $vm_type = $vm->getAttribute("type");
@@ -1176,10 +1227,11 @@ sub create_vm_dirs {
 sub make_vmAPI_doc {
     
     my $vm           = shift;
+    my $merged_type  = shift;
     my $mngt_ip_data = shift;
 
+    my $doc = $dh->get_doc;
     my $dom;
-   
     $dom = XML::LibXML->createDocument( "1.0", "UTF-8" );
    
     my $create_conf_tag = $dom->createElement('create_conf');
@@ -1246,45 +1298,56 @@ sub make_vmAPI_doc {
     my $mem_tag = $dom->createElement('mem');
     $vm_tag->addChild($mem_tag);
     $mem_tag->addChild($dom->createTextNode($mem));
-   
-    # kernel to be booted
-    my $kernel;
-    my @params;
-    my @build_params;
-    my  @kernel_list = $vm->getElementsByTagName("kernel");
-      
-    # kernel tag in dom tree
-    my $kernel_tag = $dom->createElement('kernel');
-    $vm_tag->addChild($kernel_tag);
-    if (@kernel_list == 1) {
-        my $kernel_item = $kernel_list[0];
-        $kernel = do_path_expansion(text_tag($kernel_item));         
-        # to dom tree
-        $kernel_tag->addChild($dom->createTextNode($kernel));
-        # Set kernel attributes         
-        #if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
-        unless ( empty($kernel_item->getAttribute("initrd")) ) {
-            $kernel_tag->addChild($dom->createAttribute( initrd => $kernel_item->getAttribute("initrd")));
-        }
-        #if ( $kernel_item->getAttribute("devfs") !~ /^$/ ) {
-        unless ( empty($kernel_item->getAttribute("devfs")) ) {
-            $kernel_tag->addChild($dom->createAttribute( devfs => $kernel_item->getAttribute("devfs")));
-        }
-        #if ( $kernel_item->getAttribute("root") !~ /^$/ ) {
-        unless ( empty($kernel_item->getAttribute("root"))) {
-            $kernel_tag->addChild($dom->createAttribute( root => $kernel_item->getAttribute("root")));
-        }
-        #if ( $kernel_item->getAttribute("modules") !~ /^$/ ) {
-        unless ( empty($kernel_item->getAttribute("modules")) ) {
-            $kernel_tag->addChild($dom->createAttribute( modules => $kernel_item->getAttribute("modules")));
-        }
-        if ( $kernel_item->getAttribute("trace") eq "on" ) {
-            $kernel_tag->addChild($dom->createAttribute( trace => $kernel_item->getAttribute("trace")));
-        }
+
+    # video tag
+    if( $vm->exists("./video") ){
+        my $video_type = $vm->findnodes('./video')->[0]->to_literal();
+        my $video_tag = $dom->createElement('video');
+        $video_tag->appendTextNode($video_type);
+        $vm_tag->addChild($video_tag);
+        wlog (VVV,"video type set to $video_type", $logp);
     }
-    else {      
-        # include a 'default' in dom tree
-        $kernel_tag->addChild($dom->createTextNode('default'));
+   
+    # kernel to be booted (only for UML)
+    if ($merged_type eq 'uml') {
+	    my $kernel;
+	    my @params;
+	    my @build_params;
+	    my  @kernel_list = $vm->getElementsByTagName("kernel");
+	      
+	    # kernel tag in dom tree
+	    my $kernel_tag = $dom->createElement('kernel');
+	    $vm_tag->addChild($kernel_tag);
+	    if (@kernel_list == 1) {
+	        my $kernel_item = $kernel_list[0];
+	        $kernel = do_path_expansion(text_tag($kernel_item));         
+	        # to dom tree
+	        $kernel_tag->addChild($dom->createTextNode($kernel));
+	        # Set kernel attributes         
+	        #if ( $kernel_item->getAttribute("initrd") !~ /^$/ ) {
+	        unless ( empty($kernel_item->getAttribute("initrd")) ) {
+	            $kernel_tag->addChild($dom->createAttribute( initrd => $kernel_item->getAttribute("initrd")));
+	        }
+	        #if ( $kernel_item->getAttribute("devfs") !~ /^$/ ) {
+	        unless ( empty($kernel_item->getAttribute("devfs")) ) {
+	            $kernel_tag->addChild($dom->createAttribute( devfs => $kernel_item->getAttribute("devfs")));
+	        }
+	        #if ( $kernel_item->getAttribute("root") !~ /^$/ ) {
+	        unless ( empty($kernel_item->getAttribute("root"))) {
+	            $kernel_tag->addChild($dom->createAttribute( root => $kernel_item->getAttribute("root")));
+	        }
+	        #if ( $kernel_item->getAttribute("modules") !~ /^$/ ) {
+	        unless ( empty($kernel_item->getAttribute("modules")) ) {
+	            $kernel_tag->addChild($dom->createAttribute( modules => $kernel_item->getAttribute("modules")));
+	        }
+	        if ( $kernel_item->getAttribute("trace") eq "on" ) {
+	            $kernel_tag->addChild($dom->createAttribute( trace => $kernel_item->getAttribute("trace")));
+	        }
+	    }
+	    else {      
+	        # include a 'default' in dom tree
+	        $kernel_tag->addChild($dom->createTextNode('default'));
+	    }        
     }
     
     # conf tag
@@ -1327,10 +1390,17 @@ sub make_vmAPI_doc {
 
     # Management interface, if needed
     my $mng_if_value = mng_if_value($vm);
+    my $mng_if_tag;
     #$mng_if_tag->addChild( $dom->createAttribute( value => $mng_if_value));      
     # aquí es donde hay que meter las ips de gestion
     # si mng_if es distinto de no, metemos un if id 0
     unless ( ($dh->get_vmmgmt_type eq 'none' ) || ($mng_if_value eq "no") ) {
+    #if ( (! $dh->get_vmmgmt_type eq 'none' ) && (! $mng_if_value eq "no" ) || 
+    #      $merged_type eq 'libvirt-kvm-android') {  # Note: in android we always create the management interface,
+                                                    # even if it is not defined. That is to conserve the if names
+                                                    # inside the virtual machine (eth0->mgmt, eth1->id=1, etc).
+                                                    # As android does not seem to include a 'udev' similar functionality,
+                                                    # that is the only way (we know) to maintain names stable...
 
         # Some virtual machine types, e.g. Dynamips, need
         # to specify the name of the mgmt interface with a tag like this:
@@ -1350,26 +1420,49 @@ sub make_vmAPI_doc {
             }
         }
 
-        my $mng_if_tag = $dom->createElement('if');
-        $vm_tag->addChild($mng_if_tag);
+        $mng_if_tag = $dom->createElement('if');
+        unless  ($merged_type eq 'libvirt-kvm-android' && $dh->get_vmmgmt_type eq 'net') {
+            $vm_tag->addChild($mng_if_tag);
+        }            
 
         my $mac = automac($vm_order, 0);
         $mng_if_tag->addChild( $dom->createAttribute( mac => $mac));
 
+	    # Get management bridge name vm_mgmt is of type='net' (used later)
+	    my $mgmt_net;
+	    if ( $dh->get_vmmgmt_type eq 'net' ) {
+	        $mgmt_net = $dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("net");
+	        if (empty($mgmt_net)) { $mgmt_net = $mgmt_net . "-mgmt" };
+	    } elsif ( $dh->get_vmmgmt_type eq 'private' ){
+	    	$mgmt_net = '';
+	    }
+        $mng_if_tag->addChild( $dom->createAttribute( net => $mgmt_net));
+
         if (defined $mgmtIfName) {
             $mng_if_tag->addChild( $dom->createAttribute( name => $mgmtIfName));
         }
+ 
+ #       if ($merged_type eq 'libvirt-kvm-android') {
+ #           $mng_if_tag->addChild( $dom->createAttribute( id => 1));
+ #       } else {
+            $mng_if_tag->addChild( $dom->createAttribute( id => 0));
+ #       }
+        if ( ($dh->get_vmmgmt_type eq 'private') || 
+             ( ($dh->get_vmmgmt_type eq 'net') && ( str($dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("config")) eq 'manual') ) ) {
+	        my %mng_addr = get_admin_address( $mngt_ip_data, $vm_name, $dh->get_vmmgmt_type );
 
-
-        my %mng_addr = get_admin_address( $mngt_ip_data, $vm_name, $dh->get_vmmgmt_type);
-        $mng_if_tag->addChild( $dom->createAttribute( id => 0));
-
-        my $ipv4_tag = $dom->createElement('ipv4');
-        $mng_if_tag->addChild($ipv4_tag);
-        my $mng_mask = $mng_addr{'vm'}->mask();
-        $ipv4_tag->addChild( $dom->createAttribute( mask => $mng_mask));
-        my $mng_ip = $mng_addr{'vm'}->addr();
-        $ipv4_tag->addChild($dom->createTextNode($mng_ip));
+	        my $ipv4_tag = $dom->createElement('ipv4');
+	        $mng_if_tag->addChild($ipv4_tag);
+	        my $mng_mask = $mng_addr{'vm'}->mask();
+	        $ipv4_tag->addChild( $dom->createAttribute( mask => $mng_mask));
+	        my $mng_ip = $mng_addr{'vm'}->addr();
+	        $ipv4_tag->addChild($dom->createTextNode($mng_ip));
+        } else { 
+        	# mgmt interfaces of type 'net' and autoconfigured with dhcp
+            my $ipv4_tag = $dom->createElement('ipv4');
+            $mng_if_tag->addChild($ipv4_tag);
+            $ipv4_tag->addChild($dom->createTextNode('dhcp'));
+        }
       
     }
    
@@ -1407,18 +1500,23 @@ sub make_vmAPI_doc {
              
             # if tags in dom tree 
             my $if_tag = $dom->createElement('if');
-            $vm_tag->addChild($if_tag);
+
+            # Dirty hack to change the order of interfaces for Android when mgmt=none 
+            if ( $dh->get_vmmgmt_type eq 'none' && $merged_type eq 'libvirt-kvm-android') {
+                my $last_node = $vm_tag->lastChild;
+                if ( defined($last_node) && $last_node->nodeName eq 'if') { 
+                    $vm_tag->insertBefore( $if_tag, $last_node );
+                } else {
+                $vm_tag->addChild($if_tag);
+                }
+            } else {
+                $vm_tag->addChild($if_tag);
+            }
+
             $if_tag->addChild( $dom->createAttribute( id => $id));
             $if_tag->addChild( $dom->createAttribute( net => $net));
             $if_tag->addChild( $dom->createAttribute( mac => $mac));
  
-# BORRAR           
-#            if (get_net_by_mode($net,"virtual_bridge") != 0){
-#                $if_tag->addChild( $dom->createAttribute( netType => "virtual_bridge"));
-#            } elsif(get_net_by_mode($net,"openvswitch") != 0){
-#                $if_tag->addChild( $dom->createAttribute( netType => "openvswitch"));
-#            }
-
             my $name = $if->getAttribute("name");
             unless (empty($name)) { 
                 $if_tag->addChild( $dom->createAttribute( name => $name)) 
@@ -1439,10 +1537,10 @@ sub make_vmAPI_doc {
                         $ip =~ /^(\d+).(\d+).(\d+).(\d+).*$/;
                         $ip = "$1.$2.$3.$4";
                     }
-                    else { 
+                    elsif ($ip ne 'dhcp') { 
                         # Check the value of the mask attribute
                         my $ipv4_mask_attr = $ipv4->getAttribute("mask");
-                        if ($ipv4_mask_attr ne "") {
+                        if (str($ipv4_mask_attr) ne "") {
                             # Slashed or dotted?
                             if (valid_dotted_mask($ipv4_mask_attr)) {
                                 $ipv4_effective_mask = $ipv4_mask_attr;
@@ -1494,7 +1592,11 @@ sub make_vmAPI_doc {
              }
         }
     }
-      
+
+    # For Android, mgmt interface must be the last one in case of type 'net'
+    if (defined($mng_if_tag) && $merged_type eq 'libvirt-kvm-android' && $dh->get_vmmgmt_type eq 'net') {
+            $vm_tag->addChild($mng_if_tag);
+    }            
      
     # ip routes 
     my @route_list = $dh->merge_route($vm);
@@ -1604,8 +1706,9 @@ sub make_vmAPI_doc {
     }
   
     # <ssh_key> tag
-    my @ssh_key_list = $dh->get_doc->getElementsByTagName("global")->item(0)->getElementsByTagName("ssh_key");
-    unless (@ssh_key_list == 0) {
+    # Ex:   <ssh_key>~/.ssh/id_dsa.pub</ssh_key>
+    if( $doc->exists("/vnx/global/ssh_key") ){
+        my @ssh_key_list = $doc->findnodes('/vnx/global/ssh_key');
         my $ftree_num = $vm_plugin_ftrees+$vm_ftrees+1;
         wlog (VVV,"ssh ftree_num=$ftree_num");
         my $ssh_key_dir = $dh->get_vm_tmp_dir($vm_name) . "/on_boot/filetree/$ftree_num";
@@ -1616,7 +1719,10 @@ sub make_vmAPI_doc {
             wlog (V, "<ssh_key> file: $key_file");
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"cat"}
                                  . " $key_file >>" . $ssh_key_dir . "/ssh_keys" );
+            # Add the original <ssh> tags to VM xml
+            $vm_tag->addChild($ssh_key);
         }
+        
         # Add a <filetree> to copy ssh keys
         my $ftree_tag = XML::LibXML::Element->new('filetree');
         $ftree_tag->setAttribute( seq => "on_boot");
@@ -1628,13 +1734,14 @@ sub make_vmAPI_doc {
         $exec_tag->setAttribute( seq => "on_boot");
         $exec_tag->setAttribute( type => "verbatim" );
         $exec_tag->setAttribute( ostype => "system" );
-        $exec_tag->appendTextNode ("cat /tmp/ssh_keys >> /root/.ssh/authorized_keys; rm /tmp/ssh_keys");            
+        $exec_tag->appendTextNode ("mkdir -p /root/.ssh; cat /tmp/ssh_keys >> /root/.ssh/authorized_keys; rm /tmp/ssh_keys");            
         $vm_tag->addChild($exec_tag);
     }
   
 =BEGIN 
 # Original code of ssh key management
 # TODO: process the ssh keys in <user> tag
+   
 
         # Next install vm-specific keys and add users and groups
         my @user_list = $dh->merge_user($vm);
@@ -1803,11 +1910,19 @@ sub destroy_vm_interfaces {
     my $mng_if_value = mng_if_value($vm);
           
     #if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") && ($vm_type ne 'lxc')) {
-    if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") ) {
+    #if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") && $merged_type ne 'libvirt-kvm-android') {
+    if ( ( $dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no" ) || 
+         ( $dh->get_vmmgmt_type eq 'net' && $mng_if_value ne "no" && $merged_type eq 'libvirt-kvm-android') ) {
         my $tun_if = $vm_name . "-e0";
         $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
         #$execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $tun_if -f " . $dh->get_tun_device);
         $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link del $tun_if ");
+    }
+
+    # If VM of type android, destroy the bridgre created for its management interface
+    if ( $merged_type eq 'libvirt-kvm-android' &&  $dh->get_vmmgmt_type eq 'private')  {
+       $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set ${vm_name}-mgmt down");
+       $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " delbr ${vm_name}-mgmt");
     }
 
     # To get interfaces list
@@ -1868,7 +1983,19 @@ sub destroy_topology {
     # 6. To remove bridges
     bridges_destroy();
 
-    # Destroy the mgmn_net socket when <vmmgnt type="net">, if needed
+    # If the VM management interfaces are of type 'net', destroy the virtual bridge that supports it (if managed)
+    if ($dh->get_vmmgmt_type eq "net") {
+	    my $mgmt_net = $dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("net");
+	    if (empty($mgmt_net)) { $mgmt_net = $mgmt_net . "-mgmt" };
+	    my $managed = $dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("managed");
+	
+	    unless ( str($managed) eq 'no' ) {
+	        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $mgmt_net down");
+	        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " delbr $mgmt_net");
+	    }        
+    }      
+    
+=BEGIN
     if (($dh->get_vmmgmt_type eq "net") && ($dh->get_vmmgmt_autoconfigure ne "")) {
         if ($> == 0) {
             my $sock = $dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock");
@@ -1883,6 +2010,8 @@ sub destroy_topology {
             wlog (N, "VNX warning: <mgmt_net> autoconfigure attribute only is used when VNX parser is invoked by root. Ignoring socket autodestruction");
         }
     }
+=END
+=cut    
 
     # If <host_mapping> is in use and not in debug mode, process /etc/hosts
     host_mapping_unpatch ($dh->get_scename, "/etc/hosts") if (($dh->get_host_mapping) && ($execution->get_exe_mode() != $EXE_DEBUG));
@@ -1936,7 +2065,6 @@ sub mode_start {
     # with an scenario defined or running, and the bridges and interfaces have been
     # lost after reboot. 
     if (! is_topology_running() ) {
-pak();
         # Recreate topology
         wlog (V, "Virtual network not created. Restarting topology.", $logp);
         build_topology();
@@ -1950,7 +2078,12 @@ pak();
         
     # Execute 'on_boot' commands
     mode_execute ('on_boot', 'lxc,dynamips', \@vm_ordered);
-        
+    
+    if ( !defined($ref_vms) && $dh->get_doc->exists("/vnx/host/exec[\@seq='on_boot']") ) {
+        wlog (N, "Calling execute_host_cmd with seq 'on_boot'"); 
+        execute_host_command('on_boot');
+    }
+            
     # If <host_mapping> is in use and not in debug mode, process /etc/hosts
     my $lines = join "\n", @host_lines;
     host_mapping_patch ($dh->get_scename, "/etc/hosts") 
@@ -2021,6 +2154,13 @@ sub start_vms {
 
     my $logp = "start_vms> ";
  
+    # Get management bridge name vm_mgmt is of type='net' (used later)
+    my $mgmt_net;
+    if ( $dh->get_vmmgmt_type eq 'net' ) {
+        $mgmt_net = $dh->get_doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("net");
+        if (empty($mgmt_net)) { $mgmt_net = $mgmt_net . "-mgmt" };
+    }
+  
     # Check whether Network-manager is installed and running
     my $nm_running = 0;
     my $nmcli;
@@ -2087,15 +2227,16 @@ sub start_vms {
         
         my $mng_if_value = mng_if_value( $vm );
         # Configure management device (id 0), if needed
-        if ( $dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no" ) {
-            # As the VM has necessarily been previously defined, the management ip address must be 
-            # already specified in file (get_admin_address has been called from make_vmAPI_doc ) 
-            my %net = get_admin_address( 'file', $vm_name );
-            #$execution->execute($logp,  $bd->get_binaries_path_ref->{"ifconfig"}
-            #    . " $vm_name-e0 " . $net{'host'}->addr() . " netmask " . $net{'host'}->mask() . " up" );
-            my $ip_addr = NetAddr::IP->new($net{'host'}->addr(),$net{'host'}->mask());
+        #if ( $dh->get_vmmgmt_type eq 'private' && $mng_if_value ne "no" ) {
+        if ( $dh->get_vmmgmt_type ne 'none' && $mng_if_value ne "no" ) {
 
 change_to_root();
+
+            if ( $dh->get_vmmgmt_type eq 'net' ) {
+            	# Join the management interface to the management bridge
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $mgmt_net $vm_name-e0");
+            }
+
             $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $vm_name-e0 up");
 
             # If Network manager is running, we have to release the management interface from being managed by NM. 
@@ -2109,8 +2250,20 @@ change_to_root();
             # Disable IPv6 autoconfiguration in interface
             $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e0.autoconf=0" );
     
-            # Configure management IP address   
-            $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $vm_name-e0");
+            # Configure management IP address
+            unless ($dh->get_vmmgmt_type eq 'net') {
+	            # As the VM has necessarily been previously defined, the management ip address must be 
+	            # already specified in file (get_admin_address has been called from make_vmAPI_doc ) 
+	            my %net = get_admin_address( 'file', $vm_name );
+	            #$execution->execute($logp,  $bd->get_binaries_path_ref->{"ifconfig"}
+	            #    . " $vm_name-e0 " . $net{'host'}->addr() . " netmask " . $net{'host'}->mask() . " up" );
+	            my $ip_addr = NetAddr::IP->new($net{'host'}->addr(),$net{'host'}->mask());
+	            if ($merged_type  eq 'libvirt-kvm-android') {
+	                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev ${vm_name}-mgmt");
+	            } else {
+	                $execution->execute($logp, $bd->get_binaries_path_ref->{"ip"} . " addr add " . $ip_addr->cidr() . " dev $vm_name-e0");
+	            }
+            }   
 back_to_user();               
         }
 
@@ -2313,6 +2466,12 @@ sub mode_shutdown {
         wlog (N, "...OK");
         change_vm_status($vm_name,"defined");
     }
+    
+    if ( !defined($ref_vms) && $dh->get_doc->exists("/vnx/host/exec[\@seq='on_shutdown']") ) {
+        wlog (N, "Calling execute_host_cmd with seq 'on_shutdown'"); 
+        execute_host_command('on_shutdown');
+    }
+    
    
 =BEGIN   
     # UML specific
@@ -2953,7 +3112,7 @@ sub mode_showstatus {
         	
         } else {
 	        wlog (N, "\nVNX show-status mode:  Scenarios created (lock file found)\n$hline");     
-            wlog (N, sprintf (" %-30s %-20s", 'Scenario name', 'Comand to get detailed info') );
+            wlog (N, sprintf (" %-30s %-20s", 'Scenario name', 'Command to get detailed info') );
             wlog (N, sprintf (" %-30s %-20s", '-------------', '---------------------------') );
 	            
 	        my $res = `ls $vnx_dir/scenarios/`;
@@ -3017,7 +3176,9 @@ sub mode_exeinfo {
  
     my $doc = $dh->get_doc;
     
-    wlog (N, "\nVNX exe-info mode:\n");     
+    wlog (N, "\nVNX exe-info mode:\n") unless $opts{'b'};     
+    
+    my @seqs;   # Array to store seqs when -b (brief) format selected
 
     my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
     for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -3030,38 +3191,40 @@ sub mode_exeinfo {
         # Get descriptions of user-defines commands
         my %vm_seqs = $dh->get_seqs($vm);      
              
-        wlog (N, "VM $vm_name user-defined commands:");
-        wlog (N, $hline);
+        wlog (N, "VM $vm_name user-defined commands:") unless $opts{'b'};
+        wlog (N, $hline) unless $opts{'b'};
         if ( keys(%vm_seqs) > 0) {
-            wlog (N, sprintf (" %-24s%s", 'Seq', 'Description') );
-            wlog (N, sprintf (" %-24s%s", '---', '-----------') );
+            wlog (N, sprintf (" %-24s%s", 'Seq', 'Description') ) unless $opts{'b'};
+            wlog (N, sprintf (" %-24s%s", '---', '-----------') ) unless $opts{'b'};
             foreach my $seq ( keys %vm_seqs ) {
-                print sprintf (" %-24s", $seq);
-                print format_text($dh->get_seq_desc($seq), 80, 22);
+                print sprintf (" %-24s", $seq) unless $opts{'b'};
+                print format_text($dh->get_seq_desc($seq), 80, 22) unless $opts{'b'};
+                push (@seqs, $seq);
             }
         } else {
-            wlog (N, "None defined");
+            wlog (N, "None defined") unless $opts{'b'};
         }
-        wlog (N, "");
+        wlog (N, "") unless $opts{'b'};
              
         # Get descriptions of plugin commands
         foreach my $plugin (@plugins) {
-            wlog (N, "VM $vm_name plugin '$plugin' commands");
-            wlog (N, $hline);
+            wlog (N, "VM $vm_name plugin '$plugin' commands") unless $opts{'b'};
+            wlog (N, $hline) unless $opts{'b'};
             my %seq_desc = $plugin->getSeqDescriptions($vm_name, '');
             if ( keys(%seq_desc) > 1) {
-                wlog (N, sprintf (" %-24s %s", 'Seq', 'Description') );
-                wlog (N, sprintf (" %-24s %s", '---', '-----------') );
+                wlog (N, sprintf (" %-24s %s", 'Seq', 'Description') ) unless $opts{'b'};
+                wlog (N, sprintf (" %-24s %s", '---', '-----------') ) unless $opts{'b'};
 		        foreach my $seq ( keys %seq_desc ) {
                     unless ($seq eq '_VMLIST') {
                         my $msg = sprintf (" %-24s %s", $seq, $seq_desc{$seq});
-                        wlog (N, $msg);
+                        wlog (N, $msg) unless $opts{'b'};
+                        push (@seqs, $seq);
                     }
                 }
             } else {
-                wlog (N, "None defined");
+                wlog (N, "None defined") unless $opts{'b'};
             }
-            wlog (N, "");
+            wlog (N, "") unless $opts{'b'};
         }
         
         #wlog (N, $hline);
@@ -3069,8 +3232,8 @@ sub mode_exeinfo {
 
     # Show command sequences defined (<com-seq> tags)
     if ( $doc->exists("/vnx/global/cmd-seq") ) {
-        wlog (N, "Global user defined command sequences ");
-        wlog (N, $hline);
+        wlog (N, "Global user defined command sequences ") unless $opts{'b'};
+        wlog (N, $hline) unless $opts{'b'};
         
 =BEGIN        
         wlog (N, sprintf (" %-24s", 'Seq') );
@@ -3089,19 +3252,19 @@ sub mode_exeinfo {
             my $seq_str = $cmd_seq->getFirstChild->getData;
             my $seq = $cmd_seq->getAttribute("seq");
 
-            wlog (N, sprintf ("%-24s", "Seq: $seq") );
+            wlog (N, sprintf ("%-24s", "Seq: $seq") ) unless $opts{'b'};
 
-            wlog (N, sprintf ("  %-12s %-s", 'Defined as:',  $seq_str) );
-            wlog (N, sprintf ("  %-12s %-s", 'Expanded as:', cmdseq_expand($seq_str) ) );
-            print sprintf ("  %-12s ", 'Description:');
-            print format_text($dh->get_seq_desc($seq), 80, 12);
-            print "\n";
-            
+            wlog (N, sprintf ("  %-12s %-s", 'Defined as:',  $seq_str) ) unless $opts{'b'};
+            wlog (N, sprintf ("  %-12s %-s", 'Expanded as:', cmdseq_expand($seq_str) ) ) unless $opts{'b'};
+            print sprintf ("  %-12s ", 'Description:') unless $opts{'b'};
+            print format_text($dh->get_seq_desc($seq), 80, 12) unless $opts{'b'};
+            print "\n" unless $opts{'b'};
+            push (@seqs, $seq);
         }        
         #wlog (N, $hline);
 
-
     }
+    if ($opts{'b'}) { print join(" ", @seqs); }
 }
 
 sub format_text {
@@ -3268,6 +3431,9 @@ sub mode_createrootfs {
     my $sdisk_fname;  # shared disk complete file name 
     my $h2vm_port;    # host tcp port used to access the the host-to-VM comms channel 
     my $vm_libirt_xml_hdb;
+    my $video_mode;   # Libvirt video mode 
+    my $default_video_mode = "cirrus";
+    my @allowed_video_types = qw/vga cirrus vmvga xen vbox qxl/;
     my $mem;          # Memory assigned to the virtual machine
     my $default_mem   = "512M";
     my $arch;         # Virtual machine architecture type (32 or 64 bits)
@@ -3303,6 +3469,21 @@ change_to_root();
     }
 back_to_user();        
   
+    # Set video mode
+    if ($opts{'video'}) {
+        if ( grep( /^$opts{'video'}$/, @allowed_video_types ) ) {
+            $video_mode = $opts{'video'}
+        } else {
+            vnx_die ("Incorrect video mode ($opts{'video'}). Allowed video_mode values: " . join(", ", @allowed_video_types));        
+        }
+#        given ($opts{'video'}) {
+#            when (@allowed_video_types) { $video_mode = $opts{'video'} }
+#            default { vnx_die ("Incorrect video mode ($opts{'video'}). Allowed video_mode values: " . join(", ", @allowed_video_types)); } 
+#        }
+    } else {
+        $video_mode = $default_video_mode;
+    }
+    
     # Set memory value
     if ($opts{'mem'}) {
         $mem = $opts{'mem'}
@@ -3414,6 +3595,9 @@ EOF
      <console type="pty">
       <target port="0"/>
      </console>
+     <video>
+       <model type="$video_mode"/>
+     </video>
      <serial type="tcp">
          <source mode="bind" host="127.0.0.1" service="$h2vm_port"/>
          <protocol type="telnet"/>
@@ -3451,6 +3635,9 @@ sub mode_modifyrootfs {
     my $sdisk_fname; # shared disk complete file name 
     my $h2vm_port;   # host tcp port used to access the the host-to-VM comms channel 
     my $vm_libirt_xml_hdb;
+    my $video_mode;   # Libvirt video mode 
+    my $default_video_mode = "cirrus";
+    my @allowed_video_types = qw/vga cirrus vmvga xen vbox qxl/;
     my $mem;          # Memory assigned to the virtual machine
     my $default_mem   = "512M";
     my $arch;         # Virtual machine architecture type (32 or 64 bits)
@@ -3514,7 +3701,22 @@ back_to_user();
     } else {
         $rootfs_type = $opts{'rootfs-type'};   
     }
-       
+
+    # Set video mode
+    if ($opts{'video'}) {
+        if ( grep( /^$opts{'video'}$/, @allowed_video_types ) ) {
+            $video_mode = $opts{'video'}
+        } else {
+            vnx_die ("Incorrect video mode ($opts{'video'}). Allowed video_mode values: " . join(", ", @allowed_video_types));        
+        }
+#        given ($opts{'video'}) {
+#            when (@allowed_video_types) { $video_mode = $opts{'video'} }
+#            default { vnx_die ("Incorrect video mode ($opts{'video'}). Allowed video_mode values: " . join(", ", @allowed_video_types)); } 
+#        }
+    } else {
+        $video_mode = $default_video_mode;
+    }
+           
     # Set memory value
     if ($opts{'mem'}) {
         $mem = $opts{'mem'};
@@ -3773,6 +3975,9 @@ EOF
      <console type="pty">
       <target port="0"/>
      </console>
+     <video>
+       <model type="$video_mode"/>
+     </video>
      <serial type="tcp">
          <source mode="bind" host="127.0.0.1" service="$h2vm_port"/>
          <protocol type="telnet"/>
@@ -3902,11 +4107,11 @@ sub configure_switched_networks {
     my $scename = $dh->get_scename;
 
 	# Create the symbolic link to the management switch
-	if ($dh->get_vmmgmt_type eq 'net') {
-		my $sock = $doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock");
-		$execution->execute($logp, $bd->get_binaries_path_ref->{"ln"} . " -s $sock " . $dh->get_networks_dir .
-				"/" . $dh->get_vmmgmt_netname . ".ctl" );
-	}
+#	if ($dh->get_vmmgmt_type eq 'net') {
+#		my $sock = $doc->getElementsByTagName("mgmt_net")->item(0)->getAttribute("sock");
+#		$execution->execute($logp, $bd->get_binaries_path_ref->{"ln"} . " -s $sock " . $dh->get_networks_dir .
+#				"/" . $dh->get_vmmgmt_netname . ".ctl" );
+#	}
 
     #my $net_list = $doc->getElementsByTagName("net");
     #for ( my $i = 0; $i < $net_list->getLength; $i++ ) {
@@ -4090,15 +4295,29 @@ sub create_tun_devices_for_virtual_bridged_networks  {
         my $vm = $vm_ordered[$i];
         my $vm_name = $vm->getAttribute("name");
         my $vm_type = $vm->getAttribute("type");
+        my $merged_type = $dh->get_vm_merged_type($vm);
 
         # To create management device (id 0), if needed
         # The name of the if is: $vm_name . "-e0"
         my $mng_if_value = mng_if_value($vm);
       
-        if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") && ($vm_type ne 'lxc')) {
+        #if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") && ($vm_type ne 'lxc') && $merged_type ne 'libvirt-kvm-android' ) {
+
+        if ( ($mng_if_value ne "no") && 
+             ( ($dh->get_vmmgmt_type eq 'private' && $merged_type ne 'libvirt-kvm-android') ||
+               ($dh->get_vmmgmt_type eq 'net'     && $merged_type eq 'libvirt-kvm-android') ) &&
+             ($vm_type ne 'lxc') ) {
+
+        #if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") && ($vm_type ne 'lxc') ) {
             my $tun_if = $vm_name . "-e0";
             $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
         }
+
+	    # If VM is of type android, create a bridge its management interface
+	    if ( $merged_type  eq 'libvirt-kvm-android' && $dh->get_vmmgmt_type eq 'private' )  {
+	        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addbr ${vm_name}-mgmt");
+	        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set ${vm_name}-mgmt up");
+	    }
 
         # To get interfaces list
         foreach my $if ($vm->getElementsByTagName("if")) {
@@ -4119,7 +4338,6 @@ sub create_tun_devices_for_virtual_bridged_networks  {
 
                 # To set up device
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $tun_if up");
-                        
             }
         }
     }
@@ -4144,7 +4362,7 @@ sub create_bridges_for_virtual_bridged_networks  {
         @nets = $doc->getElementsByTagName("net");    
     }
       
-    # 2. Create bridges
+    # Create bridges and join interfaces
     foreach my $net (@nets) {
 
         # We get name attribute
@@ -4198,7 +4416,6 @@ sub create_bridges_for_virtual_bridged_networks  {
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $brtap_name -f " . $dh->get_tun_device);
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name address $brtap_mac");                       
                 # Join the tap interface to bridge
-                # Carlos modifications
                 if ($mode eq "virtual_bridge") {
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $brtap_name");
                 } elsif ($mode eq "openvswitch") {
@@ -4281,7 +4498,7 @@ sub create_bridges_for_virtual_bridged_networks  {
             $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port  $net_to_connect $interfaceName"."0-1");
             $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set interface $interfaceName"."0-1 type=patch options:peer=$interfaceName"."1-0");
         }
-    }
+    }        
 }
 
 
@@ -4447,7 +4664,7 @@ sub hostif_addr_conf {
                         $ipv4_mask_attr =~ /.(\d+)$/;
                         $ipv4_effective_mask = slashed_to_dotted_mask($1);
                     }
-                } else {
+                } elsif ($ip ne 'dhcp') { 
                     wlog (N, "$hline\nWARNING: no mask defined for $ip address of host interface. Using default mask ($ipv4_effective_mask)\n$hline");
                 }
                 $ip_addr = NetAddr::IP->new($ip, $ipv4_effective_mask);
@@ -4948,7 +5165,7 @@ sub get_vm_ftrees_and_execs {
                 my $dst_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num";
                 $execution->execute($logp, "mkdir -p $dst_dir");
 	            if ( -d "$src" ) { # It is a directory
-                    $execution->execute($logp, $bd->get_binaries_path_ref->{"cp"} . " -r $src/* $dst_dir");
+                    $execution->execute($logp, $bd->get_binaries_path_ref->{"cp"} . " -a ${src}* $dst_dir");
 	            } else { # It is a file
                     $execution->execute($logp, $bd->get_binaries_path_ref->{"cp"} . " $src $dst_dir");
 	            }
@@ -5257,10 +5474,10 @@ sub tun_destroy_switched {
     my $doc = $dh->get_doc;
 
     # Remove the symbolic link to the management switch socket
-    if ($dh->get_vmmgmt_type eq 'net') {
-        my $socket_file = $dh->get_networks_dir . "/" . $dh->get_vmmgmt_netname . ".ctl";
-        $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
-    }
+#    if ($dh->get_vmmgmt_type eq 'net') {
+#        my $socket_file = $dh->get_networks_dir . "/" . $dh->get_vmmgmt_netname . ".ctl";
+#        $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -f $socket_file");
+#    }
 
     #my $net_list = $doc->getElementsByTagName("net");
 
@@ -5414,11 +5631,11 @@ sub bridges_destroy {
 }
 
 
-
 #######################################################
 
 # Additional functions
 
+=BEGIN
 # check_user
 #
 # Check if the user that runs the script will have suitables privileges
@@ -5477,6 +5694,8 @@ sub check_user {
 	return 0;
 
 }
+=END
+=cut
 
 # check_deprecated
 #
@@ -5519,8 +5738,6 @@ sub get_kernel_pids {
 	}
 	return @pid_list;
 }
-
-
 
 
 # hosts_mapping_patch
@@ -6447,7 +6664,7 @@ sub get_user_in_seq {
       
 }
 
-
+=BEGIN
 # mgmt_sock_create
 #
 # List is a helper funtion to create. Note that only root can do so
@@ -6509,7 +6726,8 @@ sub mgmt_sock_destroy {
    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $tap down");
    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -d $tap");
 }
-
+=END
+=cut
 
 # validation_fail
 #

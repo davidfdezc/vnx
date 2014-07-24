@@ -270,9 +270,12 @@ e-mail: vnx@dit.upm.es
 
   <xs:element name="mgmt_net">
     <xs:complexType>
-      <xs:attribute name="sock" type="xs:string" use="required"/>
+      <xs:attribute name="net" type="xs:string" use="optional"/>
+      <xs:attribute name="managed" type="xs:string" use="optional"/>
+      <xs:attribute name="config" type="xs:string" use="optional"/>
+      <!--xs:attribute name="sock" type="xs:string" use="required"/>
       <xs:attribute name="hostip" type="xs:string" use="required"/>
-      <xs:attribute name="autoconfigure" type="xs:string" use="optional"/>
+      <xs:attribute name="autoconfigure" type="xs:string" use="optional"/-->
     </xs:complexType>
   </xs:element>
 
@@ -445,12 +448,17 @@ e-mail: vnx@dit.upm.es
     <xs:complexType mixed="true"/>
   </xs:element>
 
+  <xs:element name="video">
+    <xs:complexType mixed="true"/>
+  </xs:element>
+
   <xs:element name="vm">
     <xs:complexType>
       <xs:sequence>
         <xs:element minOccurs="0" ref="filesystem"/>
         <!--xs:element ref="dynamips_conf" minOccurs="0" /-->
         <xs:element minOccurs="0" ref="mem"/>
+        <xs:element minOccurs="0" ref="video"/>
         <xs:element minOccurs="0" ref="kernel"/>
         <xs:element minOccurs="0" ref="conf"/>
         <xs:element minOccurs="0" ref="shell"/>
