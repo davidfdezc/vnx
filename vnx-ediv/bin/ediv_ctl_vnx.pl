@@ -51,7 +51,7 @@ use Socket;								# To resolve hostnames to IPs
 
 use DBI;								# Module to handle databases
 
-use EDIV::static;  						# Module that process static assignment 
+use VNX::static;  						# Module that process static assignment 
 
 use VNX::CheckSemantics;
 use VNX::Globals;

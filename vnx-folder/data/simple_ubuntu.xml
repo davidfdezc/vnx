@@ -90,8 +90,8 @@ SPAIN
     <hostif net="Net0">
        <ipv4>10.1.0.1/24</ipv4>
     </hostif>
-    <exec seq="on_boot" type="verbatim">echo "ubuntu vm started" > /tmp/ubuntu_status</exec>
-    <exec seq="on_shutdown" type="verbatim">echo "ubuntu vm stopped" > /tmp/ubuntu_status</exec>    
+    <!--exec seq="on_boot" type="verbatim">echo "ubuntu vm started" > /tmp/ubuntu_status</exec>
+    <exec seq="on_shutdown" type="verbatim">echo "ubuntu vm stopped" > /tmp/ubuntu_status</exec-->    
   </host>
   
 </vnx>

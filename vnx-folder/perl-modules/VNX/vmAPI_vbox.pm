@@ -101,7 +101,7 @@ sub init {
 # Arguments:
 #   - $vm_name: the name of the virtual machine
 #   - $type: the merged type of the virtual machine (e.g. lxc)
-#   - $vm_doc: XML document describing the virtual machines
+#   - $vm_doc: XML document describing the virtual machine in DOM tree format
 # 
 # Returns:
 #   - undefined or '' if no error
@@ -120,15 +120,15 @@ sub define_vm {
     my $error;
     my $extConfFile;
 
-    my $global_doc = $dh->get_doc;
-    my @vm_ordered = $dh->get_vm_ordered;
+    my $doc = $dh->get_doc;                                # scenario global doc
+    my $vm = $vm_doc->findnodes("/create_conf/vm")->[0];   # VM node in $vm_doc
+    my @vm_ordered = $dh->get_vm_ordered;                  # ordered list of VMs in scenario 
 
     my $sdisk_content;
     my $sdisk_fname_raw;
     my $sdisk_fname_vmdk;
     my $filesystem;
 
-    my $vm = $dh->get_vm_byname ($vm_name);
     wlog (VVV, "---- " . $vm->getAttribute("name"), $logp);
     wlog (VVV, "---- " . $vm->getAttribute("exec_mode"), $logp);
 
@@ -155,10 +155,10 @@ sub define_vm {
         #
         # Read VM XML specification file
         # 
-        my $parser       = XML::LibXML->new();
-        my $dom          = $parser->parse_string($vm_doc);
-        my $global_node  = $dom->getElementsByTagName("create_conf")->item(0);
-        my $vm     = $global_node->getElementsByTagName("vm")->item(0);
+#        my $parser       = XML::LibXML->new();
+#        my $dom          = $parser->parse_string($vm_doc);
+#        my $global_node  = $dom->getElementsByTagName("create_conf")->item(0);
+#        my $vm     = $global_node->getElementsByTagName("vm")->item(0);
 
         my $filesystem_type   = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
         my $filesystem        = $vm->getElementsByTagName("filesystem")->item(0)->getFirstChild->getData;
@@ -766,75 +766,7 @@ return "not implemented yet....";
         }
 
 # Execution of on_boot commands moved to vnx.pl
-=BEGIN
-        # 
-        # Check if there is any <filetree> tag with seq='on_boot' in $vm_doc
-        # and execute the command if they exists
-        #
-        
-        # Get VM XML definition from .vnx/scenarios/<scenario_name>/vms/$vm_name_cconf.xml file
-        my $parser = XML::LibXML->new();
-        my $doc = $parser->parse_file($dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml');
 
-        my @filetree_tag_list = $doc->getElementsByTagName("filetree");
-        my @exec_tag_list = $doc->getElementsByTagName("exec");
-        if ( (@filetree_tag_list > 0) || (@exec_tag_list > 0) )  { 
-            
-            # At least one on_boot filetree or exec defined
-            #
-            # Wait for VM to start
-            #
-            my $tout = 10;
-            while ( system("vbox-info -s -n $vm_name | grep RUNNING > /dev/null") ) {
-                wlog (VVV, "waiting for VM $vm_name to start....", $logp);
-                sleep 1;
-                if ( !$tout-- ) {
-                    wlog (N, "time out waiting for VM $vm_name to start...on_boot commands not executed", $logp);
-                    return 1;
-                }
-            }
-            
-            # Get shell to use to execute commands on the vm
-            # The shell type (sh, bashc, etc) can be changed with the <shell> tag inside <vm>
-            my $shell = $dh->merge_shell ($doc);
-            
-            my $dst_num = 1;
-            foreach my $filetree ($doc->getElementsByTagName("filetree")) {
-                
-                my $seq    = $filetree->getAttribute("seq");
-                wlog (VVV, "$seq filetree: " . $filetree->toString(1), $logp );
-
-                my $files_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num/"; 
-                execute_filetree ($vm_name, $filetree, "$files_dir", $shell);
-                $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $files_dir" );
-                $dst_num++;            
-            }
-
-            foreach my $exec ($doc->getElementsByTagName("exec")) {
-                
-                my $seq    = $exec->getAttribute("seq");
-                wlog (VVV, "$seq exec: " . $exec->toString(1), $logp );
-
-                my $command = $exec->getFirstChild->getData;
-                my $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
-
-                #
-                # We execute the command inside a shell using:
-                #   sh -c 'command'
-                # to avoid problems with complex commands made of several lines or including 
-                # input/output redirection. We have to scape "'" inside the command changing
-                # each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
-                # 
-                $command =~ s/'/'\\''/g;
-                wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
-                wlog (V, "executing '$seq' user defined exec command '$command'", $logp);
-                my $cmd_output = $execution->execute_getting_output( $logp, "vbox-attach -n $vm_name -- $shell -c '$command'");
-                wlog (N, "$cmd_output", '') if ($cmd_output ne '');
-            }
-
-        }
-=END
-=cut
         
         # If host_mapping is in use and the vm has a management interface, 
         # then we have to add an entry for this vm in $dh->get_sim_dir/hostlines file

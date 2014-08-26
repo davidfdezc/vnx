@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        simple_android_v1
+Description: Just one Android X86 virtual machine with:
+                + one interface connected to Net0 with address 10.1.0.26. The host has an interface 
+                  in Net0 with address 10.1.0.1
+                + another interface connected to 'virbr0' libvirt bridge to provide Internet connection.
+                + a management interface of type private that allows to connect to the VM using
+                  'android' name (e.g.: "ping android" or "adb connect android". 
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>simple_android</scenario_name>
+    <automac offset="26"/>
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="100">
+       <host_mapping />
+    </vm_mgmt> 
+    <vm_defaults>
+        <console id="0" display="yes"/>
+        <console id="1" display="yes"/>
+    </vm_defaults>
+  </global>
+    
+  <net name="Net0" mode="virtual_bridge" />
+  <net name="virbr0" mode="virtual_bridge" managed="no"/>
+  
+  <vm name="android" type="libvirt" subtype="kvm" os="android">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_android</filesystem>
+    <mem>256M</mem>
+    <video>vmvga</video>
+    <if id="1" net="virbr0">
+      <ipv4>dhcp</ipv4>
+    </if>
+    <if id="2" net="Net0">
+      <ipv4>10.1.0.26/24</ipv4>
+    </if>    
+  </vm>
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.1.0.1/24</ipv4>
+    </hostif>
+  </host>
+  
+</vnx>

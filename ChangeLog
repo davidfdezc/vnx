@@ -1,3 +1,19 @@
+26/08/2014
+
+- Added aufs_options parameter to [lxc] section of vnx.conf 
+
+  [lxc]
+  aufs_options = 'noxino' # comma separated list of options (without comma at the end)
+  
+- Added host_passthrough option to [libvirt]. Substitutes   
+
+- Added --download-rootfs option to call vnx_download_rootfs: 'vnx --download-rootfs'
+
+- Added new type of VM: Name spaces based routers (nsrouter). Added tutorial_nsrouter.xml example.     
+
+- VNX bash autocompletion file copied also to /usr/share/bash-completion/completions/ (seems to be the default dir in Ubuntu) apart from /etc/bash_completion.d/
+
+- Added check_perlmods_mandatory to BinariesData module to check whether the perl modules required by VNX are installed    
 
 24/07/2014:
 

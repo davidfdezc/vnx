@@ -68,7 +68,7 @@ use IO::Socket::UNIX qw( SOCK_STREAM );
 
 use constant USE_UNIX_SOCKETS => 0;  # Use unix sockets (1) or TCP (0) to communicate with virtual machine 
 my $one_pass_autoconf;
-
+my $host_passthrough;
 
 # ---------------------------------------------------------------------------------------
 #
@@ -85,11 +85,17 @@ sub init {
 	# get hypervisor from config file
 	$hypervisor = get_conf_value ($vnxConfigFile, 'libvirt', 'hypervisor', 'root');
 	if (!defined $hypervisor) { $hypervisor = $LIBVIRT_DEFAULT_HYPERVISOR };
+    wlog (VVV, "[libvirt] conf: hypervisor=$hypervisor");
 
     # get one_pass_autoconf parameter from config file
     $one_pass_autoconf = get_conf_value ($vnxConfigFile, 'libvirt', 'one_pass_autoconf', 'root');
     if (!defined $one_pass_autoconf) { $one_pass_autoconf = $DEFAULT_ONE_PASS_AUTOCONF };
+    wlog (VVV, "[libvirt] conf: one_pass_autoconf=$one_pass_autoconf");
 
+    # get host-passthrough parameter from config file
+    $host_passthrough = get_conf_value ($vnxConfigFile, 'libvirt', 'host_passthrough', 'root');
+    if (!defined $host_passthrough) { $host_passthrough = $DEFAULT_HOST_PASSTHROUGH };
+    wlog (VVV, "[libvirt] conf: host_passthrough=$host_passthrough");
 	
 root();
 
@@ -151,7 +157,7 @@ user();
 # Arguments:
 #   - $vm_name: the name of the virtual machine
 #   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
-#   - $vm_doc: XML document describing the virtual machines
+#   - $vm_doc: XML document describing the virtual machine in DOM tree format
 # 
 # Returns:
 #   - undefined or '' if no error
@@ -171,16 +177,14 @@ sub define_vm {
 	my $error;
 	my $extConfFile;
 	
-
-	my $global_doc = $dh->get_doc;
-	my @vm_ordered = $dh->get_vm_ordered;
+    my $doc = $dh->get_doc;                                # scenario global doc
+    my $vm = $vm_doc->findnodes("/create_conf/vm")->[0];   # VM node in $vm_doc
+    my @vm_ordered = $dh->get_vm_ordered;                  # ordered list of VMs in scenario 
 
 	my $sdisk_content;
 	my $sdisk_fname;  # For olive only
 	my $filesystem;
 	my $con;
-
-    my $vm = $dh->get_vm_byname ($vm_name);
 
     my $exec_mode   = $dh->get_vm_exec_mode($vm);
     my $vm_arch = $vm->getAttribute("arch");
@@ -264,13 +268,13 @@ sub define_vm {
 		$execution->execute( $logp, $bd->get_binaries_path_ref->{"mkisofs"} . " -l -R -quiet -o $filesystem_small $sdisk_content" );
 		$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $sdisk_content" );
 
-	    my $parser       = XML::LibXML->new();
-	    my $dom          = $parser->parse_string($vm_doc);
-		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item(0);
+#	    my $parser       = XML::LibXML->new();
+#	    my $dom          = $parser->parse_string($vm_doc);
+#		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
+#		my $virtualmList = $globalNode->getElementsByTagName("vm");
+#		my $virtualm     = $virtualmList->item(0);
 
-		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
+		my $filesystemTagList = $vm->getElementsByTagName("filesystem");
 		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		$filesystem           = $filesystemTag->getFirstChild->getData;
@@ -288,7 +292,7 @@ sub define_vm {
 		}
 
 		# memory
-		my $memTagList = $virtualm->getElementsByTagName("mem");
+		my $memTagList = $vm->getElementsByTagName("mem");
 		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 
@@ -311,6 +315,8 @@ sub define_vm {
         #   <feature policy='optional' name='vmx'/>
         #   <feature policy='optional' name='svm'/>
         # </cpu>
+=BEGIN  # Eliminated. Substituted by host-passthough
+        
         my $cpu_tag = $init_xml->createElement('cpu');
         $domain_tag->addChild($cpu_tag);
         $cpu_tag->addChild( $init_xml->createAttribute( match => "minimum" ) );
@@ -325,6 +331,15 @@ sub define_vm {
         $cpu_tag->addChild($feature2_tag);
         $feature2_tag->addChild( $init_xml->createAttribute( policy => "optional" ) );
         $feature2_tag->addChild( $init_xml->createAttribute( name => "svm" ) );
+=END
+=cut
+		# Check host_passthrough option and add <cpu mode="host-passthrough"/> tag 
+		# in case it is enabled
+		if ($host_passthrough eq 'yes') {
+	        my $cpu_tag = $init_xml->createElement('cpu');
+	        $domain_tag->addChild($cpu_tag);
+			$cpu_tag->setAttribute( mode => "host-passthrough");
+		}
 
 		# <memory> tag
 		my $memory_tag = $init_xml->createElement('memory');
@@ -421,7 +436,7 @@ sub define_vm {
 		my $mng_if_exists = 0;
 		my $mng_if_mac;
 
-		foreach my $if ($virtualm->getElementsByTagName("if")) {
+		foreach my $if ($vm->getElementsByTagName("if")) {
 			my $id  = $if->getAttribute("id");
 			my $net = $if->getAttribute("net");
 			my $mac = $if->getAttribute("mac");
@@ -487,7 +502,7 @@ sub define_vm {
 
 		# Go through <consoles> tag list to get attributes (display, port) and value  
         my $cons0Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
-		foreach my $cons ($virtualm->getElementsByTagName("console")) {
+		foreach my $cons ($vm->getElementsByTagName("console")) {
        		my $value   = &text_tag($cons);
 			my $id      = $cons->getAttribute("id");
 			my $display = $cons->getAttribute("display");
@@ -521,8 +536,8 @@ sub define_vm {
 		close (CONS_FILE); 
 
         # <video> tag
-        if ( $virtualm->exists("./video") ) {
-            my $video_type = $virtualm->findnodes('./video')->[0]->to_literal();
+        if ( $vm->exists("./video") ) {
+            my $video_type = $vm->findnodes('./video')->[0]->to_literal();
             wlog (VVV,"video type set to $video_type", $logp);
             my $video_tag = $init_xml->createElement('video');
             my $model_tag = $init_xml->createElement('model');
@@ -673,13 +688,13 @@ user();
 		# We create the XML libvirt virtual machine specification file starting from the VNX XML 
 		# virtual machine definition received in $vm_doc
 		# 
-        my $parser       = XML::LibXML->new();
-        my $dom          = $parser->parse_string($vm_doc);
-		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-		my $virtualmList = $globalNode->getElementsByTagName("vm");
-		my $virtualm     = $virtualmList->item(0);
+#        my $parser       = XML::LibXML->new();
+#        my $dom          = $parser->parse_string($vm_doc);
+#		my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
+#		my $virtualmList = $globalNode->getElementsByTagName("vm");
+#		my $virtualm     = $virtualmList->item(0);
 
-		my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
+		my $filesystemTagList = $vm->getElementsByTagName("filesystem");
 		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
 		$filesystem           = $filesystemTag->getFirstChild->getData;
@@ -701,13 +716,13 @@ user();
 		}
 
 		# memory
-		my $memTagList = $virtualm->getElementsByTagName("mem");
+		my $memTagList = $vm->getElementsByTagName("mem");
 		my $memTag     = $memTagList->item(0);
 		my $mem        = $memTag->getFirstChild->getData;
 
 		# conf tag
 		my $confFile = '';
-		my @confTagList = $virtualm->getElementsByTagName("conf");
+		my @confTagList = $vm->getElementsByTagName("conf");
         if (@confTagList == 1) {
 			$confFile = $confTagList[0]->getFirstChild->getData;
 			wlog (VVV, "vm_name configuration file: $confFile", $logp);
@@ -746,6 +761,7 @@ user();
 		# </cpu>
 		# Note 21/5/20013: this block prevents freebsd 64 bits to start. 
 		#                  We eliminate it in that case. 
+=BEGIN  # Eliminated. Substituted by host-passthough
 		unless ( ($type eq "libvirt-kvm-freebsd") & ($vm->getAttribute("arch") eq "x86_64" ) || 
 		         ($type eq "libvirt-kvm-android") ) {
 	        my $cpu_tag = $init_xml->createElement('cpu');
@@ -763,6 +779,15 @@ user();
 	        $feature2_tag->addChild( $init_xml->createAttribute( policy => "optional" ) );
 	        $feature2_tag->addChild( $init_xml->createAttribute( name => "svm" ) );			
 		}
+=END
+=cut		
+		# Check host_passthrough option and add <cpu mode="host-passthrough"/> tag 
+		# in case it is enabled
+        if ($host_passthrough eq 'yes') {
+            my $cpu_tag = $init_xml->createElement('cpu');
+            $domain_tag->addChild($cpu_tag);
+            $cpu_tag->setAttribute( mode => "host-passthrough");
+        }
 
 		# <memory> tag
 		my $memory_tag = $init_xml->createElement('memory');
@@ -858,7 +883,7 @@ user();
         #   We move all the files to the shared disk
         
         # Check if there is any <filetree> tag in $vm_doc
-        my @filetree_tag_list = $dom->getElementsByTagName("filetree");
+        my @filetree_tag_list = $vm_doc->getElementsByTagName("filetree");
         if (@filetree_tag_list > 0) { # At least one filetree defined
             # Copy the files to the shared disk        
 	        my $onboot_files_dir = $dh->get_vm_tmp_dir($vm_name) . "/on_boot";
@@ -935,7 +960,7 @@ user();
 		my $mng_if_exists = 0;
 		my $mng_if_mac;
 
-		foreach my $if ($virtualm->getElementsByTagName("if")) {
+		foreach my $if ($vm->getElementsByTagName("if")) {
 			my $id    = $if->getAttribute("id");
 			my $net   = $if->getAttribute("net");
             my $mac   = $if->getAttribute("mac");
@@ -1042,7 +1067,7 @@ user();
         my $cons0Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
         my $cons1Display = $VNX::Globals::CONS_DISPLAY_DEFAULT;
         my $cons1Port = '';
-		foreach my $cons ($virtualm->getElementsByTagName("console")) {
+		foreach my $cons ($vm->getElementsByTagName("console")) {
        		my $value   = &text_tag($cons);
 			my $id      = $cons->getAttribute("id");
 			my $display = $cons->getAttribute("display");
@@ -1158,8 +1183,8 @@ user();
 		close (CONS_FILE); 
 
         # <video> tag
-        if ( $virtualm->exists("./video") ) {
-            my $video_type = $virtualm->findnodes('./video')->[0]->to_literal();
+        if ( $vm->exists("./video") ) {
+            my $video_type = $vm->findnodes('./video')->[0]->to_literal();
             wlog (VVV,"video type set to $video_type", $logp);
             my $video_tag = $init_xml->createElement('video');
             my $model_tag = $init_xml->createElement('model');
@@ -1412,16 +1437,16 @@ user();
 		#pak("get_os_distro deleted");        
 
 		# Parse VM config file
-		my $parser = XML::LibXML->new;
-		my $dom    = $parser->parse_file( $dh->get_vm_dir($vm_name) . "/${vm_name}_cconf.xml" );
+		#my $parser = XML::LibXML->new;
+		#my $dom    = $parser->parse_file( $dh->get_vm_dir($vm_name) . "/${vm_name}_conf.xml" );
 		
 		# Call autoconfiguration
 		if ($platform[0] eq 'Linux'){
 		    
-            if    ($platform[1] eq 'Ubuntu') { autoconfigure_debian_ubuntu ($dom, $rootfs_mount_dir, 'ubuntu') }           
-            elsif ($platform[1] eq 'Debian') { autoconfigure_debian_ubuntu ($dom, $rootfs_mount_dir, 'debian') }           
-		    elsif ($platform[1] eq 'Fedora') { autoconfigure_redhat ($dom, $rootfs_mount_dir, 'fedora') }
-		    #elsif ($platform[1] eq 'CentOS') { autoconfigure_redhat ($dom, $rootfs_mount_dir, 'centos') }
+            if    ($platform[1] eq 'Ubuntu') { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'ubuntu') }           
+            elsif ($platform[1] eq 'Debian') { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'debian') }           
+		    elsif ($platform[1] eq 'Fedora') { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'fedora') }
+		    #elsif ($platform[1] eq 'CentOS') { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'centos') }
 		    
 		#} elsif ($platform[0] eq 'FreeBSD'){
 		#        wlog (VVV,  "FreeBSD");
@@ -1433,7 +1458,7 @@ user();
 		}
 		
 		# Get the id from the VM config file 
-		my $cid   = $dom->getElementsByTagName("id")->[0]->getFirstChild->getData;
+		my $cid   = $vm_doc->getElementsByTagName("id")->[0]->getFirstChild->getData;
 		chomp($cid);
 		
 		# And save it to the VNACED_STATUS file
@@ -1503,10 +1528,10 @@ user();
         }
 
         # Parse VM config file
-        my $parser = XML::LibXML->new;
-        my $dom    = $parser->parse_file( $dh->get_vm_dir($vm_name) . "/${vm_name}_cconf.xml" );
+        #my $parser = XML::LibXML->new;
+        #my $dom    = $parser->parse_file( $dh->get_vm_dir($vm_name) . "/${vm_name}_conf.xml" );
     
-        autoconfigure_android ($dom, $android_root);
+        autoconfigure_android ($vm_doc, $android_root);
         # Dismount the rootfs image        
         $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
     

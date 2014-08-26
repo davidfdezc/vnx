@@ -197,6 +197,9 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
     } elsif ($type eq "lxc") { 
         $ctype=$type;
         $vm_legend{"lxc"} = "Linux Containers"
+    } elsif ($type eq "nsrouter") { 
+        $ctype=$type;
+        $vm_legend{"nsrouter"} = "Name spaces based router"
     }       
     print "\n// Virtual machine $vmname\n" ;
     print "$vmname2 [label=\"$vmname \\n($ctype)\", shape=\"$vm_shape\", " . 

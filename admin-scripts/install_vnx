@@ -94,7 +94,11 @@ chmod +x /usr/bin/vnx
 #
 # Copy vnx_bash_completion
 #
-if [ -d /etc/bash_completion.d ]; then
+if [ -d /usr/share/bash-completion/completions/ ]; then
+  cp $VERBOSE bin/vnx_bash_completion /usr/share/bash-completion/completions/vnx
+  chmod 644 /usr/share/bash-completion/completions/vnx
+fi
+if [ -d /etc/bash_completion.d/ ]; then
   cp $VERBOSE bin/vnx_bash_completion /etc/bash_completion.d/vnx
   chmod 644 /etc/bash_completion.d/vnx
 fi
@@ -146,6 +150,7 @@ cp $VERBOSE data/*.xsd /usr/share/xml/vnx/
 cp $VERBOSE data/*.xml data/*.net /usr/share/vnx/examples/
 cp $VERBOSE data/*.cvnx data/*.net /usr/share/vnx/examples/
 cp $VERBOSE -r data/conf /usr/share/vnx/examples/
+cp $VERBOSE -r data/scripts /usr/share/vnx/examples/
 cp $VERBOSE -r data/tutorial_ubuntu_modify /usr/share/vnx/examples/
 chmod 644 /usr/share/vnx/examples/*
 chmod +x /usr/share/vnx/examples/conf
@@ -153,13 +158,13 @@ chmod +x /usr/share/vnx/examples/conf
 #
 # Copy other things in data directory
 #
-cp $VERBOSE data/create-tutorial* /usr/share/vnx/examples/
-chmod 755 /usr/share/vnx/examples/create-tutorial*
+#cp $VERBOSE data/create-tutorial* /usr/share/vnx/examples/
+#chmod 755 /usr/share/vnx/examples/create-tutorial*
 
 #
 # Copy other utils
 #
-cp $VERBOSE bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
+#cp $VERBOSE bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
 
 # Delete vnx_modify_rootfs* -> obsoleted by vnx --modify-rootfs option
 rm -f $VERBOSE /usr/share/vnx/bin/vnx_modify_rootfs*

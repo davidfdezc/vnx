@@ -85,6 +85,7 @@ use VNX::vmAPI_libvirt;
 use VNX::vmAPI_dynamips;
 use VNX::vmAPI_lxc;
 use VNX::vmAPI_vbox;
+use VNX::vmAPI_nsrouter;
 
 use Error qw(:try);
 use Exception::Class ( "Vnx::Exception" =>
@@ -148,7 +149,7 @@ my @opt_f_allowed_modes = ('define', 'undefine', 'start', 'create', 'shutdown', 
                            'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
 
 # Modes allowed without -f or -s option  
-my @no_opt_f_or_s_allowed_modes = ('version', 'help', 'show-map', 'show-status', 'clean-host', 'create-rootfs', 'modify-rootfs');
+my @no_opt_f_or_s_allowed_modes = ('version', 'help', 'show-map', 'show-status', 'clean-host', 'create-rootfs', 'modify-rootfs', 'download-rootfs');
 
 # Modes that do not need exclusive access (no lock file needed)   
 my @no_lock_modes = ('show-map', 'show-status'); 
@@ -183,7 +184,7 @@ sub main {
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'recreate', 'execute|x=s', 'exe-cli=s{1,}' => \@exe_cli, 
                 'show-map:s', 'show-status', 'console:s', 'console-info', 'exe-info', 'clean-host',
                 'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y',
-                'rootfs-type=s', 'help|h', 'v', 'vv', 'vvv', 'version|V',
+                'rootfs-type=s', 'help|h', 'v', 'vv', 'vvv', 'version|V', 'download-rootfs',
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'user|u:s', '4', '6', 'D', 'no-console|n', 'intervm-delay=s',
                 'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k', 'video=s'
@@ -313,32 +314,33 @@ $>=$uid;
    	my $how_many_args = 0;
    	my $mode_args = '';
    	my $mode;
-    if ($opts{'define'})           { $how_many_args++; $mode_args .= 'define ';        $mode = "define";       }
-    if ($opts{'undefine'})         { $how_many_args++; $mode_args .= 'undefine ';      $mode = "undefine";     }
-    if ($opts{'start'})            { $how_many_args++; $mode_args .= 'start ';         $mode = "start";        }
-   	if ($opts{'create'})           { $how_many_args++; $mode_args .= 'create|t ';      $mode = "create";       }
-    if ($opts{'shutdown'})         { $how_many_args++; $mode_args .= 'shutdown|d ';    $mode = "shutdown";     }
-    if ($opts{'destroy'})          { $how_many_args++; $mode_args .= 'destroy|P ';     $mode = "destroy";      }
-    if ($opts{'suspend'})          { $how_many_args++; $mode_args .= 'suspend ';       $mode = "suspend";      }
-    if ($opts{'resume'})           { $how_many_args++; $mode_args .= 'resume ';        $mode = "resume";       }
-    if ($opts{'save'})             { $how_many_args++; $mode_args .= 'save ';          $mode = "save";         }
-    if ($opts{'restore'})          { $how_many_args++; $mode_args .= 'restore ';       $mode = "restore";      }
-    if ($opts{'reboot'})           { $how_many_args++; $mode_args .= 'reboot ';        $mode = "reboot";       }
-    if ($opts{'reset'})            { $how_many_args++; $mode_args .= 'reset ';         $mode = "reset";        }
-    if ($opts{'recreate'})         { $how_many_args++; $mode_args .= 'recreate ';      $mode = "recreate";     }
-    if ($opts{'execute'})          { $how_many_args++; $mode_args .= 'execute|x ';     $mode = "execute";      }
-    if (@exe_cli)                  { $how_many_args++; $mode_args .= 'exe-cli ';       $mode = "exe-cli";      }
-    if ($opts{'modify'})           { $how_many_args++; $mode_args .= 'modify|m ';      $mode = "modify";       }
-   	if ($opts{'version'})          { $how_many_args++; $mode_args .= 'version|V ';     $mode = "version";      }
-   	if ($opts{'help'})             { $how_many_args++; $mode_args .= 'help|h ';        $mode = "help";         }
-   	if (defined($opts{'show-map'})){ $how_many_args++; $mode_args .= 'show-map ';      $mode = "show-map";     }
-    if ($opts{'show-status'})      { $how_many_args++; $mode_args .= 'show-status ';   $mode = "show-status";  }
-   	if (defined($opts{'console'})) { $how_many_args++; $mode_args .= 'console ';       $mode = "console";      }
-   	if ($opts{'console-info'})     { $how_many_args++; $mode_args .= 'console-info ';  $mode = "console-info"; }
-    if ($opts{'exe-info'})         { $how_many_args++; $mode_args .= 'exe-info ';      $mode = "exe-info";     }
-    if ($opts{'clean-host'})       { $how_many_args++; $mode_args .= 'clean-host ';    $mode = "clean-host";   }
-    if ($opts{'create-rootfs'})    { $how_many_args++; $mode_args .= 'create-rootfs '; $mode = "create-rootfs";}
-    if ($opts{'modify-rootfs'})    { $how_many_args++; $mode_args .= 'modify-rootfs '; $mode = "modify-rootfs";}
+    if ($opts{'define'})           { $how_many_args++; $mode_args .= 'define ';          $mode = "define";         }
+    if ($opts{'undefine'})         { $how_many_args++; $mode_args .= 'undefine ';        $mode = "undefine";       }
+    if ($opts{'start'})            { $how_many_args++; $mode_args .= 'start ';           $mode = "start";          }
+   	if ($opts{'create'})           { $how_many_args++; $mode_args .= 'create|t ';        $mode = "create";         }
+    if ($opts{'shutdown'})         { $how_many_args++; $mode_args .= 'shutdown|d ';      $mode = "shutdown";       }
+    if ($opts{'destroy'})          { $how_many_args++; $mode_args .= 'destroy|P ';       $mode = "destroy";        }
+    if ($opts{'suspend'})          { $how_many_args++; $mode_args .= 'suspend ';         $mode = "suspend";        }
+    if ($opts{'resume'})           { $how_many_args++; $mode_args .= 'resume ';          $mode = "resume";         }
+    if ($opts{'save'})             { $how_many_args++; $mode_args .= 'save ';            $mode = "save";           }
+    if ($opts{'restore'})          { $how_many_args++; $mode_args .= 'restore ';         $mode = "restore";        }
+    if ($opts{'reboot'})           { $how_many_args++; $mode_args .= 'reboot ';          $mode = "reboot";         }
+    if ($opts{'reset'})            { $how_many_args++; $mode_args .= 'reset ';           $mode = "reset";          }
+    if ($opts{'recreate'})         { $how_many_args++; $mode_args .= 'recreate ';        $mode = "recreate";       }
+    if ($opts{'execute'})          { $how_many_args++; $mode_args .= 'execute|x ';       $mode = "execute";        }
+    if (@exe_cli)                  { $how_many_args++; $mode_args .= 'exe-cli ';         $mode = "exe-cli";        }
+    if ($opts{'modify'})           { $how_many_args++; $mode_args .= 'modify|m ';        $mode = "modify";         }
+   	if ($opts{'version'})          { $how_many_args++; $mode_args .= 'version|V ';       $mode = "version";        }
+   	if ($opts{'help'})             { $how_many_args++; $mode_args .= 'help|h ';          $mode = "help";           }
+   	if (defined($opts{'show-map'})){ $how_many_args++; $mode_args .= 'show-map ';        $mode = "show-map";       }
+    if ($opts{'show-status'})      { $how_many_args++; $mode_args .= 'show-status ';     $mode = "show-status";    }
+   	if (defined($opts{'console'})) { $how_many_args++; $mode_args .= 'console ';         $mode = "console";        }
+   	if ($opts{'console-info'})     { $how_many_args++; $mode_args .= 'console-info ';    $mode = "console-info";   }
+    if ($opts{'exe-info'})         { $how_many_args++; $mode_args .= 'exe-info ';        $mode = "exe-info";       }
+    if ($opts{'clean-host'})       { $how_many_args++; $mode_args .= 'clean-host ';      $mode = "clean-host";     }
+    if ($opts{'create-rootfs'})    { $how_many_args++; $mode_args .= 'create-rootfs ';   $mode = "create-rootfs";  }
+    if ($opts{'modify-rootfs'})    { $how_many_args++; $mode_args .= 'modify-rootfs ';   $mode = "modify-rootfs";  }
+    if ($opts{'download-rootfs'})  { $how_many_args++; $mode_args .= 'download-rootfs '; $mode = "download-rootfs";}
     chop ($mode_args);
     
    	if ($how_many_args gt 1) {
@@ -524,9 +526,12 @@ $>=$uid;
     # 5. To build the VNX::BinariesData object
     $bd = new VNX::BinariesData($exemode);
 
-    # 6a. To check mandatory binaries # [JSF] to be updated with new ones
+    # 6a. To check mandatory binaries and perl modules # [JSF] to be updated with new ones
     if ($bd->check_binaries_mandatory != 0) {
       vnx_die ("some required binary files are missing\n");
+    }
+    if (my $res = $bd->check_perlmods_mandatory) {
+      vnx_die ("$res\n");
     }
 
     # Interactive execution (press a key after each command)
@@ -564,6 +569,12 @@ $>=$uid;
     # Modify root filesystem pseudomode
     if ($opts{'modify-rootfs'}) {
         mode_modifyrootfs($tmp_dir, $vnx_dir);
+        exit(0);
+    }
+
+    # Download root filesystem pseudomode
+    if ($opts{'download-rootfs'}) {
+        mode_downloadrootfs();
         exit(0);
     }
     
@@ -774,6 +785,7 @@ $>=$uid;
     if ($init_err=VNX::vmAPI_dynamips->init) { vnx_die("Cannot initialize Dynamips module -> $init_err")}
     if ($init_err=VNX::vmAPI_lxc->init)      { vnx_die("Cannot initialize LXC module -> $init_err")}
     #if ($init_err=VNX::vmAPI_vbox->init)      { vnx_die("Cannot initialize VirtualBox module -> $init_err")}
+    if ($init_err=VNX::vmAPI_nsrouter->init) { vnx_die("Cannot initialize Name Spaces routers module -> $init_err")}
     pre_wlog ($hline)  if (!$opts{b});
 
 
@@ -1215,14 +1227,14 @@ sub create_vm_dirs {
 # make_vmAPI_doc
 #
 # Creates the vm XML specification (<create_conf> element) passed to   
-# to vmAPI-->define_vm and copied to ${vm_name}_cconf.xml file 
+# to vmAPI-->define_vm and copied to ${vm_name}_conf.xml file 
 #
 # Arguments:
 # - $vm_name, the virtual machine name
 # - $mngt_ip_data, passed to get_admin_address
 #
 # Returns:
-# - the XML document in text format
+# - the XML document in DOM tree format
 #
 sub make_vmAPI_doc {
     
@@ -1231,26 +1243,46 @@ sub make_vmAPI_doc {
     my $mngt_ip_data = shift;
 
     my $doc = $dh->get_doc;
-    my $dom;
-    $dom = XML::LibXML->createDocument( "1.0", "UTF-8" );
+    my $vm_name = $vm->getAttribute("name");
+    my $dom = XML::LibXML->createDocument( "1.0", "UTF-8" );
    
     my $create_conf_tag = $dom->createElement('create_conf');
     $dom->addChild($create_conf_tag);
-   
-    # We get name attribute
-    my $vm_name = $vm->getAttribute("name");
-    my $vm_order = $dh->get_vm_order($vm_name);
 
     # Insert random id number
     my $fileid_tag = $dom->createElement('id');
     $create_conf_tag->addChild($fileid_tag);
     my $fileid = $vm_name . "-" . generate_random_string(6);
     $fileid_tag->addChild( $dom->createTextNode($fileid) );
-      
+
+    # Create vm tag
     my $vm_tag = $dom->createElement('vm');
     $create_conf_tag->addChild($vm_tag);
-   
-    $vm_tag->addChild( $dom->createAttribute( name => $vm_name));
+
+    # Set all VM attributes
+    # name attribute
+    my $vm_order = $dh->get_vm_order($vm_name);
+    $vm_tag->setAttribute( name => $vm_name );
+
+    # type, subtype and os attributes
+    my @type = $dh->get_vm_type($vm);
+    $vm_tag->setAttribute( type => $type[0] );
+    $vm_tag->setAttribute( subtype => $type[2] );
+    $vm_tag->setAttribute( os => $type[2] );
+
+    # exec mode attribute      
+    my $exec_mode   = $dh->get_vm_exec_mode($vm);
+    $vm_tag->setAttribute( exec_mode => $exec_mode );
+
+    # arch attribute (default i686)
+    my $arch = $vm->getAttribute("arch");
+    if (empty($arch)) { $arch = 'i686' }
+    $vm_tag->setAttribute( arch => $arch );
+ 
+    # vcpu attribute (default 1 cpu)      
+    my $vcpu = $vm->getAttribute("vcpu");
+    if (empty($vcpu)) { $vcpu = '1' }
+    $vm_tag->setAttribute( vcpu => $vcpu );
  
     # To get filesystem and type
     my $filesystem;
@@ -1672,7 +1704,6 @@ sub make_vmAPI_doc {
 =END
 =cut
 
-
     my @plugin_ftree_list = ();
     my @plugin_exec_list = ();
     my @ftree_list = ();
@@ -1773,16 +1804,17 @@ sub make_vmAPI_doc {
 =END
 =cut
   
-    # Save XML document to .vnx/scenarios/<scenario_name>/vms/$vm_name_cconf.xml
+    # Save XML document to .vnx/scenarios/<scenario_name>/vms/$vm_name_conf.xml
     my $vm_doc = $dom->toString(1);
-    wlog (VVV, $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xmlfile\n' . $dom->toString(1), $logp);
-    open XML_CCFILE, ">" . $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml'
-        or $execution->smartdie("can not open " . $dh->get_vm_dir . '/' . $vm_name . '_cconf.xml' )
+    wlog (VVV, $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_conf.xmlfile\n' . $dom->toString(1), $logp);
+    open XML_CCFILE, ">" . $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_conf.xml'
+        or $execution->smartdie("can not open " . $dh->get_vm_dir . '/' . $vm_name . '_conf.xml' )
         unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
     print XML_CCFILE "$vm_doc\n";
     close XML_CCFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
-    return $vm_doc;
+    #return $vm_doc;
+    return $dom;
 }
 
 
@@ -3628,7 +3660,7 @@ back_to_user();
 # ------------------------------------------------------------------------------
 #
 sub mode_modifyrootfs {
-	
+
     my $tmp_dir = shift;
     my $vnx_dir = shift;
 
@@ -4052,6 +4084,18 @@ back_to_user();
 
 #
 # ------------------------------------------------------------------------------
+#                    M O D I F Y R O O T F S   M O D E
+# ------------------------------------------------------------------------------
+#
+sub mode_downloadrootfs {
+	
+	exec('vnx_download_rootfs');
+	
+} 
+
+
+#
+# ------------------------------------------------------------------------------
 #                         S A V E  S C E N A R I O  M O D E
 # ------------------------------------------------------------------------------
 #
@@ -4306,7 +4350,7 @@ sub create_tun_devices_for_virtual_bridged_networks  {
         if ( ($mng_if_value ne "no") && 
              ( ($dh->get_vmmgmt_type eq 'private' && $merged_type ne 'libvirt-kvm-android') ||
                ($dh->get_vmmgmt_type eq 'net'     && $merged_type eq 'libvirt-kvm-android') ) &&
-             ($vm_type ne 'lxc') ) {
+             ($vm_type ne 'lxc') && ($vm_type ne 'nsrouter')) {
 
         #if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") && ($vm_type ne 'lxc') ) {
             my $tun_if = $vm_name . "-e0";
@@ -4328,7 +4372,7 @@ sub create_tun_devices_for_virtual_bridged_networks  {
 
             # Only TUN/TAP for interfaces attached to bridged networks
             # We do not create tap interfaces for libvirt or LXC VMs. It is done by libvirt/LXC
-            if ( ($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ( get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
+            if ( ($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ($vm_type ne 'nsrouter') && ( get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
 
                 # We build TUN device name
                 my $tun_if = $vm_name . "-e" . $id;
@@ -5543,7 +5587,7 @@ sub tun_destroy {
         # To throw away and remove management device (id 0), if neeed
         my $mng_if_value = mng_if_value($vm);
       
-        if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") && ($vm_type ne 'lxc')) {
+        if ( ($dh->get_vmmgmt_type eq 'private') && ($mng_if_value ne "no") && ($vm_type ne 'lxc') && ($vm_type ne 'nsrouter')) {
             my $tun_if = $vm_name . "-e0";
             #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $tun_if down");
             $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $tun_if down");
@@ -5558,7 +5602,7 @@ sub tun_destroy {
             my $net = $if->getAttribute("net");
 
             # Only exists TUN/TAP in a bridged network
-            if ( ( get_net_by_mode($net,"virtual_bridge") != 0) && ( $vm_type ne 'lxc') ) {
+            if ( ( get_net_by_mode($net,"virtual_bridge") != 0) && ( $vm_type ne 'lxc') && ($vm_type ne 'nsrouter') ) {
 	            # TUN device name
 	            my $tun_if = $vm_name . "-e" . $id;
 	            # To throw away TUN device

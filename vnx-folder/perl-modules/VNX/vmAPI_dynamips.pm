@@ -124,7 +124,7 @@ sub init {
 # Arguments:
 #   - $vm_name: the name of the virtual machine
 #   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
-#   - $vm_doc: XML document describing the virtual machines
+#   - $vm_doc: XML document describing the virtual machine in DOM tree format
 # 
 # Returns:
 #   - undefined or '' if no error
@@ -157,15 +157,17 @@ sub define_vm {
 		$extConfFile = get_abs_path ($extConfFile);
 	}
 	
-	my @vm_ordered = $dh->get_vm_ordered;
+    my $doc = $dh->get_doc;                                # scenario global doc
+    my $vm = $vm_doc->findnodes("/create_conf/vm")->[0];   # VM node in $vm_doc
+    my @vm_ordered = $dh->get_vm_ordered;                  # ordered list of VMs in scenario 
 
-    my $parser       = XML::LibXML->new();
-    my $dom          = $parser->parse_string($vm_doc);
-	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-	my $virtualmList = $globalNode->getElementsByTagName("vm");
-	my $virtualm     = $virtualmList->item(0);
+#    my $parser       = XML::LibXML->new();
+#    my $dom          = $parser->parse_string($vm_doc);
+#	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
+#	my $virtualmList = $globalNode->getElementsByTagName("vm");
+#	my $virtualm     = $virtualmList->item(0);
 	
-	my $filesystemTagList = $virtualm->getElementsByTagName("filesystem");
+	my $filesystemTagList = $vm->getElementsByTagName("filesystem");
 	my $filesystemTag     = $filesystemTagList->item(0);
 	my $filesystem_type   = $filesystemTag->getAttribute("type");
 	my $filesystem        = $filesystemTag->getFirstChild->getData;
@@ -198,7 +200,7 @@ sub define_vm {
 	close (CONF);
  	
     # Memory
-    my @memTagList = $virtualm->getElementsByTagName("mem");
+    my @memTagList = $vm->getElementsByTagName("mem");
     my $mem = "96";
 
 	if ( @memTagList != 0 ) {
@@ -236,7 +238,7 @@ sub define_vm {
     my %consPortDefInXML = (1,'',2,'');     # % means that consPortDefInXML is a perl associative array 
     my %consDisplayDefInXML = (1,$CONS_DISPLAY_DEFAULT,2,$CONS_DISPLAY_DEFAULT); 
     #print "** $vm_name: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
-	foreach my $cons ($virtualm->getElementsByTagName("console")) {
+	foreach my $cons ($vm->getElementsByTagName("console")) {
    		my $value = text_tag($cons);
 		my $id    = $cons->getAttribute("id");        # mandatory
 		my $display = $cons->getAttribute("display"); # optional
@@ -380,7 +382,7 @@ sub define_vm {
     }
     
     # Connect virtual networks to host interfaces
-	foreach my $if ($virtualm->getElementsByTagName("if")) {
+	foreach my $if ($vm->getElementsByTagName("if")) {
 		my $name  = $if->getAttribute("name");
 		my $id    = $if->getAttribute("id");
 		my $net   = $if->getAttribute("net");
@@ -498,14 +500,16 @@ sub create_router_conf {
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, extConfFile=$extConfFile ...)", "$logp");
 
 	# Load and parse libvirt XML definition of virtual machine
-	my $vm_xml_file = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml';
-	open XMLFILE, "$vm_xml_file" or return "can not open $vm_xml_file file";
-	my $doc = do { local $/; <XMLFILE> };
-	close XMLFILE;
+	#my $vm_xml_file = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_conf.xml';
+	#open XMLFILE, "$vm_xml_file" or return "can not open $vm_xml_file file";
+	#my $doc = do { local $/; <XMLFILE> };
+	#close XMLFILE;
 
-    my $parser       = XML::LibXML->new();
-    my $dom          = $parser->parse_string($doc);
-	my $vm = $dom->getElementsByTagName("vm")->item(0);
+    #my $parser       = XML::LibXML->new();
+    #my $dom          = $parser->parse_string($doc);
+    
+    my $doc =$dh->get_vm_doc($vm_name,'dom');
+	my $vm = $doc->getElementsByTagName("vm")->item(0);
 
    	# Hostname
 	push (@routerConf,  "hostname " . $vm_name ."\n");
@@ -658,14 +662,16 @@ sub undefine_vm{
     # Contact dynamips hypervisor and destroy the nio interfaces associated with the router
     #
     # Load and parse VM XML definition of virtual machine
-    my $vm_xml_file = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml';
-    if (-e $vm_xml_file) {
-        open XMLFILE, "$vm_xml_file" or return "can not open $vm_xml_file file";
-        my $doc = do { local $/; <XMLFILE> };
-        close XMLFILE;
-        my $parser = XML::LibXML->new();
-        my $dom    = $parser->parse_string($doc);
-        my $vm     = $dom->getElementsByTagName("vm")->item(0);
+    #my $vm_xml_file = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_conf.xml';
+    #if (-e $vm_xml_file) {
+        #open XMLFILE, "$vm_xml_file" or return "can not open $vm_xml_file file";
+        #my $doc = do { local $/; <XMLFILE> };
+        #close XMLFILE;
+        #my $parser = XML::LibXML->new();
+        #my $dom    = $parser->parse_string($doc);
+        
+        my $doc = $dh->get_vm_doc($vm_name,'dom');
+        my $vm  = $doc->getElementsByTagName("vm")->item(0);
     
         foreach my $if ($vm->getElementsByTagName("if")) {
             my $ifName = $if->getAttribute("name");
@@ -682,94 +688,13 @@ sub undefine_vm{
             }
         }
         # Remove VM XML specification file
-        $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -f $vm_xml_file" );
-    }
+        #$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -f $vm_xml_file" );
+    #}
     $t->close;
     
     return $error;
 }
 
-=BEGIN
-# ---------------------------------------------------------------------------------------
-#
-# destroy_vm
-#
-# Destroys a virtual machine 
-#
-# Arguments:
-#   - $vm_name: the name of the virtual machine
-#   - $type: the merged type of the virtual machine (e.g. libvirt-kvm-freebsd)
-# 
-# Returns:
-#   - undefined or '' if no error
-#   - string describing error, in case of error
-#
-# ---------------------------------------------------------------------------------------
-sub destroy_vm{
-
-	my $self   = shift;
-	my $vm_name = shift;
-	my $type   = shift;
-
-    my $logp = "dynamips-destroy_vm-$vm_name> ";
-    my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, type=$type ...)", "$logp");
-
-	my $error;
-	my $line;
-    my $ret_code;
-    my $ret_str;
-
-    wlog (N, "Destroying: $vm_name", $logp);
-
-    my $t;
-    if ( $error = t_connect(\$t) ) { return $error }
-
-   	t_print ($t, "vm stop $vm_name", $logp);
-   	$line = t_getline ($t, $logp);
-   	t_print ($t, "vm delete $vm_name", $logp);
-   	$line = t_getline ($t, $logp);
-
-	# We have to destroy the tap or udp devices created for the router
-	# using the "nio create_tap" or "nio create_udp" commands 
-
-	# Load and parse libvirt XML definition of virtual machine
-	my $vm_xml_file = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_cconf.xml';
-	if (-e $vm_xml_file) {
-		open XMLFILE, "$vm_xml_file" or return "can not open $vm_xml_file file";
-		my $doc = do { local $/; <XMLFILE> };
-		close XMLFILE;
-        my $parser       = XML::LibXML->new();
-        my $dom          = $parser->parse_string($doc);
-		my $vm = $dom->getElementsByTagName("vm")->item(0);
-	
-	 	foreach my $if ($vm->getElementsByTagName("if")) {
-			my $ifName = $if->getAttribute("name");
-			my ($slot, $dev)= split("/",$ifName,2);
-			$slot = substr $slot,-1,1;
-			wlog (V, "Ethernet interface: $ifName, slot=$slot, dev=$dev", $logp);
-			if ( $ifName =~ /^[gfeGFE]/ ) {
-				t_print ($t, "nio delete nio_tap_$vm_name$slot$dev", $logp);
-		   		my $line = t_getline ($t, $logp);
-			}
-			elsif ( $ifName =~ /^[sS]/ ) {
-				t_print ($t, "nio delete nio_udp_$vm_name$slot$dev", $logp);
-		   		$line = t_getline ($t, $logp);
-			}
-		}
-	}
-
-    # Remove vm directory content
-    #$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_vm_dir($vm_name) . "/*" );
-    
-   	#t_print ($t, "hypervisor reset", $logp);
-   	#$line = t_getline ($t, $logp);
-   	$t->close;
-
-	return $error;
-	
-}
-=END
-=cut
 
 # ---------------------------------------------------------------------------------------
 #

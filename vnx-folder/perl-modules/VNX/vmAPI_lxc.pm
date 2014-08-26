@@ -67,10 +67,11 @@ use XML::LibXML;
 use IO::Socket::UNIX qw( SOCK_STREAM );
 
 
-use constant USE_UNIX_SOCKETS => 0;  # Use unix sockets (1) or TCP (0) to communicate with virtual machine 
 my $lxc_dir="/var/lib/lxc";
+# LXC config options 
 my $union_type;
 my $aa_unconfined;
+my $aufs_options;
 
 # ---------------------------------------------------------------------------------------
 #
@@ -90,7 +91,7 @@ sub init {
     } elsif ( ($union_type ne 'overlayfs') && ($union_type ne 'aufs') ){
         $error = "in $vnxConfigFile, incorrect value ($union_type) assigned to 'union_type' \nparameter in [lxc] section (should be overlayfs or aufs).";
     }
-    wlog (VVV, "LXC conf: union_type=$union_type");
+    wlog (VVV, "[lxc] conf: union_type=$union_type");
 
     $aa_unconfined = get_conf_value ($vnxConfigFile, 'lxc', 'aa_unconfined', 'root');
     if (empty($aa_unconfined)) {
@@ -98,7 +99,15 @@ sub init {
     } elsif ( ($aa_unconfined ne 'yes') && ($aa_unconfined ne 'no') ){
         $error = "in $vnxConfigFile, incorrect value ($aa_unconfined) assigned to 'aa_unconfined' \nparameter in [lxc] section (should be yes or no).";
     }
-    wlog (VVV, "LXC conf: aa_unconfined=$aa_unconfined");
+    wlog (VVV, "[lxc] conf: aa_unconfined=$aa_unconfined");
+
+    $aufs_options = get_conf_value ($vnxConfigFile, 'lxc', 'aufs_options', 'root');
+    if (empty($aufs_options)) {
+        $aufs_options = ''; # default value
+    } else {
+        $aufs_options .= ','; # default value
+    }
+    wlog (VVV, "[lxc] conf: aufs_options=$aufs_options");
 
     # Check whether LXC is installed (by executing lxc-info)
     system("which lxc-info > /dev/null 2>&1");
@@ -117,7 +126,7 @@ sub init {
 # Arguments:
 #   - $vm_name: the name of the virtual machine
 #   - $type: the merged type of the virtual machine (e.g. lxc)
-#   - $vm_doc: XML document describing the virtual machines
+#   - $vm_doc: XML document describing the virtual machine in DOM tree format
 # 
 # Returns:
 #   - undefined or '' if no error
@@ -136,12 +145,12 @@ sub define_vm {
     my $error;
     my $extConfFile;
 
-    my $global_doc = $dh->get_doc;
-    my @vm_ordered = $dh->get_vm_ordered;
+    my $doc = $dh->get_doc;                                # scenario global doc
+    my $vm = $vm_doc->findnodes("/create_conf/vm")->[0];   # VM node in $vm_doc
+    my @vm_ordered = $dh->get_vm_ordered;                  # ordered list of VMs in scenario 
 
     my $filesystem;
 
-    my $vm = $dh->get_vm_byname ($vm_name);
     my $exec_mode   = $dh->get_vm_exec_mode($vm);
     my $vm_arch = $vm->getAttribute("arch");
     if (empty($vm_arch)) { $vm_arch = 'i686' }  # default value
@@ -156,14 +165,6 @@ sub define_vm {
             $error = "A LXC vm named $vm_name already exists. Check $lxc_dir/$vm_name directory content.";
             return $error;
         }
-
-        #
-        # Read VM XML specification file
-        # 
-        my $parser       = XML::LibXML->new();
-        my $dom          = $parser->parse_string($vm_doc);
-        my $global_node   = $dom->getElementsByTagName("create_conf")->item(0);
-        my $vm     = $global_node->getElementsByTagName("vm")->item(0);
 
         my $filesystem_type   = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
         my $filesystem        = $vm->getElementsByTagName("filesystem")->item(0)->getFirstChild->getData;
@@ -191,7 +192,7 @@ change_to_root();
                                      ",lowerdir=" . $filesystem . " none " . $vm_lxc_dir );
             } elsif ($union_type eq 'aufs') {
                 # Ex: mount -t aufs -o br=/tmp/lxc1-rw:/var/lib/lxc/vnx_rootfs_lxc_ubuntu-12.04-v024/=ro none /tmp/lxc1
-                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t aufs -o br=" . $vm_cow_dir . 
+                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t aufs -o ${aufs_options}br=" . $vm_cow_dir . 
                                      ":" . $filesystem . "/=ro none " . $vm_lxc_dir );
             }
         } else {
@@ -207,7 +208,7 @@ change_to_root();
         
         die "ERROR: variable vm_lxc_dir is empty" unless ($vm_lxc_dir ne '');
 
-        # Variables pointing to rootfs directory nad config and fstab files
+        # Variables pointing to rootfs directory and config and fstab files
         my $vm_lxc_rootfs="${vm_lxc_dir}/rootfs";
         my $vm_lxc_config="${vm_lxc_dir}/config";
         my $vm_lxc_fstab="${vm_lxc_dir}/fstab";
@@ -232,7 +233,7 @@ change_to_root();
         system "chmod +x $rootfs_mount_dir/tmp/get_os_distro";
         
         # Second, execute the script chrooted to the image
-        my $os_distro = `LANG=C chroot $rootfs_mount_dir /tmp/get_os_distro`;
+        my $os_distro = `LANG=C chroot $rootfs_mount_dir perl /tmp/get_os_distro`;
         my @platform = split(/,/, $os_distro);
 
         # Check consistency of VM definition and hardware platform 
@@ -265,8 +266,8 @@ change_to_root();
         $execution->execute( $logp, "sed -i -e 's/127.0.1.1.*/127.0.1.1   $vm_name/' ${vm_lxc_rootfs}/etc/hosts" ); 
 
         # Copy SSH keys if <ssh> tag specified in scenario
-        if( $dom->exists("/create_conf/vm/ssh_key") ){
-            my @ssh_key_list = $dom->findnodes('/create_conf/vm/ssh_key');
+        if( $doc->exists("/create_conf/vm/ssh_key") ){
+            my @ssh_key_list = $doc->findnodes('/create_conf/vm/ssh_key');
             # Copy ssh key files content to $ssh_key_dir/ssh_keys file
             foreach my $ssh_key (@ssh_key_list) {
                 my $key_file = do_path_expansion( text_tag( $ssh_key ) );
@@ -386,10 +387,10 @@ change_to_root();
 
         # Call the VM autoconfiguration function
         if ($platform[0] eq 'Linux'){
-            if    ($platform[1] eq 'Ubuntu')   { autoconfigure_debian_ubuntu ($dom, $rootfs_mount_dir, 'ubuntu') }           
-            elsif ($platform[1] eq 'Debian')   { autoconfigure_debian_ubuntu ($dom, $rootfs_mount_dir, 'debian') }           
-            elsif ($platform[1] eq 'Fedora')   { autoconfigure_redhat ($dom, $rootfs_mount_dir, 'fedora') }
-            elsif ($platform[1] eq 'CentOS')   { autoconfigure_redhat ($dom, $rootfs_mount_dir, 'centos') }
+            if    ($platform[1] eq 'Ubuntu')   { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'ubuntu') }           
+            elsif ($platform[1] eq 'Debian')   { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'debian') }           
+            elsif ($platform[1] eq 'Fedora')   { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'fedora') }
+            elsif ($platform[1] eq 'CentOS')   { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'centos') }
         } else {
             return "Platform not supported. LXC can only be used to start Linux images.";
         }
@@ -534,8 +535,9 @@ sub start_vm {
 
 
         # Load and parse VM XML config file
-        my $parser = XML::LibXML->new();
-        my $doc = $parser->parse_file( $dh->get_vm_dir($vm_name) . "/${vm_name}_cconf.xml");
+#        my $parser = XML::LibXML->new();
+#        my $doc = $parser->parse_file( $dh->get_vm_dir($vm_name) . "/${vm_name}_conf.xml");
+        my $doc = $dh->get_vm_doc($vm_name,'dom');
         my $vm  = $doc->getElementsByTagName("vm")->item(0);
         my $filesystem_type   = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
         my $filesystem        = $vm->getElementsByTagName("filesystem")->item(0)->getFirstChild->getData;
@@ -558,7 +560,7 @@ sub start_vm {
 	                                     ",lowerdir=" . $filesystem . " none " . $vm_lxc_dir );
 	            } elsif ($union_type eq 'aufs') {
 	                # Ex: mount -t aufs -o br=/tmp/lxc1-rw:/var/lib/lxc/vnx_rootfs_lxc_ubuntu-12.04-v024/=ro none /tmp/lxc1
-	                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t aufs -o br=" . $vm_cow_dir . 
+	                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t aufs -o ${aufs_options}br=" . $vm_cow_dir . 
 	                                     ":" . $filesystem . "/=ro none " . $vm_lxc_dir );
 	            }
             }
@@ -1213,6 +1215,7 @@ sub get_user_in_seq {
 
 }
 
+=BEGIN
 
 
 ###################################################################
@@ -1277,7 +1280,6 @@ sub get_directory_files {
 }
 
 
-
 ###################################################################
 # Wait for a filetree end file (see conf_files function)
 sub filetree_wait {
@@ -1291,6 +1293,8 @@ sub filetree_wait {
     } while (1);
     return 0;
 }
+=END
+=cut
 
 1;
 
