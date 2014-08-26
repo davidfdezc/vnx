@@ -2,8 +2,8 @@
 #
 # This file is a module part of VNX package.
 #
-# Author: Fermin Galan Marquez (galan@dit.upm.es)
-# Copyright (C) 2005, 	DIT-UPM
+# Author: Fermin Galan Marquez (galan@dit.upm.es), David Fernández (david@dit.upm.es)
+# Copyright (C) 2005-2014 	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN
@@ -57,6 +57,12 @@ sub new {
    "hostname", "route", "scp", "chmod", "ssh", "uml_mconsole",                                                                             
    "date", "ps", "grep", "kill", "ln", "mkisofs", "mktemp", "su", "find",
    "qemu-img", "mkfs.msdos", "mkfs.ext4", "mount", "umount", "sed", "ip", "vnx_mount_rootfs");
+
+   # Perl modules mandatory
+   my @perlmods_mandatory = qw( NetAddr::IP XML::LibXML XML::Tidy AppConfig Readonly 
+                                Term::ReadKey Net::Pcap Net::IPv6Addr Sys::Virt Net::Telnet 
+                                Error Exception::Class XML::DOM DBI Math::Round IO::Pty 
+                                Net::IP XML::Checker XML::Parser File::HomeDir);
    
    # List of optional binaries for xterm, vlan, screen and
    # uml_switch (defaults are empty: the add_additional_*_binaries 
@@ -69,13 +75,13 @@ sub new {
    my @binaries_lxc = ();
    my @binaries_libvirt = ();
    my @binaries_kvm = ();
-   
-
+                                           
    # Hash to store paths of binaries (empty util check_binaries method is called)
    my %bp;
   
    # Assignements by reference
    $self->{'binaries_mandatory'} = \@binaries_mandatory;
+   $self->{'perlmods_mandatory'} = \@perlmods_mandatory;
    $self->{'binaries_screen'} = \@binaries_screen;
    $self->{'binaries_vlan'} = \@binaries_vlan;
    $self->{'binaries_switch'} = \@binaries_switch;
@@ -336,6 +342,27 @@ sub check_binaries_mandatory {
     my @list = @$ref;
     return &check_binaries($self, @list); 
 }
+
+# check_perlmods_mandatory
+sub check_perlmods_mandatory {
+    my $self = shift;
+    
+    my $res; 
+    my $ref = $self->{'perlmods_mandatory'};
+    my @list = @$ref;
+    foreach my $pmod (@list) {
+        #print "Checking if perl module $pmod is installed\n";
+        my $check=`perl -M$pmod -e 1 2>&1`;
+        if ($check) {
+            $res .= " $pmod";
+        }
+    }
+    if ($res) {
+    	$res = "ERROR: some perl module(s) required by VNX are not installed ($res )";
+    }
+    return $res;
+}
+    
 
 # check_binaries_screen
 sub check_binaries_screen {

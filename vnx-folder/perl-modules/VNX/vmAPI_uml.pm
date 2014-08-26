@@ -251,8 +251,8 @@ sub start_vm {
 		return $error;
 	}
 
-	my $vm_doctxt = $dh->get_vm_doctxt($vm_name);  # Content of ${vm_name}_cconf.xml file
-	                                               # created by make_vmAPI_doc
+	my $vm_doctxt = $dh->get_vm_doc($vm_name,'txt');  # Content of ${vm_name}_conf.xml file
+	                                                  # created by make_vmAPI_doc
     my $parser = XML::LibXML->new();
     my $vm_doc = $parser->parse_string($vm_doctxt);
 
@@ -463,9 +463,10 @@ sub start_vm {
 	push( @params, "hostfs=" . $dh->get_vm_hostfs_dir($vm_name) );
 
 	# VNUML-ize filesystem
-	my $Z_flagTagList = $virtualm->getElementsByTagName("Z_flag");
-	my $Z_flagTag     = $Z_flagTagList->item(0);
-	my $Z_flag        = $Z_flagTag->getFirstChild->getData;
+#	my $Z_flagTagList = $virtualm->getElementsByTagName("Z_flag");
+#	my $Z_flagTag     = $Z_flagTagList->item(0);
+#    my $Z_flag        = $Z_flagTag->getFirstChild->getData;
+    my $Z_flag        = '1';
 
 	if ( ( !-f $dh->get_vm_fs_dir($vm_name) . "/build-stamp" ) && ( !$Z_flag ) )
 	{

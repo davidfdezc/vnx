@@ -42,7 +42,7 @@ SPAIN
   <net name="Net0" mode="virtual_bridge" />
       
   <!-- NODES -->
-  <vm name="freebsd64" type="libvirt" subtype="kvm" os="freebsd">
+  <vm name="freebsd64" type="libvirt" subtype="kvm" os="freebsd" arch="x86_64">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_freebsd64</filesystem>
     <mem>256M</mem>
     <if id="1" net="Net0">

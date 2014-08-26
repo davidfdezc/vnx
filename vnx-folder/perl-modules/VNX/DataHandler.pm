@@ -1195,6 +1195,36 @@ sub get_vm_tmp_dir {
    return $self->get_vm_dir($name) . "/tmp";
 }
 
+
+# get_vm_doc
+#
+# Arguments:
+#
+# - the name of the vm
+# - the format: dom or txt 
+#
+# Returns the content of the XML file with the <create_conf> tag created by make_vm_API_doc for a particular vm
+# in DOM tree or XML textual format 
+#
+sub get_vm_doc {
+
+    my $self  = shift;
+    my $name  = shift;
+    my $format = shift;
+    my $vm_doc;
+    
+    my $file = $self->get_vm_dir($name) . "/${name}_conf.xml";
+
+    if ($format eq 'txt') {
+	    open FILE, "< $file";
+	    $vm_doc = do { local $/; <FILE> };
+	    close FILE;
+    } else {
+        $vm_doc = XML::LibXML->new()->parse_file($file);
+    }
+    return $vm_doc;
+}
+
 # get_vm_doctxt
 #
 # Arguments:
@@ -1202,17 +1232,18 @@ sub get_vm_tmp_dir {
 # - the name of the vm
 #
 # Returns the content of the XML file with the <create_conf> tag created by make_vm_API_doc for a particular vm
+# in XML textual format
 #
-sub get_vm_doctxt {
-   	my $self = shift;
-   	my $name = shift;
-   	my $file = $self->get_vm_dir($name) . "/${name}_cconf.xml";
-   	#print "*** file=$file\n";
-   	open FILE, "< $file";
-	my $vm_doc = do { local $/; <FILE> };
-	close FILE;
-	return $vm_doc;
-}
+#sub get_vm_doctxt {
+#   	my $self = shift;
+#   	my $name = shift;
+#   	my $file = $self->get_vm_dir($name) . "/${name}_conf.xml";
+#   	#print "*** file=$file\n";
+#   	open FILE, "< $file";
+#	my $vm_doc = do { local $/; <FILE> };
+#	close FILE;
+#	return $vm_doc;
+#}
 
 
 ###########################################################################
@@ -1719,6 +1750,24 @@ sub get_vm_merged_type {
 		}
 	}
 	return $merged_type;
+}
+
+#
+# get_vm_type
+#
+#
+sub get_vm_type {
+
+    my $self = shift;
+    my $vm = shift;
+
+    my @type;
+
+    $type[0] = $vm->getAttribute("type");
+    $type[1] = str($vm->getAttribute("subtype"));
+    $type[2] = str($vm->getAttribute("os"));
+    
+    return @type;
 }
 
 #

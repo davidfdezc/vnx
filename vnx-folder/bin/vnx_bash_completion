@@ -1,0 +1,75 @@
+# bash completion for vnx 
+# 
+# This file is of VNX package.
+#
+# Authors: David Fernández (david@dit.upm.es)
+# Copyright (C) 2014 DIT-UPM
+#           Departamento de Ingenieria de Sistemas Telematicos
+#           Universidad Politecnica de Madrid
+#           SPAIN
+#
+# This file is released under GPL-2, or later.
+#
+
+_vnx() 
+{
+    local cur prev line opts
+
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    line=${COMP_LINE}
+    opts="--define --undefine --start --create -t --shutdown -d --destroy -P --modify -m --scenario -s --save --restore --suspend --resume --reboot --reset --recreate --execute -x --exe-cli, --show-map --show-status --console --console-info --exe-info --clean-host --create-rootfs --modify-rootfs --download-rootfs --install-media --update-aced --mem --yes -y --rootfs-type --help -h -v -vv -vvv --version -V -f -c -T --config -C -M -i -g --user -u -4 -6 -D --no-console -n --intervm-delay -e -w -F -B -o -Z -b --arch --vcpu --kill -k"
+
+    #echo 
+    #echo cur=${cur}
+    #echo prev=${prev}
+    #echo line=${line}
+
+    if [[ ${cur} == -* ]] ; then
+        COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+        return 0
+    else
+        case "$prev" in
+        --arch)          pars='i686 x86_64'
+                         COMPREPLY=( $(compgen -W "${pars}" -- ${cur}) )
+                         ;;
+        --show-map)      pars='svg png'
+                         COMPREPLY=( $(compgen -W "${pars}" -- ${cur}) )
+                         ;;
+        --console)       pars='con0 con1'
+                         COMPREPLY=( $(compgen -W "${pars}" -- ${cur}) )
+                         ;;
+        --rootfs-type)   pars='libvirt-kvm lxc'
+                         COMPREPLY=( $(compgen -W "${pars}" -- ${cur}) )
+                         ;;
+        --vcpu)          nproc=`nproc`
+                         pars=`eval echo {1..$nproc}`
+                         COMPREPLY=( $(compgen -W "${pars}" -- ${cur}) )
+                         ;;
+        -f)              _filedir '@(xml)'
+                         #xpat='!*.xml'
+                         #COMPREPLY=( $(compgen -f -o dirnames -o nospace -X "${xpat}" -- ${cur}) )
+                         ;;
+        -C)              _filedir '@(conf)'
+                         ;;
+        -T)              _filedir -d
+                         ;;
+        -c)              _filedir -d
+                         ;;
+        --update-aced)   _filedir '@(tgz)'
+                         ;;
+        -e|--create-rootfs|--install-media)
+                         _filedir
+                         ;;
+        --execute|-x)    scenario=`echo $line | awk '{ for (x=1;x<=NF;x++) if ($x~"-f") print $x " " $(x+1) }'`
+                         moption=`echo $line | awk '{ for (x=1;x<=NF;x++) if ($x~"-M") print $x " " $(x+1) }'`
+                         pars=`vnx $scenario $moption --exe-info -b`
+                         COMPREPLY=( $(compgen -W "${pars}" -- ${cur}) )
+                         ;;
+        --modify-rootfs) _filedir -d
+        esac
+    fi
+}
+
+complete -F _vnx vnx
