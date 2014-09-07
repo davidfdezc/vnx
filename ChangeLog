@@ -1,3 +1,17 @@
+
+7/9/2014
+
+- Added <default> tag and desktop attribute to window configuration files (.cvnx) 
+  Example:
+     <default win="0,0,600,400" desktop="0" ontop="no"/>
+     <vm name="h1" win="0,0,600,400" ontop="yes"/>
+- Added <vnx_cfg> tag to specify the windows configuration filename (if not specified VNX looks for a file with the same name as the scenario but with extension .cvnx) 
+    Example:
+        <vnx_cfg>tutorial_lxc_ubuntu2.cvnx</vnx_cfg>
+  Besides, the config file is copied to scenario directory to find it when -s option used
+
+- Added "-n" option to vnx_download_rootfs to eliminate wget progress bars (disturbing when using it inside bootstrap vagrant shellscripts).
+
 26/08/2014
 
 - Added aufs_options parameter to [lxc] section of vnx.conf 

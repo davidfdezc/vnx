@@ -135,18 +135,21 @@ sub execute_host_command {
 sub open_console {
 	
 	my $self        = shift;
-	my $vm_name      = shift;
+	my $vm_name     = shift;
 	my $con_id      = shift;
-	my $cons_type    = shift;
+	my $cons_type   = shift;
 	my $consPar     = shift;
 	my $getLineOnly = shift;
 
     my $logp = "open_console-$vm_name> ";
 
 	my $command;
+	my $exeLine;
+	
 	if ($cons_type eq 'vnc_display') {
-		$execution->execute_root( $logp, "virt-viewer -c $hypervisor $vm_name &");
-		return;  			
+        $exeLine = "virt-viewer -c $hypervisor $vm_name &";
+        #$execution->execute_root( $logp, "virt-viewer -c $hypervisor $vm_name &");
+		#return;  			
    	} elsif ($cons_type eq 'libvirt_pts') {
 		$command = "virsh -c $hypervisor console $vm_name";
         unless (defined $getLineOnly) {
@@ -206,19 +209,20 @@ sub open_console {
 		wlog (N, "WARNING (vm=$vm_name): unknown console type ($cons_type)");
 	}
 	
-	my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term', 'root');
-	my $exeLine;
-	wlog (VVV, "$vm_name $command console_term = $console_term", $logp);
-	if ($console_term eq 'gnome-terminal') {
-		$exeLine = "gnome-terminal --title '$vm_name - console #$con_id' -e '$command'";
-	} elsif ($console_term eq 'konsole') {
-		$exeLine = "konsole --title '$vm_name - console #$con_id' -e $command";
-	} elsif ($console_term eq 'xterm') {
-		$exeLine = "xterm -rv -sb -rightbar -fa monospace -fs 10 -title '$vm_name - console #$con_id' -e '$command'";
-	} elsif ($console_term eq 'roxterm') {
-		$exeLine = "roxterm --title '$vm_name - console #$con_id' -e $command";
-	} else {
-		$execution->smartdie ("unknown value ($console_term) of console_term parameter in $vnxConfigFile");
+	if ($con_id != 0) {
+		my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term', 'root');
+		wlog (VVV, "$vm_name $command console_term = $console_term", $logp);
+		if ($console_term eq 'gnome-terminal') {
+			$exeLine = "gnome-terminal --title '$vm_name - console #$con_id' -e '$command'";
+		} elsif ($console_term eq 'konsole') {
+			$exeLine = "konsole --title '$vm_name - console #$con_id' -e $command";
+		} elsif ($console_term eq 'xterm') {
+			$exeLine = "xterm -rv -sb -rightbar -fa monospace -fs 10 -title '$vm_name - console #$con_id' -e '$command'";
+		} elsif ($console_term eq 'roxterm') {
+			$exeLine = "roxterm --title '$vm_name - console #$con_id' -e $command";
+		} else {
+			$execution->smartdie ("unknown value ($console_term) of console_term parameter in $vnxConfigFile");
+		}
 	}
     wlog (VVV, "exeLine=$exeLine", $logp);
 	unless (defined($getLineOnly)) {
@@ -228,8 +232,14 @@ sub open_console {
 	my $win_cfg = get_console_win_info($vm_name, $con_id);
 	if (defined($win_cfg)) {
 		# Wait for window to be ready
+		my $win_str;
+		if ($con_id == 0) {
+			$win_str = "$vm_name.*- Virt Viewer"
+		} else {
+            $win_str = "$vm_name.*- console"
+		}
 		my $timeout = 5;
-		while (! `wmctrl -l | grep "$vm_name - "`) {
+		while (! `wmctrl -l | grep "$win_str"`) {
             print ".";
 			sleep 1;
 			$timeout--;
@@ -238,11 +248,23 @@ sub open_console {
                 return $exeLine;
 			} 
 		}
+		# get window id
+		my $win_id = `wmctrl -l | grep "$win_str" | awk '{print \$1}'`;
+		chomp ($win_id);
+		
         my @win_info = split( /:/, $win_cfg );
-        $execution->execute($logp, "wmctrl -r \"$vm_name - \" -e 0,$win_info[0]");
-        $execution->execute($logp, "wmctrl -a \"$vm_name - \"");
-        if ($win_info[1] eq 'yes') {
-            $execution->execute($logp, "wmctrl -r \"$vm_name - \" -b toggle,above");
+        if ($win_info[1]) {
+        	# move window to desktop specified
+            $execution->execute($logp, "wmctrl -i -r $win_id -t $win_info[1]");
+        }
+        if ($win_info[0]) {
+        	# change window size and position
+            $execution->execute($logp, "wmctrl -i -r $win_id -e 0,$win_info[0]");
+        }
+        $execution->execute($logp, "wmctrl -i -a $win_id");
+        if (str($win_info[2]) eq 'yes') {
+        	# set the window on_top
+            $execution->execute($logp, "wmctrl -i -r $win_id -b toggle,above");
         }
 	}
 	return $exeLine;
@@ -320,6 +342,20 @@ sub start_consoles_from_console_file {
 
 }
 
+#
+# get_console_win_info
+#
+# Reads the window configuration file associated with the scenario a looks for
+# values for console $con_id of virtual machine $vm_name
+#
+# Returns a string with the following format:
+#  $win_pos:$desktop:$on_top
+#
+# If a value is not specified, a empty string is returned
+# Examples: 
+#  0,0,600,400:1:yes
+#  0,0,600,400::no
+#
 sub get_console_win_info {
 	
 	my $vm_name = shift;
@@ -328,21 +364,55 @@ sub get_console_win_info {
     my $logp = "get_console_win_pos> ";
 	
 	my $cfg_file = $dh->get_cfg_file();
-	my $win_cfg; 
+    wlog (V, "get_console_win_info -> cfg_file=$cfg_file", $logp);
+	my $win_pos_def=''; 
+    my $desktop_def='';
+    my $on_top_def='';
+    my $win_pos; 
+    my $desktop;
+    my $on_top;
 	
 	if ($cfg_file) {
 		
         my $parser = XML::LibXML->new();
         my $doc = $parser->parse_file($cfg_file);
-        
-        if( $doc->exists("/vnx_cfg/vm[\@name='$vm_name']") ){
-            my @vms = $doc->findnodes("/vnx_cfg/vm[\@name='$vm_name']");
-            my $on_top = $vms[0]->getAttribute('ontop');
-            if (!defined($on_top)) { $on_top = 'no' }; 
-            $win_cfg = $vms[0]->getAttribute('win') . ":$on_top";   
+
+        # Get defaults if specified in .cvnx file
+        my @default;
+        if( $doc->exists("/vnx_cfg/default[\@id='$con_id']")) {
+            # load specific default values for this console id
+            @default = $doc->findnodes("/vnx_cfg/default[\@id='$con_id']");
+        } elsif ( $doc->exists("/vnx_cfg/default") ) {
+            # load general default values for all consoles
+            @default = $doc->findnodes("/vnx_cfg/default");
         }
+        if (@default) {
+            $win_pos_def = str($default[0]->getAttribute('win'));
+            $desktop_def = str($default[0]->getAttribute('desktop'));
+            $on_top_def  = str($default[0]->getAttribute('ontop'));
+            wlog (V, "win_cfg def values -> con_id=$con_id - win_pos_def=$win_pos_def:desktop_def=$desktop_def:on_top_def=$on_top_def", $logp)
+        }
+
+        # Get values specified for this VM
+        my @vms;
+        if ( $doc->exists("/vnx_cfg/vm[\@name='$vm_name' and \@id='$con_id']") ) {
+            # load specific values for this VM and console id 
+            @vms = $doc->findnodes("/vnx_cfg/vm[\@name='$vm_name' and \@id='$con_id']");
+        } elsif ( $doc->exists("/vnx_cfg/vm[\@name='$vm_name']") ) {
+            # load specific values for this VM but generc for any console id 
+            @vms = $doc->findnodes("/vnx_cfg/vm[\@name='$vm_name']");
+        }
+        if (@vms) {
+            $win_pos = str($vms[0]->getAttribute('win'));
+            if ( $win_pos eq '') { $win_pos = $win_pos_def }
+            $desktop = str($vms[0]->getAttribute('desktop'));
+            if ( $desktop eq '') { $desktop = $desktop_def } 
+            $on_top = str($vms[0]->getAttribute('ontop'));
+            if ( $on_top eq '' )  { $on_top = $on_top_def   } 
+        }
+        wlog (V, "win_cfg final values -> win_pos=$win_pos:desktop=$desktop:on_top=$on_top", $logp);
 	}
-    return $win_cfg;
+    return str($win_pos) . ":". str($desktop) . ":" . str($on_top);    
 }
 
 ###################################################################

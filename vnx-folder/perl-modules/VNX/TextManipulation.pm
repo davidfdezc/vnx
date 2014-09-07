@@ -38,7 +38,10 @@ our @EXPORT = qw( dec2bin bin2dec text_tag text_tag_multiline clean_line
               chompslash remove_heading_slash
               generate_random_string
               slashed_to_dotted_mask
-              get_vmnames);
+              get_vmnames 
+              empty
+              str
+              str2);
 
 
 # dec2bin and bin2dec adapted from http://perlmonks.thepen.com/2664.html
@@ -49,6 +52,7 @@ sub dec2bin {
    $str =~ s/^0*(\d{8})$/$1/;	# only the last 8 bits
    return $str;
 }
+
 sub bin2dec {
    return unpack("N", pack("B32", substr("0" x 32 . shift, -32)));
 }
@@ -241,4 +245,31 @@ sub get_vmnames {
     return $vm_list;
 }
 
+# empty
+#
+# Returns false if the variable passed is defined and has a value different from '' or false in any other case.
+#
+sub empty {
+  my $var = shift;
+  return ( !defined($var) or $var =~ /^$/ );
+}
+
+# str
+#
+# Returns the same string passed as a parameter if defined, or empty string ('') if the variable passed is undefined
+# Useful when getting attributes not defined in XML files
+#
+sub str {
+  my $var = shift;
+  if ( !defined($var) ) { return '' } else { return $var }
+}
+
+# str2
+#
+# Returns the same string passed as a parameter if defined; 'undef' if the variable passed is undefined
+#
+sub str2 {
+  my $var = shift;
+  if ( !defined($var) ) { return 'undef' } else { return $var }
+}
 1;

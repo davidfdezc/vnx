@@ -34,9 +34,7 @@ use warnings;
 use Exporter;
 
 our @ISA = qw(Exporter);
-our @EXPORT = qw( empty
-              str
-              str2
+our @EXPORT = qw( 
               vm_has_tag 
               num_tags_in_vm
               at_least_one_vm_without_mng_if 
@@ -46,33 +44,6 @@ our @EXPORT = qw( empty
 use VNX::Globals;
 use VNX::TextManipulation;
 
-# empty
-#
-# Returns false if the variable passed is defined and has a value different from '' or false in any other case.
-#
-sub empty {
-  my $var = shift;
-  return ( !defined($var) or $var =~ /^$/ );
-}
-
-# str
-#
-# Returns the same string passed as a parameter if defined, or empty string ('') if the variable passed is undefined
-# Useful when getting attributes not defined in XML files
-#
-sub str {
-  my $var = shift;
-  if ( !defined($var) ) { return '' } else { return $var }
-}
-
-# str2
-#
-# Returns the same string passed as a parameter if defined; 'undef' if the variable passed is undefined
-#
-sub str2 {
-  my $var = shift;
-  if ( !defined($var) ) { return 'undef' } else { return $var }
-}
 
 # vm_has_tag
 #

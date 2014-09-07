@@ -148,6 +148,7 @@ e-mail: vnx@dit.upm.es
         <xs:element minOccurs="0" ref="vm_defaults"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="cmd-seq"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="extension"/>
+        <xs:element maxOccurs="1" minOccurs="0" ref="vnx_cfg"/>
         <xs:element maxOccurs="1" minOccurs="0" ref="dynamips_ext"/>
         <xs:element maxOccurs="1" minOccurs="0" ref="olive_ext"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="help"/>        
@@ -548,6 +549,10 @@ e-mail: vnx@dit.upm.es
         <xs:element minOccurs="0" ref="host"/>
       </xs:sequence>
     </xs:complexType>
+  </xs:element>
+
+  <xs:element name="vnx_cfg">
+    <xs:complexType mixed="true"/>
   </xs:element>
 
   <!--xs:element name="xterm">

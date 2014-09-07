@@ -630,15 +630,29 @@ $>=$uid;
 	#$parser->keep_blanks(0);
     my $doc = $parser->parse_file($input_file);
     
-    # Check if there is a .cvnx file
-    my $cfg_file = $input_file;
-    $cfg_file =~ s{\.[^.]+$}{}; # remove extension
-    $cfg_file .= ".cvnx";
-    unless (-e $cfg_file) {
-        $cfg_file = '';	
+    # Look for a windows configuration file associated to the scenario
+    #
+    my $cfg_file;
+    # Check if a <vnx_cfg> tag is included
+    if( $doc->exists("/vnx/global/vnx_cfg") ){
+        my @cfg_file_tag = $doc->findnodes('/vnx/global/vnx_cfg');
+        $cfg_file = $cfg_file_tag[0]->textContent();
+        unless (valid_absolute_filename($cfg_file)) {
+        	$cfg_file = $xml_dir . "/" . $cfg_file;
+        }
+        unless (-r $cfg_file) {
+            vnx_die ("cannot read windows configuration file ($cfg_file)\n");
+        }
+    } else { # Check if a file with the same name as the scenario but with .cvnx extension exists
+             # in the scenario directory
+        $cfg_file = basename($input_file);
+        $cfg_file =~ s{\.[^.]+$}{}; # remove extension
+        $cfg_file = "${xml_dir}/${cfg_file}.cvnx";
+        unless (-e $cfg_file) {
+            $cfg_file = '';	
+        }
     }
-    pre_wlog ("  CFG file: $cfg_file") if (!$opts{b});
-         
+    pre_wlog ("  CFG file: $cfg_file") if ( !$opts{b} && $cfg_file );
    	# Calculate the directory where the input_file lives
    	#my $xml_dir = (fileparse(abs_path($input_file)))[1];
 
@@ -1053,6 +1067,11 @@ sub build_topology{
     $execution->execute($logp, $bd->get_binaries_path_ref->{"cp"} . " " . $dh->get_input_file . " " . $dh->get_sim_dir);
     $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " '<'!-- copied by $basename at $now --'>' >> ".$dh->get_sim_dir."/$input_file_basename");       
     $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " '<'!-- original path: ".abs_path($dh->get_input_file)." --'>' >> ".$dh->get_sim_dir."/$input_file_basename");
+
+    # Copy also the windows configuration file (.cvnx) if it exists
+    if ($dh->get_cfg_file()) {
+        $execution->execute($logp, $bd->get_binaries_path_ref->{"cp"} . " " . $dh->get_cfg_file() . " " . $dh->get_sim_dir);
+    }
 
     # To make lock file (it exists while scenario is running)
     $execution->execute( $logp, $bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_sim_dir . "/lock");

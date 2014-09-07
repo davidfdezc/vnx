@@ -39,6 +39,8 @@ SPAIN
     <cmd-seq seq="ls123">ls12,ls3</cmd-seq>
     <cmd-seq seq="ls1234">ls123,ls4</cmd-seq>
 
+    <vnx_cfg>tutorial_lxc_ubuntu.cvnx</vnx_cfg>
+
     <help>
         <seq_help seq='start-www'>Start apache2 web server</seq_help>
         <seq_help seq='stop-www'>Stop apache2 web server</seq_help>
