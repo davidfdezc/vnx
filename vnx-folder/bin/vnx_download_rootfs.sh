@@ -53,6 +53,7 @@ Options:    -s -> show root filesystems available at VNX repository
             -l -> creates a "rootfs_*" link to the root filesystem download
             -r <rootfsname> -> use it to download a specific root filesystem
             -y -> overwrite local files without asking for permission
+            -n -> execute wget in no-verbose mode (--nv option)
             -h -> show this help
             when no options invoked vnx_download_rootfs starts in interactive mode            
 "
@@ -203,7 +204,7 @@ function download_rootfs {
     fi
     
     error404=""
-    wget -N $rootfs_url || error404="true"
+    wget $NV --progress=dot:giga -N $rootfs_url || error404="true"
     #echo $error404
     if [ "$error404" == "true" ] ; then
         echo "------------------------------------------------------------------------"
@@ -259,7 +260,7 @@ function download_rootfs {
     
     # Check md5sum
     rm -f ./$rootfs_md5
-    wget -N $rootfs_md5_url
+    wget $NV --progress=dot:binary -N $rootfs_md5_url
     md5_in_file=`cat $rootfs_md5 | awk '{print $1}'`
     case $rootfs_ext in
     bz2) md5_calculated=`md5sum $rootfs_name | awk '{print $1}'`
@@ -376,7 +377,7 @@ for cmd in $cmds_required; do
 done
 
 
-while getopts ":yshl :r:" opt; do
+while getopts ":nyshl :r:" opt; do
     case $opt in
 
     l)
@@ -419,6 +420,10 @@ while getopts ":yshl :r:" opt; do
         echo ""
         show_rootfs_array
         exit 0
+        ;;
+    n)
+        #echo "-n was triggered" >&2
+        NV="-nv"
         ;;
     h)
         #echo "-h was triggered, Parameter: $OPTARG" >&2

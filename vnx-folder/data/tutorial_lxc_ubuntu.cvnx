@@ -1,8 +1,9 @@
 <vnx_cfg>
+<default win="0,0,600,400" ontop="no"/>
 <vm name="h1" win="0,0,600,400" ontop="yes"/>
 <vm name="h2" win="0,400,600,400"/>
 <vm name="h3" win="1200,0,600,400"/>
-<vm name="h4" win="1200,400,600,400" ontop="no"/>
+<vm name="h4" win="1200,400,600,400" ontop="yes"/>
 <vm name="r1" win="400,200,600,400"/>
 <vm name="r2" win="800,200,600,400"/>
 </vnx_cfg>

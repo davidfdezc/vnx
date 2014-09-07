@@ -78,7 +78,7 @@ sub valid_absolute_directoryname {
 
 # valid_absolute_filename
 #
-# Check if the argument (string) if a valid absolute filename
+# Check if the argument (string) is a valid absolute filename
 #
 # Return 1 if valid, 0 otherwise
 #
