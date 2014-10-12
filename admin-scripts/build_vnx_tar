@@ -115,7 +115,6 @@ cd ../..
 # Windows
 #
 cp vnx-autoconf/windows/vnx-aced-win-${ACED_WIN_VERSION}.exe tmp/aced
-
 #
 # Linux & Freebsd
 #
@@ -140,6 +139,15 @@ fi
 rm -rf vnx-aced-lf-$ACED_LF_VERSION
 cd ../..
 
+# Create links to latest version 
+cd tmp/aced
+rm -f vnx-aced-olive-latest.tgz
+ln -s vnx-aced-olive-${ACED_OLIVE_VERSION}.tgz vnx-aced-olive-latest.tgz
+rm -f vnx-aced-win-latest.exe
+ln -s vnx-aced-win-${ACED_WIN_VERSION}.exe vnx-aced-win-latest.exe
+rm -f vnx-aced-lf-latest.tgz
+ln -s vnx-aced-lf-${ACED_LF_VERSION}.tgz vnx-aced-lf-latest.tgz
+cd ../..
 
 #
 # Copy all the files to tmp/${FNAME} directory to build the tar file from there 
@@ -218,9 +226,9 @@ cat $cdir/VERSION > tmp/${FNAME}/VERSION
 #
 cd tmp
 if [ $VERBOSE ]; then
-    tar cfvz  ${FNAME}.tgz ${FNAME}
+    tar cfvzp  ${FNAME}.tgz ${FNAME}
 else
-    tar cfz  ${FNAME}.tgz ${FNAME}
+    tar cfzp  ${FNAME}.tgz ${FNAME}
 fi
 mv ${FNAME}.tgz ../distrib
 cd ../distrib

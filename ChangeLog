@@ -1,3 +1,8 @@
+10/10/2014
+
+- Changed installation scripts to create /usr/share/vnx/aced/vnx-aced-*-latest.tgz link to latest version
+- Changed vnx2dot to draw interfaces connected to virbr0 or lxcbr0 as external connections.
+- Corrected a bug related with the way files specified in filetrees are copied in LXC VMs. 
 
 7/9/2014
 
