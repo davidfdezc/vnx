@@ -10,8 +10,7 @@ while getopts "v" opt; do
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
-	  echo "Usage: build_tar_and_install_vnx [-i] [-v]"
-	  echo "           -i copies the new version to idefix repository (only if executed from idefix)"
+	  echo "Usage: install_vnx [-v]"
 	  echo "           -v verbose mode"
       ;;
   esac
@@ -199,7 +198,7 @@ chmod 600 /usr/share/vnx/etc/vnx.cluster.conf.sample
 #
 # Copy ace daemons 
 #
-cp $VERBOSE aced/* /usr/share/vnx/aced
+cp $VERBOSE -d aced/* /usr/share/vnx/aced
 
 #
 # Copy plugins

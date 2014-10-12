@@ -55,8 +55,10 @@ my $font_node_color="#FFFFFF";
 my $net_shape="egg";
 my $net_style="filled,diagonals";
 #my $net_color="4";
-my $net_color="#b3b3b3";
+my $net_color="#7c7c7c";
+my $net_color2="#b3b3b3";
 my $net_fontsize="14";
+my $net_fontsize_small="8";
 
 # VM styles
 my $vm_shape="oval";
@@ -109,6 +111,8 @@ print "// Networks\n" ;
 
 foreach my $net ($dom->getElementsByTagName ("net")) {
     my $name = $net->getAttribute ("name");
+    next if ($name eq "virbr0" || $name eq "lxcbr0");  # Ignore VM connections to external networks 
+                                                       # through virbr0 or lxcbr0 to avoid distorting the map
     my $name2 = $name;
     $name2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
     my $net_mode = $net->getAttribute ("mode");
@@ -217,6 +221,15 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
         if ($net eq 'lo') {
         	print "lo_$vmname [shape=\"point\", width=0.15, label=\"lo\", tooltip=\"$vmname loopback interface\"];"
         };
+
+        if ($net eq 'virbr0' || $net eq 'lxcbr0') {
+#            print "${net}_${vmname} [shape=\"point\", width=0.15, label=\"$net\", tooltip=\"Connection to external bridge ($net)\"];";
+            print "${net}_${vmname} [shape=\"$net_shape\", width=0.15, label=\"$net\", tooltip=\"Connection to external bridge ($net)\", " .
+                   "fontsize=\"$net_fontsize_small\", fontstyle=\"bold\", colorscheme=\"$color_scheme\", color=\"$net_color2\", style=\"$net_style\" ];";
+        };
+
+#    print "$name2 [label=\"$name\\n($net_mode)\", shape=\"$net_shape\", " . 
+#          "fontsize=\"$net_fontsize\", fontstyle=\"bold\", colorscheme=\"$color_scheme\", color=\"$net_color\", style=\"$net_style\" ];\n" ;
         
         my $ipaddrs;
         foreach my $ipv4s ($if->getElementsByTagName ("ipv4")) {
@@ -248,6 +261,9 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
             if ($net eq 'lo') {
 	            print "//   interface $id with IP addresses $ipaddrs connected to network $net\n" ;
 	            print "$vmname2 -- lo_$vmname [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\", len=\"0.8\" ];\n" ;                        
+            } elsif ($net eq 'virbr0' || $net eq 'lxcbr0') {
+                print "//   interface $id with IP addresses $ipaddrs connected to network $net\n" ;
+                print "$vmname2 -- ${net}_${vmname} [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\", len=\"0.8\" ];\n" ;                        
             } else {
 	            print "//   interface $id with IP addresses $ipaddrs connected to network $net\n" ;
 	            print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;                        

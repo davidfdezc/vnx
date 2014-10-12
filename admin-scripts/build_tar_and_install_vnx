@@ -43,9 +43,9 @@ fi
 mkdir -p tmp
 cd tmp
 if [ $VERBOSE ]; then
-    tar xfvz ../distrib/$TARNAME
+    tar xfvzph ../distrib/$TARNAME
 else
-    tar xfz ../distrib/$TARNAME
+    tar xfzph ../distrib/$TARNAME
 fi
 $DIRNAME/install_vnx $VERBOSE
 cd ..

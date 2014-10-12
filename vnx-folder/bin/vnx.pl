@@ -149,7 +149,7 @@ my @opt_f_allowed_modes = ('define', 'undefine', 'start', 'create', 'shutdown', 
                            'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
 
 # Modes allowed without -f or -s option  
-my @no_opt_f_or_s_allowed_modes = ('version', 'help', 'show-map', 'show-status', 'clean-host', 'create-rootfs', 'modify-rootfs', 'download-rootfs');
+my @no_opt_f_or_s_allowed_modes = ('version', 'help', 'D', 'show-map', 'show-status', 'clean-host', 'create-rootfs', 'modify-rootfs', 'download-rootfs');
 
 # Modes that do not need exclusive access (no lock file needed)   
 my @no_lock_modes = ('show-map', 'show-status'); 
@@ -1757,7 +1757,10 @@ sub make_vmAPI_doc {
   
     # <ssh_key> tag
     # Ex:   <ssh_key>~/.ssh/id_dsa.pub</ssh_key>
+#pak ($vm_name);
+#print $doc->toString(1);
     if( $doc->exists("/vnx/global/ssh_key") ){
+#pak ($vm_name . " ssh_key found");
         my @ssh_key_list = $doc->findnodes('/vnx/global/ssh_key');
         my $ftree_num = $vm_plugin_ftrees+$vm_ftrees+1;
         wlog (VVV,"ssh ftree_num=$ftree_num");
@@ -1765,12 +1768,15 @@ sub make_vmAPI_doc {
         $execution->execute($logp,  "mkdir -p $ssh_key_dir"); # or $execution->smartdie ("cannot create directory $ssh_key_dir for storing ssh keys");
         # Copy ssh key files content to $ssh_key_dir/ssh_keys file
         foreach my $ssh_key (@ssh_key_list) {
+            wlog (V, "<ssh_key> file: $ssh_key");
             my $key_file = do_path_expansion( text_tag( $ssh_key ) );
             wlog (V, "<ssh_key> file: $key_file");
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"cat"}
                                  . " $key_file >>" . $ssh_key_dir . "/ssh_keys" );
             # Add the original <ssh> tags to VM xml
-            $vm_tag->addChild($ssh_key);
+            my $new_ssh_key = $ssh_key->cloneNode;
+            $new_ssh_key->appendTextNode($key_file);
+            $vm_tag->addChild($new_ssh_key);
         }
         
         # Add a <filetree> to copy ssh keys
@@ -2129,7 +2135,7 @@ sub mode_start {
         
     # Execute 'on_boot' commands
     mode_execute ('on_boot', 'lxc,dynamips', \@vm_ordered);
-    
+
     if ( !defined($ref_vms) && $dh->get_doc->exists("/vnx/host/exec[\@seq='on_boot']") ) {
         wlog (N, "Calling execute_host_cmd with seq 'on_boot'"); 
         execute_host_command('on_boot');
@@ -4902,7 +4908,8 @@ sub mode_execute {
     my @seqs = split /,/, $seq_str_expanded; 
 
     foreach my $seq (@seqs) {
-    	
+
+        print "**** $seq\n";    	
 		my %vm_ips;
 		
 	    my $num_plugin_ftrees = 0;
@@ -5138,14 +5145,18 @@ sub get_vm_ftrees_and_execs {
             my $dst_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num";
             
             $execution->execute($logp, "mkdir -p $dst_dir");
+            $execution->execute($logp, "rm -rf $dst_dir/*");
+            
             if ( -d "$files_dir$files{$key}" ) { # It is a directory
                 $execution->execute($logp, "cp -r $files_dir$files{$key}/* $dst_dir");
             } else { # It is a file
                 $execution->execute($logp, "cp $files_dir$files{$key} $dst_dir");
             }
-              
             $dst_num++;
         }           
+
+        # Delete plugin returned files from tmp dir
+        $execution->execute($logp, "rm -rf $files_dir/*");
 
         #  3 - for each active plugin, call $plugin->get*Commands 
         my @commands;            
