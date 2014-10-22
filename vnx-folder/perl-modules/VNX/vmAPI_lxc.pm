@@ -250,7 +250,7 @@ change_to_root();
             system "rm $rootfs_mount_dir/tmp/get_os_distro";
             $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
             #system "vnx_mount_rootfs -b -u $rootfs_mount_dir";
-            return "Inconsistency detected between VM $vm_name architecture defined in XML ($vm_arch) and rootfs architecture ($platform[5])";
+            return "Inconsistency detected between VM $vm_name architecture defined in XML ($vm_arch) and rootfs architecture ($rootfs_arch)";
         } 
         
         # Third, delete the script
