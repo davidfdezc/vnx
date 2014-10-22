@@ -2299,9 +2299,11 @@ change_to_root();
             # If Network manager is running, we have to release the management interface from being managed by NM. 
             # If not, the managemente IP address assigned dissapears after some seconds (why?)  
             if ($nm_running) {
-                my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e0 | awk 'BEGIN {FS=\":\"} {print \$1}' `;
+            	# This line does not work in Ubuntu 14.04
+                # my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e0 | awk 'BEGIN {FS=\":\"} {print \$1}' `;
+                my $con_uuid = `LANG=C nmcli dev list iface ${vm_name}-e0 | grep "CONNECTIONS.AVAILABLE-CONNECTIONS" | awk '{print \$2}'`;
                 chomp ($con_uuid);
-                wlog (VVV, "con_uuid='$con_uuid'", $logp);
+                wlog (V, "con_uuid='$con_uuid'", $logp);
                 $execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
             }
             # Disable IPv6 autoconfiguration in interface

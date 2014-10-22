@@ -1,3 +1,9 @@
+
+23/10/2014
+
+- Bug corrected in vmAPI_lxc: message "Inconsistency detected between VM $vm_name architecture defined in XML ($vm_arch) and rootfs architecture ($rootfs_arch)", the rootfs arch value shown was wrong. 
+- Changed the way management interface identifiers are obtained using nmcli. The way used so far does not work well in Ubuntu 14.04.
+
 10/10/2014
 
 - Changed installation scripts to create /usr/share/vnx/aced/vnx-aced-*-latest.tgz link to latest version
