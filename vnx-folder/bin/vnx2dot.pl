@@ -279,11 +279,17 @@ my @hostifs = $dom->getElementsByTagName ("hostif");
 
 if (@hostifs > 0) {
     print "\n// Host\n" ;
-    print "host [label=\"host\", shape=\"$host_shape\", " . 
-          "colorscheme=\"$color_scheme\", color=\"$host_color\", style=\"$host_style\" ] ;\n" ;
+#    print "host [label=\"host\", shape=\"$host_shape\", " . 
+#          "colorscheme=\"$color_scheme\", color=\"$host_color\", style=\"$host_style\" ] ;\n" ;
 }
 
+my $i;
+
 foreach my $hostif (@hostifs) { 
+
+    print "host$i [label=\"host\", shape=\"$host_shape\", " . 
+          "colorscheme=\"$color_scheme\", color=\"$host_color\", style=\"$host_style\" ] ;\n" ;
+
     my $id = $hostif->getAttribute ("id");
     my $net = $hostif->getAttribute ("net");
     my $net2 = $net;
@@ -313,12 +319,13 @@ foreach my $hostif (@hostifs) {
             $trunk = 'trunk:';   
         }
         print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
-        print "host -- $net2  [ label = \"$ipaddrs\\nvlans=[$trunk$vlan_tag_list]\", fontsize=\"$edge_fontsize\" ];\n" ;
+        print "host$i -- $net2  [ label = \"$ipaddrs\\nvlans=[$trunk$vlan_tag_list]\", fontsize=\"$edge_fontsize\" ];\n" ;
     } else {
         print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
-        print "host -- $net2  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;
+        print "host$i -- $net2  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;
     }        
-       
+    
+    $i++;
 
 }
 
