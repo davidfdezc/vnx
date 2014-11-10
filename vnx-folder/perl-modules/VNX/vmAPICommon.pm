@@ -266,6 +266,10 @@ sub open_console {
         	# set the window on_top
             $execution->execute($logp, "wmctrl -i -r $win_id -b toggle,above");
         }
+        if (str($win_info[3]) eq 'minimized') {
+            # Minimize the window
+            $execution->execute($logp, "xdotool windowminimize $win_id");
+        }
 	}
 	return $exeLine;
 }
@@ -349,12 +353,12 @@ sub start_consoles_from_console_file {
 # values for console $con_id of virtual machine $vm_name
 #
 # Returns a string with the following format:
-#  $win_pos:$desktop:$on_top
+#  $win_pos:$desktop:$on_top:$status
 #
 # If a value is not specified, a empty string is returned
 # Examples: 
-#  0,0,600,400:1:yes
-#  0,0,600,400::no
+#  0,0,600,400:1:yes:
+#  0,0,600,400::no:minimized
 #
 sub get_console_win_info {
 	
@@ -368,9 +372,11 @@ sub get_console_win_info {
 	my $win_pos_def=''; 
     my $desktop_def='';
     my $on_top_def='';
+    my $status_def='';
     my $win_pos; 
     my $desktop;
     my $on_top;
+    my $status;
 	
 	if ($cfg_file) {
 		
@@ -390,7 +396,8 @@ sub get_console_win_info {
             $win_pos_def = str($default[0]->getAttribute('win'));
             $desktop_def = str($default[0]->getAttribute('desktop'));
             $on_top_def  = str($default[0]->getAttribute('ontop'));
-            wlog (V, "win_cfg def values -> con_id=$con_id - win_pos_def=$win_pos_def:desktop_def=$desktop_def:on_top_def=$on_top_def", $logp)
+            $status_def  = str($default[0]->getAttribute('status'));
+            wlog (V, "win_cfg def values -> con_id=$con_id - win_pos_def=$win_pos_def:desktop_def=$desktop_def:on_top_def=$on_top_def:status=$status", $logp)
         }
 
         # Get values specified for this VM
@@ -409,10 +416,12 @@ sub get_console_win_info {
             if ( $desktop eq '') { $desktop = $desktop_def } 
             $on_top = str($vms[0]->getAttribute('ontop'));
             if ( $on_top eq '' )  { $on_top = $on_top_def   } 
+            $status = str($vms[0]->getAttribute('status'));
+            if ( $status eq '' )  { $status = $status_def   } 
         }
-        wlog (V, "win_cfg final values -> win_pos=$win_pos:desktop=$desktop:on_top=$on_top", $logp);
+        wlog (V, "win_cfg final values -> win_pos=$win_pos:desktop=$desktop:on_top=$on_top:status=$status", $logp);
 	}
-    return str($win_pos) . ":". str($desktop) . ":" . str($on_top);    
+    return str($win_pos) . ":". str($desktop) . ":" . str($on_top) . ":" . str($status);    
 }
 
 ###################################################################

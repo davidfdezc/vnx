@@ -33,7 +33,7 @@
 #
 # Constant and variables
 #
-VNXACED_VER='MM.mm.rrrr'
+VNXACED_VER='2.0b.4710'
 VNXACED_BUILT='DD/MM/YYYY'
 
 USAGE="
@@ -50,6 +50,8 @@ Options:    -t <type>       -> type of image: raw, qcow2, vmdk, vdi
             <mnt_dir>       -> mount directory
             -u              -> unmount rootfs
             -b              -> do not print headers (silent mode)
+            -s              -> mount the image changing the owner of files to the 
+                               original user that executed the script with sudo
 "
 
 HEADER1="
@@ -102,16 +104,14 @@ then
     exit 1
 fi
 
-while getopts ":ubt:r:p:" opt; do
+while getopts ":ubst:r:p:" opt; do
     case $opt in
 
     u)
-        #echo "-u was triggered" >&2
         umount="yes"
         i=$[i+1]
         ;;
     t)
-        #echo "-t was triggered, Parameter: $OPTARG" >&2
         type=$OPTARG
         if [[ "$type" != 'raw' && "$type" != 'qcow2' && "$type" != 'vmdk' && "$type" != 'vdi' ]] ; then
             write_msg ""       
@@ -122,7 +122,6 @@ while getopts ":ubt:r:p:" opt; do
         i=$[i+2]
         ;;
     r)
-        #echo "-r was triggered, Parameter: $OPTARG" >&2
         rootfs=$OPTARG
         if [[ "$rootfs" == "" ]] ; then        
             write_msg ""       
@@ -133,7 +132,6 @@ while getopts ":ubt:r:p:" opt; do
         i=$[i+2]
         ;;
     p)
-        #echo "-p was triggered, Parameter: $OPTARG" >&2
         partnum=$OPTARG
         if [[ "$partnum" -le "0" || "$partnum" -gt "10" ]] ; then        
             write_msg ""       
@@ -144,11 +142,15 @@ while getopts ":ubt:r:p:" opt; do
         i=$[i+2]
         ;;
     b)
-        #echo "-b was triggered" >&2
         brief="yes"
         i=$[i+1]
         ;;
+    s)
+        sudoed_user="yes"
+        i=$[i+1]
+        ;;
     *)
+        write_msg ""       
         write_msg "Invalid option: -$OPTARG" >&2
         write_msg "$USAGE"
         exit 1
@@ -156,6 +158,35 @@ while getopts ":ubt:r:p:" opt; do
       
     esac
 done
+
+if [[ `id -u` != 0 ]]; then
+    write_msg "ERROR: you need root permissions to execute vnx_mount_rootfs (use sudo to execute it)"
+    exit 1
+fi
+
+if [[ $sudoed_user && ! $SUDO_USER ]]; then
+    write_msg ""       
+    write_msg "ERROR: -s option used but vnx_mount_rootfs not executed with sudo" >&2
+    exit 1
+fi
+
+if [[ $sudoed_user ]]; then
+    # Check bindfs is installed
+    if [ ! $( which bindfs ) ]; then
+        # Option A: exit with error
+        echo ""
+        echo "-----------------------------------------"
+        echo "ERROR: command 'bindfs' not installed"
+        echo "-----------------------------------------"
+        exit 1;
+        # Option B: install bindfs
+        #echo "-------------------------------------------------------"
+        #echo "WARNING: command 'bindfs' not installed. Installing..."
+        #echo "-------------------------------------------------------"
+        #apt-get update
+        #apt-get -y install bindfs
+    fi
+fi
 
 # mount dir is the last argument
 eval mountdir=\$$i
@@ -167,6 +198,11 @@ if [[ ! -d "$mountdir" ]]; then
 fi
 # Convert mountdir to absolute path
 mountdir=$( readlink -f $mountdir )
+
+# Calculate auxiliary mount directory name (used for -s option)
+basemountdir=$(basename $mountdir)
+dirmountdir=$(dirname $mountdir)
+smountdir="$dirmountdir/.$basemountdir"
 
 #
 # Check rootfs argument
@@ -247,11 +283,27 @@ if [[ $umount == "no" ]]; then
     # Mount virtual machine disk image
     #
     if [[ $type == "raw" ]]; then
-        # Mount raw disk
-        if ! mount -o loop "$rootfs" "$mountdir"; then
-            write_msg "" 
-            write_msg "ERROR. Cannot mount $rootfs in $mountdir."
-            exit 8
+
+        if [[ $sudoed_user ]]; then
+            # Create auxiliar mount dir
+            mkdir -p $smountdir
+            # Mount rootfs
+            if ! mount -o loop "$rootfs" "$smountdir"; then
+                write_msg "" 
+                write_msg "ERROR. Cannot mount $rootfs in $mountdir."
+                exit 8
+            fi
+            # Use bindfs to bind the auxiliar to mount  directory 
+            # changing owner to $SUDO_USER
+            write_msg "bindfs -o user=$SUDO_USER $smountdir $mountdir "
+            bindfs -u $SUDO_USER $smountdir $mountdir 
+        else
+            # Mount raw disk
+            if ! mount -o loop "$rootfs" "$mountdir"; then
+                write_msg "" 
+                write_msg "ERROR. Cannot mount $rootfs in $mountdir."
+                exit 8
+            fi
         fi
     else
         # Mount qcow2/vmdk/vdi disk
@@ -274,24 +326,59 @@ if [[ $umount == "no" ]]; then
         fi
         #read -p "Press any key..."
         sleep 1
-        # Mount rootfs
-        if ! mount ${dev}p${partnum} $mountdir; then 
-            write_msg ""
-            write_msg "ERROR. Cannot mount $dev on $mountdir."
-            qemu-nbd -d $dev
-            exit 10
+
+        if [[ $sudoed_user ]]; then
+            # Create auxiliar mount dir
+            mkdir -p $smountdir
+            # Mount rootfs
+            if ! mount -v ${dev}p${partnum} $smountdir; then 
+                write_msg ""
+                write_msg "ERROR. Cannot mount $dev on $smountdir."
+                qemu-nbd -d $dev
+                exit 10
+            fi
+            # Use bindfs to bind the auxiliar to mount  directory 
+            # changing owner to $SUDO_USER
+            write_msg "bindfs -o user=$SUDO_USER $smountdir $mountdir "
+            bindfs -u $SUDO_USER $smountdir $mountdir 
+        else
+            # Mount rootfs
+            if ! mount ${dev}p${partnum} $mountdir; then 
+                write_msg ""
+                write_msg "ERROR. Cannot mount $dev on $mountdir."
+                qemu-nbd -d $dev
+                exit 10
+            fi
         fi
     fi    
+
 else 
+
     #   
     # Unmount virtual machine disk image
     #
+    if mount | grep "$smountdir "; then
+        sudoed_user="yes"
+    fi
+
     # Guess partition type (raw, qcow2/vmdk/vdi)
-    if mount | grep "$mountdir " | grep "/dev/nbd"; then
+    if mount | grep -e "$mountdir " -e "$smountdir " | grep "/dev/nbd"; then
+
         # Unmount qcow2/vmdk/vdi disk
+
+        if [[ $sudoed_user ]]; then
+            write_msg "umount $mountdir"
+            if ! umount $mountdir; then 
+                write_msg ""
+                write_msg "ERROR. Cannot unmount $mountdir."
+                #exit 11
+            fi
+        mountdir=$smountdir
+        fi
         # Get block device
         partitions=$( mount | grep " $mountdir " | awk '{print $1}' )
         
+        #write_msg "partitions=$partitions"
         while read -r partition; do
             write_msg "partition=$partition"
             dev=$( echo "$partition" | sed -e 's/p[0-9][0-9]\?$//' )
@@ -303,6 +390,7 @@ else
                 exit 11
             fi
             # Free ndb block device
+            echo "qemu-nbd -d $dev"
             if ! qemu-nbd -d $dev; then 
                 write_msg ""
                 write_msg "ERROR. Cannot free nbd block device $dev."
@@ -316,13 +404,30 @@ else
                 kill -9 $pid
             fi
         done <<< "$partitions"
+        if [[ $sudoed_user ]]; then
+            rmdir $mountdir
+        fi
+
     else 
+
+        write_msg "Unmount raw disk"
+        #write_msg "mountdir=$mountdir,smountdir=$smountdir"
         # Unmount raw disk
-        # Mount raw disk
+        if [[ $sudoed_user ]]; then
+            if ! umount $mountdir; then 
+                write_msg ""
+                write_msg "ERROR. Cannot unmount $mountdir."
+                #exit 11
+            fi
+            mountdir=$smountdir
+        fi
         if ! umount $mountdir; then 
             write_msg ""
             write_msg "ERROR. Cannot unmount $mountdir."
             exit 11
+        fi
+        if [[ $sudoed_user ]]; then
+            rmdir $mountdir
         fi
     fi
 fi

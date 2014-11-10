@@ -1,4 +1,10 @@
 
+10/10/2014
+
+- New attribute "status" added to .cvnx files to specify if a console window should be started minimized (status="minimized")
+- Change in maps: show multiple host nodes instead of one node with multiple interfaces.
+- vnx_mount_rootfs: new -s option to mount rootfs's using bindfs to change owner to sudoed user
+
 23/10/2014
 
 - Bug corrected in vmAPI_lxc: message "Inconsistency detected between VM $vm_name architecture defined in XML ($vm_arch) and rootfs architecture ($rootfs_arch)", the rootfs arch value shown was wrong. 
