@@ -508,13 +508,13 @@ sub define_vm {
 			my $display = $cons->getAttribute("display");
        		#print "** console: id=$id, value=$value\n" if ($exemode == $EXE_VERBOSE);
 			if ( $id eq "0" ) {
-				wlog (N, "WARNING (vm=$vm_name): value $value ignored for <console id='0'> tag (only 'vnc' allowed).", $logp) 
+				wlog (N, "$hline\nWARNING (vm=$vm_name): value $value ignored for <console id='0'> tag (only 'vnc' allowed).\n$hline", $logp) 
 				   if ( ($value ne "") && ($value ne "vnc") ); 
                 #if ($display ne '') { $cons0Display = $display }
                 unless (empty($display)) { $cons0Display = $display }
 			}
 			if ( $id > 0 ) {
-				wlog (N, "WARNING (vm=$vm_name): only consoles with id='0' allowed for Windows libvirt virtual machines. Tag ignored.", $logp);
+				wlog (N, "$hline\nWARNING (vm=$vm_name): only consoles with id='0' allowed for Windows libvirt virtual machines. Tag ignored.\n$hline", $logp);
 			} 
 		}
 
@@ -549,7 +549,7 @@ sub define_vm {
                 #$video_tag->setAttribute( heads => "1");
                 $devices_tag->addChild($video_tag);
             } else {
-                wlog (N, "WARNING: unknown video card type: $video_type", $logp)            	
+                wlog (N, "$hline\nWARNING: unknown video card type: $video_type.\n$hline", $logp)            	
             }
 #            given ($video_type) {
 #                when (@allowed_video_types) 
@@ -1085,7 +1085,7 @@ user();
                 else                     { $cons1Display = '' }
 			}
 			if ( $id > 1 ) {
-				wlog (N, "WARNING (vm=$vm_name): only consoles with id='0' or id='1' allowed for libvirt virtual machines. Tag ignored.", $logp);
+				wlog (N, "$hline\nWARNING (vm=$vm_name): only consoles with id='0' or id='1' allowed for libvirt virtual machines. Tag ignored.\n$hline", $logp);
 			} 
 		}
 
@@ -1164,7 +1164,7 @@ user();
 	 				$consolePort++;
 				}
 			}
- 			wlog (N, "WARNING (vm=$vm_name): cannot use port $cons1Port for $vm_name console #1; using $consolePort instead", $logp)
+ 			wlog (N, "$hline\nWARNING (vm=$vm_name): cannot use port $cons1Port for $vm_name console #1; using $consolePort instead.\n$hline", $logp)
 		    		if ( ($cons1Port ne "") && ($consolePort ne $cons1Port) );
 			$source4_tag->addChild(	$init_xml->createAttribute( service => "$consolePort" ) );
       		#	<protocol type="telnet"/>
@@ -1196,7 +1196,7 @@ user();
                 #$video_tag->setAttribute( heads => "1");
                 $devices_tag->addChild($video_tag);
             } else {
-                wlog (N, "WARNING: unknown video card type: $video_type", $logp)                
+                wlog (N, "$hline\nWARNING: unknown video card type: $video_type.\n$hline", $logp)                
             }
         }
 
@@ -1741,7 +1741,7 @@ user();
                             $execution->execute( $logp, $bd->get_binaries_path_ref->{"sed"}." -i -e 's#UNK_PTS_DEV#$ptsDev#' $consFile");
                         }
                     } else {
-                        wlog (V, "WARNING (vm=$vm_name): no data for console #1 found in $consFile", $logp);
+                        wlog (V, "$hline\nWARNING (vm=$vm_name): no data for console #1 found in $consFile.\n$hline", $logp);
                     }
                 }
                

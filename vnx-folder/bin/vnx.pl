@@ -1329,6 +1329,22 @@ sub make_vmAPI_doc {
         $fs_tag->addChild($dom->createTextNode($filesystem));
     }
 
+    # shareddir tags
+    if ($type[0] eq 'lxc') {
+	    foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
+	        my $root    = $shared_dir->getAttribute("root");
+	        my $options = $shared_dir->getAttribute("options");
+	        my $shared_dir_value = text_tag($shared_dir);
+	        my $shared_dir_tag = $dom->createElement('shareddir');
+	        $vm_tag->addChild($shared_dir_tag);
+	        $shared_dir_tag->addChild($dom->createTextNode($shared_dir_value));
+	        $shared_dir_tag->addChild($dom->createAttribute( root => $root));
+	        $shared_dir_tag->addChild($dom->createAttribute( options => $options));         
+	    }
+    } else {
+        wlog (N, "WARNING: <shareddir> tag not supported for VM of type $type[0]");
+    }       
+
     # Memory assignment
     my $mem = $dh->get_default_mem;      
     my @mem_list = $vm->getElementsByTagName("mem");
@@ -1902,7 +1918,8 @@ sub mode_undefine{
         my $error = "VNX::vmAPI_$vm_type"->undefine_vm($vm_name, $merged_type);
         if ($error) {
             wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->undefine_vm returns '" . $error . "'\n$hline");
-            if ($error eq "VM $vm_name does not exist") {
+            if ($error eq "VM $vm_name does not exist" || 
+                $error =~ /207-unable to delete VM/ ) {
                 change_vm_status($vm_name,"undefined");
             } else {
                 wlog (N, "Virtual machine $vm_name cannot be undefined.");
@@ -4911,7 +4928,7 @@ sub mode_execute {
 
     foreach my $seq (@seqs) {
 
-        print "**** $seq\n";    	
+        #print "**** $seq\n";    	
 		my %vm_ips;
 		
 	    my $num_plugin_ftrees = 0;

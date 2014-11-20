@@ -161,12 +161,6 @@ sub define_vm {
     my $vm = $vm_doc->findnodes("/create_conf/vm")->[0];   # VM node in $vm_doc
     my @vm_ordered = $dh->get_vm_ordered;                  # ordered list of VMs in scenario 
 
-#    my $parser       = XML::LibXML->new();
-#    my $dom          = $parser->parse_string($vm_doc);
-#	my $globalNode   = $dom->getElementsByTagName("create_conf")->item(0);
-#	my $virtualmList = $globalNode->getElementsByTagName("vm");
-#	my $virtualm     = $virtualmList->item(0);
-	
 	my $filesystemTagList = $vm->getElementsByTagName("filesystem");
 	my $filesystemTag     = $filesystemTagList->item(0);
 	my $filesystem_type   = $filesystemTag->getAttribute("type");
@@ -215,16 +209,11 @@ sub define_vm {
     $res = dyn_cmd($t, "hypervisor working_dir \"". $dh->get_vm_fs_dir($vm_name). "\" ", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
 
-    #t_print ($t, "hypervisor working_dir \"". $dh->get_vm_fs_dir($vm_name). "\" ", $logp);
-    #$line = t_getline ($t, $logp);
-	
 	# Set type
 	my($trash,$model)=split(/-/,$type,2);
 
     $res = dyn_cmd($t, "vm create $vm_name 0 c$model", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
-	#t_print ($t, "vm create $vm_name 0 c$model", $logp);
-	#$line = t_getline ($t, $logp);
 	
   	#
 	# VM CONSOLES
@@ -246,13 +235,13 @@ sub define_vm {
    		#print "** console: id=$id, display=$display port=$port value=$value\n" if ($exemode == $EXE_VERBOSE);
 		if ( ($id eq "1") || ($id eq "2") ) {
 			if ( $value ne "" && $value ne "telnet" ) { 
-				wlog (N, "WARNING (vm=$vm_name): only 'telnet' value is allowed for Dynamips consoles. Value ignored.", $logp);
+				wlog (N, "$hline\nWARNING (vm=$vm_name): only 'telnet' value is allowed for Dynamips consoles. Value ignored.\n$hline", $logp);
 			}
 			$consPortDefInXML{$id} = $port;
 			if ($display ne '') { $consDisplayDefInXML{$id} = $display }
 		}
 		if ( ( $id eq "0" ) || ($id > 1) ) {
-			wlog (N, "WARNING (vm=$vm_name): only consoles with id='1' or '2' allowed for Dynamips virtual machines. Tag with id=$id ignored.", $logp)
+			wlog (N, "$hline\nWARNING (vm=$vm_name): only consoles with id='1' or '2' allowed for Dynamips virtual machines. Tag with id=$id ignored.\n$hline", $logp)
 		} 
 	}
 	#print "** $vm_name: console ports, con1='$consPortDefInXML{1}', con2='$consPortDefInXML{2}'\n" if ($exemode == $EXE_VERBOSE);
@@ -273,7 +262,7 @@ sub define_vm {
 				$consolePort[$j]++;
 			}
 		}
-		wlog (V, "WARNING (vm=$vm_name): cannot use port $consPortDefInXML{1} for console #1; using $consolePort[$j] instead", $logp)
+		wlog (V, "$hline\nWARNING (vm=$vm_name): cannot use port $consPortDefInXML{1} for console #1; using $consolePort[$j] instead.\n$hline", $logp)
 	   		if ( (!empty($consPortDefInXML{$j})) && ($consolePort[$j] ne $consPortDefInXML{$j}) );
     }
 	
@@ -285,15 +274,11 @@ sub define_vm {
 
     $res = dyn_cmd($t, "vm set_con_tcp_port $vm_name $consolePort[1]", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
-	#t_print ($t, "vm set_con_tcp_port $vm_name $consolePort[1]", $logp);
-    #$line = t_getline ($t, $logp); 
     if ($type eq 'dynamips-7200') {
     	# Configure aux port
 		print PORT_CISCO "con2=$consDisplayDefInXML{2},telnet,$consolePort[2]\n";
 	    $res = dyn_cmd($t, "vm set_con_tcp_port $vm_name $consolePort[2]", \@lines, \$ret_code, \$ret_str );
 	    return $res if ($res);
-		#t_print ($t, "vm set_con_tcp_port $vm_name $consolePort[2]", $logp);
-	    #$line = t_getline ($t, $logp);
     }
 	close (PORT_CISCO);
     
@@ -302,34 +287,24 @@ sub define_vm {
     $chassis =~ s/c//;
     $res = dyn_cmd($t, "c$model set_chassis $vm_name $chassis", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
-    #t_print ($t, "c$model set_chassis $vm_name $chassis", $logp);
-    #$line = t_getline ($t, $logp);
 
     # Set NPE if 7200
     if ($model eq '7200') {
 	    my $npe = merge_simpleconf($extConfFile, $vm_name, 'npe');
         $res = dyn_cmd($t, "c$model set_npe $vm_name npe-$npe", \@lines, \$ret_code, \$ret_str );
         return $res if ($res);
-	    #t_print ($t, "c$model set_npe $vm_name npe-$npe", $logp);
-	    #$line = t_getline ($t, $logp);
     } 
     
 	# Set Filesystem
     $res = dyn_cmd($t, "vm set_ios $vm_name $filesystem", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
-    #t_print ($t, "vm set_ios $vm_name $filesystem", $logp);
-    #$line = t_getline ($t, $logp);
     
     # Set Mem
     $res = dyn_cmd($t, "vm set_ram $vm_name $mem", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
-    #t_print ($t, "vm set_ram $vm_name $mem", $logp);
-    #$line = t_getline ($t, $logp);
     if (merge_simpleconf($extConfFile, $vm_name, 'sparsemem') eq "true"){
 	    $res = dyn_cmd($t, "vm set_sparse_mem $vm_name 1", \@lines, \$ret_code, \$ret_str );
 	    return $res if ($res);
-		#t_print ($t, "vm set_sparse_mem $vm_name 1", $logp);
-   		#$line = t_getline ($t, $logp);
     }
     
     # Set IDLEPC
@@ -348,27 +323,19 @@ sub define_vm {
     #print "*** idlepc = $idlepc \n";
     $res = dyn_cmd($t, "vm set_idle_pc $vm_name $idlepc", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
-	#t_print ($t, "vm set_idle_pc $vm_name $idlepc", $logp);
-    #$line = t_getline ($t, $logp);
     
     #Set ios ghost
     if (merge_simpleconf($extConfFile, $vm_name, 'ghostios') eq "true"){
 	    $res = dyn_cmd($t, "vm set_ghost_status $vm_name 2", \@lines, \$ret_code, \$ret_str );
 	    return $res if ($res);
-		#t_print ($t, "vm set_ghost_status $vm_name 2", $logp);
-    	#$line = t_getline ($t, $logp);
     	my $temp = basename($filesystem);
         $res = dyn_cmd($t, "vm set_ghost_file $vm_name \"$temp.image-localhost.ghost\" ", \@lines, \$ret_code, \$ret_str );
         return $res if ($res);
-		#t_print ($t, "vm set_ghost_file $vm_name \"$temp.image-localhost.ghost\" ", $logp);
-    	#$line = t_getline ($t, $logp);
     }
     
     #Set Blk_direct_jump
     $res = dyn_cmd($t, "vm set_blk_direct_jump $vm_name 0", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
-	#t_print ($t, "vm set_blk_direct_jump $vm_name 0", $logp);
-    #$line = t_getline ($t, $logp);
     
     # Add slot cards
     my @cards=get_cards_conf($extConfFile, $vm_name);
@@ -376,16 +343,18 @@ sub define_vm {
     foreach my $slot (@cards){
 	    $res = dyn_cmd($t, "vm slot_add_binding $vm_name $index 0 $slot", \@lines, \$ret_code, \$ret_str );
 	    return $res if ($res);
-		#t_print ($t, "vm slot_add_binding $vm_name $index 0 $slot", $logp);
-    	#$line = t_getline ($t, $logp);
     	$index++;
     }
     
     # Connect virtual networks to host interfaces
 	foreach my $if ($vm->getElementsByTagName("if")) {
-		my $name  = $if->getAttribute("name");
-		my $id    = $if->getAttribute("id");
-		my $net   = $if->getAttribute("net");
+		my $name  = str($if->getAttribute("name"));
+		my $id    = str($if->getAttribute("id"));
+		my $net   = str($if->getAttribute("net"));
+		wlog (V, "name=$name, id=$id, net=$net", $logp);
+        if (!$name) {
+        	return "ERROR (vm=$vm_name): no interface name defined for interface $id.";
+        }
 		my ($slot, $dev)= split("/",$name,2);
 		$slot = substr $slot,-1,1;
 		if ( $name =~ /^[gfeGFE]/ ) {
@@ -499,15 +468,6 @@ sub create_router_conf {
     my $logp = "dynamips-create_router_conf> ";
     my $sub_name = (caller(0))[3]; wlog (VVV, "$sub_name (vm=$vm_name, extConfFile=$extConfFile ...)", "$logp");
 
-	# Load and parse libvirt XML definition of virtual machine
-	#my $vm_xml_file = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_conf.xml';
-	#open XMLFILE, "$vm_xml_file" or return "can not open $vm_xml_file file";
-	#my $doc = do { local $/; <XMLFILE> };
-	#close XMLFILE;
-
-    #my $parser       = XML::LibXML->new();
-    #my $dom          = $parser->parse_string($doc);
-    
     my $doc =$dh->get_vm_doc($vm_name,'dom');
 	my $vm = $doc->getElementsByTagName("vm")->item(0);
 
@@ -535,7 +495,8 @@ sub create_router_conf {
 		$mac =~ s/,//;
 		my @maclist = split(/:/,$mac);
 		$mac = $maclist[0] . $maclist[1] . "." . $maclist[2] . $maclist[3] . "." . $maclist[4] . $maclist[5];
-		my $nameif   = $if->getAttribute("name");
+		my $nameif   = str($if->getAttribute("name")); # we should test if nameif is empty to give an error, but
+		                                               # it is checked later, so we let it pass by now... 
 		push (@routerConf,  "interface " . $nameif . "\n");	
 		push (@routerConf,  " mac-address " . $mac . "\n");
 		# Configure IPv4 addresses		
@@ -664,17 +625,13 @@ sub undefine_vm{
     # Load and parse VM XML definition of virtual machine
     #my $vm_xml_file = $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_conf.xml';
     #if (-e $vm_xml_file) {
-        #open XMLFILE, "$vm_xml_file" or return "can not open $vm_xml_file file";
-        #my $doc = do { local $/; <XMLFILE> };
-        #close XMLFILE;
-        #my $parser = XML::LibXML->new();
-        #my $dom    = $parser->parse_string($doc);
         
         my $doc = $dh->get_vm_doc($vm_name,'dom');
         my $vm  = $doc->getElementsByTagName("vm")->item(0);
     
         foreach my $if ($vm->getElementsByTagName("if")) {
             my $ifName = $if->getAttribute("name");
+            if (!$ifName) { next }
             my ($slot, $dev)= split("/",$ifName,2);
             $slot = substr $slot,-1,1;
             wlog (V, "Ethernet interface: $ifName, slot=$slot, dev=$dev", $logp);
