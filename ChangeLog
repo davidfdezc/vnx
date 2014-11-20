@@ -1,5 +1,15 @@
+20/11/2014
 
-10/10/2014
+- Dynamips: added check in Checksemenatics to detect duplicated if names. Added error message to detect when no if name has been defined in an interface.
+- Added <shareddir> tag for LXC VMs with the following format:
+    <shareddir options="XXX" root="YYY">ZZZ</shareddir>
+  being:
+    ZZZ the directory in host to be shared (absolute or relative path allowed)
+    YYY the mount point in VM (absolute path)
+    XXX comma separated list of options to be passed to mount
+  modified simple_lxc_ubuntu.xml and simple_lxc_ubuntu_inet.xml examples to include a <shareddir> tag
+  
+10/11/2014
 
 - New attribute "status" added to .cvnx files to specify if a console window should be started minimized (status="minimized")
 - Change in maps: show multiple host nodes instead of one node with multiple interfaces.

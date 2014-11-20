@@ -50,6 +50,7 @@ use XML::LibXML;
 use VNX::vmAPICommon;
 use VNX::Execution;
 use VNX::DocumentChecks;
+use Cwd qw(abs_path);
 
 
 # 
@@ -182,7 +183,8 @@ sub validate_xml {
 # - dynamips: if management network is defined, then the name of the mgmt if has to be defined with:
 #                    <if id="0" net="vm_mgmt" name="e0/0">
 #             this <if> should not have address associated
-# - cmd-seq: check that command sequence tags are unique and they are not used in exec or filetree seq values 
+# - dynamips: check that the names of interfaces are not repeated
+# # - cmd-seq: check that command sequence tags are unique and they are not used in exec or filetree seq values 
 
 
 sub check_doc {
@@ -670,7 +672,7 @@ user();
                 return "missing 'subtype' attribute for dynamips vm $name";
             }
         }
-        # vm arch attribute is only allowed for libvirt VMs
+        # vm arch attribute is only allowed for libvirt VMs and lxc
         my $vm_arch = $vm->getAttribute("arch");               
         #if ($vm_arch ne '') { # A value for arch is specified
         unless (empty($vm_arch)) { # A value for arch is specified
@@ -708,6 +710,21 @@ user();
                 $vm->setAttribute( 'vcpu', 1 );
             }
         }
+        
+        # Check <shareddir> tags
+        foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
+            my $root    = $shared_dir->getAttribute("root");
+            my $options = $shared_dir->getAttribute("options");
+            my $shared_dir_value = text_tag($shared_dir);
+            if ( $root !~ /^\// ) {
+            	return "root attribute value ('$root') in <shareddir> tag of VM '$name' must be an absolute path."
+            }
+            my $abs_shareddir = abs_path($shared_dir_value);
+            if (! -d $abs_shareddir) {
+                return "shared directory ($shared_dir_value) in <shareddir> tag of VM '$name' does not exist or is not accesible."
+            }            
+        }
+        
     }
 
     #12. To check <filesystem>
@@ -1080,6 +1097,7 @@ user();
    
    
    	# - check the correctness of dynamips interface names (e0/0, s0/1, fa0/2, etc)
+    # - check that interfaces names are unique
    	# - check that if a dynamips vm has an if which is a serial line interface (e.g s1/0) connected to a net:
    	#         - the net has exactly two interfaces connected
    	#         - the net type is ppp
@@ -1087,13 +1105,12 @@ user();
 	# Virtual machines loop
 	foreach my $vm ($doc->getElementsByTagName ("vm")) {
 
-	    #my $vm = $vm_list->item ($i);
 	    my $name = $vm->getAttribute ("name");
 	    my $type = $vm->getAttribute ("type");
 		if ( $type eq 'dynamips') {
 			# Network interfaces loop
+            my %if_names;
 	        foreach my $if ($vm->getElementsByTagName ("if")) {
-	            #my $if = $if_list->item ($j);
 	            my $id = $if->getAttribute ("id");
 	            my $net = $if->getAttribute ("net");
 	            my $ifName = $if->getAttribute ("name");
@@ -1101,6 +1118,12 @@ user();
 	            if (!$ifName) {
 					return "missing dynamips interface name (id=$id, vm=$name)";
 	            }
+	            # Check if name uniqueness 
+                if (exists $if_names{$ifName}) {
+                    return "duplicated dynamips interface name (id=$id, if=$ifName, vm=$name)";
+                } else {
+                    $if_names{$ifName} = 1;
+                }
 	            # Check $ifName correctness
            		if ($ifName !~ /[sefgSEFG].*[0-9]\/[0-9]/ ) {
 					return "incorrect dynamips interface name (id=$id, name=$ifName, vm=$name)";

@@ -422,6 +422,13 @@ e-mail: vnx@dit.upm.es
     <xs:complexType mixed="true"/>
   </xs:element>
 
+  <xs:element name="shareddir">
+    <xs:complexType mixed="true">
+      <xs:attribute name="options" type="xs:string" use="optional"/>
+      <xs:attribute name="root" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
   <xs:element name="ssh_key">
     <xs:complexType mixed="true"/>
   </xs:element>
@@ -457,6 +464,7 @@ e-mail: vnx@dit.upm.es
     <xs:complexType>
       <xs:sequence>
         <xs:element minOccurs="0" ref="filesystem"/>
+        <xs:element maxOccurs="unbounded" minOccurs="0" ref="shareddir"/>
         <!--xs:element ref="dynamips_conf" minOccurs="0" /-->
         <xs:element minOccurs="0" ref="mem"/>
         <xs:element minOccurs="0" ref="video"/>

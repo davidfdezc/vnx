@@ -65,7 +65,7 @@ use VNX::vmAPICommon;
 use File::Basename;
 use XML::LibXML;
 use IO::Socket::UNIX qw( SOCK_STREAM );
-
+use Cwd qw(abs_path);
 
 my $lxc_dir="/var/lib/lxc";
 # LXC config options 
@@ -205,7 +205,7 @@ change_to_root();
         }
         
         $execution->execute( $logp, $bd->get_binaries_path_ref->{"ln"} . " -s $vm_lxc_dir $lxc_dir/$vm_name" );
-        
+
         die "ERROR: variable vm_lxc_dir is empty" unless ($vm_lxc_dir ne '');
 
         # Variables pointing to rootfs directory and config and fstab files
@@ -265,17 +265,22 @@ change_to_root();
         # Ex: sed -i -e "s/127.0.1.1.*/127.0.1.1   lxc1/" /var/lib/lxc/lxc1/rootfs/etc/host
         $execution->execute( $logp, "sed -i -e 's/127.0.1.1.*/127.0.1.1   $vm_name/' ${vm_lxc_rootfs}/etc/hosts" ); 
         # Copy SSH keys if <ssh> tag specified in scenario
-        if( $vm_doc->exists("/create_conf/vm/ssh_key") ){
-            my @ssh_key_list = $vm_doc->findnodes('/create_conf/vm/ssh_key');
+        #if( $vm_doc->exists("/create_conf/vm/ssh_key") ){
+        #    my @ssh_key_list = $vm_doc->findnodes('/create_conf/vm/ssh_key');
             # Copy ssh key files content to $ssh_key_dir/ssh_keys file
-            foreach my $ssh_key (@ssh_key_list) {
+            #foreach my $ssh_key (@ssh_key_list) {
+            foreach my $ssh_key ($vm_doc->findnodes('/create_conf/vm/ssh_key')) {
                 my $key_file = do_path_expansion( text_tag( $ssh_key ) );
                 wlog (V, "<ssh_key> file: $key_file (" . text_tag($ssh_key) . ")");
-                $execution->execute( $logp, "mkdir ${vm_lxc_rootfs}/root/.ssh/" );
-                $execution->execute( $logp, $bd->get_binaries_path_ref->{"cat"}
-                                     . " $key_file >>" . "${vm_lxc_rootfs}/root/.ssh/authorized_keys" );
+                $execution->execute( $logp, "mkdir -p ${vm_lxc_rootfs}/root/.ssh/" );
+                if (-e $key_file) {
+                    $execution->execute( $logp, $bd->get_binaries_path_ref->{"cat"}
+                                         . " $key_file >>" . "${vm_lxc_rootfs}/root/.ssh/authorized_keys" );
+                } else {
+                	wlog (N, "$hline\nWARNING: ssh key '$key_file' does not exist or is not readable.\n$hline")
+                }
             }
-        }
+        #}
         # Modify LXC VM config file
         # Backup config file just in case...
         $execution->execute( $logp, "cp $vm_lxc_config $vm_lxc_config" . ".bak" ); 
@@ -300,6 +305,23 @@ change_to_root();
         
         # Set lxc.rootfs: lxc.rootfs = $vm_lxc_dir/rootfs
         $execution->execute( $logp, "lxc.rootfs = $vm_lxc_dir/rootfs", *CONFIG_FILE );
+        
+        # Create lxc.mount.entry's for shared directories
+        foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
+            my $root    = $shared_dir->getAttribute("root");
+            my $options = $shared_dir->getAttribute("options");
+            if ($options) { $options .= ',bind' } else { $options = 'bind' };
+            my $shared_dir_value = text_tag($shared_dir);
+            $shared_dir_value = abs_path($shared_dir_value);
+#            if (! -d $shared_dir_value) {
+#            	$execution->execute( $logp, "mkdir -p $shared_dir_value" );
+#            }            
+            $root = $vm_lxc_rootfs . "/" . $root;
+            if (! -d $root) {
+                $execution->execute( $logp, "mkdir -p $root" );
+            }            
+            $execution->execute( $logp, "lxc.mount.entry = $shared_dir_value $root none $options 0 0", *CONFIG_FILE );
+        }
         
         unless ($platform[0] eq 'Linux' && $platform[1] eq 'Debian') {
 	        # Set lxc.mount: lxc.mount = $vm_lxc_dir/fstab

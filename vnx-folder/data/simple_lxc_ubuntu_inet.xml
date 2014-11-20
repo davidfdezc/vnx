@@ -42,6 +42,7 @@ SPAIN
   
   <vm name="ubuntu" type="lxc" exec_mode="lxc-attach">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <shareddir root="/shared">shared</shareddir>
     <if id="1" net="Net0">
       <ipv4>10.1.0.4/24</ipv4>
     </if>
