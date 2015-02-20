@@ -807,6 +807,16 @@ sub get_vm_byname {
     return "";
 }
 
+# get_vm_name
+#
+# Returns a VM knowing its name 
+#
+sub get_vm_name {
+    my $self = shift;
+    my $vm = shift;
+
+    return $vm->getAttribute("name");
+}
 
 # get_vm_order
 #
@@ -1688,7 +1698,6 @@ sub get_net_vlan {
     }
     return ''
 }
-
 
 #
 # get_vms_in_a_net: returns references to two arrays with the virtual machines and the 

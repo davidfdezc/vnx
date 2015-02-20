@@ -1380,10 +1380,12 @@ sub reload_conf {
     if ( $error = t_connect(\$t) ) { return $error }
     $res = dyn_cmd($t, "vm stop $vm_name", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
+    sleep (1);
 	#t_print ($t, "vm stop $vm_name", $logp);
     #my $line = t_getline ($t, $logp);
     $res = dyn_cmd($t, "vm set_config $vm_name \"$confFile\" ", \@lines, \$ret_code, \$ret_str );
     return $res if ($res);
+    sleep (1);
    	#t_print ($t, "vm set_config $vm_name \"$confFile\" ", $logp);
    	#$line = t_getline ($t, $logp);
     $res = dyn_cmd($t, "vm start $vm_name", \@lines, \$ret_code, \$ret_str );

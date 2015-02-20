@@ -1,3 +1,51 @@
+20/2/2015
+
+- Added new attribute 'type=veth|ovs-patch' to <connection> tag to allow defining if the connection between two open vswitch is 
+  made using ovs patch ports or veth interfaces. Ej:
+    
+    <connection name='linksw1sw0' net='Net0' type="ovs-patch"/>
+- Added new attribute 'hwaddr' to <net> tag for openvswitch based networks to allow defining the bridge MAC address.
+  Ej: 
+      <net name="Net0" mode="openvswitch" hwaddr="00:00:00:00:00:01" ...
+      
+  To manually check the hw address configured in a openvswitch use: ovs-vsctl get bridge Net0 other-config:hwaddr 
+  To manually set the hw address to an openvswitch use: ovs-vsctl set bridge Net0 other-config:hwaddr=00:00:00:00:00:01 
+
+- Command used to tell network manager not to manage veth interfaces changed to:
+    nmcli dev disconnect iface ${vm_name}-e${id}
+  to test if the problems with management interfaces are solved. 
+   
+
+12/02/2015
+
+- Change in modify-rootfs for LXC: if the lxc.rootfs and lxc.mount entries in config file point to a directory 
+  different form the one where the rootfs is, a new temporal config file is created automatilly to modify the 
+  rootfs.  
+- Modified autoconfigure_redhat routine to: correctly associate IP routes to interfaces and implement dhcp interfaces.
+- Moved all autoconfigure_* functions to vnx_autoconfigure.pl file which unifies the code duplicated in vmAPI_Common and vnxaced.pl
+- New rough prototype of an utility to package examples: vnx_pack_scenario   
+
+12/01/2015
+
+- vnx.conf: allowed to include $USER in vnx_dir specification, to allow using a different directory for each user. 
+- dynamips: bug that prevented the connection of dynamips router interfaces to openvswitches corrected 
+- vmAPICommon: eliminated delay in open_console when no config for the window was specified
+- create_bridges_for_virtual_bridged_networks: when creating a VLAN subinterface sometimes the naming schema could 
+  fail and the interface is not created with the right name. Included a check and a rename command to avoid it.   
+- vmAPI_dynamips: added  sleep delays in reconf function.
+- Added support for point to point direct connections between LXC VMs using 'veth'. To use that, declare the networks with:
+      
+      <net name="link1" mode="veth" type="p2p" />
+      
+  A new example (example_lxc_vm_as_switch.xml) added to show how to connect three VMs to a VM based switch.
+    
+21/11/2014
+
+- Changed format of shared disk in libvirt-kvm-linux VMs to ext3 to make it compatible with old images, for example, CentOS 5.3. Proposed by Enrique de la Hoz.
+- Changes in vnxaced.pl to solve some autoconfiguration problems with CentOS. Proposed by Enrique de la Hoz.
+- vnx_download_rootfs: added the creation of rootfs_lxc simbolic to lxc ubuntu rootfs. "rootfs_lxc" is the name used in most examples.
+- vnx2dot: VNX::TexManipulation module import missing. Afected "show-map" option with some examples. 
+
 20/11/2014
 
 - Dynamips: added check in Checksemenatics to detect duplicated if names. Added error message to detect when no if name has been defined in an interface.

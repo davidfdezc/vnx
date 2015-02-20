@@ -207,6 +207,10 @@ sub main {
     my $uid_msg;
     $uid=$ENV{'SUDO_UID'};
     $uid_name=$ENV{'SUDO_USER'};
+    unless (defined($uid)) { $uid = $ENV{'USER'} }
+    unless (defined($uid_name)) { $uid_name = $ENV{'USER'} }
+    
+    my $user_name=$uid_name; # Save username to be used if needed in $USER substitution in vnx_dir config value
 
     # Check if we have root priviledges. Exit if not
     unless ($opts{'version'} or $opts{'help'} or ($#ARGV == -1)) {
@@ -297,8 +301,10 @@ $>=$uid;
    	if (!defined $vnx_dir) {
    		$vnx_dir = do_path_expansion($DEFAULT_VNX_DIR);
    	} else {
+        $vnx_dir =~ s/\$USER/$user_name/;
    		$vnx_dir = do_path_expansion($vnx_dir);
    	}
+
    	unless (valid_absolute_directoryname($vnx_dir) ) {
         vnx_die ("ERROR: $vnx_dir is not an absolute directory name");
    	}
@@ -493,7 +499,8 @@ $>=$uid;
     # Create the working directory, if it doesn't already exist
     if ($exemode ne $EXE_DEBUG) {
         if (! -d $vnx_dir ) {
-            mkdir $vnx_dir or vnx_die("Unable to create working directory $vnx_dir: $!\n");
+        	system "mkdir -p $vnx_dir";
+            vnx_die("Unable to create working directory $vnx_dir: $!\n") if (! -d $vnx_dir );
         }
 
 # DFC 21/2/2011: changed to simplify the user which executes vnx:
@@ -1333,13 +1340,13 @@ sub make_vmAPI_doc {
     if ($type[0] eq 'lxc') {
 	    foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
 	        my $root    = $shared_dir->getAttribute("root");
-	        my $options = $shared_dir->getAttribute("options");
+	        my $options = str($shared_dir->getAttribute("options"));
 	        my $shared_dir_value = text_tag($shared_dir);
 	        my $shared_dir_tag = $dom->createElement('shareddir');
 	        $vm_tag->addChild($shared_dir_tag);
 	        $shared_dir_tag->addChild($dom->createTextNode($shared_dir_value));
-	        $shared_dir_tag->addChild($dom->createAttribute( root => $root));
-	        $shared_dir_tag->addChild($dom->createAttribute( options => $options));         
+	        $shared_dir_tag->addChild($dom->createAttribute( root => $root ));
+	        $shared_dir_tag->addChild($dom->createAttribute( options => $options ));         
 	    }
     } else {
         wlog (N, "WARNING: <shareddir> tag not supported for VM of type $type[0]");
@@ -2201,7 +2208,7 @@ sub is_topology_running {
     foreach my $net (@nets) {
         my $net_name    = $net->getAttribute("name");
         my $mode        = $net->getAttribute("mode");
-        if ( vnet_exists_br($net_name, $mode) ) {
+        if ( $mode eq "veth" || vnet_exists_br($net_name, $mode) ) {
         	 next 
         } else {
         	wlog (VVV, "Bridge $net_name not created", $logp);
@@ -2318,10 +2325,12 @@ change_to_root();
             if ($nm_running) {
             	# This line does not work in Ubuntu 14.04
                 # my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e0 | awk 'BEGIN {FS=\":\"} {print \$1}' `;
-                my $con_uuid = `LANG=C nmcli dev list iface ${vm_name}-e0 | grep "CONNECTIONS.AVAILABLE-CONNECTIONS" | awk '{print \$2}'`;
-                chomp ($con_uuid);
-                wlog (V, "con_uuid='$con_uuid'", $logp);
-                $execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
+                
+                #my $con_uuid = `LANG=C nmcli dev list iface ${vm_name}-e0 | grep "CONNECTIONS.AVAILABLE-CONNECTIONS" | awk '{print \$2}'`;
+                #chomp ($con_uuid);
+                #wlog (V, "iface ${vm_name}-e0, con_uuid='$con_uuid'", $logp);
+                #$execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
+                $execution->execute($logp, $nmcli . " dev disconnect iface ${vm_name}-e0" );
             }
             # Disable IPv6 autoconfiguration in interface
             $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e0.autoconf=0" );
@@ -2348,18 +2357,20 @@ back_to_user();
 change_to_root();
         foreach my $if ($vm->getElementsByTagName("if")) {
             my $id = $if->getAttribute("id");
-            # Ignore management interface (treated above)
-            if ($id eq 0) { next }
+            my $net = $if->getAttribute("net");
+            # Ignore management interface (treated above) or point to point veth interfaces
+            if ($id eq 0 || $dh->get_net_mode($net) eq 'veth' ) { next }
 
             # Disable IPv6 autoconfiguration in interface
             $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e${id}.autoconf=0" );
 
             # Prevent Network manager (if running) from managing VM interfaces
             if ($nm_running) {
-                my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e${id} | awk 'BEGIN {FS=\":\"} {print \$1}' `;
-                chomp ($con_uuid);
-                wlog (VVV, "con_uuid='$con_uuid'", $logp);
-                $execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
+                #my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e${id} | awk 'BEGIN {FS=\":\"} {print \$1}' `;
+                #chomp ($con_uuid);
+                #wlog (VVV, "con_uuid='$con_uuid'", $logp);
+                #$execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
+                $execution->execute($logp, $nmcli . " dev disconnect iface ${vm_name}-e${id}" );
             }
 back_to_user();               
         }
@@ -2449,8 +2460,8 @@ sub set_vlan_links {
                     }
                     $vlan_tag_list =~ s/,$//;  # eliminate final ","
                     
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port"."1-0"." trunk=$vlan_tag_list");
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port"."0-1"." trunk=$vlan_tag_list");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port ${port}-1"." trunk=$vlan_tag_list");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port ${port}-0"." trunk=$vlan_tag_list");
                 }
             }
         }
@@ -3720,6 +3731,7 @@ sub mode_modifyrootfs {
     my $default_arch  = "i686";
     my $vcpu;        # Number of virtual CPUs 
     my $default_vcpu = "1";
+    my $lxc_config_file='config';
  
     use constant USE_CDROM_FORMAT => 0;  # 
     
@@ -3746,26 +3758,40 @@ back_to_user();
             $rootfs_dir =~ s/^\s//; # Delete leading spaces
 
             # Check if it exists
-            unless (-d $rootfs_dir ) {
-                vnx_die ("rootfs directory $rootfs_dir specified in 'lxc.rootfs' line\nof $rootfs/config file does not exist or it is not a directory.");
-            } 
+            #unless (-d $rootfs_dir ) {
+            #    vnx_die ("rootfs directory $rootfs_dir specified in 'lxc.rootfs' line\nof $rootfs/config file does not exist or it is not a directory.");
+            #} 
             
             # And check if it points to the rootfs directory under $rootfs to avoid stupid errors 
             # when copying or moving LXC images...
             unless ( `stat -c "%d:%i" $rootfs/rootfs` eq `stat -c "%d:%i" $rootfs_dir`) {
                 pre_wlog ("$hline\nWARNING!\nlxc.rootfs line in LXC config file:\n" . 
                           "  $lxc_rootfs_config_line\ndoes not point to rootfs subdirectory under the directory specified:\n  $rootfs/rootfs\n$hline");
-			    my $answer;
-			    unless ($opts{'yes'}) {
-			        print ("Do you want to continue (yes/no)? ");
-			        $answer = readline(*STDIN);
-			    } else {
-			        $answer = 'yes'; 
-			    }
-			    unless ( $answer =~ /^yes/ ) {
-			        pre_wlog ("Exiting...\n$hline");
-			        exit;
-			    }
+
+                # Create temporal config file
+                my $abs_rootfs = $rootfs;
+                unless ( valid_absolute_directoryname($rootfs) ) {
+                    $abs_rootfs = getcwd() . "/$rootfs";
+                } 
+                pre_wlog ("rootfs=$rootfs,abs_rootfs=$abs_rootfs");
+                $lxc_config_file = 'tmpconfig';
+                $execution->execute( $logp, "cp $rootfs/config $rootfs/$lxc_config_file" ); 
+                $execution->execute( $logp, "sed -i -e '/lxc.rootfs/d' $rootfs/$lxc_config_file" ); 
+                $execution->execute( $logp, "sed -i -e '/lxc.mount/d' $rootfs/$lxc_config_file" ); 
+                $execution->execute( $logp, "echo 'lxc.rootfs = $abs_rootfs/rootfs' >> $rootfs/$lxc_config_file" ); 
+                $execution->execute( $logp, "echo 'lxc.mount = $abs_rootfs/fstab' >> $rootfs/$lxc_config_file" ); 
+
+			    #my $answer;
+			    #unless ($opts{'yes'}) {
+			    #    print ("Do you want to continue (yes/no)? ");
+			    #    $answer = readline(*STDIN);
+			    #} else {
+			    #    $answer = 'yes'; 
+			    #}
+			    #unless ( $answer =~ /^yes/ ) {
+			    #    pre_wlog ("Exiting...\n$hline");
+			    #    exit;
+			    #}
             }
             $rootfs_type = 'lxc';   
     	} else {
@@ -3835,7 +3861,7 @@ back_to_user();
         pre_wlog ("Modifying LXC rootfs...");
         
         # Check if LXC config file exists
-        vnx_die ("ERROR: cannot start LXC VM. Config file (" . $rootfs . "/config) not found." ) unless (-f $rootfs . "/config");
+        vnx_die ("ERROR: cannot start LXC VM. Config file (" . $rootfs . "/$lxc_config_file) not found." ) unless (-f $rootfs . "/$lxc_config_file");
         
         # Generate random id (http://answers.oreilly.com/topic/416-how-to-generate-random-numbers-in-perl/)
         my @chars = ( "A" .. "Z", "a" .. "z", 0 .. 9 );
@@ -3844,7 +3870,7 @@ back_to_user();
         pre_wlog ("...vnx-$id");
 
         
-        my $res = $execution->execute( $logp, "lxc-start -n vnx-$id -f $rootfs/config");
+        my $res = $execution->execute( $logp, "lxc-start -n vnx-$id -f $rootfs/$lxc_config_file");
         if ($res) { 
             wlog (N, "$res", $logp)
         }
@@ -4128,7 +4154,7 @@ back_to_user();
 
 #
 # ------------------------------------------------------------------------------
-#                    M O D I F Y R O O T F S   M O D E
+#                    D O W N L O A D   M O D E
 # ------------------------------------------------------------------------------
 #
 sub mode_downloadrootfs {
@@ -4504,11 +4530,11 @@ sub create_bridges_for_virtual_bridged_networks  {
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $brtap_name -f " . $dh->get_tun_device);
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name address $brtap_mac");                       
                 # Join the tap interface to bridge
-                if ($mode eq "virtual_bridge") {
+                #if ($mode eq "virtual_bridge") {
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_name $brtap_name");
-                } elsif ($mode eq "openvswitch") {
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name $brtap_name");
-                }
+                #} elsif ($mode eq "openvswitch") {
+                #    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name $brtap_name");
+                #}
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name up");
                 
                 # Disable IPv6 autoconfiguration in bridge
@@ -4516,7 +4542,7 @@ sub create_bridges_for_virtual_bridged_networks  {
 
             } elsif ($mode eq "openvswitch") {
                 # If bridged does not exists, we create and set up it
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-br $net_name");
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " --may-exist add-br $net_name");
                 if($net->getAttribute("controller") ){
                     my $controller = $net->getAttribute("controller");
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set-controller $net_name $controller");
@@ -4525,15 +4551,26 @@ sub create_bridges_for_virtual_bridged_networks  {
                     my $of_version = $net->getAttribute("of_version");
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name protocols=$of_version");
                 }
-        
+                if($net->getAttribute("hwaddr") ){
+                    my $hwaddr = $net->getAttribute("hwaddr");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name other-config:hwaddr=$hwaddr");
+                }
+            } elsif ($mode eq "veth") {
+                my ($vms,$ifs) = $dh->get_vms_in_a_net ($net_name);
+                my $vm1 = $dh->get_vm_name (@$vms[0]);
+                my $vm2 = $dh->get_vm_name (@$vms[1]);
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link add ${net_name}_${vm1} type veth peer name ${net_name}_${vm2}");
+                                
             }
-                        
-            # Bring the bridge up
-            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");      
-            
-            # Disable IPv6 autoconfiguration in bridge
-            $execution->execute($logp, "sysctl -w net.ipv6.conf.${net_name}.autoconf=0" );
+                 
+            unless ($mode eq "veth") {
+	            # Bring the bridge up
+	            #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $net_name 0.0.0.0 " . $dh->get_promisc . " up");
+	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");      
+	            
+	            # Disable IPv6 autoconfiguration in bridge
+	            $execution->execute($logp, "sysctl -w net.ipv6.conf.${net_name}.autoconf=0" );
+            }       
         }
         
         # Is there an external interface associated with the network?
@@ -4545,11 +4582,19 @@ sub create_bridges_for_virtual_bridged_networks  {
                     #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
                 }
-                # If VLAN is already configured at this interface, we haven't to configure it
+                # If VLAN is already configured at this interface, we don't have to configure it
                 unless (check_vlan($external_if,$vlan)) {
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"vconfig"} . " set_name_type DEV_PLUS_VID_NO_PAD");
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"vconfig"} . " add $external_if $vlan");
+                    
+                    my $new_if_name = `cat /proc/net/vlan/config | grep $external_if |  grep $vlan | awk '{print \$1}' `;
+                    chomp($new_if_name);
+                    wlog (VVV, "new_if_name=$new_if_name", $logp);
+                    if ($new_if_name ne "${external_if}.${vlan}") {
+                    	wlog (N, "$hline\nWARNING: incorrect vlan subinterface name ($new_if_name). Renaming it to ${external_if}.${vlan}\n$hline", $logp);                    	
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . "  link set $new_if_name name ${external_if}.${vlan}");
+                    }
                 }
                 $external_if .= ".$vlan";
                 #$external_if .= ":$vlan";
@@ -4580,11 +4625,28 @@ sub create_bridges_for_virtual_bridged_networks  {
         my $net_name    = $net->getAttribute("name");
         foreach my $connection ($net->getElementsByTagName("connection")) {
             my $net_to_connect=$connection->getAttribute("net");
-            my $interfaceName=$connection->getAttribute("name");
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name $interfaceName"."1-0");
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set interface $interfaceName"."1-0 type=patch options:peer=$interfaceName"."0-1");
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port  $net_to_connect $interfaceName"."0-1");
-            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set interface $interfaceName"."0-1 type=patch options:peer=$interfaceName"."1-0");
+            my $if_name=$connection->getAttribute("name");
+            my $conn_type=$connection->getAttribute("type");
+            wlog (V, "conn_type=$conn_type", $logp);
+            unless ( defined($conn_type) ) {
+            	$conn_type = "veth"; # default value
+            }
+            if ( $conn_type eq "veth" ) {
+            	wlog (V, "Switch connection: ${net_name}-${net_to_connect}, type=veth", $logp);
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link add ${if_name}-0 type veth peer name ${if_name}-1");
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set ${if_name}-0 up");
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set ${if_name}-1 up");
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name ${if_name}-0");
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_to_connect ${if_name}-1");
+            } elsif ( $conn_type eq "ovs-patch" ) {
+                wlog (V, "Switch connection: ${net_name}-${net_to_connect}, type=ovs-patch", $logp);
+	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name ${if_name}-0");
+	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set interface ${if_name}-0 type=patch options:peer=${if_name}-1");
+	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port  $net_to_connect ${if_name}-1");
+	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set interface ${if_name}-1 type=patch options:peer=${if_name}-0");
+            } else {
+            	
+            }
         }
     }        
 }
@@ -4621,10 +4683,10 @@ sub tun_connect {
             # Only TUN/TAP for interfaces attached to bridged networks
             # We do not add tap interfaces for libvirt or lxc VMs. It is done by libvirt/lxc 
             if ( ($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ( get_net_by_mode($net,"virtual_bridge") != 0)  || 
-                 (($vm_type eq 'lxc') && get_net_by_mode($net,"openvswitch") != 0) ) {
-                # If condition explained for dummies like me: 
+                 ( ( ($vm_type eq 'lxc') || ($vm_type eq 'dynamips') ) && get_net_by_mode($net,"openvswitch") != 0) ) {
+                # If-condition explained for dummies like me: 
                 #     if    (vm is neither libvirt nor lxc and switch is virtual_bridge) 
-                #        or (vm is lxc and switch is openvswitch) then
+                #        or (vm is lxc or dynamips and switch is openvswitch) then
 	 
                 my $net_if = $vm_name . "-e" . $id;
 
@@ -5697,6 +5759,31 @@ sub bridges_destroy {
     	wlog (VVV, "net=$net_name, mode=$mode, managed='" . $managed . "'", $logp);
     	
         if ( !($managed eq 'no') && ($mode ne "uml_switch") ) {
+        	
+        	# Destroy inter-switch connections defined in scenario
+            foreach my $net2 ($doc->getElementsByTagName("net")) {
+                my $net_name2 = $net2->getAttribute("name");
+                foreach my $connection ($net2->getElementsByTagName("connection")) {
+                    my $net_to_connect=$connection->getAttribute("net");
+                    my $if_name=$connection->getAttribute("name");
+                    my $conn_type=$connection->getAttribute("type");
+                    my $if_to_delete;
+                    if ( $net_name2 eq $net_name ) {
+                        $if_to_delete = "${if_name}-0";
+                    } elsif ( $net_to_connect eq $net_name ) {
+                        $if_to_delete = "${if_name}-1";
+                    }
+                    if (defined($if_to_delete)) {
+	                    wlog (V, "Deleting switch connection: ${net_name2}-${net_to_connect}, type=$conn_type", $logp);
+	                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " del-port $net_name $if_to_delete");
+	                    if ( $conn_type eq "veth" ) {
+	                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link del $if_to_delete");
+	                    } elsif ( $conn_type eq "ovs-patch" ) {
+	
+	                    }
+                    }
+	            }
+            }
             # Set bridge down and remove it only in the case there isn't any associated interface 
             my @br_ifs = vnet_ifs($net_name,$mode);  
             #wlog (N, "OVS a eliminar @br_ifs", $logp);
@@ -5842,9 +5929,9 @@ sub get_kernel_pids {
 #    - Second: scenario name
 #    - Third: name file (usually /etc/hosts)
 # 
-# A VNUML sections is inserted in the /etc/hosts file with the following structure:
+# A VNX sections is inserted in the /etc/hosts file with the following structure:
 # 
-# VNUML BEGIN -- DO NO EDIT!!!
+# VNX BEGIN -- DO NO EDIT!!!
 #
 # BEGIN: sim_name_1
 # (names)
@@ -5856,7 +5943,7 @@ sub get_kernel_pids {
 #
 # (...)
 #
-# VNUML END
+# VNX END
 #
 # The function is not much smart. I would like to hear suggestions about... :)
 #
@@ -5881,7 +5968,6 @@ change_to_root();
       or $execution->smartdie ("can not open " . $dh->get_tmp_dir . "/hostfile.2 for writting: $!");
    open THIRD, ">" . $dh->get_tmp_dir . "/hostfile.3"
       or $execution->smartdie ("can not open " . $dh->get_tmp_dir . "/hostfile.3 for writting: $!");
-
    # Status list:
    # 
    # 0 -> before VNX section

@@ -42,6 +42,7 @@
 use strict;
 use XML::LibXML;
 use VNX::DocumentChecks;
+use VNX::TextManipulation;
 
 #my $color_scheme="rdbu9";
 my $color_scheme="set39";
@@ -105,8 +106,10 @@ my $scen_name = $dom->findnodes ('/vnx/global/scenario_name')->to_literal;
 print "// Graph Title\n";
 print "labelloc=\"t\"\n";
 print "label=\"$scen_name\"\n"; 
- 
+
+#
 # Draw networks (switches)
+#
 print "// Networks\n" ;
 
 foreach my $net ($dom->getElementsByTagName ("net")) {
@@ -116,6 +119,7 @@ foreach my $net ($dom->getElementsByTagName ("net")) {
     my $name2 = $name;
     $name2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
     my $net_mode = $net->getAttribute ("mode");
+    my $net_type = $net->getAttribute ("type");
     if ($net_mode eq 'virtual_bridge') {
         $net_mode = 'vbd';
         $net_legend{"vbd"} = "virtual bridge";    	     
@@ -125,16 +129,25 @@ foreach my $net ($dom->getElementsByTagName ("net")) {
     } elsif ($net_mode eq 'openvswitch') {
         $net_mode = 'ovs';
         $net_legend{"ovs"} = "OpenvSwitch";    	     
+    } elsif ($net_mode eq 'veth') {
+        $net_mode = 'veth';
+        $net_legend{"veth"} = "veth direct link";          
     } else {
         $net_mode = '??'
     }
-    print "$name2 [label=\"$name\\n($net_mode)\", shape=\"$net_shape\", " . 
-          "fontsize=\"$net_fontsize\", fontstyle=\"bold\", colorscheme=\"$color_scheme\", color=\"$net_color\", style=\"$net_style\" ];\n" ;
+    if ($net_type eq 'p2p') {
+        print "$name2 [label=\"$name\\n($net_mode)\", shape=\"point\", " . 
+              "fontsize=\"$net_fontsize\", fontstyle=\"bold\", colorscheme=\"$color_scheme\", color=\"$net_color\", style=\"$net_style\" ];\n" ;
+    } else {
+        print "$name2 [label=\"$name\\n($net_mode)\", shape=\"$net_shape\", " . 
+              "fontsize=\"$net_fontsize\", fontstyle=\"bold\", colorscheme=\"$color_scheme\", color=\"$net_color\", style=\"$net_style\" ];\n" ;
+    }
 }
 
 # Draw level 2 connections between switches
 foreach my $net ($dom->getElementsByTagName ("net")) {
     my $name = $net->getAttribute ("name");
+    
     foreach my $conn ($net->getElementsByTagName ("connection")) {
         my $net2 = $conn->getAttribute ("net");
 
@@ -158,7 +171,9 @@ foreach my $net ($dom->getElementsByTagName ("net")) {
     }
 }
 
+#
 # Draw virtual machines
+#
 print "\n\n// Virtual machines \n" ;
 
 foreach my $vm ($dom->getElementsByTagName ("vm")) {
@@ -273,8 +288,9 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
     }
 }
 
-
+#
 # Draw host node if connected to the scenario
+#
 my @hostifs = $dom->getElementsByTagName ("hostif");
 
 if (@hostifs > 0) {
@@ -329,7 +345,10 @@ foreach my $hostif (@hostifs) {
 
 }
 
+
+#
 # print vm and net legends
+#
 
 # Example legend table
 # label=<<TABLE ALIGN="LEFT">
