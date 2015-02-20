@@ -87,7 +87,7 @@ function get_link_name {
    if [[ $1 == *lxc*ubuntu64* ]] ; then
       echo "rootfs_lxc_ubuntu64"
    elif [[ $1 == *lxc*ubuntu* ]] ; then
-      echo "rootfs_lxc_ubuntu"
+      echo "rootfs_lxc rootfs_lxc_ubuntu"
    elif [[ $1 == *ubuntu64* ]] ; then
       if [[ $1 == *gui* ]] ; then
          echo "rootfs_ubuntu64-gui"
@@ -242,20 +242,24 @@ function download_rootfs {
 
     if [ "$create_sym_link" == "yes" ] ; then
         # Create symbolic link if -l
-        link_name=$(get_link_name $rootfs_name)
-        echo "Creating simbolic link: '$link_name'->'$rootfs_name'"
-        rm -f ./$link_name
-        ln -s $rootfs_name $link_name
-    elif [ $interactive ]; then
-        link_name=$(get_link_name $rootfs_name)
-        echo -n "Do you want to create a symbolic link: '$link_name'->'$rootfs_name' (y/n)? "
-        read choice
-        if [ "$choice" == "y" -o  "$choice" = "Y" ] ; then
-            echo "Creating simbolic link..."
+        link_names=$(get_link_name $rootfs_name)
+        for link_name in $link_names; do
+            echo "Creating simbolic link: '$link_name'->'$rootfs_name'"
             rm -f ./$link_name
             ln -s $rootfs_name $link_name
-            sleep 1
-        fi
+        done
+    elif [ $interactive ]; then
+        link_names=$(get_link_name $rootfs_name)
+        for link_name in $link_names; do
+            echo -n "Do you want to create a symbolic link: '$link_name'->'$rootfs_name' (y/n)? "
+            read choice
+            if [ "$choice" == "y" -o  "$choice" = "Y" ] ; then
+                echo "Creating simbolic link..."
+                rm -f ./$link_name
+                ln -s $rootfs_name $link_name
+                sleep 1
+            fi
+        done
     fi
     
     # Check md5sum

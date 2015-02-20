@@ -1,0 +1,87 @@
+
+- Investigate why "overlayfs" does not work well for LXC VMs (some software like java fails...). Look for mount options like the ones used in aufs.
+
+- Implement shared directory among host and vms
+
+- Window position .cvnx files:
+
+   -- Enhance to support virt-viewer windows
+      wmctrl -i -r 0x036... -T "ubuntu - console #0" 
+   -- Add a tag in XML to select the .cvnx file to use (useful to share files among scenarios).    
+   
+- vnx_halt: implement it for LXC. Enhance it to automatically save packages installed.
+
+- vmAPI_libvirt: capture all libvirt errors with eval
+
+- config parameter to deactivate network manager commands
+
+- When using -P|--destroy (and --show-map and maybe others) option not check if <filetree> files are available. Useful to kill scenarios using option -s.
+
+- vnx_download_rootfs: 
+   -- offer the user to automatically change config file to adapt it the directory where the rootfs was downloaded.    
+   -- delete *.tgz files after rootfs installation
+   
+- Integrate new cisco VM: iosxrv
+
+- Create routers based on Linux namespaces. See package core-network-daemon with command "vcmd" to start commands in a name space. See also how to integrate quagga. 
+
+- Change all sentences like: 
+    $feature1_tag->addChild( $init_xml->createAttribute( policy => "optional" ) );
+  to use setAttribute:
+    $ftree_tag->setAttribute( seq => "on_boot");
+    
+- Test KVM nested virtualization.
+
+- Include info about bash autocompletion in installation guide.
+
+- Check whether the Net-e00 interfaces are still needed.  
+
+- vnxshell usando Term::Shell
+
+- Add host_mapping support to mgmt=net:
+    + config=manual and <host_mapping/> options are not compatible by now. One way of implementing host_mapping will
+      be to have a look at dhcp leases files to see the addresses assigned. For example:
+      
+        grep 02:fd:00:04:01:00 /var/lib/libvirt/dnsmasq/*.leases /var/lib/misc/*.leases 
+
+- Implement inverse filetree to copy files from VM to host
+
+- Add option to specify window config file (.cvnx) from the command line
+
+- Integrate and improve vnx_clone_scenario in VNX
+
+- Use xdotool instead of wmctrl. Examples:
+
+  # Automatic login
+  xdotool windowactivate  --sync 0x03c00022 type root;
+  xdotool windowactivate  --sync 0x03c00022 key ctrl+m;
+  xdotool windowactivate  --sync 0x03c00022 type xxxx;
+  xdotool windowactivate  --sync 0x03c00022 key ctrl+m
+  
+  # Activar ventana
+  xdotool windowactivate  0x03c00022
+  
+  # Minimizar ventana
+  xdotool windowminimize  0x03c00022
+  
+  # Scripts
+  echo "windowactivate  0x03c00022" | xdotool -
+  
+  #!/usr/local/bin/xdotool
+  search --onlyvisible --classname $1
+
+  windowsize %@ $2 $3
+  windowraise %@
+  
+  
+
+BUGS:
+
+- Dynamips: showcfg command of simple_dynamips example does not work (fails in login) - 20140727  
+
+- LXC: it is not checked whether the mount command that mounts the COW filesystem works. If it fails the code continues
+  ignoring the failure.  
+  
+- command: vnx -f tutorial_lxc_ubuntu.xml -v --console con0 -M h1 does not work - 20140828
+
+

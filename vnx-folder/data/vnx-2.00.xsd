@@ -291,8 +291,16 @@ e-mail: vnx@dit.upm.es
    </xs:sequence>
       <xs:attribute name="net" type="xs:string" use="required"/>
       <xs:attribute name="name" type="xs:string" use="required"/>
+      <xs:attribute name="type" type="bridge-conn-type" use="optional"/>
     </xs:complexType>
   </xs:element>
+
+  <xs:simpleType name="bridge-conn-type">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ovs-patch"/>
+      <xs:enumeration value="veth"/>
+    </xs:restriction>
+  </xs:simpleType>
 
   <xs:element name="net">
     <xs:complexType>
@@ -308,12 +316,14 @@ e-mail: vnx@dit.upm.es
       <xs:attribute name="capture_file" type="xs:string" use="optional"/>
       <xs:attribute name="controller" type="xs:string" use="optional"/>
       <xs:attribute name="of_version" type="xs:string" use="optional"/>
+      <xs:attribute name="hwaddr" type="xs:string" use="optional"/>
       <xs:attribute name="mode" use="required">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
             <xs:enumeration value="virtual_bridge"/>
             <xs:enumeration value="uml_switch"/>
             <xs:enumeration value="openvswitch"/>
+            <xs:enumeration value="veth"/>
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
@@ -339,6 +349,7 @@ e-mail: vnx@dit.upm.es
           <xs:restriction base="xs:NMTOKEN">
             <xs:enumeration value="lan"/>
             <xs:enumeration value="ppp"/>
+            <xs:enumeration value="p2p"/>
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>

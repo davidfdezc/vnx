@@ -325,6 +325,8 @@ user();
     # 8. To check <net>
     # Hash for duplicated names detection
     my %net_names;
+    # Hash for duplicated bridge MAC address detection
+    my %mac_addrs;
    
     # Hash for duplicated physical interface detection
     my %phyif_names;
@@ -439,11 +441,9 @@ user();
       	 $type = "lan"; # default value
       	 $net->setAttribute("type", "lan")
       }
-      if ($type eq "ppp") {
+      if ($type eq "ppp" || $type eq "p2p") {
          # Get all the ifs of the scenario
          my $machines = 0;
-         #my $if_list = $doc->getElementsByTagName("if");
-         #for ( my $j = 0; $j < $if_list->getLength; $j++ ) {
          foreach my $if ($doc->getElementsByTagName("if")) {
             if ($if->getAttribute("net") eq $name) {
                 $machines++;
@@ -451,8 +451,8 @@ user();
          	}
          }
          # Eliminated. It caused problems when using EDIV
-         #return "PPP $name net is connected to just one interface: PPP networks must be connected to exactly two interfaces" if ($machines < 2);
-         return "PPP $name net is connected to more than two interface: PPP networks must be connected to exactly two interfaces"if ($machines > 2);         
+         return "net $name of type $type is connected to just one interface: ppp/p2p networks must be connected to exactly two interfaces" if ($machines < 2);
+         return "net $name of type $type is connected to more than two interface: ppp/p2p networks must be connected to exactly two interfaces"if ($machines > 2);         
       } elsif ($type eq "lan") {
          #8h. To check no-PPP networks doesn't have <bw> tag
          my @bw_list = $net->getElementsByTagName("bw");
@@ -465,31 +465,73 @@ user();
          #return "net $name is a PPP network and PPP networks must have a <bw> tag" if ($bw_list->getLength == 0)
 #      }
 
-      # 8i. Check sock files
-      my $sock = $net->getAttribute("sock");
-      #if ($sock !~ /^$/) {
-      unless (empty($sock)) {
-        my $sock = &do_path_expansion($sock);
-		$> = $uid if ($is_root);
-		return "$sock (sock) does not exist or is not readable (user $uid_name)" unless (-r $sock);
-		return "$sock (sock) is not writeable (user $uid_name)" unless (-w _);
-		return "$sock (sock) is not a valid socket" unless (-S _);
-		$> = 0 if ($is_root);
-	  }
+        # Check related to <net mode='veth' type 'p2p'..:>
+        if ($mode eq 'veth' && $type ne 'p2p') {
+        	return "type $type incorrect for net $name. Type must be 'p2p' for nets of type 'veth'"
+        }
+
+        if ($type eq 'p2p' && $mode ne 'veth') {
+            return "error in net $name, type $type only supported for mode 'veth'"
+        }    
+
+        # 8i. Check sock files
+        my $sock = $net->getAttribute("sock");
+        #if ($sock !~ /^$/) {
+        unless (empty($sock)) {
+            my $sock = &do_path_expansion($sock);
+            $> = $uid if ($is_root);
+            return "$sock (sock) does not exist or is not readable (user $uid_name)" unless (-r $sock);
+            return "$sock (sock) is not writeable (user $uid_name)" unless (-w _);
+            return "$sock (sock) is not a valid socket" unless (-S _);
+            $> = 0 if ($is_root);
+        }
 	  
-	  # 8j. Check 'controller' and 'of_version' attributes 
-      my $controller = $net->getAttribute("controller");
-      my $of_version = $net->getAttribute("of_version");
+        # 8j. Check 'controller' and 'of_version' attributes 
+        my $controller = $net->getAttribute("controller");
+        my $of_version = $net->getAttribute("of_version");
       
-      if ( !empty($controller) && $mode ne 'openvswitch' ) {
-	    return "'controller' attribute can only be used in 'openvswitch' based networks (used in <net name='$name'>)"
-      }
-      if ( !empty($of_version) && $mode ne 'openvswitch' ) {
-        return "'of_version' attribute can only be used in 'openvswitch' based networks (used in <net name='$name'>)"
-      } 
-      if ( !empty($of_version) && $of_version ne 'OpenFlow10' && $of_version ne 'OpenFlow12' && $of_version ne 'OpenFlow13' ) {
-        return "incorrect value in <net> 'of_version' attribute. Valid values: OpenFlow10, OpenFlow12, OpenFlow13"
-      } 
+        if ( !empty($controller) && $mode ne 'openvswitch' ) {
+            return "'controller' attribute can only be used in 'openvswitch' based networks (used in <net name='$name'>)"
+        }
+        if ( !empty($of_version) && $mode ne 'openvswitch' ) {
+            return "'of_version' attribute can only be used in 'openvswitch' based networks (used in <net name='$name'>)"
+        } 
+        if ( !empty($of_version) && $of_version ne 'OpenFlow10' && $of_version ne 'OpenFlow12' && $of_version ne 'OpenFlow13' ) {
+            return "incorrect value in <net> 'of_version' attribute. Valid values: OpenFlow10, OpenFlow12, OpenFlow13"
+        } 
+      
+        # 8k. Check 'hwaddr' attributes 
+        my $hwaddr = $net->getAttribute("hwaddr");
+        if ( !empty($hwaddr) && $mode eq 'openvswitch' ) {
+            return "incorrect MAC address ($hwaddr) specified in attribute 'hwaddr' of net '$name'" 
+                unless ( $hwaddr =~ /^([0-9a-fA-F]{2}:){5}([0-9a-fA-F]{2})$/ );
+        }        
+        if ( !empty($hwaddr) && $mode ne 'openvswitch' ) {
+            return "incorrect use of attribute 'hwaddr' in net '$name' of mode '$mode'\n'hwaddr' can only be used when mode='openvswitch'" 
+        }     
+        if ( defined($hwaddr) ) {
+            if ( defined($mac_addrs{$hwaddr}) ) {
+                return "duplicated MAC address ($hwaddr) specified in nets '$name' and '$mac_addrs{$hwaddr}'";
+            } else {
+                $mac_addrs{$hwaddr} = $name;
+            }       	
+        }
+      
+        # 8l. Check <connection> tags
+        foreach my $connection ($net->getElementsByTagName("connection")) {
+            my $net_to_connect=$connection->getAttribute("net");
+            my $if_name=$connection->getAttribute("name");
+            my $conn_type=$connection->getAttribute("type");
+            # Set default value
+            unless ( defined($conn_type) ) {
+                $conn_type = "veth"; 
+            }
+            if ( $name eq $net_to_connect ) {
+                return "incorrect <connection> tag in <net name='$name'>; switch loop detected";
+            }
+        }
+       
+      
    }
    
    # 9. To check <vm> and <if>
@@ -719,7 +761,7 @@ user();
             if ( $root !~ /^\// ) {
             	return "root attribute value ('$root') in <shareddir> tag of VM '$name' must be an absolute path."
             }
-            my $abs_shareddir = abs_path($shared_dir_value);
+            my $abs_shareddir = get_abs_path($shared_dir_value);
             if (! -d $abs_shareddir) {
                 return "shared directory ($shared_dir_value) in <shareddir> tag of VM '$name' does not exist or is not accesible."
             }            

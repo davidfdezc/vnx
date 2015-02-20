@@ -1,0 +1,6 @@
+<vnx_cfg>
+<vm name="vm1" win="400,0,600,400"/>
+<vm name="vm2" win="0,600,600,400"/>
+<vm name="vm3" win="800,600,600,400"/>
+<vm name="switch" win="450,300,600,400"/>
+</vnx_cfg>

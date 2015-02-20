@@ -56,7 +56,7 @@ sub new {
    "ifconfig", "cp", "cat", "lsof", "chown",
    "hostname", "route", "scp", "chmod", "ssh", "uml_mconsole",                                                                             
    "date", "ps", "grep", "kill", "ln", "mkisofs", "mktemp", "su", "find",
-   "qemu-img", "mkfs.msdos", "mkfs.ext4", "mount", "umount", "sed", "ip", "vnx_mount_rootfs");
+   "qemu-img", "mkfs.msdos", "mkfs.ext3", "mount", "umount", "sed", "ip", "vnx_mount_rootfs");
 
    # Perl modules mandatory
    my @perlmods_mandatory = qw( NetAddr::IP XML::LibXML XML::Tidy AppConfig Readonly 

@@ -224,7 +224,7 @@ sub define_vm {
         $execution->execute( $logp, $bd->get_binaries_path_ref->{"qemu-img"} . " create $sdisk_fname 50M" );
 
         if ( $type eq "libvirt-kvm-linux" ) {
-            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mkfs.ext4"} . " -Fq $sdisk_fname" ); 
+            $execution->execute( $logp, $bd->get_binaries_path_ref->{"mkfs.ext3"} . " -Fq $sdisk_fname" ); 
         } else {
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"mkfs.msdos"} . " $sdisk_fname" ); 
         }        	
@@ -1531,7 +1531,7 @@ user();
         #my $parser = XML::LibXML->new;
         #my $dom    = $parser->parse_file( $dh->get_vm_dir($vm_name) . "/${vm_name}_conf.xml" );
     
-        autoconfigure_android ($vm_doc, $android_root);
+        autoconfigure_android ($vm_doc, $android_root, $dh->get_vmmgmt_type);
         # Dismount the rootfs image        
         $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
     

@@ -312,7 +312,7 @@ change_to_root();
             my $options = $shared_dir->getAttribute("options");
             if ($options) { $options .= ',bind' } else { $options = 'bind' };
             my $shared_dir_value = text_tag($shared_dir);
-            $shared_dir_value = abs_path($shared_dir_value);
+            $shared_dir_value = get_abs_path($shared_dir_value);
 #            if (! -d $shared_dir_value) {
 #            	$execution->execute( $logp, "mkdir -p $shared_dir_value" );
 #            }            
@@ -355,24 +355,36 @@ change_to_root();
         #$execution->execute( $logp, "echo 'iface lo inet loopback' >> $vm_etc_net_ifs" );
 
         foreach my $if ($vm->getElementsByTagName("if")) {
-            my $id    = $if->getAttribute("id");
-            my $net   = $if->getAttribute("net");
-            my $mac   = $if->getAttribute("mac");
+            my $id       = $if->getAttribute("id");
+            my $net      = $if->getAttribute("net");
+            my $net_type = $dh->get_net_type($net);
+            my $net_mode = $dh->get_net_mode($net);
+            my $mac      = $if->getAttribute("mac");
             $mac =~ s/,//; # TODO: why is there a comma before mac addresses?
 
             if ( str($net) eq "lo" ) { next }
             $execution->execute( $logp, "", *CONFIG_FILE );
             $execution->execute( $logp, "# interface eth$id", *CONFIG_FILE );
-            $execution->execute( $logp, "lxc.network.type=veth", *CONFIG_FILE );
-            $execution->execute( $logp, "# ifname inside VM", *CONFIG_FILE );
-            $execution->execute( $logp, "lxc.network.name=eth$id", *CONFIG_FILE );
-            $execution->execute( $logp, "# ifname on the host", *CONFIG_FILE );
-            $execution->execute( $logp, "lxc.network.veth.pair=$vm_name-e$id", *CONFIG_FILE );
+
+            if ( $net_mode eq "veth") {
+	            $execution->execute( $logp, "lxc.network.type=phys", *CONFIG_FILE );
+            } else {
+	            $execution->execute( $logp, "lxc.network.type=veth", *CONFIG_FILE );
+	            $execution->execute( $logp, "# ifname on the host", *CONFIG_FILE );
+	            $execution->execute( $logp, "lxc.network.veth.pair=$vm_name-e$id", *CONFIG_FILE );              
+            }
+	        $execution->execute( $logp, "# ifname inside VM", *CONFIG_FILE );
+	        $execution->execute( $logp, "lxc.network.name=eth$id", *CONFIG_FILE );
+
+            $execution->execute( $logp, "# if mac address", *CONFIG_FILE );
             $execution->execute( $logp, "lxc.network.hwaddr=$mac", *CONFIG_FILE );
             if ($id != 0) {
-            	if ($dh->get_net_mode($net) eq "virtual_bridge"){
-	                $execution->execute( $logp, "# bridge if connects to", *CONFIG_FILE );
+            	if ($net_mode eq "virtual_bridge") {
+	                $execution->execute( $logp, "# name of bridge interface connects to", *CONFIG_FILE );
 	                $execution->execute( $logp, "lxc.network.link=$net", *CONFIG_FILE );
+            	} elsif ($net_mode eq "veth") {
+                    $execution->execute( $logp, "# veth link endpoint name", *CONFIG_FILE );
+                    $execution->execute( $logp, "lxc.network.link=${net}_${vm_name}", *CONFIG_FILE );            		
             	}
             } 
 #            else {

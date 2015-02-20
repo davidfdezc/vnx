@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VNX_DIR=/usr/share/vnx
+
 # Parse arguments
 while getopts "v" opt; do
   echo "Options:"
@@ -19,7 +21,7 @@ done
 
 VNX_VERSION="2.0b"
 ROOTFS_VERSION="es-v022b"
-EDIV_ALG_MODULES_DIR="/usr/share/vnx/lib/seg-alg"
+EDIV_ALG_MODULES_DIR="${VNX_DIR}/lib/seg-alg"
 
 # Move to the directory where this script is
 cdir=$( dirname $0 )
@@ -58,30 +60,30 @@ mkdir -p $VERBOSE ${VNX_LIBS}
 mkdir -p $VERBOSE  ${EDIV_LIBS}
 mkdir -p $VERBOSE ${EDIV_ALG_MODULES_DIR}
 mkdir -p $VERBOSE /usr/share/xml/vnx
-mkdir -p $VERBOSE /usr/share/vnx/bin
-mkdir -p $VERBOSE /usr/share/vnx/examples/
-mkdir -p $VERBOSE /usr/share/vnx/filesystems
-mkdir -p $VERBOSE /usr/share/vnx/kernels
-mkdir -p $VERBOSE /usr/share/vnx/aced
-mkdir -p $VERBOSE /usr/share/vnx/plugins
-mkdir -p $VERBOSE /usr/share/vnx/src
+mkdir -p $VERBOSE ${VNX_DIR}/bin
+mkdir -p $VERBOSE ${VNX_DIR}/examples/
+mkdir -p $VERBOSE ${VNX_DIR}/filesystems
+mkdir -p $VERBOSE ${VNX_DIR}/kernels
+mkdir -p $VERBOSE ${VNX_DIR}/aced
+mkdir -p $VERBOSE ${VNX_DIR}/plugins
+mkdir -p $VERBOSE ${VNX_DIR}/src
 #mkdir -p $VERBOSE /etc/ediv
-mkdir -p $VERBOSE /usr/share/vnx/etc
+mkdir -p $VERBOSE ${VNX_DIR}/etc
 
 #
-# save a copy of vnx tar file to /usr/share/vnx/src directory
+# save a copy of vnx tar file to ${VNX_DIR}/src directory
 #
 FNAME=vnx-${VNX_VERSION}
 PWD=$(pwd)
 DIRNAME=${PWD##*/}
 pushd .. > /dev/null
 if [ $VERBOSE ]; then
-    tar cfvz /usr/share/vnx/src/${FNAME}.tgz $DIRNAME
+    tar cfvz ${VNX_DIR}/src/${FNAME}.tgz $DIRNAME
 else
-    tar cfz /usr/share/vnx/src/${FNAME}.tgz $DIRNAME
+    tar cfz ${VNX_DIR}/src/${FNAME}.tgz $DIRNAME
 fi
-rm /usr/share/vnx/src/vnx-latest.tgz
-ln -s ${FNAME}.tgz /usr/share/vnx/src/vnx-latest.tgz
+rm ${VNX_DIR}/src/vnx-latest.tgz
+ln -s ${FNAME}.tgz ${VNX_DIR}/src/vnx-latest.tgz
 popd > /dev/null
 
 #
@@ -122,6 +124,8 @@ done
 #
 cp $VERBOSE bin/vnx2dot.pl /usr/bin/vnx2dot
 chmod +x /usr/bin/vnx2dot
+cp $VERBOSE bin/vnx_pack_scenario.sh /usr/bin/vnx_pack_scenario
+chmod +x /usr/bin/vnx2dot
 
 #
 # Copy vnx perl modules
@@ -146,39 +150,39 @@ cp $VERBOSE data/*.xsd /usr/share/xml/vnx/
 #
 # Copy examples
 #
-cp $VERBOSE data/*.xml data/*.net /usr/share/vnx/examples/
-cp $VERBOSE data/*.cvnx data/*.net /usr/share/vnx/examples/
-cp $VERBOSE -r data/conf /usr/share/vnx/examples/
-cp $VERBOSE -r data/scripts /usr/share/vnx/examples/
-cp $VERBOSE -r data/tutorial_ubuntu_modify /usr/share/vnx/examples/
-mkdir -p /usr/share/vnx/examples/shared
-chmod 644 /usr/share/vnx/examples/*
-chmod +x /usr/share/vnx/examples/conf
+cp $VERBOSE data/*.xml data/*.net ${VNX_DIR}/examples/
+cp $VERBOSE data/*.cvnx data/*.net ${VNX_DIR}/examples/
+cp $VERBOSE -r data/conf ${VNX_DIR}/examples/
+cp $VERBOSE -r data/scripts ${VNX_DIR}/examples/
+cp $VERBOSE -r data/tutorial_ubuntu_modify ${VNX_DIR}/examples/
+mkdir -p ${VNX_DIR}/examples/shared
+chmod 644 ${VNX_DIR}/examples/*
+chmod +x ${VNX_DIR}/examples/conf
 
 #
 # Copy other things in data directory
 #
-#cp $VERBOSE data/create-tutorial* /usr/share/vnx/examples/
-#chmod 755 /usr/share/vnx/examples/create-tutorial*
+#cp $VERBOSE data/create-tutorial* ${VNX_DIR}/examples/
+#chmod 755 ${VNX_DIR}/examples/create-tutorial*
 
 #
 # Copy other utils
 #
-#cp $VERBOSE bin/update_daemon.pl /usr/share/vnx/bin/vnx_update_aced
+#cp $VERBOSE bin/update_daemon.pl ${VNX_DIR}/bin/vnx_update_aced
 
 # Delete vnx_modify_rootfs* -> obsoleted by vnx --modify-rootfs option
-rm -f $VERBOSE /usr/share/vnx/bin/vnx_modify_rootfs*
+rm -f $VERBOSE ${VNX_DIR}/bin/vnx_modify_rootfs*
 
 cp $VERBOSE bin/vnx_update.sh /usr/bin/vnx_update
-cp $VERBOSE bin/vnx_update_host.sh /usr/share/vnx/bin/vnx_update_host
-cp $VERBOSE bin/vnx_set_def_rootfs.pl /usr/share/vnx/bin/vnx_set_def_rootfs
+cp $VERBOSE bin/vnx_update_host.sh ${VNX_DIR}/bin/vnx_update_host
+cp $VERBOSE bin/vnx_set_def_rootfs.pl ${VNX_DIR}/bin/vnx_set_def_rootfs
 cp $VERBOSE bin/vnx_download_rootfs.sh /usr/bin/vnx_download_rootfs
 cp $VERBOSE bin/vnx_mount_rootfs.sh /usr/bin/vnx_mount_rootfs
 # Delete old versions copied to /usr/share/bin
-rm -f /usr/share/vnx/bin/vnx_download_rootfs
-rm -f /usr/share/vnx/bin/vnx_mount_rootfs
-rm -f /usr/share/vnx/bin/vnx_update
-chmod 755 /usr/share/vnx/bin/*
+rm -f ${VNX_DIR}/bin/vnx_download_rootfs
+rm -f ${VNX_DIR}/bin/vnx_mount_rootfs
+rm -f ${VNX_DIR}/bin/vnx_update
+chmod 755 ${VNX_DIR}/bin/*
 chmod 755 /usr/bin/vnx_*
 
 #
@@ -187,27 +191,27 @@ chmod 755 /usr/bin/vnx_*
 #if [ -e /etc/vnx.conf ]; then
 #	mv /etc/vnx.conf /etc/vnx.conf.bak
 #fi
-cp $VERBOSE etc/vnx.conf /usr/share/vnx/etc/vnx.conf.sample
-chmod 600 /usr/share/vnx/etc/vnx.conf.sample
+cp $VERBOSE etc/vnx.conf ${VNX_DIR}/etc/vnx.conf.sample
+chmod 600 ${VNX_DIR}/etc/vnx.conf.sample
 
 #
 # Copy ediv config file
 #
-cp $VERBOSE etc/cluster.conf /usr/share/vnx/etc/vnx.cluster.conf.sample
-chmod 600 /usr/share/vnx/etc/vnx.cluster.conf.sample
+cp $VERBOSE etc/cluster.conf ${VNX_DIR}/etc/vnx.cluster.conf.sample
+chmod 600 ${VNX_DIR}/etc/vnx.cluster.conf.sample
 
 #
 # Copy ace daemons 
 #
-cp $VERBOSE -d aced/* /usr/share/vnx/aced
+cp $VERBOSE -d aced/* ${VNX_DIR}/aced
 
 #
 # Copy plugins
 #
-cp $VERBOSE plugins/*.pm /usr/share/vnx/plugins/
+cp $VERBOSE plugins/*.pm ${VNX_DIR}/plugins/
 #cp -v plugins/*.dtd /usr/share/xml/vnx/
 cp $VERBOSE plugins/*.xsd /usr/share/xml/vnx/
-cp $VERBOSE -r plugins/examples /usr/share/vnx/plugins/ 
+cp $VERBOSE -r plugins/examples ${VNX_DIR}/plugins/ 
 
 #
 # Copy bios for olive routers
