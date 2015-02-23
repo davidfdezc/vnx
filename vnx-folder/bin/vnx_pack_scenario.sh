@@ -36,12 +36,16 @@ while getopts ":f:v:hr" opt; do
                 echo -e "\nERROR: scenario $SCENARIO does not exist\n"
                 exit 1
             fi
+            SCENABSNAME=$( readlink -m $SCENARIO )
+            SCENDIRNAME=$( dirname $SCENABSNAME )
+            SCENBASENAME=$( basename $SCENABSNAME )
+            #echo SCENBASENAME=$SCENBASENAME
             ;;
         v)
             VER="$OPTARG" 
             ;;
         r)
-            INCROOTFS="yes" 
+            INCROOTFS="yes"           
             ;;
         h)
             echo -e "\n$USAGE\n"
@@ -54,28 +58,55 @@ while getopts ":f:v:hr" opt; do
     esac
 done
 
+# Change dir to scenario upper directory
+cd $SCENDIRNAME
+echo SCENABSNAME=$SCENABSNAME
+echo SCENDIRNAME=$SCENDIRNAME
+echo SCENBASENAME=$SCENBASENAME
 
-
+pwd
 
 if [ $VER ]; then
-    TGZNAME=${SCENARIO}-v${VER}
+    TGZNAME=${SCENBASENAME}-v${VER}
 else
-    TGZNAME=${SCENARIO}
+    TGZNAME=${SCENBASENAME}
 fi
 
-echo "-- Packaging scenario $SCENARIO"
+echo "-- Packaging scenario $SCENBASENAME"
 
-CONTENT="$SCENARIO/*.xml $SCENARIO/*.cvnx $SCENARIO/conf $SCENARIO/filesystems/create* $SCENARIO/filesystems/rootfs*"
+CONTENT="$SCENBASENAME/*.xml $SCENBASENAME/*.cvnx $SCENBASENAME/conf $SCENBASENAME/filesystems/create* $SCENBASENAME/filesystems/rootfs*"
 
 if [ $INCROOTFS ]; then
-  ROOTFS=$(readlink $SCENARIO/filesystems/rootfs*) 
+  ROOTFS=$(readlink $SCENBASENAME/filesystems/rootfs*) 
   echo "--   Including rootfs: $ROOTFS"
-  CONTENT="$CONTENT $SCENARIO/filesystems/$ROOTFS"
+  CONTENT="$CONTENT $SCENBASENAME/filesystems/$ROOTFS"
+
+  # Exclude sockets to avoid errors when making tar file
+  TMPFILE=$( mktemp )
+  find $SCENBASENAME/filesystems/$ROOTFS -type s > $TMPFILE
+  CONTENT="$CONTENT -X $TMPFILE"
 else
   echo "--   rootfs not packaged (use option -r if you want to include it)."
 fi
 
 echo "-- Creating ${TGZNAME}.tgz file..."
 #tar cfzp --checkpoint --checkpoint-action="echo=." ${TGZNAME}.tgz $CONTENT
-tar -czp --totals --checkpoint=.100 -f ${TGZNAME}.tgz $CONTENT
+#tar -czp --totals --checkpoint=.100 -f ${TGZNAME}.tgz $CONTENT
+
+#echo "Executing du -sb --apparent-size $CONTENT | awk '{ total += $1; }; END { print total }'"
+SIZE=$( du -sb --apparent-size $CONTENT | awk '{ total += $1 - 512; }; END { print total }' )
+#echo "SIZE=$SIZE"
+if [ $INCROOTFS ]; then
+  SIZE=$(( $SIZE * 1033 / 1000))
+else
+  SIZE=$(( $SIZE * 101 / 100))
+fi  
+#echo "SIZE=$SIZE"
+
+#echo "LANG=C tar -cf - $CONTENT | pv -p -s ${SIZE} -N  ${TGZNAME}.tgz | gzip > ${TGZNAME}.tgz"
+LANG=C tar -cf - $CONTENT | pv -p -s ${SIZE} | gzip > ${TGZNAME}.tgz
 echo "-- ...done"
+
+if [ $TMPFILE ]; then
+  rm $TMPFILE
+fi
