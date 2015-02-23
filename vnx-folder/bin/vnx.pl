@@ -149,7 +149,7 @@ my @opt_f_allowed_modes = ('define', 'undefine', 'start', 'create', 'shutdown', 
                            'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
 
 # Modes allowed without -f or -s option  
-my @no_opt_f_or_s_allowed_modes = ('version', 'help', 'D', 'show-map', 'show-status', 'clean-host', 'create-rootfs', 'modify-rootfs', 'download-rootfs');
+my @no_opt_f_or_s_allowed_modes = ('version', 'help', 'D', 'show-map', 'show-status', 'clean-host', 'create-rootfs', 'modify-rootfs', 'download-rootfs', 'pack', 'unpack');
 
 # Modes that do not need exclusive access (no lock file needed)   
 my @no_lock_modes = ('show-map', 'show-status'); 
@@ -185,6 +185,7 @@ sub main {
                 'show-map:s', 'show-status', 'console:s', 'console-info', 'exe-info', 'clean-host',
                 'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y',
                 'rootfs-type=s', 'help|h', 'v', 'vv', 'vvv', 'version|V', 'download-rootfs',
+                'pack=s', 'unpack=s', 'include-rootfs|r', 'pack-external-rootfs', 'pack-status', 'pack-version=s',                
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'user|u:s', '4', '6', 'D', 'no-console|n', 'intervm-delay=s',
                 'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k', 'video=s'
@@ -347,6 +348,8 @@ $>=$uid;
     if ($opts{'create-rootfs'})    { $how_many_args++; $mode_args .= 'create-rootfs ';   $mode = "create-rootfs";  }
     if ($opts{'modify-rootfs'})    { $how_many_args++; $mode_args .= 'modify-rootfs ';   $mode = "modify-rootfs";  }
     if ($opts{'download-rootfs'})  { $how_many_args++; $mode_args .= 'download-rootfs '; $mode = "download-rootfs";}
+    if ($opts{'pack'})             { $how_many_args++; $mode_args .= 'pack ';            $mode = "pack";           }
+    if ($opts{'unpack'})           { $how_many_args++; $mode_args .= 'unpack ';          $mode = "unpack";         }
     chop ($mode_args);
     
    	if ($how_many_args gt 1) {
@@ -362,7 +365,7 @@ $>=$uid;
       	          "  -t|--create, -d|--shutdown, -V, -P|--destroy, -m|--modify, --define, --undefine, \n" . 
       	          "  --start, --suspend, --resume, --save, --restore, --reboot, --reset, --recreate,\n" . 
       	          "  -x|--execute, --exe-cli, --show-map, --show-status, --console, --console-info, \n" . 
-      	          "  --clean-host, --create-rootfs, --modify-rootfs, -V or -H\n");
+      	          "  --clean-host, --create-rootfs, --modify-rootfs, --pack, --unpack, -V or -H\n");
    	}
 
     # 0. Check -f and -s options dependencies
@@ -588,6 +591,15 @@ $>=$uid;
     # Mode show-status without scenario being specified
     if ($opts{'show-status'} && !$opts{'f'} && !$opts{'scenario'}) {
         mode_showstatus($vnx_dir, 'global');
+        exit(0);
+    }
+
+    if ($mode eq 'pack') {
+        mode_pack($vnx_dir);
+        exit(0);
+    }
+    if ($mode eq 'unpack') {
+        mode_unpack($vnx_dir);
         exit(0);
     }
    	
@@ -4205,6 +4217,126 @@ sub mode_restorecenario {
     wlog (N, "\nVNX restore-scenario mode:");     
 
 }
+
+#
+# ------------------------------------------------------------------------------
+#                         P A C K  S C E N A R I O  M O D E
+# ------------------------------------------------------------------------------
+#
+sub mode_pack {
+    
+    my $vnx_dir = shift;
+
+	my $input_file;
+	my $xml_dir;
+	my $scen_bname;
+	my $pack_version;
+	my $inc_rootfs;
+	my $pack_tgz_name;
+	my $tar_opts = '';
+	my $tmpfile;
+     
+    wlog (N, "\nVNX pack scenario mode:");
+
+    $input_file = $opts{'pack'};
+    if (! -f $input_file ) {
+        vnx_die ("file $input_file is not valid (perhaps does not exists).");
+    }
+    #print abs_path($input_file) . "\n";
+    $xml_dir = dirname abs_path($input_file);
+    $scen_bname = basename $xml_dir;
+
+    if ($opts{'pack-version'}) {
+        $pack_version = $opts{'pack-version'};
+        $pack_tgz_name = "${scen_bname}-v${pack_version}";
+    } else {
+        $pack_tgz_name = ${scen_bname};
+    }
+    wlog (VVV, "input_file=$input_file, xml_dir=$xml_dir, scen_bname=$scen_bname, pack_tgz_name=$pack_tgz_name", '');
+    
+    if ($opts{'include-rootfs'}) {
+        $inc_rootfs = 'yes';
+    }   
+
+    # Save current dir
+    my $cdir=`pwd`; chomp($cdir);
+
+    # Change dir to scenario upper directory
+    chdir "${xml_dir}/..";
+
+    wlog (N, "-- Packaging scenario $scen_bname", '');
+    
+    my $content="$scen_bname/*.xml $scen_bname/*.cvnx $scen_bname/conf $scen_bname/filesystems/create* $scen_bname/filesystems/rootfs*";
+    wlog (N, "--   Scenario package content:", '');
+    foreach my $c (split / /, $content) {
+    	wlog (N, "--     $c", '')
+    }
+    
+    if ( $inc_rootfs ) {
+        my $rootfs=`readlink $scen_bname/filesystems/rootfs*`; 
+        chomp ($rootfs);
+        wlog (N, "--   Including rootfs:", '');
+        wlog (N, "--     $rootfs", '');
+        $content="$content $scen_bname/filesystems/$rootfs";
+    
+        # Exclude sockets to avoid errors when making tar file
+        $tmpfile=`mktemp`; chomp ($tmpfile);
+        system ( "find $scen_bname/filesystems/$rootfs -type s > $tmpfile" );
+        $tar_opts="-X $tmpfile";
+        wlog (N, "--   Scenario excluded content:", '');
+        my $excl_content=`cat $tmpfile`;
+        open (EXC, "<$tmpfile") or die "Could not open file '$tmpfile' $!";
+        while (<EXC>) { chomp; wlog (N, "--     $_", ''); } 
+        close (EXC);
+        #wlog (N, "$excl_content", '');
+    } else {
+        wlog (N, "--   rootfs not packaged (use option -r if you want to include it).", '');
+    }
+    
+    
+    # Estimating tar file size for progress bar 
+    my $size=`du -sb --apparent-size $content | awk '{ total += \$1 - 512; }; END { print total }'`;
+    wlog (V, "size=$size", '');
+    if ( $inc_rootfs ) {
+        $size = int($size * 1040 / 1000);   
+    } else {
+        $size = int($size * 1020 / 1000);
+    }
+    wlog (V, "size=$size", '');
+    
+    $tar_opts = "$tar_opts -C $cdir";
+    
+    #print   "LANG=C tar -cpf - $content $tar_opts | pv -p -s ${size} | gzip > ${cdir}/${pack_tgz_name}.tgz\n";
+    system ("LANG=C tar -cpf - $content $tar_opts | pv -p -s ${size} | gzip > ${cdir}/${pack_tgz_name}.tgz");
+    wlog (N, "-- ...done", '');
+    
+    if ( defined($tmpfile) ) {
+        system ("rm $tmpfile")  
+    }
+            
+}
+
+#
+# ------------------------------------------------------------------------------
+#                         U N P A C K  S C E N A R I O  M O D E
+# ------------------------------------------------------------------------------
+#
+sub mode_unpack {
+    
+    my $vnx_dir = shift;
+     
+    wlog (N, "\nVNX unpack scenario mode:");
+
+    my $pack_file = $opts{'unpack'};
+    vnx_die ("file $pack_file is not valid (perhaps does not exists).") unless ( -f $pack_file );
+    wlog (N, "-- Unpackaging scenario $pack_file", '');
+
+    #print "LANG=C pv $pack_file | tar xzfp - \n";
+    system ("LANG=C pv $pack_file | tar xzfp - ");
+    wlog (N, "-- ...done", '');
+            
+}
+
 
 #
 # ------------------------------------------------------------------------------

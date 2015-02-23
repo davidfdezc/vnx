@@ -34,7 +34,8 @@
 
 - Include info about bash autocompletion in installation guide.
 
-- Check whether the Net-e00 interfaces are still needed.  
+
+- Check whether the Net-e00 interfaces are still needed -> yes, they are for virtual_bridges  
 
 - vnxshell usando Term::Shell
 
@@ -84,4 +85,12 @@ BUGS:
   
 - command: vnx -f tutorial_lxc_ubuntu.xml -v --console con0 -M h1 does not work - 20140828
 
+
+- Options pack and unpack to manage scenario packages:
+
+    vnx --pack opennop-sdn-v2-lxc.xml -r
+      -r -> include rootfs
+      --pack-external-rootfs -> to include external filesystems
+      --pack-status -> to include rootfs status
+    vnx --unpack opennop-sdn-v2-lxc.tgz
 

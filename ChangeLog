@@ -1,3 +1,8 @@
+
+23/02/2015
+
+- First implementation of --pack and --unpack options to create scenario packages (not finished yet)
+
 20/2/2015
 
 - Added new attribute 'type=veth|ovs-patch' to <connection> tag to allow defining if the connection between two open vswitch is 
