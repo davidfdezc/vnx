@@ -500,7 +500,8 @@ e-mail: vnx@dit.upm.es
       <xs:attribute name="subtype" type="xs:string" use="optional"/>
       <xs:attribute name="os" type="xs:string" use="optional"/>
       <xs:attribute name="arch" type="xs:string" use="optional"/>
-      <xs:attribute name="vcpu" type="xs:unsignedByte" use="optional"/>
+      <xs:attribute name="vcpu" type="xs:string" use="optional"/>
+      <xs:attribute name="vcpu_quota" type="xs:string" use="optional"/>
       <xs:attribute name="order" type="xs:string" use="optional"/>
       <xs:attribute name="exec_mode" type="xs:string" use="optional"/>
      </xs:complexType>

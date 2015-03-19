@@ -17,12 +17,13 @@
 # Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Copyright: (C) 2008 Telefonica Investigacion y Desarrollo, S.A.U.  (VNUML version)
-#                2011 Dpto. Ingenieria de Sistemas Telematicos - UPM (VNX version)
-# Authors: 	Fco. Jose Martin,
+#                2011-2015 Dpto. Ingenieria de Sistemas Telematicos - UPM (VNX version)
+# Authors: 	Fco. José Martín,
 #          	Miguel Ferrer
 #			Jorge Somavilla
-#			David Fernandez
-#          	Departamento de Ingenieria de Sistemas Telematicos, Universidad Politécnica de Madrid
+#			David Fernández
+#          	Departamento de Ingeniería de Sistemas Telemáticos
+#           Universidad Politécnica de Madrid
 #
 
 ###########################################################
@@ -35,7 +36,6 @@
 use strict;
 use warnings;
 
-use XML::DOM;          					# XML management library
 use File::Basename;    					# File management library
 use AppConfig;         					# Config files management library
 use AppConfig qw(:expand :argcount);    # AppConfig module constants import
@@ -62,6 +62,7 @@ use VNX::vmAPI_dynamips;
 use VNX::ClusterMgmt;
 use VNX::Execution;
 use VNX::DocumentChecks;
+use VNX::TextManipulation;
 
 
 
@@ -261,24 +262,37 @@ sub main {
     # Create logs directory if not already created
 	system ("mkdir -p $EDIV_LOGS_DIR");
 
+    # Store user id's
+    my $uid_msg;
+    $uid=$ENV{'SUDO_UID'};
+    $uid_name=$ENV{'SUDO_USER'};
+    unless (defined($uid)) { $uid = $ENV{'USER'} }
+    unless (defined($uid_name)) { $uid_name = $ENV{'USER'} }
+    my $user_name=$uid_name; # Save username to be used if needed in $USER substitution in vnx_dir config value
+
     # Set VNX and TMP directories
-    $tmp_dir=&get_conf_value ($vnxConfigFile, 'general', 'tmp_dir');
+    $tmp_dir=get_conf_value ($vnxConfigFile, 'general', 'tmp_dir');
     if (!defined $tmp_dir) {
         $tmp_dir = $DEFAULT_TMP_DIR;
     }
-    print "  TMP dir=$tmp_dir\n";
-    $vnx_dir=&get_conf_value ($vnxConfigFile, 'general', 'vnx_dir');
+    pre_wlog ("  TMP dir=$tmp_dir") if (!$opts{b});
+
+    $vnx_dir=get_conf_value ($vnxConfigFile, 'general', 'vnx_dir');
     if (!defined $vnx_dir) {
-        $vnx_dir = &do_path_expansion($DEFAULT_VNX_DIR);
+        $vnx_dir = do_path_expansion($DEFAULT_VNX_DIR);
     } else {
-        $vnx_dir = &do_path_expansion($vnx_dir);
+        $vnx_dir =~ s/\$USER/$user_name/;
+        $vnx_dir = do_path_expansion($vnx_dir);
     }
-    print "  VNX dir=$vnx_dir\n";
+    unless (valid_absolute_directoryname($vnx_dir) ) {
+        vnx_die ("ERROR: $vnx_dir is not an absolute directory name");
+    }
+    pre_wlog ("  VNX dir=$vnx_dir") if (!$opts{b});
+
     print $hline . "\n";
-    # To check vnx_dir and tmp_dir
     # Create the working directory, if it doesn't already exist
     if (! -d $vnx_dir ) {
-        mkdir $vnx_dir or &ediv_die("Unable to create working directory $vnx_dir: $!\n");
+        mkdir $vnx_dir or ediv_die("Unable to create working directory $vnx_dir: $!\n");
     }
     ediv_die ("vnx_dir $vnx_dir does not exist or is not readable/executable\n") unless (-r $vnx_dir && -x _);
     ediv_die ("vnx_dir $vnx_dir is not writeable\n") unless ( -w _);
@@ -494,7 +508,7 @@ sub mode_create {
 	        wlog (VV, "\n  -- Processing segmentation restriction file $restriction_file...\n");
             my $restriction = static->new($restriction_file, $dh->get_doc, @cluster_active_hosts); 
 	        %static_assignment = $restriction->assign();
-	        if ($static_assignment{"error"} eq "error"){
+	        if (defined $static_assignment {"__error__"}){
 	            delete_scenario_from_database ($scenario_name);
 	            ediv_die("ERROR processing segmentation restriction file");
 	        }
@@ -527,9 +541,9 @@ sub mode_create {
         print_vms_allocation();
         #wlog (V, Dumper (%allocation));
 	        
-	    if (defined($allocation{"error"})){
-	            delete_scenario_from_database ($scenario_name);
-	            ediv_die("ERROR calling $partition_mode->split function");
+	    if (defined $allocation {"__error__"}){
+            delete_scenario_from_database ($scenario_name);
+            ediv_die("ERROR calling $partition_mode->split function");
 	    }
 
        foreach my $vm (keys(%allocation)) {
@@ -540,8 +554,9 @@ sub mode_create {
 	            
 	    # Fill the scenario array
 	    create_subscenario_docs('yes');
+    	    
         # Assign first and last VLAN.
-        &assignVLAN;
+        assignVLAN();
 	    # Split into files
 	    wlog (VVV, "\n----   Calling fill_subscenario_docs...");
 	    fill_subscenario_docs ('yes');
@@ -667,7 +682,7 @@ sub mode_shutdown {
     untunnelize();
         
     # Purge the scenario
-    &shutdown_scenario;
+    shutdown_scenario();
     sleep(5);
     
     unless ($opts{M} || $opts{H}) {      
@@ -713,7 +728,7 @@ sub mode_destroy {
     untunnelize();
         
     # Purge the scenario
-    &purge_scenario;
+    purge_scenario();
     sleep(5);
         
     unless ($opts{M} || $opts{H}) {      
@@ -724,8 +739,7 @@ sub mode_destroy {
         delete_dirs('all');
 
         # Delete scenario directory  
-        $execution->execute($bd->get_binaries_path_ref->{"rm"} . " -rf $vnx_dir/scenarios/$scenario_name/*");
-        
+        $execution->execute('', $bd->get_binaries_path_ref->{"rm"} . " -rf $vnx_dir/scenarios/$scenario_name/*");        
     }
 }
 
@@ -874,7 +888,7 @@ sub mode_seginfo {
         my $restriction = static->new($restriction_file, $dh->get_doc, @cluster_active_hosts); 
         
         %static_assignment = $restriction->assign();
-        if ($static_assignment{"error"} eq "error"){
+        if (defined $static_assignment {"__error__"}){
             #delete_scenario_from_database ($scenario_name);
             ediv_die("ERROR processing segmentation restrictions file");
         }
@@ -907,7 +921,7 @@ sub mode_seginfo {
     my $doc = $dh->get_doc;
     %allocation = $segmentation_module->split(\$doc, \@cluster_active_hosts, \$cluster, \@vms_to_split, \%static_assignment);
         
-    if (defined($allocation{"error"})){
+    if (defined($allocation {"__error__"})){
         ediv_die("ERROR: in segmentation module  $segmentation_module");
     }
     print_vms_allocation();
@@ -918,7 +932,8 @@ sub mode_seginfo {
     foreach my $host_id (@cluster_active_hosts) {
         my $local_subscenario_fname = $dh->get_sim_tmp_dir . $scenario_name . "_" . $host_id . ".xml"; 
         my $host_subdoc = $scenario_hash{$host_id};      
-        $host_subdoc->printToFile("$local_subscenario_fname");
+        #$host_subdoc->printToFile("$local_subscenario_fname");
+        $host_subdoc->toFile("$local_subscenario_fname");
     }
 }
 
@@ -1404,14 +1419,16 @@ sub create_subscenario_docs {
 	
 	# Create a new template document by cloning the scenario tree
     #my $template_doc= $doc->cloneNode("true");
-    my $template_doc= $dh->get_doc->cloneNode("true");
+    #my $template_doc= $dh->get_doc->cloneNode("true");
+    my $template_doc= $dh->get_doc->cloneNode(1); # '1' means clone all childs
     
     my $newVnxNode=$template_doc->getElementsByTagName("vnx")->item(0);
 	#print $newVnxNode->getNodeTypeName."\n";
 	#print $newVnxNode->getNodeName."\n";
     # Delete all child nodes but the <global> one  
     for my $child ($newVnxNode->getChildNodes){
-		unless ($child->getNodeName eq 'global'){
+        unless ($child->nodeName eq 'global'){
+        #unless ($child->getNodeName eq 'global'){
 			$newVnxNode->removeChild($child);
 		} 
 	}
@@ -1425,7 +1442,7 @@ sub create_subscenario_docs {
 	# Create a new document for each active host in the cluster by cloning the template document ($template_doc)
     foreach my $host_id (@cluster_active_hosts) {
 
-        my $doc = $template_doc->cloneNode("true");
+        my $doc = $template_doc->cloneNode(1);
         my $host_ip = get_host_ipaddr ($host_id);       
         my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
         my $subscenario_name = $scenario_name."_" . $host_id;
@@ -1434,15 +1451,19 @@ sub create_subscenario_docs {
 	    $doc->getElementsByTagName("scenario_name")->item(0)->getFirstChild->setData($subscenario_name);
 		
 		# Check wheter <dynamips_ext> tag is present
-	    my $dynamips_extTagList=$doc->getElementsByTagName("dynamips_ext");
-        my $numdynamips_ext = $dynamips_extTagList->getLength;
+        my @dynamips_ext_list = $doc->getElementsByTagName("dynamips_ext");
 
-    	if ($numdynamips_ext == 1) { # Can't be > 1 (previously checked on CheckSemantics)	
+	    #my $dynamips_extTagList=$doc->getElementsByTagName("dynamips_ext");
+        #my $numdynamips_ext = $dynamips_extTagList->getLength;
 
-	   		my $virtualmList=$globalNode->getElementsByTagName("vm");
+    	#if ($numdynamips_ext == 1) { # Can't be > 1 (previously checked on CheckSemantics)	
+        if (@dynamips_ext_list == 1) {
+
 			my $keep_dynamips_in_scenario = 0;
-			for (my $m=0; $m<$virtualmList->getLength; $m++){
-				my $vm=$virtualmList->item($m);
+            #my $virtualmList=$globalNode->getElementsByTagName("vm");
+			#for (my $m=0; $m<$virtualmList->getLength; $m++){
+            foreach my $vm ($globalNode->getElementsByTagName("vm")) {				
+				#my $vm=$virtualmList->item($m);
 				my $vm_name = $vm->getAttribute("name");
 				my $vm_host_id = $allocation{$vm_name};
 				if ($vm_host_id eq $host_id){
@@ -1460,10 +1481,11 @@ sub create_subscenario_docs {
 	   			# directorios del escenario antes de crearlo, hay que usar un /tmp:
 
 	   			#my $current_host_dynamips_path = $host_tmpdir . "/dynamips-dn.xml";
-	   			my $host_dyn_name = basename ($dynamips_extTagList->item(0)->getFirstChild->getData);
+                #my $host_dyn_name = basename ($dynamips_extTagList->item(0)->getFirstChild->getData);
+                my $host_dyn_name = basename ($dynamips_ext_list[0]->getFirstChild->getData);
 	   			
-	   			$dynamips_extTagList->item(0)->getFirstChild->setData($host_dyn_name);
-	   			wlog (V, "-- host_dyn_name = " . $dynamips_extTagList->item(0)->getFirstChild->getData . "\n");
+	   			$dynamips_ext_list[0]->getFirstChild->setData($host_dyn_name);
+	   			wlog (V, "-- host_dyn_name = " . $dynamips_ext_list[0]->getFirstChild->getData . "\n");
 	   		}else{
 	#  			my $dynamips_extTag = $dynamips_extTagList->item(0);
 	#    		$parentnode = $dynamips_extTag->parentNode;
@@ -1486,6 +1508,7 @@ sub create_subscenario_docs {
 		# Store the new document in $scenario_hash array
 		$scenario_hash{$host_id} = $doc;	
         wlog (VVV, "---- create_subscenario_docs: assigned scenario for $host_id\n");
+        wlog (VVV, $scenario_hash{$host_id}->toString);
 		
 		if (defined($change_db)) {
 	        # Save data into DB
@@ -1518,37 +1541,36 @@ sub fill_subscenario_docs {
     #print $dh->get_doc->toString;
     
 	# We explore the vms on the node and call vmPlacer to place them on the scenarios	
-	my $virtualmList=$globalNode->getElementsByTagName("vm");
-
-	my $vmListLength = $virtualmList->getLength;
+	#my $virtualmList=$globalNode->getElementsByTagName("vm");
+	#my $vmListLength = $virtualmList->getLength;
 
 	# Add VMs to corresponding subscenario specification file
-	for (my $m=0; $m<$vmListLength; $m++){
+	#for (my $m=0; $m<$vmListLength; $m++){
+
+    foreach my $vm ($globalNode->getElementsByTagName("vm")) { 		
 		
-		my $vm      = $virtualmList->item($m);
+		#my $vm      = $virtualmList->item($m);
 		my $vm_name = $vm->getAttribute("name");
 		my $host_id = $allocation{$vm_name};
 		
-		#añadimos type para base de datos
         my $vm_type    = $vm->getAttribute("type");
-        my $vm_subtype = $vm->getAttribute("subtype");
-        my $vm_os      = $vm->getAttribute("os");
+        my $vm_subtype = str($vm->getAttribute("subtype"));
+        my $vm_os      = str($vm->getAttribute("os"));
         wlog (V, "---- $vm_name of type $vm_type allocated to host $host_id");
 
 		#print "*** OLD: \n";
 		#print $vm->toString;
 
-		my $newVirtualM = $vm->cloneNode("true");
-		
-		#print "\n*** NEW: \n";
-		#print $newVirtualM->toString;
-		#print "***\n";
+		my $newVirtualM = $vm->cloneNode(1);
 		
 		$newVirtualM->setOwnerDocument($scenario_hash{$host_id});
 
 		my $vnxNode=$scenario_hash{$host_id}->getElementsByTagName("vnx")->item(0);
-			
-		$vnxNode->setOwnerDocument($scenario_hash{$host_id});
+        #print "***\n";
+        #print $vnxNode->toString;
+        #print "***\n";
+
+		#$vnxNode->setOwnerDocument($scenario_hash{$host_id});
 		
 		$vnxNode->appendChild($newVirtualM);
 		#print $vnxNode->toString;
@@ -1576,29 +1598,33 @@ sub fill_subscenario_docs {
 	my $nets= $globalNode->getElementsByTagName("net");
 	
 	# For exploring all the nets on the global scenario
-	for (my $h=0; $h<$nets->getLength; $h++) {
+	foreach my $currentNet ($globalNode->getElementsByTagName("net")) { 
+	#for (my $h=0; $h<$nets->getLength; $h++) {
 		
-		my $currentNet=$nets->item($h);
+		#my $currentNet=$nets->item($h);
 		my $nameOfNet=$currentNet->getAttribute("name");
 
 		# For exploring each scenario on scenarioarray	
 		foreach my $host_id (keys(%scenario_hash)) {
 			
 			my $host_subdoc = $scenario_hash{$host_id};		
-			my $currentVMList = $host_subdoc->getElementsByTagName("vm");
+			#my $currentVMList = $host_subdoc->getElementsByTagName("vm");
 			my $netFlag = 0; # 1 indicates that the current net we are dealing with is already on this scenario.
 
-			# For exploring the vms on each scenario	
-			for (my $n=0; $n<$currentVMList->getLength; $n++){
-				my $currentVM=$currentVMList->item($n);
+			# For exploring the vms on each scenario
+			foreach my $currentVM ($host_subdoc->getElementsByTagName("vm")) {	
+			#for (my $n=0; $n<$currentVMList->getLength; $n++){
+				#my $currentVM=$currentVMList->item($n);
 				my $interfaces=$currentVM->getElementsByTagName("if");
 				
 				# For exploring all the interfaces on each vm.
-				for (my $k=0; $k<$interfaces->getLength; $k++){
-					my $netName = $interfaces->item($k)->getAttribute("net");
+				foreach my $if ($currentVM->getElementsByTagName("if")) {
+				#for (my $k=0; $k<$interfaces->getLength; $k++){
+                    #my $netName = $interfaces->item($k)->getAttribute("net");
+                    my $netName = $if->getAttribute("net");
 					if ($nameOfNet eq $netName){
 						if ($netFlag==0){
-							my $netToAppend=$currentNet->cloneNode("true");
+							my $netToAppend=$currentNet->cloneNode(1);
 							$netToAppend->setOwnerDocument($host_subdoc);
 							
 							my $firstVM=$host_subdoc->getElementsByTagName("vm")->item(0);
@@ -1631,12 +1657,13 @@ sub netTreatment {
 
 	# 1. Make a list of nets to handle
 	my %nets_to_handle;
-	my $nets= $globalNode->getElementsByTagName("net");
+	#my $nets= $globalNode->getElementsByTagName("net");
 	
 	# For exploring all the nets on the global scenario
-	for (my $h=0; $h<$nets->getLength; $h++) {
+	foreach my $currentNet ($globalNode->getElementsByTagName("net")) {
+	#for (my $h=0; $h<$nets->getLength; $h++) {
 		
-		my $currentNet=$nets->item($h);
+		#my $currentNet=$nets->item($h);
 		my $nameOfNet=$currentNet->getAttribute("name");
 		
 		# Creating virtual nets in the database
@@ -1653,9 +1680,10 @@ sub netTreatment {
 		my @net_host_list;
 		foreach my $host_id (keys(%scenario_hash)) {
 			my $host_subdoc = $scenario_hash{$host_id};
-			my $host_subdoc_nets = $host_subdoc->getElementsByTagName("net");
-			for (my $j=0; $j<$host_subdoc_nets->getLength; $j++) {
-				my $host_subdoc_net = $host_subdoc_nets->item($j);
+			#my $host_subdoc_nets = $host_subdoc->getElementsByTagName("net");
+			#for (my $j=0; $j<$host_subdoc_nets->getLength; $j++) {
+			foreach my $host_subdoc_net ($host_subdoc->getElementsByTagName("net")) {
+				#my $host_subdoc_net = $host_subdoc_nets->item($j);
 				
 				if ( ($host_subdoc_net->getAttribute("name")) eq ($nameOfNet)) {
 					push(@net_host_list, $host_id);
@@ -1701,12 +1729,13 @@ sub netTreatment {
 			my $host_subdoc = $scenario_hash{$host_id};
 			for (my $k=0; defined($current_net->[$k]); $k++) {
 				if ($current_net->[$k] eq $host_id) {
-					my $host_subdoc_nets = $host_subdoc->getElementsByTagName("net");
-					for (my $l=0; $l<$host_subdoc_nets->getLength; $l++) {
-						my $currentNet = $host_subdoc_nets->item($l);
+					#my $host_subdoc_nets = $host_subdoc->getElementsByTagName("net");
+					#for (my $l=0; $l<$host_subdoc_nets->getLength; $l++) {
+					foreach my $currentNet ($host_subdoc->getElementsByTagName("net")) {
+						#my $currentNet = $host_subdoc_nets->item($l);
 						my $currentNetName = $currentNet->getAttribute("name");
 						if ($net_name eq $currentNetName) {
-							my $treated_net = $currentNet->cloneNode("true");
+							my $treated_net = $currentNet->cloneNode(1);
                             $treated_net->setAttribute("external", "$external.$net_vlan");
                             #$treated_net->setAttribute("external", "$external:$net_vlan");
 							$treated_net->setAttribute("mode", "virtual_bridge");
@@ -1796,11 +1825,11 @@ sub setAutomac {
 			my $vm_defaults_node = $host_subdoc->getElementsByTagName("vm_defaults")->item(0);
 			$host_subdoc->getElementsByTagName("global")->item(0)->insertBefore($management_net, $vm_defaults_node);
 		}
-			# If management network is type 'none', change it
+		# If management network is type 'none', change it
 		if ($management_net->getAttribute("type") eq "none") {
 			$management_net->setAttribute("type", "private");
 		}
-			# Change management network properties for avoid overlaps (ALWAYS)
+		# Change management network properties for avoid overlaps (ALWAYS)
 		$management_net->setAttribute("network", $management_network);
 		$management_net->setAttribute("mask", $management_network_mask);
 		$management_net->setAttribute("offset",$MgnetOffset);
@@ -1809,11 +1838,12 @@ sub setAutomac {
 				$MgnetOffset += 4; # Uses mask /30 with a point-to-point management network
 			}				
 		}
-			# If management network doesn't use host_mapping, activate it
+		# If management network doesn't use host_mapping, activate it
 		my $host_mapping_property = $host_subdoc->getElementsByTagName("host_mapping")->item(0);
 		if (!($host_mapping_property)) {
 			$host_mapping_property = $host_subdoc->createElement("host_mapping");
-			$host_subdoc->getElementsByTagName("vm_mgmt")->setOwnerDocument($host_subdoc);
+			print "****\n" . $host_mapping_property->toString() . "\n";
+			#$host_subdoc->getElementsByTagName("vm_mgmt")->setOwnerDocument($host_subdoc);
 			$host_subdoc->getElementsByTagName("vm_mgmt")->item(0)->appendChild($host_mapping_property);
 		}
 		
@@ -1859,12 +1889,14 @@ sub send_and_start_subscenarios {
         my $host_subdoc = $scenario_hash{$host_id};
 
         # Write XML spec to file
-        $host_subdoc->printToFile("$local_subscenario_fname");
-		# Store the local specification to DB	
-        my $subscenario_xml = $host_subdoc->toString;
-   		$subscenario_xml =~ s/\\/\\\\/g;  # We scape the "\" before writing the scenario to the ddbb
-        my $error = query_db ("UPDATE hosts SET local_specification = '$subscenario_xml' WHERE local_scenario='$subscenario_name'");
-        if ($error) { ediv_die ("$error") };
+        $host_subdoc->toFile("$local_subscenario_fname");
+		# Store the local specification to DB
+		set_host_subscenario_xml ($host_subdoc->toString, $subscenario_name);
+        #$subscenario_xml =~ s/\\/\\\\/g;  # We scape the "\" before writing the scenario to the ddbb
+        #$subscenario_xml =~ s/'/''/g;     # We scape the "'" before writing the scenario to the ddbb
+   		#system ("echo '$subscenario_xml' > /tmp/kk-$subscenario_name");
+        #my $error = query_db ("UPDATE hosts SET local_specification = '$subscenario_xml' WHERE local_scenario='$subscenario_name'");
+        #if ($error) { ediv_die ("$error") };
 		
 		my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
 		&daemonize($scp_command, "$host_id".".log");
@@ -2189,7 +2221,7 @@ sub delete_dirs {
 	foreach my $host_id (@cluster_active_hosts) {
 		
         my $host_ip   = get_host_ipaddr ($host_id); 
-        wlog (N, "\n-- Cleaning $host_id directories");
+        wlog (N, "\n-- Cleaning $host_id directories");        
         if ($delete_all) {
             my $host_dir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name";
             my $rm_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'rm -rf $host_dir/*'";
@@ -2224,23 +2256,26 @@ sub build_scenario_conf {
         my $vm_type=$vm->getAttribute("type");  
 
         # <filetree> tags
-        my $filetree_list = $vm->getElementsByTagName("filetree");
-        for (my $m=0; $m<$filetree_list->getLength; $m++){
-            my $filetree = $filetree_list->item($m)->getFirstChild->getData;
+        #my $filetree_list = $vm->getElementsByTagName("filetree");
+        #for (my $m=0; $m<$filetree_list->getLength; $m++){
+        foreach my $filetree_tag ($vm->getElementsByTagName("filetree")) {
+            my $filetree = $filetree_tag->getFirstChild->getData;
             wlog (VVV, "-- build_scenario_conf: added $filetree");
             push(@filetrees, $filetree);
         }
 			
         # <exec> tags
-        my $exec_list = $vm->getElementsByTagName("exec");
-        for (my $m=0; $m<$exec_list->getLength; $m++){
-
-            my $exec_ostype=$exec_list->item($m)->getAttribute("ostype");  
+        #my $exec_list = $vm->getElementsByTagName("exec");
+        #for (my $m=0; $m<$exec_list->getLength; $m++){
+        foreach my $exec_tag ($vm->getElementsByTagName("exec")) {
+            #my $exec_ostype=$exec_list->item($m)->getAttribute("ostype");  
+            my $exec_ostype=str($exec_tag->getAttribute("ostype"));  
             wlog (VVV, "-- build_scenario_conf: exec_ostype=$exec_ostype");
             
             # Get dynamips config files
             if ($vm_type eq "dynamips" && $exec_ostype eq 'load') {
-	            my $exec = $exec_list->item($m)->getFirstChild->getData;
+                #my $exec = $exec_list->item($m)->getFirstChild->getData;
+                my $exec = $exec_tag->getFirstChild->getData;
 	            $exec =~ s/merge //;
 	            wlog (VVV, "-- build_scenario_conf: added $exec");
 	            push(@execs, $exec);
@@ -2255,11 +2290,15 @@ sub build_scenario_conf {
 	if ($ext_conf_file ne '0'){
 		$ext_conf_file = &get_abs_path ($ext_conf_file);
 		wlog (VVV, "-- build_scenario_conf: ext_conf_file=$ext_conf_file");
-		my $parser    = new XML::DOM::Parser;
-		my $dom       = $parser->parsefile($ext_conf_file);
-		my $conf_list = $dom->getElementsByTagName("conf");
-   		for ( my $i = 0; $i < $conf_list->getLength; $i++) {
-      		my $confi = $conf_list->item($i)->getFirstChild->getData;
+		#my $parser    = new XML::DOM::Parser;
+		#my $dom       = $parser->parsefile($ext_conf_file);
+        my $parser = XML::LibXML->new();
+        my $dom = $parser->parse_file($ext_conf_file);	
+		#my $conf_list = $dom->getElementsByTagName("conf");
+   		#for ( my $i = 0; $i < $conf_list->getLength; $i++) {
+   		foreach my $conf_tag ($dom->getElementsByTagName("conf")) {
+            #my $confi = $conf_list->item($i)->getFirstChild->getData;
+            my $confi = $conf_tag->getFirstChild->getData;
 			wlog (VVV, "-- build_scenario_conf: adding dynamips conf file=$confi");
 			push(@filetrees, $confi);		
 	 	}
@@ -2318,23 +2357,38 @@ sub send_conf_files {
 	};
 	
 	# Send dynamips extended configuration file if it exists
-
-	if (defined $dh->get_doc->getElementsByTagName("dynamips_ext") && 
-	    $dh->get_doc->getElementsByTagName("dynamips_ext")->getLength == 1) { # Can't be > 1 (previously checked on CheckSemantics)  
-#	if ($dynamips_ext_path ne ""){
+    #if (defined $dh->get_doc->getElementsByTagName("dynamips_ext") && 
+    #    $dh->get_doc->getElementsByTagName("dynamips_ext") == 1) { # Can't be > 1 (previously checked on CheckSemantics)  
+    if( $dh->get_doc->exists("/vnx/global/dynamips_ext") ){
+        my $dyn_ext = $doc->findnodes('/vnx/global/dynamips_ext')->[0]->textContent();
+        #$cfg_file = $cfg_file_tag[0]->textContent();
         foreach my $host_id (@cluster_active_hosts) {  
             wlog (V, "\n---- Sending dynamips configuration file to host $host_id\n");
 	        my $host_ip  = get_host_ipaddr ($host_id);         
             my $host_dir = get_host_vnxdir ($host_id) . "/scenarios/${scenario_name}/tmp/";
-            my $dyn_ext_conf_path = &get_abs_path ( $dh->get_doc->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
+            #my $dyn_ext_conf_path = &get_abs_path ( $dh->get_doc->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
+            my $dyn_ext_conf_path = &get_abs_path($dyn_ext);
             my $dyn_ext_conf_name = basename ($dyn_ext_conf_path);
             wlog (V, "-- host_dir=$host_dir");
             wlog (V, "-- dyn_ext_conf_path=$dyn_ext_conf_path");
             wlog (V, "-- dyn_ext_conf_name=$dyn_ext_conf_name");
-			my $scp_command = "scp -2 $dyn_ext_conf_path root\@$host_ip:$host_dir/$dyn_ext_conf_name";
-			system($scp_command);
+			#my $scp_command = "scp -2 $dyn_ext_conf_path root\@$host_ip:$host_dir/$dyn_ext_conf_name";
+			#system($scp_command);
+            $execution->execute('', $bd->get_binaries_path_ref->{"scp"} . " -2 $dyn_ext_conf_path root\@$host_ip:$host_dir/$dyn_ext_conf_name");        
 		}
 	}
+
+    # Send windows positions configuration file if it exists
+    my $cfg_file = $dh->get_cfg_file();
+    if ($cfg_file) {
+        foreach my $host_id (@cluster_active_hosts) {  
+            wlog (V, "\n---- Sending windows positions configuration file to host $host_id\n");    	
+            my $host_ip  = get_host_ipaddr ($host_id);         
+            my $host_dir = get_host_vnxdir ($host_id) . "/scenarios/${scenario_name}/tmp/";
+            #my $scp_command = "scp -2 $cfg_file root\@$host_ip:$host_dir/";
+            $execution->execute('', $bd->get_binaries_path_ref->{"scp"} . " -2 $cfg_file root\@$host_ip:$host_dir/");        
+        }
+    }
 
 	if ( defined($plugin) && defined($conf_plugin) ){
 		print "\n---- Sending configuration to cluster hosts\n";
@@ -2357,8 +2411,9 @@ sub send_conf_files {
         foreach my $host_id (@cluster_active_hosts) {  
 	        my $host_ip   = get_host_ipaddr ($host_id); 
             my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
-			my $scp_command = "scp -2 $conf_plugin_file root\@$host_ip:$host_tmpdir";
-			system($scp_command);
+			#my $scp_command = "scp -2 $conf_plugin_file root\@$host_ip:$host_tmpdir";
+			#system($scp_command);
+            $execution->execute('', $bd->get_binaries_path_ref->{"scp"} . " -2 $conf_plugin_file root\@$host_ip:$host_tmpdir");        
 		}
 		$configuration = 1;
 	}
@@ -2431,30 +2486,61 @@ sub is_host_involved_in_seq {
 	my $seq = shift;
 	my $subscenario_xml = shift;
 
-    my $parser = new XML::DOM::Parser;
-    my $doc = $parser->parse($subscenario_xml); 
-    my $vm_list = $doc->getElementsByTagName("vm");
+    my $logp = "is_host_involved_in_seq";
+    wlog (V, "seq=$seq", $logp);
+    #my $parser = new XML::DOM::Parser;
+    #my $doc = $parser->parse($subscenario_xml); 
+    my $parser = XML::LibXML->new();
+    my $doc = $parser->load_xml(string => $subscenario_xml);
     
-    for (my $i = 0; $i < $vm_list->getLength; $i++) {
+    #my $vm_list = $doc->getElementsByTagName("vm");
+    
+    #for (my $i = 0; $i < $vm_list->getLength; $i++) {
+    foreach my $vm ($doc->getElementsByTagName("vm")) {
 
-        my $vm = $vm_list->item($i);
+        #my $vm = $vm_list->item($i);
         # check <filetree> tags
-        my $filetree_list = $vm->getElementsByTagName("filetree");
-        for (my $m=0; $m<$filetree_list->getLength; $m++){
-            if ($filetree_list->item($m)->getAttribute('seq') eq $seq ) {
+        #my $filetree_list = $vm->getElementsByTagName("filetree");
+        #for (my $m=0; $m<$filetree_list->getLength; $m++){
+        foreach my $filetree ($vm->getElementsByTagName("filetree")) {
+            #if ($filetree_list->item($m)->getAttribute('seq') eq $seq ) {
+            if ($filetree->getAttribute('seq') eq $seq ) {
             	return "true";
             }
         }
         # check <exec> tags
-        my $exec_list = $vm->getElementsByTagName("exec");
-        for (my $m=0; $m<$exec_list->getLength; $m++){
-            if ($exec_list->item($m)->getAttribute('seq') eq $seq ) {
+        #my $exec_list = $vm->getElementsByTagName("exec");
+        #for (my $m=0; $m<$exec_list->getLength; $m++){
+        foreach my $exec ($vm->getElementsByTagName("exec")) {
+            #if ($exec_list->item($m)->getAttribute('seq') eq $seq ) {
+            if ($exec->getAttribute('seq') eq $seq ) {
                 return "true";
             }
         }
     }
     return '';
 }
+
+
+#
+# set_host_subscenario_xml
+#
+# Saves the subscenario XML specification for a host to the database. 
+# 
+sub set_host_subscenario_xml {
+
+    my $subscenario_xml  = shift;
+    my $subscenario_name = shift;
+
+    # Store the local specification to DB
+    # Escape "\" and "'" characters before saving to database   
+    $subscenario_xml =~ s/\\/\\\\/g;
+    $subscenario_xml =~ s/'/''/g;   
+    system ("echo '$subscenario_xml' > /tmp/kk-$subscenario_name");
+    my $error = query_db ("UPDATE hosts SET local_specification = '$subscenario_xml' WHERE local_scenario='$subscenario_name'");
+    if ($error) { ediv_die ("$error") };
+}
+
 
 #
 # get_host_subscenario_xml
@@ -2490,7 +2576,11 @@ sub get_host_subscenario_xml {
             print FILEHANDLE "$db_resp[0]->[0]";
             close (FILEHANDLE);        	
         }
-        return $db_resp[0]->[0];  
+        $_ = $db_resp[0]->[0];
+        # Unescape "\" and "'" characters
+        s/\\\\/\\/g;
+        s/'/'/g;
+        return $_;  
         
     } else {
     	wlog (N, "ERROR (get_host_subscenario_xml): cannot get subscenario xml " .
@@ -2757,10 +2847,16 @@ sub initialize_and_check_scenario {
 	}
 
    	# Create DOM tree and set globalNode and scenario name
-	my $parser = new XML::DOM::Parser;
-    my $doc = $parser->parsefile($input_file);   	
+    wlog (VVV, "---- create DOM tree");
+    
+    my $parser = XML::LibXML->new();
+    my $doc = $parser->parse_file($input_file);
+    #my $parser = new XML::DOM::Parser;
+    #my $doc = $parser->parsefile($input_file);      
     $globalNode = $doc->getElementsByTagName("vnx")->item(0);
     $scenario_name=$globalNode->getElementsByTagName("scenario_name")->item(0)->getFirstChild->getData;
+    wlog (VVV, "---- 2");
+
 
     #print "****\n" . $doc->toString . "\n*****\n";   
 	# Build the VNX::Execution object
@@ -2768,9 +2864,37 @@ sub initialize_and_check_scenario {
 
    	# Calculate the directory where the input_file lives
    	my $xml_dir = (fileparse(abs_path($input_file)))[1];
+    wlog (VVV, "---- 3");
+
+    # Look for a windows configuration file associated to the scenario
+    #
+    my $cfg_file;
+    # Check if a <vnx_cfg> tag is included
+    if( $doc->exists("/vnx/global/vnx_cfg") ){
+        my @cfg_file_tag = $doc->findnodes('/vnx/global/vnx_cfg');
+        $cfg_file = $cfg_file_tag[0]->textContent();
+        unless (valid_absolute_filename($cfg_file)) {
+            $cfg_file = $xml_dir . "/" . $cfg_file;
+        }
+        unless (-r $cfg_file) {
+            ediv_die ("cannot read windows configuration file ($cfg_file)\n");
+        }
+    } else { # Check if a file with the same name as the scenario but with .cvnx extension exists
+             # in the scenario directory
+        $cfg_file = basename($input_file);
+        $cfg_file =~ s{\.[^.]+$}{}; # remove extension
+        $cfg_file = "${xml_dir}/${cfg_file}.cvnx";
+        unless (-e $cfg_file) {
+            $cfg_file = ''; 
+        }
+    }
+    wlog (VVV, "  CFG file: $cfg_file") if ( !$opts{b} && $cfg_file );
 
 	# Build the VNX::DataHandler object
-    $dh = new VNX::DataHandler($execution,$doc,$mode,$opts{M},$opts{H},$opts{'execute'},$xml_dir,$input_file);
+    $dh = new VNX::DataHandler($execution,$doc,$mode,$opts{M},$opts{H},$opts{'execute'},$xml_dir,$input_file,$cfg_file);
+    #$dh = new VNX::DataHandler($execution,$doc,$mode,$opts{M},$opts{H},$cmdseq,$xml_dir,$input_file,$cfg_file);
+    
+    wlog (VVV, "---- 4");
    	
    	#$dh->set_boot_timeout($boot_timeout);
    	$dh->set_vnx_dir($vnx_dir);
@@ -2779,6 +2903,7 @@ sub initialize_and_check_scenario {
    	#$dh->enable_ipv4($enable_4);   
 
    	# Semantic check (in addition to validation)
+    wlog (VVV, "---- check_doc");
    	if (my $err_msg = &check_doc($bd->get_binaries_path_ref,$execution->get_uid)) {
       	&ediv_die ("$err_msg\n");
    	}
@@ -2875,13 +3000,15 @@ sub get_hosts_involved {
         wlog (V, "get_host_involved:  vm=$vm_name, host=$host_id");
 
         # add it to the list
-        if (defined($hosts_involved{$host_id}) ) {
-        	wlog (V, "get_host_involved:  adding ,$vm_name");
-            $hosts_involved{$host_id} .= ",$vm_name"; 
-        } else {
-            wlog (V, "get_host_involved:  adding $vm_name");
-            $hosts_involved{$host_id} = "$vm_name"; 
-        }
+        if ($host_id) {        	
+	        if (defined($hosts_involved{$host_id}) ) {
+	        	wlog (V, "get_host_involved:  adding ,$vm_name");
+	            $hosts_involved{$host_id} .= ",$vm_name"; 
+	        } else {
+	            wlog (V, "get_host_involved:  adding $vm_name");
+	            $hosts_involved{$host_id} = "$vm_name"; 
+	        }
+	        }
     }            
 
     return %hosts_involved;
@@ -2960,6 +3087,34 @@ sub get_allocation_from_db {
 	
 }
 
+#
+# pre_wlog
+#
+# Used to print to standard output and log file before Execution object is created
+# and normal wlog sub can be used
+# 
+sub pre_wlog {
+
+    my $msg = shift;
+    
+    print $msg . "\n";
+     
+    if ($opts{o}) {
+        open LOG_FILE, ">> " . $opts{o} 
+            or vnx_die( "can not open log file ($opts{o}) for writting" );
+        print LOG_FILE $msg . "\n";
+    }
+    close (LOG_FILE)
+}
+
+sub print_header {
+    
+    pre_wlog ("\n" . $hline);
+    pre_wlog ("Virtual Networks over LinuX (VNX) -- http://www.dit.upm.es/vnx - vnx\@dit.upm.es");
+    pre_wlog ("Version: $version" . "$branch (built on $release)");
+    pre_wlog ($hline);
+    
+}
 
 ####################
 # usage

@@ -32,7 +32,7 @@ use XML::DOM;          					# XML management library
 use File::Basename;    					# File management library
 use AppConfig;         					# Config files management library
 use AppConfig qw(:expand :argcount);    # AppConfig module constants import
-use EDIV::cluster_host;                 # Cluster Host class
+#use EDIV::cluster_host;                 # Cluster Host class
 use Socket;								# To resolve hostnames to IPs
 use Term::ANSIColor;
 use VNX::ClusterMgmt;

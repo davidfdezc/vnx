@@ -1018,10 +1018,14 @@ EOF
         wlog (V, "$status\r\n"); 
         wlog (V, "-------------------------\r\n"); 
 
-        if    ($platform[1] eq 'ubuntu')   { autoconfigure_debian_ubuntu ($dom, '/', 'ubuntu', 'yes') }           
-        elsif ($platform[1] eq 'debian')   { autoconfigure_debian_ubuntu ($dom, '/', 'debian', 'yes') }           
-        elsif ($platform[1] eq 'fedora')   { autoconfigure_redhat ($dom, '/', 'fedora', 'yes') }
-        elsif ($platform[1] eq 'centos')   { autoconfigure_redhat ($dom, '/', 'centos', 'yes') }
+        if    ($platform[1] eq 'ubuntu')   
+            { autoconfigure_debian_ubuntu ($dom, '/', 'ubuntu', 'yes') }           
+        elsif ($platform[1] eq 'debian' || $platform[1] eq 'kali')   
+            { autoconfigure_debian_ubuntu ($dom, '/', 'debian', 'yes') }           
+        elsif ($platform[1] eq 'fedora')   
+            { autoconfigure_redhat ($dom, '/', 'fedora', 'yes') }
+        elsif ($platform[1] eq 'centos')   
+            { autoconfigure_redhat ($dom, '/', 'centos', 'yes') }
 
     }
     # autoconfigure for FreeBSD

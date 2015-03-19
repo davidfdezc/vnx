@@ -1,4 +1,15 @@
 
+19/03/2015
+
+- Corrected a bug that prevented interfaces of VMs using '<on_boot>no</on_boot>' (used to not start them when at scenario startup) 
+  to be linked to openvswitch networks. 
+
+- multiline exec commands: comments (lines begining with #) are now eliminated and ";" added at the end of lines 
+
+- EDIV adapted to work with latest changes: XML::DOM eliminated, all code moved to XML::LibXML, added support to copy windows position files, static modules refactored, etc (not finished yet).
+
+- Added ediv bash_autocompletion file 
+
 23/02/2015
 
 - First implementation of --pack and --unpack options to create scenario packages (not finished yet)

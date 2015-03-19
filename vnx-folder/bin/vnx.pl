@@ -1319,8 +1319,19 @@ sub make_vmAPI_doc {
  
     # vcpu attribute (default 1 cpu)      
     my $vcpu = $vm->getAttribute("vcpu");
-    if (empty($vcpu)) { $vcpu = '1' }
+    if (empty($vcpu)) { 
+    	unless ($merged_type eq 'lxc') { 
+    		$vcpu = '1' 
+    	} else {
+            $vcpu = '' 
+    	}
+    }
     $vm_tag->setAttribute( vcpu => $vcpu );
+
+    my $vcpu_quota = $vm->getAttribute("vcpu_quota");
+    unless (empty($vcpu_quota)) { 
+        $vm_tag->setAttribute( vcpu_quota => $vcpu_quota );
+    }
  
     # To get filesystem and type
     my $filesystem;
@@ -2563,6 +2574,11 @@ sub mode_shutdown {
             next
         }
         wlog (N, "...OK");
+        
+        if ($vm_type eq 'lxc') {
+            destroy_vm_interfaces ($vm);	
+        }                 
+        
         change_vm_status($vm_name,"defined");
     }
     
@@ -2570,102 +2586,9 @@ sub mode_shutdown {
         wlog (N, "Calling execute_host_cmd with seq 'on_shutdown'"); 
         execute_host_command('on_shutdown');
     }
-    
-   
-=BEGIN   
-    # UML specific
-    # For non-forced mode, we have to wait all UMLs dead before to destroy 
-    # TUN/TAP (next step) due to these devices are yet in use
-    #
-    # Note that -B doensn't affect to this functionallity. UML extinction
-    # blocks can't be avoided (is needed to perform bridges and interfaces
-    # release)
-    my $time_0 = time();
-      
-    if ((!$opts{kill})&&($execution->get_exe_mode() != $EXE_DEBUG)) {      
-
-        wlog (N, "---------- Waiting until virtual machines extinction ----------");
-
-        my $only_vm = "";  # TODO: probably does not work...revise if UML maintained
-        while (my $pids = VM_alive($only_vm)) {
-            wlog (N,  "waiting on processes $pids...");;
-            #system($bd->get_binaries_path_ref->{"sleep"} . " $dh->get_delay");
-            sleep($dh->get_delay);
-            my $time_f = time();
-            my $interval = $time_f - $time_0;
-            wlog (N, "$interval seconds elapsed...");;
-        }       
-    }
-=END
-=cut    
-    
+        
 }
 
-=BEGIN
-#
-# ------------------------------------------------------------------------------
-#                           D E S T R O Y   M O D E
-# ------------------------------------------------------------------------------
-#
-# Arguments:
-#   - $ref_vm:  reference to an array with the list of VMs to work on. If not specified,
-#               it works with all the VMs in scenario or the ones specified in -M option
-#               if used. 
-#
-sub mode_destroy {
-   
-    my $ref_vms = shift;
-    my @vm_ordered;
-    if ( defined($ref_vms) ) {
-        # List of VMs to use passed as parameter
-        @vm_ordered = @{$ref_vms};  
-    } else {
-        # List not specified, get the list of vms 
-        # to process having into account -M option
-        @vm_ordered = $dh->get_vm_to_use_ordered;    
-    }
-
-    my $logp = "mode_destroy> ";
-    wlog (VVV, "Destroying " . get_vmnames(\@vm_ordered), $logp);
-
-    # If scenario does not exist --> error
-    #unless ( scenario_exists($dh->get_scename) ) {
-    #    $execution->smartdie ("ERROR, scenario " . $dh->get_scename . " not started\n");
-    #}
-   
-    for ( my $i = 0; $i < @vm_ordered; $i++) {
-
-        my $vm = $vm_ordered[$i];
-        my $vm_name = $vm->getAttribute("name");
-        my $vm_type = $vm->getAttribute("type");
-        my $merged_type = $dh->get_vm_merged_type($vm);
-        my $vm_status = get_vm_status($vm_name);
-
-        # Raise an error if the VM is 'undefined'
-        if ( $vm_status eq 'undefined' ){
-            #wlog (N, "\nWARNING: virtual machine '$vm_name' is already 'undefined'\n");
-            next;
-        }        
-
-        # call the corresponding vmAPI
-        wlog (N, "Destroying virtual machine '$vm_name' of type '$merged_type'...");
-        my $error = "VNX::vmAPI_$vm_type"->destroy_vm($vm_name, $merged_type);
-        if ( ($error) && ($error ne "VM $vm_name does not exist") ) {
-            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->destroy_vm returns '" . $error . "'\n$hline");
-            next;
-        }
-        wlog (N, "...OK");
-        change_vm_status($vm_name,"defined");
-                 
-    }
-    if ( defined($ref_vms) ) {
-        mode_undefine(\@vm_ordered)
-    } else {
-    	mode_undefine()
-    }    
-}
-=END
-=cut
 
 
 #
@@ -4517,7 +4440,7 @@ sub configure_switched_networks {
 #
 sub create_tun_devices_for_virtual_bridged_networks  {
 
-    # TODO: to considerate "external" atribute when network is "ppp"
+    # TODO: to consider "external" atribute when network is "ppp"
 
     my $ref_vms = shift;
     my @vm_ordered;
@@ -4707,13 +4630,16 @@ sub create_bridges_for_virtual_bridged_networks  {
         
         # Is there an external interface associated with the network?
         unless (empty($external_if)) {
+            # Enable the interface if not active
+            my $base_if_name = $external_if;
+            $base_if_name =~ s{\.[^.]+$}{}; # Delete VLAN part (e.g. '.1000') if any
+            print "base_if_name=$base_if_name\n";
+            unless (`ip link show $base_if_name | grep UP`) {
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $base_if_name up");
+            }
+        	
             # If there is an external interface associate, to check if VLAN is being used
             unless (empty($vlan) ) {
-                # If there is not any configured VLAN at this interface, we have to enable it
-                unless (check_vlan($external_if,"*")) {
-                    #$execution->execute($logp, $bd->get_binaries_path_ref->{"ifconfig"} . " $external_if 0.0.0.0 " . $dh->get_promisc . " up");
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $external_if up");
-                }
                 # If VLAN is already configured at this interface, we don't have to configure it
                 unless (check_vlan($external_if,$vlan)) {
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"modprobe"} . " 8021q");
@@ -4826,7 +4752,13 @@ sub tun_connect {
                 if (get_net_by_mode($net,"virtual_bridge") != 0) {
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
                 } elsif (get_net_by_mode($net,"openvswitch") != 0) {
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net $net_if");
+                	# Check if interface exists before linking it to the switch (when starting
+                	# VMs with <on_boot>no</on_boot>, the interface does not exists, but
+                	# openvswitch creates it; when the VM is started it failed linking the interface)
+                	system "ip link show $net_if >/dev/null 2>&1";
+                	if ($? == 0) {
+                	   $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net $net_if");
+                	}
                 }
                 
             }
@@ -5487,8 +5419,23 @@ sub get_vm_ftrees_and_execs {
                 my $type = $command->getAttribute("type");
                 my $mode = $command->getAttribute("mode");
                 my $ostype = $command->getAttribute("ostype");
-                my $value = text_tag($command);
-
+                #my $value = text_tag($command);
+                my $value = $command->textContent;
+                my $new_value;
+                
+                my @lines = split /\n/, $value;
+                if ($lines[0]) { $new_value = ''} else { $new_value = "\n"}
+                foreach my $line (@lines) {
+                    $line =~ s/^\s+//; # delete leading spaces
+                    $line =~ s/\s+$//; # delete trailing spaces
+                    next if $line =~ /^#/; # ignore comments
+                    next if $line =~ /^$/; # ignore empty lines
+                    $line .= ';' if ( ($line !~ /;$/) && ($line !~ /&$/) );
+                    #print $line . "\n";
+                    $new_value .= $line . "\n";
+                }
+                #$comma->appendText($new_value);
+                
                 wlog (VVV, "Creating <exec> tag for user-defined command '$value'", $logp);
 
                 # Case 1. Verbatim type
@@ -5500,7 +5447,7 @@ sub get_vm_ftrees_and_execs {
                     $new_exec->setAttribute( seq => $seq);
                     $new_exec->setAttribute( type => $type);
                     $new_exec->setAttribute( ostype => $ostype);
-                    $new_exec->appendTextNode( $value );
+                    $new_exec->appendTextNode( $new_value );
   
                     # Add the exec node to the list passed to execute_cmd
                     push (@{$exec_list_ref}, $new_exec);
@@ -5819,7 +5766,6 @@ sub tun_destroy {
     }
 
     my $logp = "tun_destroy> ";
-
     for ( my $i = 0; $i < @vm_ordered; $i++) {
         my $vm = $vm_ordered[$i];
 
