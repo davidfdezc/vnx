@@ -82,8 +82,8 @@ sub split {
     #my $max_percentage = $default_percentage * 1.5;
     #my $min_percentage = $default_percentage * 0.5; 
 
-    my $vm_list = $scenario->getElementsByTagName("vm");     # Scenario VMs node list
-    my $vm_number = $vm_list->getLength;                     # Number of VMs in scenario
+    my @vm_list = $scenario->getElementsByTagName("vm");     # Scenario VMs node list
+    my $vm_number = @vm_list;                                # Number of VMs in scenario
 
     wlog (VV, "Segmentator $seg_mod_name: $cluster_size active hosts; $vm_number virtual machines", "");
 
@@ -195,7 +195,7 @@ sub split {
         foreach my $host_id (@cluster_hosts) {
             my $limit = $offset + $assigned_vm_number{$host_id};
             for (; $i<$limit; $i++) {
-                my $vm_name = $vm_list->item($i)->getAttribute("name");
+                my $vm_name = $vm_list[$i]->getAttribute("name");
                 $allocation{$vm_name} = $host_id;
                 wlog (VV, "Segmentator: vm $vm_name goes to host $host_id", "");     
                 $offset++;

@@ -56,7 +56,7 @@ sub new {
    "ifconfig", "cp", "cat", "lsof", "chown",
    "hostname", "route", "scp", "chmod", "ssh", "uml_mconsole",                                                                             
    "date", "ps", "grep", "kill", "ln", "mkisofs", "mktemp", "su", "find",
-   "qemu-img", "mkfs.msdos", "mkfs.ext3", "mount", "umount", "sed", "ip", "vnx_mount_rootfs");
+   "qemu-img", "mkfs.msdos", "mkfs.ext3", "mount", "umount", "sed", "ip", "vnx_mount_rootfs", "pv", "wmctrl");
 
    # Perl modules mandatory
    my @perlmods_mandatory = qw( NetAddr::IP XML::LibXML XML::Tidy AppConfig Readonly 
@@ -452,38 +452,39 @@ sub get_binaries_path_ref {
 # BinariesData object.
 #
 sub check_binaries {
-   my $self = shift;
+    my $self = shift;
    
-   my $exe_mode = $self->{'exe_mode'};
+    my $exe_mode = $self->{'exe_mode'};
    
-   my $unchecked = 0;
-   foreach (@_) {
-      #print "Checking $_... " if (($exe_mode == EXE_VERBOSE) || ($exe_mode == EXE_DEBUG));
-      my $fail = system("which $_ > /dev/null");
-      my $where = `which $_`;
+    my $unchecked = 0;
+    foreach (@_) {
+        #print "Checking $_... " if (($exe_mode == EXE_VERBOSE) || ($exe_mode == EXE_DEBUG));
+        my $fail = system("which $_ > /dev/null");
+        my $where = `which $_`;
       
-      # Particular cases:
-      # - If mkisofs is not found, try with genisoimage (needed for Debian hosts)
-      if ( ($_ eq 'mkisofs') && ($fail) ) {
-        #print "which 'genisoimage' > /dev/null\n";
-        $fail = system("which genisoimage > /dev/null");
-        $where = `which genisoimage`;
+        # Particular cases:
+        # - If mkisofs is not found, try with genisoimage (needed for Debian hosts)
+        if ( ($_ eq 'mkisofs') && ($fail) ) {
+            #print "which 'genisoimage' > /dev/null\n";
+            $fail = system("which genisoimage > /dev/null");
+            $where = `which genisoimage`;
         
-      }
+        }
       
-      if ($fail) {
-         print "$_ not found\n" if (($exe_mode == $EXE_VERBOSE) || ($exe_mode == $EXE_DEBUG));;
-	     $unchecked++;
-      }
-      else {
-         chomp($where);
-         #print "$where\n" if (($exe_mode == EXE_VERBOSE) || ($exe_mode == EXE_DEBUG));;
-         # Add to the binary_path hash array
-         $self->{'binaries_path'}->{$_} = $where;
-      }
-   }
+        if ($fail) {
+        	#if (($exe_mode == $EXE_VERBOSE) || ($exe_mode == $EXE_DEBUG)) {
+                print "$hline\nERROR: binary file missing:\n'$_' command not found\n";
+        	#}
+            $unchecked++;
+        } else {
+            chomp($where);
+            #print "$where\n" if (($exe_mode == EXE_VERBOSE) || ($exe_mode == EXE_DEBUG));;
+            # Add to the binary_path hash array
+            $self->{'binaries_path'}->{$_} = $where;
+        }
+    }
    
-   return $unchecked; 
+    return $unchecked; 
 
 }
 

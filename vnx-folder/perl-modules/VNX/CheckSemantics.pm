@@ -734,22 +734,38 @@ user();
             }
         }
       
-        # vm vcpu attribute only allowed (by now) for libvirt VMs
+        # vm vcpu attribute only allowed (by now) for libvirt VMs and LXC
         my $vm_vcpu = $vm->getAttribute("vcpu");               
         unless (empty($vm_vcpu)) { # A value for vcpu is specified
 
             if ($vm_type eq "libvirt") {
                 if ( ($vm_vcpu < 1) ) {
                     return "Number of virtual CPUs ($vm_vcpu) specified in vcpu option of VM '$name' must be >=1";
-                }        	
+                }           
+            } elsif ($vm_type eq "lxc") {
+                # TODO: check that it is a comma separated list of cores           
             } else {
-                return "invalid attribute 'vcpu' in <vm name='$name'> tag. 'vcpu' only allowed for libvirt virtual machines";
+                return "invalid attribute 'vcpu' in <vm name='$name'> tag. 'vcpu' only allowed for libvirt or lxc virtual machines";
             }
         } else { # vcpu not specified
 
             if ($vm_type eq "libvirt") {
                 # set default value to i686
                 $vm->setAttribute( 'vcpu', 1 );
+            }
+        }
+
+        # vm vcpu_quota attribute only allowed for  LXC
+        my $vm_vcpu_quota = $vm->getAttribute("vcpu_quota");               
+        unless (empty($vm_vcpu_quota)) { # A value for vcpu_quota has been specified
+
+            if ($vm_type eq "lxc") {
+            	if ( ! $vm_vcpu_quota =~ /1?[0-9]?[0-9]?%/) {
+                #if ( ($vm_vcpu_quota < 0) || ($vm_vcpu_quota > 100) ) {
+                    return "Incorrect virtual CPU quota atribute value ($vm_vcpu_quota) specified for VM '$name' (must be in the range [0-100])";
+                }           
+            } else {
+                return "invalid attribute 'vcpu_quota' in <vm name='$name'> tag. 'vcpu' only allowed for libvirt or lxc virtual machines";
             }
         }
         

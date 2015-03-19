@@ -85,7 +85,7 @@ if ($platform[0] eq 'Linux'){
 	# ~~~~~~~~~~~~~~~~~~
 	print "-- Linux platform detected ($platform[1]-$platform[2])\n";
     if ( ($platform[1] eq 'Ubuntu' && $platform[2] =~ /^8.04/ ) || 
-         ($platform[1] eq 'Debian' ) ) {
+         ($platform[1] eq 'Debian' ) || ($platform[1] eq 'Kali' ) ) {
 
         # Particular case for Ubuntu 8.04: use VNXACED based on init.d
         system "cp -v vnxaced.pl /usr/local/bin/vnxaced";

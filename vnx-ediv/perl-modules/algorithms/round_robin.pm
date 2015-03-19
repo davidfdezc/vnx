@@ -87,17 +87,20 @@ sub split {
 	wlog (VV, "Segmentator: static_assignment_undef=$static_assignment_undef");
 		
 	if ($static_assignment_undef){ # No static assignements
-		my $VMList = $scenario->getElementsByTagName("vm");		# Scenario virtual machines node list
-		my $vm_number = $VMList->getLength;						# Number of virtual machines of scenario
+		#my $VMList = $scenario->getElementsByTagName("vm");		# Scenario virtual machines node list
+		#my $vm_number = $VMList->getLength;						# Number of virtual machines of scenario
 		
-		for (my $i=0; $i<$vm_number; $i++) {
-			my $virtualm = $VMList->item($i);
+		#for (my $i=0; $i<$vm_number; $i++) {
+		my $i=0;
+        foreach my $virtualm ($scenario->getElementsByTagName("vm")) {
+			#my $virtualm = $VMList->item($i);
 			my $virtualm_name = $virtualm->getAttribute("name");
 			my $assigned_host_index = $i % $cluster_size;
             #my $assigned_host = $cluster_hosts[$assigned_host_index]->{_hostname};
             my $assigned_host = $cluster->{hosts}{$cluster_hosts[$assigned_host_index]}->host_id;
 			$allocation{$virtualm_name} = $assigned_host;
-			wlog (VV, "Segmentator: Virtual machine $virtualm_name to physical host $assigned_host"); 	
+			wlog (VV, "Segmentator: Virtual machine $virtualm_name to physical host $assigned_host");
+			$i++; 	
 		}
 	} else { # Some vms are statically assigned
 

@@ -328,6 +328,27 @@ change_to_root();
 	        $execution->execute( $logp, "lxc.mount = $vm_lxc_dir/fstab", *CONFIG_FILE );
         }
         
+
+        # Configure CPU related attributes
+        my $vcpu = $vm->getAttribute("vcpu");
+        if (defined($vcpu) and $vcpu ne '') {
+            $execution->execute( $logp, "lxc.cgroup.cpuset.cpus = $vcpu", *CONFIG_FILE );
+        }        
+        my $vcpu_quota = $vm->getAttribute("vcpu_quota");
+        if (defined($vcpu_quota)) {
+        	my $PERIOD = 50000;
+        	$vcpu_quota =~ s/%//;
+            $execution->execute( $logp, "lxc.cgroup.cpu.cfs_quota_us = " . int($PERIOD*$vcpu_quota/100), *CONFIG_FILE );
+            $execution->execute( $logp, "lxc.cgroup.cpu.cfs_period_us = $PERIOD", *CONFIG_FILE );
+        }        
+        
+        # Configure Memory
+        if( $vm->exists("/create_conf/vm/mem") ){
+            my $mem = $vm->findnodes("/create_conf/vm/mem")->[0]->getFirstChild->getData;
+            $execution->execute( $logp, "memory.limit_in_bytes = $mem", *CONFIG_FILE );
+            # Ex: lxc.cgroup.memory.limit_in_bytes = 256M        
+        }        
+        
         #
         # Configure network interfaces
         #   
@@ -1068,7 +1089,11 @@ sub execute_cmd {
         	# 
         	$command =~ s/'/'\\''/g;
         	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
-            wlog (V, "executing user defined exec command '$command'", $logp);
+            wlog (V, "executing user defined exec command:", $logp);
+            my @lines = split /\n/, $command;
+            foreach my $line (@lines) { wlog (V, "    $line", $logp) if $line };  
+            	       
+            $command =~ s/\n//;            	       
         	my $cmd_output = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$command'");
             wlog (N, "---\n$cmd_output---", '') if ($cmd_output ne '');            
         }

@@ -41,6 +41,7 @@ SPAIN
   </global>
     
   <net name="Net0" mode="virtual_bridge" />
+  <net name="virbr0" mode="virtual_bridge" managed="no"/>
   
   <!-- NODES -->
   <vm name="centos64" type="libvirt" subtype="kvm" os="linux" arch="x86_64">
@@ -48,6 +49,9 @@ SPAIN
     <mem>256M</mem>
     <if id="1" net="Net0">
       <ipv4>10.1.0.15/24</ipv4>
+    </if>
+    <if id="2" net="virbr0">
+      <ipv4>dhcp</ipv4>
     </if>
     
     <!-- Copy the files under conf/txtfile to vm /tmp directory -->

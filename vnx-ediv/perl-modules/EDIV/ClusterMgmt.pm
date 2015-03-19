@@ -543,7 +543,7 @@ sub query_db {
     my $j=0;
     foreach my $l (split /\n/ ,$query_string) {
         wlog (VVV, "$l", "DB Query: ");
-        if (++$j > 12 ) { last };
+        if (++$j > 1520 ) { last };
     }
 
     my $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass}) 

@@ -61,7 +61,7 @@ sub bin2dec {
 #
 # Gets text of the Element object that is passed as first argument.
 #
-# If the Element correpond to and emty tag, this function returns ""
+# If the Element correspond to and emty tag, this function returns ""
 #
 sub text_tag {
 

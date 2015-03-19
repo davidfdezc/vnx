@@ -1443,9 +1443,12 @@ user();
 		# Call autoconfiguration
 		if ($platform[0] eq 'Linux'){
 		    
-            if    ($platform[1] eq 'Ubuntu') { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'ubuntu') }           
-            elsif ($platform[1] eq 'Debian') { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'debian') }           
-		    elsif ($platform[1] eq 'Fedora') { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'fedora') }
+            if    ($platform[1] eq 'Ubuntu') 
+                { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'ubuntu') }           
+            elsif ($platform[1] eq 'Debian' || $platform[1] eq 'Kali') 
+                { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'debian') }           
+		    elsif ($platform[1] eq 'Fedora') 
+                { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'fedora') }
 		    #elsif ($platform[1] eq 'CentOS') { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'centos') }
 		    
 		#} elsif ($platform[0] eq 'FreeBSD'){
