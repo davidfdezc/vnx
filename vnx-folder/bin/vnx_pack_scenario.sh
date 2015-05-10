@@ -13,12 +13,12 @@
 # SPAIN
 #
 
-USAGE="vnx_pack_scenario: simple script to package VNX scenarios in a tgz file 
+USAGE="VNX_PACK_SCENARIO: SIMPLE SCRIPT TO PACKAGE VNX SCENARIOS IN A TGZ FILE 
 
-Usage:  vnx_pack_scenario -f <scenario_dir> [-v <version>] [-r]
-              -f -> directory where the scenario is
-              -v -> set version number in tgz name
-              -r -> include root filesystem
+USAGE:  VNX_PACK_SCENARIO -F <SCENARIO_DIR> [-V <VERSION>] [-R]
+              -F -> DIRECTORY WHERE THE SCENARIO IS
+              -V -> SET VERSION NUMBER IN TGZ NAME
+              -R -> INCLUDE ROOT FILESYSTEM
 "
 
 #echo "num args=$#"

@@ -72,6 +72,7 @@ my $lxc_dir="/var/lib/lxc";
 my $union_type;
 my $aa_unconfined;
 my $aufs_options;
+my $nested_lxc;
 
 # ---------------------------------------------------------------------------------------
 #
@@ -108,6 +109,17 @@ sub init {
         $aufs_options .= ','; # default value
     }
     wlog (VVV, "[lxc] conf: aufs_options=$aufs_options");
+
+    $nested_lxc = get_conf_value ($vnxConfigFile, 'lxc', 'nested_lxc', 'root');
+    if (empty($nested_lxc)) {
+        $nested_lxc = 'no'; # default value
+    } elsif ( ($nested_lxc ne 'yes') && ($nested_lxc ne 'no') ){
+        $error = "in $vnxConfigFile, incorrect value ($nested_lxc) assigned to 'nested_lxc' \nparameter in [lxc] section (should be yes or no).";
+    }
+    if ( ($nested_lxc eq 'yes') && ($aa_unconfined eq 'yes') ){
+        $error = "in $vnxConfigFile, cannot activate 'nested_lxc=yes' and 'aa_unconfined=yes' simultaneously. Only one of the two parameters can be set to yes.";
+    }
+    wlog (VVV, "[lxc] conf: nested_lxc=$nested_lxc");
 
     # Check whether LXC is installed (by executing lxc-info)
     system("which lxc-info > /dev/null 2>&1");
@@ -434,6 +446,11 @@ change_to_root();
 	        $execution->execute( $logp, "lxc.aa_profile=unconfined", *CONFIG_FILE );
             $execution->execute( $logp, "lxc.cgroup.devices.allow = b 7:* rwm", *CONFIG_FILE );
             $execution->execute( $logp, "lxc.cgroup.devices.allow = c 10:237 rwm", *CONFIG_FILE );
+        }
+        
+        if ($nested_lxc eq 'yes') {
+	        $execution->execute( $logp, "lxc.mount.auto = cgroup", *CONFIG_FILE );        
+	        $execution->execute( $logp, "lxc.aa_profile=lxc-container-default-with-nesting", *CONFIG_FILE );        
         }
 
         close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );

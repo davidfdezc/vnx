@@ -43,6 +43,7 @@ our @EXPORT = qw(
 	autoconfigure_redhat
     autoconfigure_freebsd
     autoconfigure_android
+    autoconfigure_wanos
 	get_code_of_get_os_distro
 	);
 

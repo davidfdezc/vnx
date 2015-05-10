@@ -742,6 +742,8 @@ sub get_default_exec_mode {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_OLIVE[0];
         } elsif ($merged_type eq 'libvirt-kvm-android') {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_ANDROID[0];
+        } elsif ($merged_type eq 'libvirt-kvm-wanos') {
+            $def_execmode = $EXEC_MODES_LIBVIRT_KVM_WANOS[0];
         } elsif ( ($merged_type eq 'dynamips-3600') or ($merged_type eq 'dynamips-7200') )  {
             $def_execmode = $EXEC_MODES_DYNAMIPS[0];
         } elsif ($merged_type eq 'lxc')  {

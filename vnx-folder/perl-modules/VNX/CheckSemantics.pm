@@ -524,7 +524,11 @@ user();
             my $conn_type=$connection->getAttribute("type");
             # Set default value
             unless ( defined($conn_type) ) {
-                $conn_type = "veth"; 
+                $conn_type = 'veth'; 
+                $connection->setAttribute('type', $conn_type);
+            }
+            unless ($conn_type eq 'veth' or $conn_type eq 'ovs-patch') {
+                return "incorrect value ($conn_type) for 'type' attribute in <connection> tag of <net name='$name'>";
             }
             if ( $name eq $net_to_connect ) {
                 return "incorrect <connection> tag in <net name='$name'>; switch loop detected";
@@ -1272,6 +1276,9 @@ user();
 	        } elsif ( ($merged_type eq 'dynamips-3600') or ($merged_type eq 'dynamips-7200') )  {
 				if ( "@EXEC_MODES_DYNAMIPS" !~ $exec_mode )  {
 					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+            } elsif ($merged_type eq 'libvirt-kvm-wanos') {
+                if ( "@EXEC_MODES_LIBVIRT_KVM_WANOS" !~ $exec_mode )  {
+                    return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
 	        }
         } 
 
