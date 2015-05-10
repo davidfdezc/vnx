@@ -190,7 +190,8 @@ sub define_vm {
     my $vm_arch = $vm->getAttribute("arch");
     if (empty($vm_arch)) { $vm_arch = 'i686' }  # default value
 
-    if ( ($exec_mode ne "cdrom") && ($exec_mode ne "sdisk") && !($exec_mode eq "adb" &&  $type eq "libvirt-kvm-android") ) {
+    if ( ($exec_mode ne "cdrom") && ($exec_mode ne "sdisk") && ($exec_mode ne "none") && 
+         !($exec_mode eq "adb" &&  $type eq "libvirt-kvm-android") ) {
         $execution->smartdie( "execution mode $exec_mode not supported for VM of type $type" );
     }       
 
@@ -674,10 +675,10 @@ user();
 	#
 	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")||
 	        ($type eq "libvirt-kvm-olive")||($type eq "libvirt-vbox") || 
-	        ($type eq "libvirt-kvm-android") ) {
+	        ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
 
         # Create vnxboot.xml file under $sdisk_content directory
-        unless ( $execution->get_exe_mode() eq $EXE_DEBUG || $type eq "libvirt-kvm-android") {
+        unless ( $execution->get_exe_mode() eq $EXE_DEBUG || $type eq "libvirt-kvm-android" || $type eq "libvirt-kvm-wanos" ) {
             open CONFILE, ">$sdisk_content" . "vnxboot.xml"
                 or $execution->smartdie("can not open ${sdisk_content}vnxboot: $!");
             print CONFILE "$vm_doc\n";
@@ -734,8 +735,9 @@ user();
 		my $domain_tag = $init_xml->createElement('domain');
 		$init_xml->addChild($domain_tag);
 
-        if ( ($type eq "libvirt-kvm-linux") || ($type eq "libvirt-kvm-freebsd")||
-             ($type eq "libvirt-kvm-olive") || ($type eq "libvirt-kvm-android") ) {
+        if ( ($type eq "libvirt-kvm-linux") || ($type eq "libvirt-kvm-freebsd") ||
+             ($type eq "libvirt-kvm-olive") || ($type eq "libvirt-kvm-android") || 
+             ($type eq "libvirt-kvm-wanos") ) {
     		# Note: changed the first line to 
     		# <domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
     		# to allow the use of <qemu:commandline> tag to especify the bios in Olive routers
@@ -1271,7 +1273,6 @@ user();
 		
 		
         if ($mng_if_exists && $type ne 'libvirt-kvm-android'){      
-		#if ($mng_if_exists){		
 		
             # -device rtl8139,netdev=lan1 -netdev tap,id=lan1,ifname=ubuntu-e0,script=no,downscript=no
             my $mgmt_eth_type = 'rtl8139';
@@ -1504,7 +1505,6 @@ user();
 
             wlog (VVV,  "Trying: vnx_mount_rootfs -p $i -r $filesystem $rootfs_mount_dir", $logp);
             $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -p $i -r $filesystem $rootfs_mount_dir");
-            #system "vnx_mount_rootfs -b -p $i -r $filesystem $rootfs_mount_dir";
             if ( $? != 0 ) {
                 wlog (VVV,  "Cannot mount partition $i of '$filesystem'", $logp);
                 next
@@ -1521,11 +1521,58 @@ user();
                 }
             }
             $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
-            #system "vnx_mount_rootfs -b -u $rootfs_mount_dir";
         }
 
         unless ($mounted) {
             wlog (VVV,  "cannot mount '$filesystem'. Android one-pass-autoconfiguration not possible", $logp);
+            return $error
+            #exit (1);
+        }
+    
+        autoconfigure_android ($vm_doc, $android_root, $dh->get_vmmgmt_type);
+        # Dismount the rootfs image        
+        $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
+    
+    } elsif ( $type eq "libvirt-kvm-wanos") {
+        # Always configure wanos in this way (no vnxaced available for wanos)    
+
+        wlog (V, "wanos one-pass autoconfiguration", $logp);
+
+        my $rootfs_mount_dir = $dh->get_vm_dir($vm_name) . '/mnt';
+
+        # Big danger if rootfs mount directory ($rootfs_mount_dir) is empty: 
+        # host files will be modified instead of rootfs image ones
+        unless ( defined($rootfs_mount_dir) && $rootfs_mount_dir ne '' && $rootfs_mount_dir ne '/' ) {
+            die;
+        }
+
+        #
+        # Mount the root filesystem
+        # We loop mounting all image partitions till we find a /tce/etc/wanos/wanos.conf file
+        # 
+        my $mounted;
+        for ( my $i = 1; $i < 5; $i++) {
+
+            wlog (VVV,  "Trying: vnx_mount_rootfs -p $i -r $filesystem $rootfs_mount_dir", $logp);
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -p $i -r $filesystem $rootfs_mount_dir");
+            #system "vnx_mount_rootfs -b -p $i -r $filesystem $rootfs_mount_dir";
+            if ( $? != 0 ) {
+                wlog (VVV,  "Cannot mount partition $i of '$filesystem'", $logp);
+                next
+            } else {
+                system "ls $rootfs_mount_dir/tce/etc/wanos/wanos.conf  > /dev/null 2>&1";
+                unless ($?) {
+                    $mounted='true';
+                    last    
+                } else {
+                    wlog (VVV,  "/tce/etc/wanos/wanos.conf not found in partition $i of '$filesystem'", $logp);
+                }
+            }
+            $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
+            #system "vnx_mount_rootfs -b -u $rootfs_mount_dir";
+        }
+        unless ($mounted) {
+            wlog (VVV,  "cannot mount '$filesystem'. wanos one-pass-autoconfiguration not possible", $logp);
             return $error
             #exit (1);
         }
@@ -1534,7 +1581,7 @@ user();
         #my $parser = XML::LibXML->new;
         #my $dom    = $parser->parse_file( $dh->get_vm_dir($vm_name) . "/${vm_name}_conf.xml" );
     
-        autoconfigure_android ($vm_doc, $android_root, $dh->get_vmmgmt_type);
+        autoconfigure_wanos ($vm_doc, $rootfs_mount_dir, $dh->get_vmmgmt_type);
         # Dismount the rootfs image        
         $execution->execute($logp, $bd->get_binaries_path_ref->{"vnx_mount_rootfs"} . " -b -u $rootfs_mount_dir");
     
@@ -1576,7 +1623,7 @@ sub undefine_vm {
 	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") || 
-         ($type eq "libvirt-kvm-android") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -1656,7 +1703,7 @@ sub start_vm {
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
-         ($type eq "libvirt-kvm-android") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -1783,7 +1830,6 @@ user();
                         }               
                     }
                 }
-
                 return $error;
             }
         }
@@ -1834,7 +1880,7 @@ sub shutdown_vm {
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
-         ($type eq "libvirt-kvm-android") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -1920,7 +1966,7 @@ sub suspend_vm {
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
-         ($type eq "libvirt-kvm-android") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -1989,7 +2035,7 @@ sub resume_vm {
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
-         ($type eq "libvirt-kvm-android") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2160,7 +2206,7 @@ sub restore_vm {
 	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
-         ($type eq "libvirt-kvm-android") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
 	    
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2943,7 +2989,7 @@ sub execute_cmd {
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $sdisk_content );
 	    }
 
-	} elsif ( ($merged_type eq "libvirt-kvm-android") ) {
+	} elsif ( ($merged_type eq "libvirt-kvm-android") || ($merged_type eq "libvirt-kvm-wanos")) {
 		$error = "Command execution not supported for libvirt-kvm-android VMs"
 	}
 	

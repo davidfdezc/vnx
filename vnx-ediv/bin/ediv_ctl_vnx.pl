@@ -142,7 +142,7 @@ sub main {
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'execute|x=s',
                 'show-map', 'console:s', 'console-info', 'exe-info',
-                'help|h', 'seg-info', 'seg-alg-info', 
+                'help|h', 'seg-info', 'seg-alg-info', 'distrib-rootfs',
                 'check-cluster', 'clean-cluster', 'update-hosts',
                 'v', 'vv', 'vvv', 'version|V',
                 'f=s', 'C=s', 'a=s', 'r=s', 'M=s', 'H=s', 'n|no-console',
@@ -205,20 +205,22 @@ sub main {
         $how_many_args++; $mode = "reset-db";  $check_hosts = 'no' }
     if ($opts{'delete-db'}) {
         $how_many_args++; $mode = "delete-db"; $check_hosts = 'no' }
+    if ($opts{'distrib-rootfs'}) {
+        $how_many_args++; $mode = "distrib-rootfs"; }
 	  
 	if ($how_many_args gt 1) {
 	    &usage;
 	    ediv_die ("Only one of the following at a time: -t|--create, -x|--execute, -d|--shutdown," . 
 	               " -V, -P|--destroy, --define, --start, --undefine, --save, --restore, --suspend," .
 	               " --resume, --reboot, --reset, --showmap, --seg-info, --check-cluster, " . 
-	               "--clean-cluster, --update-hosts, --create-db, --reset-db, --delete-db or -H\n");
+	               "--clean-cluster, --update-hosts, --create-db, --reset-db, --delete-db, --distrib-rootfs or -H\n");
 	}
     if ($how_many_args lt 1)  {
         &usage;
         ediv_die ("missing -t|--create, -x|--execute, -d|--shutdown, -V, -P|--destroy, --define, --start," .
                   " --undefine, \n--save, --restore, --suspend, --resume, --reboot, --reset, --show-map," . 
                   "--console, --console-info, --seg-info, --check_cluster, --clean-cluster, --update-hosts, " .
-                   " --create-db, --reset-db, --delete-db or -H\n");
+                   " --create-db, --reset-db, --delete-db, --distrib-rootfs or -H\n");
     }
 	
     # Version pseudomode
@@ -433,31 +435,32 @@ sub main {
     }
 
 	# Call mode handler
-	if      ( $mode eq 'create' )        { mode_create();
-	} elsif ( $mode eq 'execute' )       { mode_execute()
-	} elsif ( $mode eq 'destroy' )       { mode_destroy()
-	} elsif ( $mode eq 'shutdown' )      { mode_shutdown()
-	} elsif ( $mode eq 'define' | 
+	if    ( $mode eq 'create' )        { mode_create(); } 
+	elsif ( $mode eq 'execute' )       { mode_execute() } 
+	elsif ( $mode eq 'destroy' )       { mode_destroy()	} 
+	elsif ( $mode eq 'shutdown' )      { mode_shutdown() } 
+	elsif ( $mode eq 'define' | 
 	          $mode eq 'undefine' | 
 	          $mode eq 'start' | 
 	          $mode eq 'save' | 
 			  $mode eq 'restore' | 
 			  $mode eq 'suspend' | 
 			  $mode eq 'resume' | 
-			  $mode eq 'reboot' )        { mode_others()
-    } elsif ( $mode eq 'console' )       { mode_console();
-    } elsif ( $mode eq 'console-info' )  { mode_consoleinfo();
-    } elsif ( $mode eq 'exe-info' )      { mode_exeinfo();
-    } elsif ( $mode eq 'seg-info' )      { mode_seginfo();
-    } elsif ( $mode eq 'seg-alg-info' )  { mode_segalginfo();
-    } elsif ( $mode eq 'check-cluster' ) { mode_checkcluster();
-    } elsif ( $mode eq 'clean-cluster' ) { mode_cleancluster();
-    } elsif ( $mode eq 'update-hosts' )  { mode_updatehosts();
-    } elsif ( $mode eq 'show-map' )      { mode_showmap();
-    } elsif ( $mode eq 'create-db' )     { mode_createdb();
-    } elsif ( $mode eq 'reset-db' )      { mode_resetdb();
-    } elsif ( $mode eq 'delete-db' )     { mode_deletedb();
-	} else {
+			  $mode eq 'reboot' )      { mode_others() } 
+    elsif ( $mode eq 'console' )       { mode_console(); } 
+    elsif ( $mode eq 'console-info' )  { mode_consoleinfo(); } 
+    elsif ( $mode eq 'exe-info' )      { mode_exeinfo(); } 
+    elsif ( $mode eq 'seg-info' )      { mode_seginfo(); } 
+    elsif ( $mode eq 'seg-alg-info' )  { mode_segalginfo(); } 
+    elsif ( $mode eq 'check-cluster' ) { mode_checkcluster(); } 
+    elsif ( $mode eq 'clean-cluster' ) { mode_cleancluster(); } 
+    elsif ( $mode eq 'update-hosts' )  { mode_updatehosts(); } 
+    elsif ( $mode eq 'show-map' )      { mode_showmap(); } 
+    elsif ( $mode eq 'create-db' )     { mode_createdb(); } 
+    elsif ( $mode eq 'reset-db' )      { mode_resetdb(); } 
+    elsif ( $mode eq 'delete-db' )     { mode_deletedb(); } 
+    elsif ( $mode eq 'distrib-rootfs' ){ mode_distribrootfs(); } 
+	else {
 		# default action: die
 		ediv_die ("ERROR: Unknown mode ($mode)\n");
 	}
@@ -547,7 +550,7 @@ sub mode_create {
 	    }
 
        foreach my $vm (keys(%allocation)) {
-            wlog (V, "---- $vm --> $allocation{$vm}")
+            wlog (VVV, "---- $vm --> $allocation{$vm}")
        }
 	        
 	    wlog (N, "\n---- Configuring distributed networking in cluster");
@@ -614,9 +617,11 @@ sub mode_create {
 	        
 	        # Start the vms located on that host 
             my $host_ip = get_host_ipaddr ($host_id);       
-            my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
-	        my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
-            my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+            #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+            my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
+            my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+            #my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+            my $local_subscenario_fname = $dh->get_sim_dir . "/$subscenario_name".".xml";
             my $host_subscenario_fname = $host_tmpdir . "$subscenario_name".".xml";
 	        my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $local_subscenario_fname);
 
@@ -630,12 +635,12 @@ sub mode_create {
 	        }
 	        
 	        my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-	        &daemonize($scp_command, "$host_id".".log");
+	        daemonize($scp_command, "$host_id".".log");
 	        my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
-	        &daemonize($permissions_command, "$host_id".".log");
+	        daemonize($permissions_command, "$host_id".".log");
 	        my $option_M = "-M $hosts_involved{$host_id}";
 	        my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx $log_opt -t -f $host_subscenario_fname " . $option_M . "; sleep $SSH_POST_DELAY'";
-	        &daemonize($ssh_command, "$host_id".".log");  
+	        daemonize($ssh_command, "$host_id".".log");  
         }   
 
         # Update vm status in db
@@ -833,9 +838,11 @@ sub mode_console {
     foreach my $host_id (keys %hosts_involved) {
 
         my $host_ip = get_host_ipaddr ($host_id);       
-        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+        #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
         my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
-        my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+        #my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $local_subscenario_fname = $dh->get_sim_dir . "/$subscenario_name".".xml";        
         my $host_subscenario_fname = $host_tmpdir . "$subscenario_name".".xml";
         my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $local_subscenario_fname);
 
@@ -850,9 +857,9 @@ sub mode_console {
 
         # Copy subscenario to host
         my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-        &daemonize($scp_command, "$host_id".".log");
+        daemonize($scp_command, "$host_id".".log");
         my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
-        &daemonize($permissions_command, "$host_id".".log");
+        daemonize($permissions_command, "$host_id".".log");
 
         # Execute VNX console command
         print "\n  ---- Console command in $host_id\n";
@@ -864,7 +871,7 @@ sub mode_console {
             $console_options .= " $opts{'console'}";
         }
         my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx $log_opt $console_options -f $host_subscenario_fname " . $option_M . "; sleep $SSH_POST_DELAY'";
-        &daemonize($ssh_command, "$host_id".".log");  
+        daemonize($ssh_command, "$host_id".".log");  
 
     }
 }
@@ -930,7 +937,9 @@ sub mode_seginfo {
     assignVLAN();
     fill_subscenario_docs();
     foreach my $host_id (@cluster_active_hosts) {
-        my $local_subscenario_fname = $dh->get_sim_tmp_dir . $scenario_name . "_" . $host_id . ".xml"; 
+        #my $local_subscenario_fname = $dh->get_sim_tmp_dir . $scenario_name . "_" . $host_id . ".xml"; 
+        my $local_subscenario_fname = $dh->get_sim_dir . $scenario_name . "_" . $host_id . ".xml"; 
+        
         my $host_subdoc = $scenario_hash{$host_id};      
         #$host_subdoc->printToFile("$local_subscenario_fname");
         $host_subdoc->toFile("$local_subscenario_fname");
@@ -1072,12 +1081,12 @@ sub mode_cleancluster {
             
             wlog (N, "----   Restarting dynamips daemon at host $host_id");  
             my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip '/etc/init.d/dynamips restart'";
-            &daemonize($ssh_command, "$host_id".".log");       
+            daemonize($ssh_command, "$host_id".".log");       
 
             wlog (N, "----   Deleting .vnx directories...");
             if (defined($vnx_dir)) {
                 my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip 'rm -rf $vnx_dir/../.vnx/*'";
-                &daemonize($ssh_command, "$host_id".".log");       
+                daemonize($ssh_command, "$host_id".".log");       
             }
 =END
 =cut
@@ -1310,7 +1319,76 @@ sub mode_deletedb{
     unless ( $answer =~ /^yes/ ) {
         wlog (N, "---- Database not deleted. Exiting");
     } else {
-        delete_database();        	    
+        delete_database();              
+    }
+}
+
+#
+# Distribute rootfs' to hosts
+#
+sub mode_distribrootfs{
+
+    my $doc = $dh->get_doc;
+    my %rootfs_list;
+    
+    wlog (N, "\n---- mode: $mode\n---- Distributing scenario root fylesystems to hosts");
+
+    foreach my $rootfs ($doc->findnodes('/vnx/vm/filesystem')) {
+    	my $rootfs_fname = $rootfs->textContent();
+    	$rootfs_list{$rootfs_fname} = 'true';    	
+    }
+    
+
+    foreach my $host_id (@cluster_active_hosts) {
+        my $host_ip = get_host_ipaddr ($host_id);       
+        #my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
+        #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+        my $subscenario_name = $scenario_name."_" . $host_id;
+        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+
+        wlog (N, "----   host: $host_id ($host_ip)");
+    
+        foreach my $rootfs_fname (keys %rootfs_list) {
+        	
+        	my $remote_abs_rootfs_fname = $rootfs_fname;
+        	if ($rootfs_fname !~ m#^/# ) {
+                # Path is relative, complete with host scenario dir
+                $remote_abs_rootfs_fname = $host_tmpdir . "/" . $rootfs_fname
+        	}
+        	# Check if the rootfs exists in host
+        	my $cmd;
+        	#my $cmd = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip 'ls $rootfs_fname > /dev/null 2>&1'";
+            #wlog (N, "----     Checking $rootfs_fname:");
+            #wlog (VVV, "----   cmd: $cmd");
+            #system ("$cmd");
+            #wlog (VVV, "----   cmd: returns $?");
+            #if ($?) {
+                #wlog (N, "----       not available -> copying... ");
+                wlog (N, "----     Syncing $rootfs_fname... ");
+                wlog (N, "           abs_rootfs_fname=$remote_abs_rootfs_fname");
+                if (-d $rootfs_fname) {
+                	wlog (N, "           directory");
+	                #my $rootfs_dir = dirname $rootfs_fname; 
+	                #my $reote_abs_rootfs_dir = dirname $remote_abs_rootfs_fname;
+	                
+	                # Create remote directory if it doen not exist
+	                $cmd = "ssh -X -2 -o 'StrictHostKeyChecking no' root\@$host_ip " .
+	                       "'mkdir -p $remote_abs_rootfs_fname'";
+	                wlog (N, $cmd);
+                    #wlog (N, "           $cmd");
+	                $cmd = "rsync -a $rootfs_fname/ $host_ip:$remote_abs_rootfs_fname";
+	                wlog (N, "           $cmd");
+                    system ($cmd);
+                } else {
+                    wlog (N, "           file")
+                }
+            #} else {
+            #    wlog (N, "----       already available -> nothing to do");
+            #}
+            
+        }
+        
+
     }
 }
 
@@ -1444,8 +1522,10 @@ sub create_subscenario_docs {
 
         my $doc = $template_doc->cloneNode(1);
         my $host_ip = get_host_ipaddr ($host_id);       
-        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+        #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
         my $subscenario_name = $scenario_name."_" . $host_id;
+        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+        
         
         # Set host subscenario name: original scenario name + _ + host_id
 	    $doc->getElementsByTagName("scenario_name")->item(0)->getFirstChild->setData($subscenario_name);
@@ -1766,7 +1846,7 @@ sub netTreatment {
 	foreach my $host_id (keys(%commands)){
 		my $host_ip = get_host_ipaddr ($host_id);
 		my $host_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip '$commands{$host_id}'";
-		&daemonize($host_command, "$host_id".".log");
+		daemonize($host_command, "$host_id".".log");
 	}
 }
 
@@ -1882,9 +1962,12 @@ sub send_and_start_subscenarios {
 	    wlog (VVV, "\n---- send_and_start_subscenarios: $host_id");
 	
         my $host_ip = get_host_ipaddr ($host_id);       
-        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+        #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
         my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
-        my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+        #my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $local_subscenario_fname = $dh->get_sim_dir . "/$subscenario_name".".xml";
+        wlog (VVV, "local_subscenario_fname=$local_subscenario_fname");
         my $host_subscenario_fname = $host_tmpdir . "$subscenario_name".".xml";
         my $host_subdoc = $scenario_hash{$host_id};
 
@@ -1899,14 +1982,14 @@ sub send_and_start_subscenarios {
         #if ($error) { ediv_die ("$error") };
 		
 		my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-		&daemonize($scp_command, "$host_id".".log");
+		daemonize($scp_command, "$host_id".".log");
 		my $permissions_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
-		&daemonize($permissions_command, "$host_id".".log"); 
+		daemonize($permissions_command, "$host_id".".log"); 
 		my $option_M = '';
 		if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
 		my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $host_subscenario_fname $log_opt -t -o /dev/null\ " 
 		                  . $option_M . " " . $no_console . "; sleep $SSH_POST_DELAY'";
-		&daemonize($ssh_command, "$host_id".".log");		
+		daemonize($ssh_command, "$host_id".".log");		
 	}
 }
 
@@ -2069,9 +2152,12 @@ sub purge_scenario {
 		my $vlan_command;
 
         my $host_ip = get_host_ipaddr ($host_id);       
-        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+        #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
         my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
-        my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+        #my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $local_subscenario_fname = $dh->get_sim_dir . "/$subscenario_name".".xml";
+        
         my $host_subscenario_fname = $host_tmpdir . "$subscenario_name".".xml";
 
         wlog (VVV, "--  purge_scenario: host_id = $host_id, host_ip = $host_ip, host_tmpdir = $host_tmpdir");  
@@ -2094,14 +2180,14 @@ sub purge_scenario {
 		}
 
         my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-        &daemonize($scp_command, "$host_id".".log");
+        daemonize($scp_command, "$host_id".".log");
         my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
-        &daemonize($permissions_command, "$host_id".".log");
+        daemonize($permissions_command, "$host_id".".log");
         wlog (N, "---- Stopping scenario and network restoring in $host_id");
         my $option_M = '';
         if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
         my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx $log_opt -P -f $host_subscenario_fname " . $option_M . "; sleep $SSH_POST_DELAY'";
-        &daemonize($ssh_command, "$host_id".".log");  
+        daemonize($ssh_command, "$host_id".".log");  
 
         unless ($opts{M} || $opts{H}){      
             #Clean vlans
@@ -2111,7 +2197,7 @@ sub purge_scenario {
                 $vlan_command = $vlan_command . "vconfig rem $$vlans[1].$$vlans[0]\n";
             }
             $vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
-            &daemonize($vlan_command, "$host_id".".log");
+            daemonize($vlan_command, "$host_id".".log");
         }   
 
 	}
@@ -2151,9 +2237,11 @@ sub shutdown_scenario {
 		my $vlan_command;
 
         my $host_ip = get_host_ipaddr ($host_id);       
-        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+        #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
         my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
-        my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+        #my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $local_subscenario_fname = $dh->get_sim_dir . "/$subscenario_name".".xml";       
         my $host_subscenario_fname = $host_tmpdir . "$subscenario_name".".xml";
         my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $local_subscenario_fname);
 
@@ -2174,17 +2262,18 @@ sub shutdown_scenario {
 			$scenario_status = "destroying";
 		}
 		
-        my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:/tmp/";
-        &daemonize($scp_command, "$host_id".".log");
+		my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
+        #my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:/tmp/";
+        daemonize($scp_command, "$host_id".".log");
         my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
-        &daemonize($permissions_command, "$host_id".".log");
+        daemonize($permissions_command, "$host_id".".log");
         wlog (N, "\n---- Stopping scenario and network restoring in $host_id\n");
         my $option_M = '';
         if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
         wlog (V, "---- shutdown_scenario: $option_M");        
             
         my $ssh_command =  "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'vnx $log_opt -d -f $host_subscenario_fname " . $option_M . "; sleep $SSH_POST_DELAY'";
-        &daemonize($ssh_command, "$host_id".".log");
+        daemonize($ssh_command, "$host_id".".log");
 				
         unless ($opts{M} || $opts{H}){      
 			#Clean vlans
@@ -2195,7 +2284,7 @@ sub shutdown_scenario {
                  #$vlan_command = $vlan_command . "vconfig rem $$vlans[1]:$$vlans[0]\n";
 			}
 			$vlan_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip '$vlan_command'";
-			&daemonize($vlan_command, "$host_id".".log");
+			daemonize($vlan_command, "$host_id".".log");
 		}	
 	}
 	
@@ -2225,11 +2314,14 @@ sub delete_dirs {
         if ($delete_all) {
             my $host_dir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name";
             my $rm_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'rm -rf $host_dir/*'";
-            &daemonize($rm_command, "$host_id".".log");
+            daemonize($rm_command, "$host_id".".log");
         } else {
-            my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp";
+            #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp";
+            my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
+            my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+            
             my $rm_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'rm -rf $host_tmpdir/*'";
-            &daemonize($rm_command, "$host_id".".log");
+            daemonize($rm_command, "$host_id".".log");
         }         
 	}	
 }
@@ -2246,7 +2338,8 @@ sub build_scenario_conf {
 		$basedir = $globalNode->getElementsByTagName("global")->item(0)->getElementsByTagName("vm_defaults")->item(0)->getElementsByTagName("basedir")->item(0)->getFirstChild->getData;
 	};
 	my @filetrees;
-	my @execs;
+    my @execs;
+    my @shareddirs;
 
     my @vms = ediv_get_vm_to_use_ordered(); # List of VMs involved (taking into account -M and -H options)
     for ( my $i = 0; $i < @vms; $i++) {
@@ -2282,6 +2375,13 @@ sub build_scenario_conf {
             } 
         
         }
+        
+        # <shareddir> tags 
+        foreach my $shareddir_tag ($vm->getElementsByTagName("shareddir")) {
+            my $shareddir = $shareddir_tag->getFirstChild->getData;
+            wlog (VVV, "-- build_scenario_conf: added $shareddir");
+            push(@shareddirs, $shareddir);
+        }
 	}
 	
 	# Look for configuration files defined for dynamips vms
@@ -2308,12 +2408,12 @@ sub build_scenario_conf {
 		chdir $basedir;
 	}
     if (@filetrees or @execs){
-        my $tgz_name = $dh->get_sim_tmp_dir . "/conf.tgz"; 
-        my $tgz_command = "tar czfv $tgz_name @filetrees @execs";
+        #my $tgz_name = $dh->get_sim_tmp_dir . "/conf.tgz"; 
+        my $tgz_name = $dh->get_sim_dir . "/conf.tgz"; 
+        my $tgz_command = "tar czfhv $tgz_name @filetrees @execs @shareddirs";
         system ($tgz_command);
     }
-
-	if (@filetrees){
+	if (@filetrees || @shareddirs){
 		#my $tgz_name = $dh->get_sim_tmp_dir . "/conf.tgz"; 
 		#my $tgz_command = "tar czfv $tgz_name @filetrees";
 		#system ($tgz_command);
@@ -2340,13 +2440,18 @@ sub send_conf_files {
 		print "\n---- Sending configuration to cluster hosts\n";
 		foreach my $host_id (@cluster_active_hosts) {	
 	        my $host_ip   = get_host_ipaddr ($host_id);
-            my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
-            my $local_tgz_name = $dh->get_sim_tmp_dir . "/conf.tgz";
-            my $remote_tgz_name = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/conf.tgz";
+            #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+            my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
+            my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+            
+            #my $local_tgz_name = $dh->get_sim_tmp_dir . "/conf.tgz";
+            my $local_tgz_name = $dh->get_sim_dir . "/conf.tgz";
+            #my $remote_tgz_name = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/conf.tgz";
+            my $remote_tgz_name = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/conf.tgz";
 			my $scp_command = "scp -2 $local_tgz_name root\@$host_ip:$host_tmpdir";	
 			system($scp_command);
 			my $tgz_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'tar xzf $remote_tgz_name -C $host_tmpdir'";
-			&daemonize($tgz_command, "$host_id".".log");
+			daemonize($tgz_command, "$host_id".".log");
 		}
 	}
 	my $plugin;
@@ -2365,6 +2470,10 @@ sub send_conf_files {
         foreach my $host_id (@cluster_active_hosts) {  
             wlog (V, "\n---- Sending dynamips configuration file to host $host_id\n");
 	        my $host_ip  = get_host_ipaddr ($host_id);         
+	        
+	        my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
+            my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+	        
             my $host_dir = get_host_vnxdir ($host_id) . "/scenarios/${scenario_name}/tmp/";
             #my $dyn_ext_conf_path = &get_abs_path ( $dh->get_doc->getElementsByTagName("dynamips_ext")->item(0)->getFirstChild->getData );
             my $dyn_ext_conf_path = &get_abs_path($dyn_ext);
@@ -2384,9 +2493,14 @@ sub send_conf_files {
         foreach my $host_id (@cluster_active_hosts) {  
             wlog (V, "\n---- Sending windows positions configuration file to host $host_id\n");    	
             my $host_ip  = get_host_ipaddr ($host_id);         
-            my $host_dir = get_host_vnxdir ($host_id) . "/scenarios/${scenario_name}/tmp/";
+            #my $host_dir = get_host_vnxdir ($host_id) . "/scenarios/${scenario_name}/tmp/";
+
+            my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
+            my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+            
             #my $scp_command = "scp -2 $cfg_file root\@$host_ip:$host_dir/";
-            $execution->execute('', $bd->get_binaries_path_ref->{"scp"} . " -2 $cfg_file root\@$host_ip:$host_dir/");        
+            #$execution->execute('', $bd->get_binaries_path_ref->{"scp"} . " -2 $cfg_file root\@$host_ip:$host_dir/");        
+            $execution->execute('', $bd->get_binaries_path_ref->{"scp"} . " -2 $cfg_file root\@$host_ip:$host_tmpdir/");        
         }
     }
 
@@ -2410,7 +2524,10 @@ sub send_conf_files {
 	
         foreach my $host_id (@cluster_active_hosts) {  
 	        my $host_ip   = get_host_ipaddr ($host_id); 
-            my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+            #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+            my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
+            my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+            
 			#my $scp_command = "scp -2 $conf_plugin_file root\@$host_ip:$host_tmpdir";
 			#system($scp_command);
             $execution->execute('', $bd->get_binaries_path_ref->{"scp"} . " -2 $conf_plugin_file root\@$host_ip:$host_tmpdir");        
@@ -2441,9 +2558,11 @@ sub execute_command {
     foreach my $host_id (keys %hosts_involved) {
 
         my $host_ip = get_host_ipaddr ($host_id);       
-        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+        #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
         my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
-        my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+        #my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $local_subscenario_fname = $dh->get_sim_dir . "/$subscenario_name".".xml";        
         my $host_subscenario_fname = $host_tmpdir . "$subscenario_name".".xml";
         my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $local_subscenario_fname);
 
@@ -2462,13 +2581,13 @@ sub execute_command {
             wlog (VVV, "--  mode_execute: commands with sequence '$seq' found in host $host_id, executing...");  
 			
 			my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-			&daemonize($scp_command, "$host_id".".log");
+			daemonize($scp_command, "$host_id".".log");
 			my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";	
-			&daemonize($permissions_command, "$host_id".".log"); 		
+			daemonize($permissions_command, "$host_id".".log"); 		
 	        my $option_M = '';
 	        if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
 			my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $host_subscenario_fname $log_opt -x $seq " . $option_M . "; sleep $SSH_POST_DELAY'"; 
-			&daemonize($execution_command, "$host_id".".log");
+			daemonize($execution_command, "$host_id".".log");
             
         } else {
             wlog (VVV, "--  mode_execute: no commands with sequence '$seq' found in host $host_id, skipping...");  
@@ -2732,7 +2851,7 @@ sub untunnelize {
         my $pids = `ps auxw | grep -i \"ssh -2 -q -f -N -o StrictHost\" | grep -i $$ports[0] | awk '{print \$2}'`;
         wlog (VV, "--   Executing:  kill -9 $pids", "" );
         system ("kill -9 $pids");
-        #&daemonize($kill_command, "/dev/null");
+        #daemonize($kill_command, "/dev/null");
     }
 }
 
@@ -2769,9 +2888,11 @@ sub process_other_modes {
     foreach my $host_id (keys %hosts_involved) {
 
         my $host_ip = get_host_ipaddr ($host_id);       
-        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
+        #my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/$scenario_name/tmp/";
         my $subscenario_name = get_host_subscenario_name ($host_id, $scenario_name);
-        my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $host_tmpdir = get_host_vnxdir ($host_id) . "/scenarios/${subscenario_name}/";
+        #my $local_subscenario_fname = $dh->get_sim_tmp_dir . "/$subscenario_name".".xml";
+        my $local_subscenario_fname = $dh->get_sim_dir . "/$subscenario_name".".xml";        
         my $host_subscenario_fname = $host_tmpdir . "$subscenario_name".".xml";
         my $subscenario_xml = get_host_subscenario_xml ($host_id, $scenario_name, $local_subscenario_fname);
 
@@ -2789,15 +2910,15 @@ sub process_other_modes {
 		close (FILEHANDLE);
 		
 		my $scp_command = "scp -2 $local_subscenario_fname root\@$host_ip:$host_tmpdir";
-		&daemonize($scp_command, "$host_id".".log");
+		daemonize($scp_command, "$host_id".".log");
 			
 		my $permissions_command = "ssh -2 -X -o 'StrictHostKeyChecking no' root\@$host_ip \'chmod -R 777 $host_subscenario_fname\'";
 			
-		&daemonize($permissions_command, "$host_id".".log"); 		
+		daemonize($permissions_command, "$host_id".".log"); 		
         my $option_M = '';
         if ($opts{M} || $opts{H}) { $option_M = "-M $hosts_involved{$host_id}"; }
 		my $execution_command = "ssh -2 -q -o 'StrictHostKeyChecking no' -X root\@$host_ip \'vnx -f $host_subscenario_fname $log_opt $mode " . $option_M . "; sleep $SSH_POST_DELAY'"; 
-		&daemonize($execution_command, "$host_id".".log");
+		daemonize($execution_command, "$host_id".".log");
     }
 }
 
@@ -2934,13 +3055,14 @@ sub initialize_and_check_scenario {
 
     # Create the scenario working directory, if it doesn't already exist
     if (! -d "$vnx_dir/scenarios/$scenario_name" ) {
-        mkdir "$vnx_dir/scenarios/$scenario_name" 
+    	my $cmd="mkdir -p $vnx_dir/scenarios/$scenario_name";
+    	system ($cmd) 
            or ediv_die("Unable to create scenario $scenario_name working directory $vnx_dir/$scenario_name: $!\n");
     }
-    if (! -d "$vnx_dir/scenarios/$scenario_name/tmp" ) {
-        mkdir "$vnx_dir/scenarios/$scenario_name/tmp" 
-           or ediv_die("Unable to create scenario $scenario_name tmp directory $vnx_dir/$scenario_name/tmp: $!\n");
-    }
+#    if (! -d "$vnx_dir/scenarios/$scenario_name/tmp" ) {
+#        mkdir "$vnx_dir/scenarios/$scenario_name/tmp" 
+#           or ediv_die("Unable to create scenario $scenario_name tmp directory $vnx_dir/$scenario_name/tmp: $!\n");
+#    }
     
     # Create scenario directories in every active cluster host
     foreach my $host_id (@cluster_active_hosts){
@@ -2949,9 +3071,10 @@ sub initialize_and_check_scenario {
 
         # Create directory $vnx_dir/$scenario_name and $vnx_dir/$scenario_name_$host_id 
         my $ssh_command = "ssh -2 -o 'StrictHostKeyChecking no' -X root\@$host_ip " . 
-                          "'mkdir -p $host_vnxdir/scenarios/${scenario_name}/tmp $host_vnxdir/scenarios/${scenario_name}_${host_id}'";
+#                          "'mkdir -p $host_vnxdir/scenarios/${scenario_name}/tmp $host_vnxdir/scenarios/${scenario_name}_${host_id}'";
+                          "'mkdir -p $host_vnxdir/scenarios/${scenario_name}_${host_id}'";
         wlog (V, "----   Creating scenario directories in active hosts");  
-        &daemonize($ssh_command, "$host_id".".log");       
+        daemonize($ssh_command, "$host_id".".log");       
 
     }
 }
@@ -2986,7 +3109,7 @@ sub get_hosts_involved {
     my %hosts_involved;
 
     wlog (VVV, "get_host_involved: allocation array ->" );
-    foreach my $vm (keys(%allocation)) { wlog (V, "   $vm --> $allocation{$vm}") }
+    foreach my $vm (keys(%allocation)) { wlog (VVV, "   $vm --> $allocation{$vm}") }
                 
     my @vms = ediv_get_vm_to_use_ordered(); # List of VMs involved (taking into account -M and -H options)
     

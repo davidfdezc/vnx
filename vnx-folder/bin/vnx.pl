@@ -1360,19 +1360,19 @@ sub make_vmAPI_doc {
     }
 
     # shareddir tags
-    if ($type[0] eq 'lxc') {
-	    foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
-	        my $root    = $shared_dir->getAttribute("root");
-	        my $options = str($shared_dir->getAttribute("options"));
-	        my $shared_dir_value = text_tag($shared_dir);
-	        my $shared_dir_tag = $dom->createElement('shareddir');
-	        $vm_tag->addChild($shared_dir_tag);
-	        $shared_dir_tag->addChild($dom->createTextNode($shared_dir_value));
-	        $shared_dir_tag->addChild($dom->createAttribute( root => $root ));
-	        $shared_dir_tag->addChild($dom->createAttribute( options => $options ));         
-	    }
-    } else {
-        wlog (N, "WARNING: <shareddir> tag not supported for VM of type $type[0]");
+    foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
+        unless ($type[0] eq 'lxc') {
+            wlog (N, "WARNING: <shareddir> tag not supported for VM '$vm_name' of type '$type[0]'");
+            next;
+        }
+        my $root    = $shared_dir->getAttribute("root");
+	    my $options = str($shared_dir->getAttribute("options"));
+	    my $shared_dir_value = text_tag($shared_dir);
+        my $shared_dir_tag = $dom->createElement('shareddir');
+        $vm_tag->addChild($shared_dir_tag);
+        $shared_dir_tag->addChild($dom->createTextNode($shared_dir_value));
+        $shared_dir_tag->addChild($dom->createAttribute( root => $root ));
+        $shared_dir_tag->addChild($dom->createAttribute( options => $options ));         
     }       
 
     # Memory assignment
@@ -1970,10 +1970,14 @@ sub mode_undefine{
         # Unmount all under vms mnt directories, just in case...
         $execution->execute($logp, $bd->get_binaries_path_ref->{"umount"} . " " . $dh->get_sim_dir . "/vms/*/mnt");
 
-        # Delete all files in scenario but the scenario map (<scename>.png or svg) 
+        # Delete all files in scenario but the scenario map (<scename>.png or svg) and filesystems directory
         #$execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_sim_dir . "/*");
-        $execution->execute($logp, $bd->get_binaries_path_ref->{"find"} . " " . $dh->get_sim_dir . "/* " . 
-                             "! -name '*.png' ! -name '*.svg' -delete");
+        # Delete all files
+        $execution->execute($logp, $bd->get_binaries_path_ref->{"find"} . " " . $dh->get_sim_dir .  
+                             " -type f -not -name '*.png' -not -name '*.svg' -delete");
+        # Delete all directories
+        $execution->execute($logp, $bd->get_binaries_path_ref->{"find"} . " " . $dh->get_sim_dir . 
+                             " -mindepth 1 -maxdepth 1 -type d -not -name filesystems -exec rm -r {} \\;");
 
         if ($vmfs_on_tmp eq 'yes') {
                 $execution->execute($logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " 
@@ -2179,6 +2183,7 @@ sub mode_start {
     # Configure network related aspects
     tun_connect(\@vm_ordered);
     set_vlan_links(\@vm_ordered);
+    connect_ovs_to_controllers(\@vm_ordered);
         
     # Execute 'on_boot' commands
     mode_execute ('on_boot', 'lxc,dynamips', \@vm_ordered);
@@ -2270,14 +2275,18 @@ sub start_vms {
     my $nmcli;
     if ( $nmcli = `which nmcli` ) {
         chomp ($nmcli);
-        my $cmd = "LANG=en " . $nmcli . " nm status | grep 'not running'"; 
-        $nm_running = system($cmd);
-        if ($nm_running) {
+        my $cmd = "LANG=en " . $nmcli . " n 2>&1 >/dev/null"; 
+        system($cmd);
+        if ($? == 0) {
+        	$nm_running = 1;
             wlog (V, "Network manager is running ($nm_running)", $logp);
         } else {
+            $nm_running = 0;
             wlog (V, "Network manager is NOT running ($nm_running)", $logp);
         }
-    }     
+    } else {
+        wlog (V, "Network manager is NOT running ($nm_running)", $logp);
+    }
 
     # Start the VMs specified
     for ( my $i = 0; $i < @vm_ordered; $i++) {
@@ -2490,6 +2499,31 @@ sub set_vlan_links {
         }
    				
     }
+}
+
+#
+# connect_ovs_to_controllers
+#
+# Set controller configuration for openvswitches if configured
+# Delayed to avoid problems with Opendaylight.
+#
+sub connect_ovs_to_controllers {
+    
+    my $doc = $dh->get_doc;
+    my @nets = $doc->getElementsByTagName("net");    
+
+    # Create bridges and join interfaces
+    foreach my $net (@nets) {
+        # We get name attribute
+        my $net_name    = $net->getAttribute("name");
+        my $mode        = $net->getAttribute("mode");
+        if ($mode eq "openvswitch") {
+            if($net->getAttribute("controller") ){
+                my $controller = $net->getAttribute("controller");
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set-controller $net_name $controller");
+            }
+        }
+    }        
 }
 
 
@@ -4598,10 +4632,6 @@ sub create_bridges_for_virtual_bridged_networks  {
             } elsif ($mode eq "openvswitch") {
                 # If bridged does not exists, we create and set up it
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " --may-exist add-br $net_name");
-                if($net->getAttribute("controller") ){
-                    my $controller = $net->getAttribute("controller");
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set-controller $net_name $controller");
-                }
                 if($net->getAttribute("of_version") ){
                     my $of_version = $net->getAttribute("of_version");
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name protocols=$of_version");
@@ -4609,7 +4639,15 @@ sub create_bridges_for_virtual_bridged_networks  {
                 if($net->getAttribute("hwaddr") ){
                     my $hwaddr = $net->getAttribute("hwaddr");
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name other-config:hwaddr=$hwaddr");
+                    my $datapath_id = '0000' . $hwaddr;
+                    $datapath_id =~ tr/://d;
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name other-config:datapath-id=$datapath_id");
                 }
+                # Delayed to connect_ovs_to_controllers function to avoid problmes with OpenDaylight
+                #if($net->getAttribute("controller") ){
+                #    my $controller = $net->getAttribute("controller");
+                #    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set-controller $net_name $controller");
+                #}
             } elsif ($mode eq "veth") {
                 my ($vms,$ifs) = $dh->get_vms_in_a_net ($net_name);
                 my $vm1 = $dh->get_vm_name (@$vms[0]);
@@ -4685,10 +4723,7 @@ sub create_bridges_for_virtual_bridged_networks  {
             my $net_to_connect=$connection->getAttribute("net");
             my $if_name=$connection->getAttribute("name");
             my $conn_type=$connection->getAttribute("type");
-            wlog (V, "conn_type=$conn_type", $logp);
-            unless ( defined($conn_type) ) {
-            	$conn_type = "veth"; # default value
-            }
+            wlog (V, "conn_type=" . $conn_type, $logp);
             if ( $conn_type eq "veth" ) {
             	wlog (V, "Switch connection: ${net_name}-${net_to_connect}, type=veth", $logp);
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link add ${if_name}-0 type veth peer name ${if_name}-1");
@@ -4702,8 +4737,6 @@ sub create_bridges_for_virtual_bridged_networks  {
 	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set interface ${if_name}-0 type=patch options:peer=${if_name}-1");
 	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port  $net_to_connect ${if_name}-1");
 	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set interface ${if_name}-1 type=patch options:peer=${if_name}-0");
-            } else {
-            	
             }
         }
     }        
@@ -4715,8 +4748,9 @@ sub create_bridges_for_virtual_bridged_networks  {
 #
 # To link TUN/TAP to the bridges
 #
-# Connect VM tuntap interfaces to the bridges (only for the types 
-# of VMS that need it -not for LXC or libvirt-)
+# Connect VM tuntap interfaces to the bridges when not done by the hypervisor:
+# - virtual_bridge: when not using libvirt or lxc
+# - openvswitch: when using lxc or dynamips
 # 
 sub tun_connect {
 
@@ -5857,7 +5891,7 @@ sub bridges_destroy {
 	                    if ( $conn_type eq "veth" ) {
 	                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link del $if_to_delete");
 	                    } elsif ( $conn_type eq "ovs-patch" ) {
-	
+	                       # Nothing to do
 	                    }
                     }
 	            }
@@ -6027,7 +6061,6 @@ sub get_kernel_pids {
 #
 sub host_mapping_patch {
 
-#   my $lines = shift;
    my $scename = shift;
    my $file_name = shift;
 
@@ -6035,7 +6068,7 @@ sub host_mapping_patch {
    my $logp = "host_mapping_patch> ";
    wlog (VVV, "--filename: $file_name", $logp);
    wlog (VVV, "--scename:  $scename", $logp);
-	
+
 change_to_root();
    # Openning files
    open HOST_FILE, "$file_name"

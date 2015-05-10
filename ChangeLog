@@ -1,3 +1,14 @@
+10/5/2015
+
+- New config option for LXC VMs to allow nested virtualization (nested_lxc=yes)
+
+- Bug related to default type value for connections among Open vSwithes corrected
+
+- Changed the order of configuration of OVS. Now the controller address is configured at the end.
+
+- Changed "nmcli nm" commands to "nmcli n" to adapt to new nmcli version of Ubuntu 15.04 
+
+- Created function "connect_ovs_to_controllers" to delay the configuration of controller addresses in OpenvSwitches to avoid a problem with OpenDaylight.
 
 19/03/2015
 
@@ -30,6 +41,8 @@
 - Command used to tell network manager not to manage veth interfaces changed to:
     nmcli dev disconnect iface ${vm_name}-e${id}
   to test if the problems with management interfaces are solved. 
+  
+- Added quick hack to integrate WanOS on VNX. 
    
 
 12/02/2015
@@ -64,7 +77,7 @@
 
 20/11/2014
 
-- Dynamips: added check in Checksemenatics to detect duplicated if names. Added error message to detect when no if name has been defined in an interface.
+- Dynamips: added check in Checksemantics to detect duplicated if names. Added error message to detect when no if name has been defined in an interface.
 - Added <shareddir> tag for LXC VMs with the following format:
     <shareddir options="XXX" root="YYY">ZZZ</shareddir>
   being:
@@ -341,7 +354,7 @@ If a file with the same name as scenario file but with extension .cvnx exists, i
 - perl-modules-old directory created: Arguments.pm and CiscoExeCmd.pm 
   modules not used anymore moved to it.
 
-- Old commented code remove and some function headers added.
+- Old commented code removed and some function headers added.
 
 
 

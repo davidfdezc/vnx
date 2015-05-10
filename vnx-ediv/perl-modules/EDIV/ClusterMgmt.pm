@@ -33,6 +33,7 @@ use Socket;                             # To resolve hostnames to IPs
 use VNX::Globals;
 use VNX::Execution;
 use Data::Dumper;
+use File::Basename;
 
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(
@@ -158,8 +159,7 @@ sub read_cluster_config {
     if ($db->{type} eq 'sqlite') {
         unless ( $db->{file} = $cluster_config->get("db_file") ) 
             { return "'file' configuration parameter not found in section [db]"}
-        unless ( $db->{conn_info} = "DBI:SQLite:$db->{file}" ) 
-            { return "'conn_info' configuration parameter not found in section [db]"} 
+        $db->{conn_info} = "DBI:SQLite:$db->{file}"; 
         $db->{user} = '';
         $db->{passwd} = '';
     } else {
@@ -251,12 +251,15 @@ sub read_cluster_config {
 	            # Get vnx_dir from host vnx conf file (/etc/vnx.conf) 
 	            my $vnx_dir = `ssh -X -2 -o 'StrictHostKeyChecking no' root\@$ip 'cat /etc/vnx.conf | grep ^vnx_dir'`;
 	            if ($vnx_dir eq '') { 
-	                $vnx_dir = $DEFAULT_VNX_DIR
+	                $vnx_dir = $DEFAULT_VNX_DIR;
+                    $vnx_dir =~ s#~/#/root/#;
 	            } else {
 	                my @aux = split(/=/, $vnx_dir);
 	                chomp($aux[1]);
 	                $vnx_dir=$aux[1];
-	            }   
+	                $vnx_dir =~ s#~/#/root/#;
+                    pak();
+	            }
 	            $cluster_host->vnx_dir("$vnx_dir");
 	
 	            # Get VNX version from host (vnx -V -b command)
@@ -618,11 +621,14 @@ sub create_database {
     
     if ($db->{type} eq 'sqlite') {
 
+        # Create DB dir if it does not exit
+        my $db_dir = dirname $db->{file};
+        system "mkdir -p $db_dir" unless (-d $db_dir);
+        # Connect to database
         $dbh = DBI->connect($db->{conn_info},$db->{user},$db->{pass});
         
     } else {
         
-        #$dbh = DBI->connect($db_connection_info,$db->{user},$db->{pass});
         my $db_conn_info = "DBI:$db->{type}:database=;$db->{host}:$db->{port}";
         $dbh = DBI->connect($db_conn_info,$db->{user},$db->{pass});
         $query_string = "CREATE DATABASE `$db->{name}`";

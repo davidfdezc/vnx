@@ -105,6 +105,7 @@ our @EXPORT = qw(
 	@EXEC_MODES_LIBVIRT_KVM_WINDOWS
 	@EXEC_MODES_LIBVIRT_KVM_OLIVE
 	@EXEC_MODES_LIBVIRT_KVM_ANDROID
+    @EXEC_MODES_LIBVIRT_KVM_WANOS
 	@EXEC_MODES_DYNAMIPS
 	@EXEC_MODES_LXC
 
@@ -114,6 +115,7 @@ our @EXPORT = qw(
 	@EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS
     @EXEC_OSTYPE_LIBVIRT_KVM_OLIVE
     @EXEC_OSTYPE_LIBVIRT_KVM_ANDROID
+    @EXEC_OSTYPE_LIBVIRT_KVM_WANOS
 	@EXEC_OSTYPE_DYNAMIPS
 
 );
@@ -217,6 +219,7 @@ our @EXEC_MODES_LIBVIRT_KVM_FREEBSD = qw( sdisk cdrom net );
 our @EXEC_MODES_LIBVIRT_KVM_WINDOWS = qw( cdrom sdisk );
 our @EXEC_MODES_LIBVIRT_KVM_OLIVE   = qw( sdisk net );
 our @EXEC_MODES_LIBVIRT_KVM_ANDROID = qw( adb );
+our @EXEC_MODES_LIBVIRT_KVM_WANOS   = qw( sdisk );
 our @EXEC_MODES_DYNAMIPS            = qw( telnet );
 our @EXEC_MODES_LXC            		= qw( lxc-attach );
 
@@ -228,6 +231,7 @@ our @EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD = qw( system exec xsystem xexec );
 our @EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS = qw( cmd system exec );
 our @EXEC_OSTYPE_LIBVIRT_KVM_OLIVE   = qw( show set load system );
 our @EXEC_OSTYPE_LIBVIRT_KVM_ANDROID = qw( system );
+our @EXEC_OSTYPE_LIBVIRT_KVM_WANOS   = qw( sdisk );
 our @EXEC_OSTYPE_DYNAMIPS            = qw( show set load );
 
 1;

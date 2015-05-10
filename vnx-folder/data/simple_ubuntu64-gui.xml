@@ -45,6 +45,7 @@ SPAIN
   <vm name="ubuntu64-gui" type="libvirt" subtype="kvm" os="linux" exec_mode="sdisk" arch="x86_64">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_ubuntu64-gui</filesystem>
     <mem>768M</mem>
+    <video>vmvga</video>    
     <if id="1" net="Net0">
       <ipv4>10.1.0.5/24</ipv4>
     </if>
