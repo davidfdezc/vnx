@@ -31,6 +31,7 @@ Address		System				MAC offset 		Mgmt if offset
 10.1.0.24	simple_debian			24				92
 10.1.0.25   simple_debian           25              96
 10.1.0.26   simple_android          26              100
+10.1.0.27   simple_remnux64         27              104
 
 
 

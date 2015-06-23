@@ -339,13 +339,14 @@ back_to_user();
 sub wait_sock_answer {
 
     my $socket = shift;
-    my $timeout = 30;
+    #my $timeout = 30;
 
     wlog (VVV, "wait_sock_answer called... $socket");
 
     eval {
         local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
-        alarm $timeout;
+        #alarm $timeout;
+        alarm $H2VM_TIMEOUT;
 
         while (1) {
             my $line = <$socket>;
@@ -375,14 +376,15 @@ sub wait_sock_answer {
 sub recv_sock {
 
     my $socket = shift;
-    my $timeout = 15;
+    #my $timeout = 15;
     my $line;
     
     wlog (VVV, "recv_sock called... $socket");
 
     eval {
         local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
-        alarm $timeout;
+        #alarm $timeout;
+        alarm $H2VM_TIMEOUT;
         $line = <$socket>;
         wlog (VVV, "line=$line", "");
         alarm 0;

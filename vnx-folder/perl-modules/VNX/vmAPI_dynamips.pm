@@ -283,11 +283,13 @@ sub define_vm {
 	close (PORT_CISCO);
     
     # Set Chassis
-    my $chassis = merge_simpleconf($extConfFile, $vm_name, 'chassis');
-    $chassis =~ s/c//;
-    $res = dyn_cmd($t, "c$model set_chassis $vm_name $chassis", \@lines, \$ret_code, \$ret_str );
-    return $res if ($res);
-
+    if ($type ne 'dynamips-7200') {
+	    my $chassis = merge_simpleconf($extConfFile, $vm_name, 'chassis');
+	    $chassis =~ s/c//;
+	    $res = dyn_cmd($t, "c$model set_chassis $vm_name $chassis", \@lines, \$ret_code, \$ret_str );
+	    return $res if ($res);
+    }
+    
     # Set NPE if 7200
     if ($model eq '7200') {
 	    my $npe = merge_simpleconf($extConfFile, $vm_name, 'npe');
@@ -1502,7 +1504,7 @@ sub merge_enablepass {
 sub merge_simpleconf {
 
 	my $extConfFile = shift;
-	my $vm_name      = shift;
+	my $vm_name     = shift;
 	my $tagName     = shift;
 	
 	my $global_tag = 1;
@@ -1530,7 +1532,7 @@ sub merge_simpleconf {
         my $found;
 
         # Look for tags in vm section of config file
-        my @tag_list = $dom->findnodes("/vnx_dynamips/vm[\@name='$vm_name']/$tagName");
+        my @tag_list = $dom->findnodes("/vnx_dynamips/vm[\@name='$vm_name']/hw/$tagName");
         if (@tag_list){
             $result = text_tag($tag_list[0]);
             $found = 1;

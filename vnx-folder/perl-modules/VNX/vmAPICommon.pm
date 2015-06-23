@@ -87,7 +87,7 @@ sub execute_host_command {
         	
         if (!$exe_allowed) {
             wlog (N, "--\n-- ERROR. Host command execution forbidden by configuration.\n" . 
-                     "--        Change 'exe_host_cmd' config value in [general] section of /etc/vnx.conf file).");
+                     "--        Change 'exe_host_cmds' config value in [general] section of /etc/vnx.conf file).");
             return $num_host_execs
         }
             

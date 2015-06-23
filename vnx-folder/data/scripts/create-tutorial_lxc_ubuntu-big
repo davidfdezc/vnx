@@ -87,8 +87,8 @@ SPAIN
        <host_mapping />
     </vm_mgmt-->
     <vm_defaults>
-        <console id="0" display="yes"/>
-        <console id="1" display="no"/>
+        <console id="0" display="no"/>
+        <console id="1" display="yes"/>
     </vm_defaults>
   </global>
 

@@ -516,8 +516,18 @@ user();
                 $mac_addrs{$hwaddr} = $name;
             }       	
         }
+
+        # 8l. Check 'fail_mode' attributes 
+        my $fail_mode = $net->getAttribute("fail_mode");
+        if ( !empty($fail_mode) && $mode eq 'openvswitch' ) {
+            return "incorrect value ($fail_mode) for 'fail_mode' attribute of net '$name'. Correct values: secure|standalone" 
+                unless ( $fail_mode eq 'secure' || $fail_mode eq 'standalone' );
+        }
+        if ( !empty($hwaddr) && $mode ne 'openvswitch' ) {
+            return "incorrect use of attribute 'fail_mode' in net '$name' of mode '$mode'\n'fail_mode' can only be used when mode='openvswitch'" 
+        }     
       
-        # 8l. Check <connection> tags
+        # 8m. Check <connection> tags
         foreach my $connection ($net->getElementsByTagName("connection")) {
             my $net_to_connect=$connection->getAttribute("net");
             my $if_name=$connection->getAttribute("name");
@@ -965,28 +975,35 @@ user();
       }
    }
 
-   # 16. To check IPv4 addresses
-   foreach my $ipv4s ($doc->getElementsByTagName("ipv4")) {
-      my $ipv4 = text_tag($ipv4s);
-      if ($ipv4 eq 'dhcp') { next }
-      my $mask = $ipv4s->getAttribute("mask");
-      if (empty($mask)) {
-         # Doesn't has mask attribute, mask would be implicit in address
-         unless (valid_ipv4($ipv4) || valid_ipv4_with_mask($ipv4)) {
-            return "'$ipv4' is not a valid IPv4 address (Z.Z.Z.Z) or IPv4 address with implicit mask (Z.Z.Z.Z/M, M<=32) in a <ipv4>";
-         }
-      }
-      else {
-         unless (valid_ipv4_mask($mask)) {
-            return "'$mask' is not a valid IPv4 netmask in a <ipv4> mask attribute";
-         }
-         if (valid_ipv4_with_mask($ipv4)) {
-            return "mask attribute and implicit mask (Z.Z.Z.Z/M, M<=32) are not simultanelly allowed in <ipv4>";
-         }
-         unless (valid_ipv4($ipv4)) {
-            return "'$ipv4' is not a valid IPv4 address (Z.Z.Z.Z) in a <ipv4>";
-         }
-      }
+    # 16. To check IPv4 addresses
+    foreach my $ipv4s ($doc->getElementsByTagName("ipv4")) {
+        my $ipv4 = text_tag($ipv4s);
+        if ($ipv4 =~ /^dhcp/) { 
+            my @aux = split(',', $ipv4);
+            if ( defined ($aux[1]) ) {
+                unless (valid_ipv4($aux[1])) {
+                    return "'$aux[1]' found in <ipv4> tag is not a valid IPv4 address (Z.Z.Z.Z).";
+                }                
+            }
+        } else {
+            my $mask = $ipv4s->getAttribute("mask");
+            if (empty($mask)) {
+                # Doesn't has mask attribute, mask would be implicit in address
+                unless (valid_ipv4($ipv4) || valid_ipv4_with_mask($ipv4)) {
+                    return "'$ipv4' is not a valid IPv4 address (Z.Z.Z.Z) or IPv4 address with implicit mask (Z.Z.Z.Z/M, M<=32) in a <ipv4>";
+                }
+            } else {
+                unless (valid_ipv4_mask($mask)) {
+                    return "'$mask' is not a valid IPv4 netmask in a <ipv4> mask attribute";
+                }
+                if (valid_ipv4_with_mask($ipv4)) {
+                    return "mask attribute and implicit mask (Z.Z.Z.Z/M, M<=32) are not simultanelly allowed in <ipv4>";
+                }
+                unless (valid_ipv4($ipv4)) {
+                    return "'$ipv4' is not a valid IPv4 address (Z.Z.Z.Z) in a <ipv4>";
+                }
+            }
+        }
    }
 
    # 17. To check IPv6 addresses

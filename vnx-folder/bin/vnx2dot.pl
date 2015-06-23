@@ -233,13 +233,17 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
     	$net2 =~ tr/-/_/;        
         #print "  if: $id $net \n";
 
+        if ($id == 0) { next } # Skip management interfaces
+        
         if ($net eq 'lo') {
         	print "lo_$vmname [shape=\"point\", width=0.15, label=\"lo\", tooltip=\"$vmname loopback interface\"];"
         };
 
         if ($net eq 'virbr0' || $net eq 'lxcbr0') {
 #            print "${net}_${vmname} [shape=\"point\", width=0.15, label=\"$net\", tooltip=\"Connection to external bridge ($net)\"];";
-            print "${net}_${vmname} [shape=\"$net_shape\", width=0.15, label=\"$net\", tooltip=\"Connection to external bridge ($net)\", " .
+            my $vmname2 = $vmname;
+            $vmname2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
+            print "${net}_${vmname2} [shape=\"$net_shape\", width=0.15, label=\"$net\", tooltip=\"Connection to external bridge ($net)\", " .
                    "fontsize=\"$net_fontsize_small\", fontstyle=\"bold\", colorscheme=\"$color_scheme\", color=\"$net_color2\", style=\"$net_style\" ];";
         };
 

@@ -1,3 +1,33 @@
+
+23/6/2015
+
+- Bug in dynamips: set_chassis command ignored for 7200 family routers
+
+- Added 'fail_mode' attribute to <net> for 'openvswitch' to set the fail-mode value:
+     + <net name='Net0' fail_mode='secure'/>   -> Do not work as a normal switch when the connection to the controller cannot be established
+     + <net name='Net0' fail_mode='standalone'/> -> Work as a normal switch when the connection to the controller cannot be established
+  Default value is 'standalone'
+
+- Corrected a bug in vnx2dot that prevented the map being shown when defining virtual machines with '-' in their names and connections to virbr0|lxcbr0 bridges.
+
+- Added simple_remnux.xml example to test REMnux security distribution root filesystem. 
+
+- Added -F option to lxc-start in --modify-rootfs mode
+
+- Added "--h2vm-timeout i" to allow modifying the timeout waiting for a response in libvirt H2VM socket channels  
+
+- vnx2dot: ignored management interfaces (id=0) in maps. 
+
+- Added new --validate-xml option to validate the XMl scenario.
+
+- Added the possibility to specify to request a specific IP address in interfaces configured using dhcp. 
+  For example:
+    <if id="2" net="virbr0">
+      <ipv4>dhcp,192.168.132.222</ipv4>
+    </if>
+  By now, it only works for Ubuntu and Fedora/CentOS
+        
+   
 10/5/2015
 
 - New config option for LXC VMs to allow nested virtualization (nested_lxc=yes)
