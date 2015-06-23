@@ -71,6 +71,8 @@ our @EXPORT = qw(
     $H2VM_BASE_PORT
     $H2VM_PORT 
     $H2VM_BIND_ADDR
+    $H2VM_TIMEOUT
+    $H2VM_DEFAULT_TIMEOUT 
     	
 	$CONS_DISPLAY_DEFAULT
 	$CONS_BASE_PORT
@@ -176,6 +178,8 @@ Readonly::Scalar our $H2VM_BASE_PORT => '13000';     # Initial TCP port for host
                                                      # (used when USE_UNIX_SOCKETS=0 in vmAPI_libvirt)
 our $H2VM_PORT = $H2VM_BASE_PORT;                    # Points to the next TCP port to be used for H2VM channels
 Readonly::Scalar our $H2VM_BIND_ADDR => '127.0.0.1'; # Address to listen for H2VM channels
+Readonly::Scalar our $H2VM_DEFAULT_TIMEOUT => '60';  # Default maximum time waiting for an answer in H2VM channel 
+our $H2VM_TIMEOUT = $H2VM_DEFAULT_TIMEOUT;           # Maximum time waiting for an answer in H2VM channel 
 
 # Console Management
 Readonly::Scalar our $CONS_DISPLAY_DEFAULT => 'yes';    # By default consoles are displayed at startup

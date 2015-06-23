@@ -317,6 +317,7 @@ e-mail: vnx@dit.upm.es
       <xs:attribute name="controller" type="xs:string" use="optional"/>
       <xs:attribute name="of_version" type="xs:string" use="optional"/>
       <xs:attribute name="hwaddr" type="xs:string" use="optional"/>
+      <xs:attribute name="fail_mode" type="xs:string" use="optional"/>
       <xs:attribute name="mode" use="required">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">

@@ -76,77 +76,101 @@ Repository:    $vnx_rootfs_repo"
 # Return name of symbolic link for a root_fs
 #
 function get_link_name {
+
+   if [[ $1 == *honeywall* ]] ; then
+      echo "rootfs_honeywall"; return
+   fi
+
+   if [[ $1 == *metasploitable* ]] ; then
+      echo "rootfs_metasploitable"; return
+   fi
+
+   if [[ $1 == *caine* ]] ; then
+      echo "rootfs_caine"; return
+   fi
+
+   if [[ $1 == *remnux64* ]] ; then
+      echo "rootfs_remnux64"; return
+   fi
+
    if [[ $1 == *uml* ]] ; then
       if [[ $1 == *debian* ]] ; then
-         echo "rootfs_tutorial"
+         echo "rootfs_tutorial"; return
       else
-         echo "rootfs_light"
+         echo "rootfs_light"; return      
       fi
    fi
    
    if [[ $1 == *lxc*ubuntu64* ]] ; then
-      echo "rootfs_lxc_ubuntu64"
+      echo "rootfs_lxc_ubuntu64"; return
    elif [[ $1 == *lxc*ubuntu* ]] ; then
-      echo "rootfs_lxc rootfs_lxc_ubuntu"
+      echo "rootfs_lxc rootfs_lxc_ubuntu"; return
    elif [[ $1 == *ubuntu64* ]] ; then
       if [[ $1 == *gui* ]] ; then
-         echo "rootfs_ubuntu64-gui"
+         echo "rootfs_ubuntu64-gui"; return
       else
-         echo "rootfs_ubuntu64"
+         echo "rootfs_ubuntu64"; return
       fi   
    elif [[ $1 == *ubuntu* ]] ; then
       if [[ $1 == *gui* ]] ; then
-         echo "rootfs_ubuntu-gui"
+         echo "rootfs_ubuntu-gui"; return
       else
-         echo "rootfs_ubuntu"
+         echo "rootfs_ubuntu"; return
       fi
    fi
 
    if [[ $1 == *freebsd64* ]] ; then
       if [[ $1 == *gui* ]] ; then
-         echo "rootfs_freebsd64-gui"
+         echo "rootfs_freebsd64-gui"; return
       else
-         echo "rootfs_freebsd64"
+         echo "rootfs_freebsd64"; return
       fi   
    elif [[ $1 == *freebsd* ]] ; then
       if [[ $1 == *gui* ]] ; then
-         echo "rootfs_freebsd-gui"
+         echo "rootfs_freebsd-gui"; return
       else
-         echo "rootfs_freebsd"
+         echo "rootfs_freebsd"; return
       fi
    fi
 
-   if [[ $1 == *fedora* ]] ; then
+   if [[ $1 == *fedora64* ]] ; then
       if [[ $1 == *gui* ]] ; then
-         echo "rootfs_fedora-gui"
+         echo "rootfs_fedora64-gui"; return
       else
-         echo "rootfs_fedora"
+         echo "rootfs_fedora64"; return
       fi
-   fi
-
-   if [[ $1 == *centos* ]] ; then
+   elif [[ $1 == *fedora* ]] ; then
       if [[ $1 == *gui* ]] ; then
-         echo "rootfs_centos-gui"
+         echo "rootfs_fedora-gui"; return
       else
-         echo "rootfs_centos"
+         echo "rootfs_fedora"; return
       fi
    fi
 
-   if [[ $1 == *honeywall* ]] ; then
-      echo "rootfs_honeywall"
-   fi
-
-   if [[ $1 == *metasploitable* ]] ; then
-      echo "rootfs_metasploitable"
-   fi
-
-   if [[ $1 == *caine* ]] ; then
-      echo "rootfs_caine"
+   if [[ $1 == *centos64* ]] ; then
+      if [[ $1 == *gui* ]] ; then
+         echo "rootfs_centos64-gui"; return
+      else
+         echo "rootfs_centos64"; return
+      fi
+   elif [[ $1 == *centos* ]] ; then
+      if [[ $1 == *gui* ]] ; then
+         echo "rootfs_centos-gui"; return
+      else
+         echo "rootfs_centos"; return
+      fi
    fi
 
    if [[ $1 == *android* ]] ; then
-      echo "rootfs_android"
+      echo "rootfs_android"; return
    fi
+
+   if [[ $1 == *kali64* ]] ; then
+      echo "rootfs_kali64"; return
+   elif [[ $1 == *kali* ]] ; then
+      echo "rootfs_kali"; return
+   fi
+
 }
 
 #------------------------------------------------------------------
@@ -165,7 +189,7 @@ function show_rootfs_array {
     do
         OLD_IFS=$IFS; IFS=$'\n'
         NUM=$(printf "%-3s" "$i") 
-        echo ${rootfs_links_array[$i]} | sed -e "s/\[ \]/$NUM/g" | column
+        echo ${rootfs_lvnx_rootfs_kvm_ubuntu-8.04-metasploitable-v023.qcow2inks_array[$i]} | sed -e "s/\[ \]/$NUM/g" | column
         IFS=$OLD_IFS
     done
     echo "-----------------------------------------------------------------------"
@@ -192,7 +216,8 @@ function download_rootfs {
             read choice
             if [ "$choice" == "y" -o  "$choice" = "Y" ] ; then
                 echo "Deleting ${rootfs_bzname}..."
-                rm -v ./$rootfs_bzname 
+                rm 
+                -v ./$rootfs_bzname 
             else
                 echo ""
                 return

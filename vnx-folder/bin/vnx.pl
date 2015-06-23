@@ -143,10 +143,12 @@ my $logp = "host> ";
 
 # Modes allowed with --scenario|-s option  
 my @opt_s_allowed_modes = ('create', 'start', 'shutdown', 'destroy', 'execute', 'exe-cli', 'modify', 'save', 'restore', 
-                           'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
+                           'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 
+                           'show-map', 'show-status'); 
 # Modes allowed with -f option  
 my @opt_f_allowed_modes = ('define', 'undefine', 'start', 'create', 'shutdown', 'destroy', 'execute', 'exe-cli', 'save', 'restore',  
-                           'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 'show-map', 'show-status'); 
+                           'suspend', 'resume', 'reboot', 'reset', 'recreate', 'console', 'console-info', 'exe-info', 'show-map', 
+                           'show-status', 'validate-xml'); 
 
 # Modes allowed without -f or -s option  
 my @no_opt_f_or_s_allowed_modes = ('version', 'help', 'D', 'show-map', 'show-status', 'clean-host', 'create-rootfs', 'modify-rootfs', 'download-rootfs', 'pack', 'unpack');
@@ -180,14 +182,14 @@ sub main {
    	# To get the invocation arguments
     Getopt::Long::Configure ( qw{no_auto_abbrev no_ignore_case } ); # case sensitive single-character options
     GetOptions (\%opts,
-                'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P', 'modify|m=s', 'scenario|s=s', 
+                'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P', 'modify|m=s', 'scenario|s=s', 'validate-xml',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'recreate', 'execute|x=s', 'exe-cli=s{1,}' => \@exe_cli, 
                 'show-map:s', 'show-status', 'console:s', 'console-info', 'exe-info', 'clean-host',
                 'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y',
                 'rootfs-type=s', 'help|h', 'v', 'vv', 'vvv', 'version|V', 'download-rootfs',
                 'pack=s', 'unpack=s', 'include-rootfs|r', 'pack-external-rootfs', 'pack-status', 'pack-version=s',                
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
-                'user|u:s', '4', '6', 'D', 'no-console|n', 'intervm-delay=s',
+                'user|u:s', '4', '6', 'D', 'no-console|n', 'intervm-delay=s', 'h2vm-timeout=s',
                 'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k', 'video=s'
     ) or vnx_die("Incorrect usage. Type 'vnx -h' for help"); 
 
@@ -350,6 +352,7 @@ $>=$uid;
     if ($opts{'download-rootfs'})  { $how_many_args++; $mode_args .= 'download-rootfs '; $mode = "download-rootfs";}
     if ($opts{'pack'})             { $how_many_args++; $mode_args .= 'pack ';            $mode = "pack";           }
     if ($opts{'unpack'})           { $how_many_args++; $mode_args .= 'unpack ';          $mode = "unpack";         }
+    if ($opts{'validate-xml'})     { $how_many_args++; $mode_args .= 'validate-xml';     $mode = "validate-xml";   }
     chop ($mode_args);
     
    	if ($how_many_args gt 1) {
@@ -426,7 +429,19 @@ $>=$uid;
         usage();
         vnx_die ("--modify scenario option selected, but no scenario name specified with --scenario|-s option.\n");
     }
-
+    
+    if ( defined $opts{'h2vm-timeout'} ) {
+    	if ( $opts{'h2vm-timeout'} =~ m/^\d+$/ && $opts{'h2vm-timeout'} ge 0) {
+            if ($opts{'h2vm-timeout'} gt 0) {
+                $H2VM_TIMEOUT = $opts{'h2vm-timeout'};
+            } else {
+            	$H2VM_TIMEOUT = 1000000;
+            }
+    	} else {
+    		vnx_die ("incorrect value of --h2vm-timeout option (" . $opts{'h2vm-timeout'} . "). Should be an integer >= 0.")
+    	}
+    }
+ 
     # 2. Optional arguments
     $exemode = $EXE_NORMAL; $EXE_VERBOSITY_LEVEL=N;
     if ($opts{v})   { $exemode = $EXE_VERBOSE; $EXE_VERBOSITY_LEVEL=V }
@@ -715,6 +730,11 @@ $>=$uid;
 	        vnx_die ("Olive XML configuration file ($oliveConfFile) validation failed:\n$error\n");
 		}
 	}
+	
+	if ($mode eq 'validate-xml') {
+		exit(0);
+	}
+	
    	# To check optional screen binaries
    	$bd->add_additional_screen_binaries();
    	if (($opts{e}) && ($bd->check_binaries_screen != 0)) {
@@ -3839,7 +3859,7 @@ back_to_user();
         pre_wlog ("...vnx-$id");
 
         
-        my $res = $execution->execute( $logp, "lxc-start -n vnx-$id -f $rootfs/$lxc_config_file");
+        my $res = $execution->execute( $logp, "lxc-start -F -n vnx-$id -f $rootfs/$lxc_config_file");
         if ($res) { 
             wlog (N, "$res", $logp)
         }
@@ -4085,7 +4105,7 @@ change_to_root();
 	    #print $vmsocket "nop\n";
 	
 	    my $t = time();
-	    my $timeout = 120; # secs
+	    #my $timeout = 120; # secs
 	
 	    while (1) {
 	        
@@ -4094,7 +4114,8 @@ change_to_root();
 	        my $res = recv_sock ($vmsocket);
 	        wlog (VVV, "    res=$res", $logp);
 	        last if ( $res =~ /^OK/);
-	        if ( time() - $t > $timeout) {
+            #if ( time() - $t > $timeout) {
+            if ( time() - $t > $H2VM_TIMEOUT) {
 	            vnx_die ("Timeout waiting for virtual machine to start.")
 	        }
 	    }     
@@ -4224,6 +4245,10 @@ sub mode_pack {
     wlog (N, "-- Packaging scenario $scen_bname", '');
     
     my $content="$scen_bname/*.xml $scen_bname/*.cvnx $scen_bname/conf $scen_bname/filesystems/create* $scen_bname/filesystems/rootfs*";
+    # tar will not create the file if some of the file is missing (for example, if not *.cvnx has been defined)
+    # We avoid it doing an ls (see http://www.ingeniousmalarkey.com/2010/11/ignore-missing-files-with-tar.html)
+    $content=`ls -d $content 2>/dev/null | xargs`; chomp($content);
+
     wlog (N, "--   Scenario package content:", '');
     foreach my $c (split / /, $content) {
     	wlog (N, "--     $c", '')
@@ -4630,8 +4655,14 @@ sub create_bridges_for_virtual_bridged_networks  {
                 $execution->execute($logp, "sysctl -w net.ipv6.conf.${brtap_name}.autoconf=0" );
 
             } elsif ($mode eq "openvswitch") {
+            	
                 # If bridged does not exists, we create and set up it
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " --may-exist add-br $net_name");
+                if($net->getAttribute("fail_mode") && $net->getAttribute("fail_mode") eq 'secure'){
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " --may-exist add-br $net_name" . 
+                                                                                 " -- set Bridge $net_name fail-mode=secure");
+                } else {
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " --may-exist add-br $net_name");
+                }                	
                 if($net->getAttribute("of_version") ){
                     my $of_version = $net->getAttribute("of_version");
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name protocols=$of_version");
@@ -7383,6 +7414,8 @@ General options:
                 -t|--create options
   --intervm-delay num -> wait num secs. between virtual machines startup 
                 (0 by default)
+  --h2vm-timeout num -> maximum time VNX waits for an answer form a VM in 
+                h2vm socket channel 
   -o logfile -> save log traces to 'logfile'
 
 User options:
