@@ -1,38 +1,93 @@
 #!/bin/bash
 
+# vnx_distrib_rootfs
+#
+# Simple script to prepare rootfs's for distribution. It compresses them and
+# calculates the MD5 hash.
+
 TMPDIR=/usr/share/vnx/filesystems/tmp
+
+#
+# Usage: 
+#
+USAGE="
+vnx_distrib_rootfs: simple script to prepare VNX root filesystems for distribution.
+                    It just compresses them, calculates the MD5 hash and copy both  
+                    to $TMPDIR
+
+Usage:  vnx_distrib_rootfs <rootfs list>
+"
+
+if [ $# -lt 1 ]; then 
+  echo " "
+  echo "ERROR: illegal number of parameters"
+  echo " "
+  echo "$USAGE"
+  exit 1
+fi
+
 CDIR=$( dirname $0 )
 echo $CDIR
+
+DIR=$( pwd )
 
 ALLROOTFS="root_fs_centos-5.6-gui-v021.qcow2 root_fs_centos-5.6-v021.qcow2 root_fs_fedora-14-gui-v021.qcow2 root_fs_fedora-14-v021.qcow2 root_fs_freebsd-7.4-gui-v021.qcow2 root_fs_freebsd-7.4-v021.qcow2 root_fs_freebsd-8.2-gui-v021.qcow2 root_fs_freebsd-8.2-v021.qcow2 root_fs_tutorial-0.6.0 root_fs_ubuntu-10.04-gui-v021.qcow2 root_fs_ubuntu-10.04-v021.qcow2 root_fs_ubuntu-10.10-gui-v021.qcow2 root_fs_ubuntu-10.10-v021.qcow2 root_fs_ubuntu-11.04-gui-v021.qcow2 root_fs_ubuntu-11.04-v021.qcow2 root_fs_ubuntu-9.10-v021.qcow2"
 
 if [ "$1" == "all" ]; then
-	FILES=$ALLROOTFS 
+    FILES=$ALLROOTFS 
 else
-	FILES="$@"
+    FILES="$@"
 fi
 echo "--"
-echo "-- Preparing the following root filesystems for distribution: $FILES"
+echo "-- Preparing the following root filesystems for distribution:"
+for ROOTFS in $FILES; do
+    echo "--   $ROOTFS"
+done
+
 echo "--"
+echo "-- Processed files copied to: $TMPDIR"
 
 mkdir -p $TMPDIR
 for ROOTFS in $FILES
 do
 
-	ROOTFSNAME=$(basename $ROOTFS)
+    ROOTFSNAME=$(basename $ROOTFS)
 
-	#echo "root_fs=$ROOTFS"
-	#echo "root_fs_name=$ROOTFSNAME"
+    echo "--"
+    echo "-- Rootfs: $ROOTFS"
 
-	echo "--"
-	echo "-- Preparing $ROOTFS for distribution..."
-	echo "--"
-	cp -v $1 $TMPDIR
-	cd $TMPDIR
-	md5sum $ROOTFSNAME > $ROOTFSNAME.md5
-	bzip2 -9 $ROOTFSNAME
-	echo "--"
-	echo "-- ...done. Files located in $TMPDIR"
-	echo "--"
+    if [ -d "$ROOTFS" ]; then
+        # It is an LXC rootfs
+        echo "--   Type: LXC"
+        cd "$ROOTFS"
+        cd ..
+        pwd
+        tar cfvzp ${TMPDIR}/${ROOTFSNAME}.tgz $ROOTFSNAME
+        echo "md5sum ${TMPDIR}/${ROOTFSNAME}.tgz > ${TMPDIR}/$ROOTFSNAME.md5"
+        md5sum ${TMPDIR}/${ROOTFSNAME}.tgz > ${TMPDIR}/$ROOTFSNAME.md5
+        echo "--   ...done."
+        cd $DIR
+        pwd
 
+    elif [ -f "$ROOTFS" ]; then
+        # It is a file
+        echo "--   Type: file"
+        #echo "root_fs=$ROOTFS"
+        #echo "root_fs_name=$ROOTFSNAME"
+
+        echo "--"
+        #cp -v $1 $TMPDIR
+        md5sum $ROOTFS > ${TMPDIR}/${ROOTFSNAME}.md5
+        bzip2 -k -c -9 $ROOTFSNAME > ${TMPDIR}/${ROOTFSNAME}.bz2
+        echo "--   ...done."
+        cd $DIR
+        pwd
+    
+    else
+        echo "--"
+        echo "--   ERROR: $ROOTFS not found"
+        echo "--"
+
+    fi
+    
 done

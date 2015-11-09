@@ -47,7 +47,7 @@ use VNX::TextManipulation;
 
 # vm_has_tag
 #
-# Returs true if the vm node passed as first argument has the tag specified int
+# Returs true if the vm node passed as first argument has the tag specified in
 # second argument (one ocurrence). In addition:
 #
 # - If the second attribute is "filetree", the third attribute is used  to check the 'seq' attribute

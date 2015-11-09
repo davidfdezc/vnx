@@ -146,12 +146,13 @@ sub open_console {
 
     my $logp = "open_console-$vm_name> ";
 
-	my $command;
+	my $command ='';
 	my $exeLine;
 	
 	my $vm = $dh->get_vm_byname ($vm_name);
 	my @vm_type = $dh->get_vm_type($vm);
-	
+
+    wlog (VVV, "con_id=$con_id, cons_type=$cons_type, cons_Par=$consPar", $logp);    
 	if ($cons_type eq 'vnc_display') {
         $exeLine = "virt-viewer -c $hypervisor $vm_name &";
         #$execution->execute_root( $logp, "virt-viewer -c $hypervisor $vm_name &");
@@ -215,7 +216,15 @@ sub open_console {
 		wlog (N, "WARNING (vm=$vm_name): unknown console type ($cons_type)");
 	}
 	
+    my $console_term_mode = str(get_conf_value ($vnxConfigFile, 'general', 'console_term_mode', 'root'));
+    my $start_console_as_user = ! empty($console_term_mode) && $console_term_mode eq 'user';
+    wlog (VVV, "console_term_mode=$console_term_mode, start_console_as_user=$start_console_as_user, user=" . $>, $logp);	
+	
 	if ($con_id != 0) {
+        
+        if ($start_console_as_user) {
+        	$command = "sudo $command";
+        }
 		my $console_term=&get_conf_value ($vnxConfigFile, 'general', 'console_term', 'root');
 		wlog (VVV, "$vm_name $command console_term = $console_term", $logp);
 		if ($console_term eq 'gnome-terminal') {
@@ -229,12 +238,36 @@ sub open_console {
 		} else {
 			$execution->smartdie ("unknown value ($console_term) of console_term parameter in $vnxConfigFile");
 		}
-	}
+	    wlog (VVV, "exeLine=$exeLine", $logp);
+	    unless (defined($getLineOnly)) {
+            if ($start_console_as_user) {
+my $user= $>;
+$> = $uid_orig; wlog (V, "uid=$uid_orig"); #pak();
+                wlog (V, "console started as user ($>)", $logp);
+                $execution->execute( $logp, $exeLine .  ">/dev/null 2>&1 &");
+                #system ("gnome-terminal > /dev/null 2>&1 &");
+                #my $res = `gnome-terminal > /dev/null 2>&1 &`;
+                #my $res = `gnome-terminal`;
+                #my $res = `konsole`;
+                #print "res=$res";
+                #pak("res=$res\n");
+                #$execution->execute( $logp, "gnome-terminal --title 'ubuntu - console #1' -e 'sudo virsh -c qemu:///system console ubuntu'>/dev/null 2>&1 &");
+                #$execution->execute( $logp, "xterm &");
+change_to_root();
+$> = $user;
+            } else {
+                wlog (VVV, "console started as root", $logp);
+                $execution->execute_root($logp, $exeLine .  ">/dev/null 2>&1 &");
+            }
+	    }
+	} else {
     wlog (VVV, "exeLine=$exeLine", $logp);
-	unless (defined($getLineOnly)) {
-        $execution->execute_root($logp, $exeLine .  ">/dev/null 2>&1 &");
-		#$execution->execute( $logp, $exeLine .  ">/dev/null 2>&1 &");
+	    unless (defined($getLineOnly)) {
+	        $execution->execute_root($logp, $exeLine .  ">/dev/null 2>&1 &");
+	        #$execution->execute( $logp, $exeLine .  ">/dev/null 2>&1 &");
+	    }
 	}
+	
 	my $win_cfg = get_console_win_info($vm_name, $con_id);
     wlog (V, "get_console_win_info returns $win_cfg", $logp);
 	unless ( $win_cfg eq ':::') {
@@ -258,7 +291,7 @@ sub open_console {
 			sleep 1;
 			$timeout--;
 			unless ($timeout) { 
-				wlog (V, "time out waiting for console window to be ready ($vm_name, $con_id)", $logp);
+				wlog (V, "time out waiting for console window to be ready ($vm_name, $con_id, $win_str)", $logp);
                 return $exeLine;
 			} 
 		}
@@ -303,6 +336,8 @@ sub start_console {
 
     my $logp = "start_console-$vm_name> ";
 
+    wlog (VVV, "consId=$consId", $logp);
+    
 	# Read the console file and start the console with id $consId 
 	my $consFile = $dh->get_vm_dir($vm_name) . "/run/console";
 	open (CONS_FILE, "< $consFile") || $execution->smartdie("Could not open $consFile file.");
@@ -317,7 +352,8 @@ sub start_console {
 		    my @consField = split(/,/, $line);
 		    wlog (VVV, "console $con_id of $vm_name: $consField[0] $consField[1] $consField[2]", $logp);
 		    #if ($consField[0] eq 'yes') {  # console with display='yes'
-		    # We open the console independently of display value
+            # We open the console independently of display value
+		    $con_id =~ s/con//;  # Eliminate the 'con' part and let the number 
 		    open_console ($self, $vm_name, $con_id, $consField[1], $consField[2]);
 		    return;
 			#}

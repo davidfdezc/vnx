@@ -82,12 +82,20 @@ sub new {
    my $no_forwarding = 1;
    if (@vm_defaults_list == 1) {
    
-      my @filesystem_list = $vm_defaults_list[0]->getElementsByTagName("filesystem");
-      if (@filesystem_list == 1) {
-         $global_data{'default_filesystem'} = &do_path_expansion(&text_tag($filesystem_list[0]));;
-         $global_data{'default_filesystem_type'} = $filesystem_list[0]->getAttribute("type");
-         $no_filesystem = 0;
-      }
+#      my @filesystem_list = $vm_defaults_list[0]->getElementsByTagName("filesystem");
+#      if (@filesystem_list == 1) {
+#         $global_data{'default_filesystem'} = &do_path_expansion(&text_tag($filesystem_list[0]));;
+#         $global_data{'default_filesystem_type'} = $filesystem_list[0]->getAttribute("type");
+#         $no_filesystem = 0;
+#      }
+
+      my $countcommand = 0;
+      foreach my $command ($vm_defaults_list[0]->getElementsByTagName("filesystem")) {       
+          my $merged_type = $self->get_vm_merged_type($command);
+          my $filesystem_value = &text_tag($command);
+          $global_data{"default_filesystem-$merged_type"} =$filesystem_value;
+          wlog (VVV, "default exec_mode for vm type $merged_type set to $filesystem_value");
+      } 
       
       my @default_mem_list = $vm_defaults_list[0]->getElementsByTagName("mem");
       if (@default_mem_list == 1) {
@@ -145,12 +153,8 @@ sub new {
 #         $global_data{'default_exec_mode'} = "cdrom";
 #      }
 
-      #my @execmode_list = $vm_defaults_list[0]->getElementsByTagName("exec_mode");
-      my $countcommand = 0;
-      #for ( my $j = 0 ; $j < $execmode_list->getLength ; $j++ ) {
-      
+      $countcommand = 0;
       foreach my $command ($vm_defaults_list[0]->getElementsByTagName("exec_mode")) {      	
-          #my $command = $execmode_list->item($j);
           my $merged_type = $self->get_vm_merged_type($command);
           my $execmode_value = &text_tag($command);
           $global_data{"default_exec_mode-$merged_type"} =$execmode_value;
@@ -198,7 +202,7 @@ sub new {
       $global_data{'scename'} = &text_tag($scename_list[0]);
    }
    else {
-      $self->{'execution'}->smartdie ("scenario name is missing\n");
+      $self->{'execution'}->smartdie ("<scenario_name> tag is missing or duplicated\n");
    }
   
    # Host mapping
@@ -643,6 +647,129 @@ sub get_default_forwarding_type {
    my $self = shift;
    return $self->{'global_data'}->{'default_forwarding_type'};
 }
+
+####################
+
+###################################################################
+# get_vm_filesystem
+#
+# Arguments:
+# - a virtual machine node
+#
+# Returns the filesystem to be used for a VM. Returns:
+# - the value of <filesystem> tag if present on <vm> definition, or 
+# - the default value for VMs of that type defined in the <vm_defaults> tag, or
+# - the default value for VMs of that type defined in Globals.pm 
+#
+sub get_vm_filesystem {
+
+    my $self = shift;
+    my $vm   = shift;
+
+    my $logp = "get_vm_filesystem> ";
+
+    my $type      = $vm->getAttribute('type');
+    my $subtype   = $vm->getAttribute('subtype');   $subtype='' if (!defined($subtype)); 
+    my $os        = $vm->getAttribute('os');        $os='' if (!defined($os));
+    my $exec_mode = $vm->getAttribute("exec_mode"); $exec_mode='' if (!defined($exec_mode));
+    
+    wlog (VV, "type=$type, subtype=$subtype, os=$os, exec_mode=$exec_mode", $logp);
+
+    # filesystem tag in dom tree        
+    my @filesystem_list = $vm->getElementsByTagName("filesystem");
+    my $filesystem;
+    my $filesystem_type;
+    
+    if (@filesystem_list == 1) {
+        $filesystem = get_abs_path(text_tag($vm->getElementsByTagName("filesystem")->item(0)));
+        $filesystem_type = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
+    } else {
+        ($filesystem, $filesystem_type) = $dh->get_vm_default_filesystem ($type, $subtype, $os);
+    }
+    return ($filesystem, $filesystem_type);
+
+}
+
+# get_vm_default_filesystem
+#
+# Returns the default filesystem for a vm of type/subtype/os
+# type parameter is mandatory; subtype and os parameters could be empty.
+# If subtype is empty, os must also be empty
+#
+# Examples:
+#     $dh->get_default_vm_filesystem ($type)
+#     $dh->get_default_vm_filesystem ($type, $subtype)
+#     $dh->get_default_vm_filesystem ($type, $subtype, $os)
+#
+sub get_vm_default_filesystem {
+
+    my $self    = shift;    
+    my $type    = shift;
+    my $subtype = str(shift);
+    my $os      = str(shift);
+   
+    my $merged_type;
+    my $def_execmode;
+   
+    my $logp = "get_vm_default_filesystem> ";
+    wlog (VV, "type=$type, subtype=$subtype, os=$os", $logp);
+    
+    if (!$type) { return "ERROR\n"; }
+    if ( ($os) && (!$subtype) ) { return "ERROR\n"; }
+
+    if ( (!$os) && (!$subtype) ) { # subtype and os empty
+        $merged_type = "$type";        
+        $def_execmode = $self->{'global_data'}->{"default_filesystem-$type"};
+        
+    } elsif ( (!$os) && ($subtype) ) { # os empty
+        $merged_type = "$type-$subtype";
+        $def_execmode = $self->{'global_data'}->{"default_filesystem-$type-$subtype"};
+        if (!$def_execmode) { # Look for a default mode for the whole type
+            $def_execmode = $self->{'global_data'}->{"default_filesystem-$type"};
+        }
+    } else { # none empty
+        $merged_type = "$type-$subtype-$os";
+        $def_execmode = $self->{'global_data'}->{"default_filesystem-$type-$subtype-$os"};
+        if (!$def_execmode) { # Look for a default mode for the whole subtype
+            $def_execmode = $self->{'global_data'}->{"default_filesystem-$type-$subtype"};
+            if (!$def_execmode) { # Look for a default mode for the whole subtype
+                $def_execmode = $self->{'global_data'}->{"default_filesystem-$type"};
+            }
+        } 
+    }
+    #wlog (VV, "type=$type, def_execmode=$def_execmode", $logp)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ;
+
+    # If no default found in <filesystem> tags under <vm_defaults>...   
+    if (!$def_execmode) {  # ...set the defaults defined in Globals.pm
+        wlog (VV, "merged-type=$merged_type", $logp);
+        if ($merged_type eq 'uml') {
+            $def_execmode = $DEFAUL_FILESYSTEM_UML[0];
+            wlog (VV, "type=$type, def_execmode=$def_execmode", $logp);
+        } elsif ($merged_type eq 'libvirt-kvm-linux') {
+            $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_LINUX[0];
+        } elsif ($merged_type eq 'libvirt-kvm-freebsd') {
+            $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_FREEBSD[0];
+        } elsif ($merged_type eq 'libvirt-kvm-windows') {
+            $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_WINDOWS[0];
+        } elsif ($merged_type eq 'libvirt-kvm-olive') {
+            $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_OLIVE[0];
+        } elsif ($merged_type eq 'libvirt-kvm-android') {
+            $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_ANDROID[0];
+        } elsif ($merged_type eq 'libvirt-kvm-wanos') {
+            $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_WANOS[0];
+        } elsif ( ($merged_type eq 'dynamips-3600') or ($merged_type eq 'dynamips-7200') )  {
+            $def_execmode = $DEFAUL_FILESYSTEM_DYNAMIPS[0];
+        } elsif ($merged_type eq 'lxc')  {
+            $def_execmode = $DEFAUL_FILESYSTEM_LXC[0];
+        } else {
+            $def_execmode = "ERROR";
+        }
+    }
+    return ($def_execmode, 'cow');
+}
+
+#######################
+
 
 ###################################################################
 # get_vm_exec_mode
@@ -1467,6 +1594,8 @@ sub merge_shell {
 	return $shell;	
 }
 
+
+
 ###########################################################################
 # PRIVATE METHODS (it only must be used from this class itsefl)
 
@@ -1481,14 +1610,14 @@ sub netconfig {
    my $self = shift;
 
    my $net_cfg = shift;
-   my $stp;
-   my $promisc;
+   my $stp = 0;
+   my $promisc = "";
 
-   my $stp_att = $net_cfg->getAttribute("stp");
+   my $stp_att = str($net_cfg->getAttribute("stp"));
    $stp = 1 if ( $stp_att =~ /^on$/ );
    $stp = 0 if ( $stp_att =~ /^off$/ );
 
-   my $promisc_att = $net_cfg->getAttribute("promisc");
+   my $promisc_att = str($net_cfg->getAttribute("promisc"));
    $promisc = "promisc" if ( $promisc =~ /^on$/ );
    $promisc = "" if ( $promisc =~ /^off$/ );
 
@@ -1746,7 +1875,12 @@ sub get_vm_merged_type {
    	my $self = shift;
 	my $vm = shift;
 
-	my $type = $vm->getAttribute("type");
+    my $type;
+    if ($vm->nodeName() eq 'vm') {
+        $type = $vm->getAttribute("type");
+    } elsif ($vm->nodeName() eq 'filesystem') {
+        $type = $vm->getAttribute("vm_type");
+    }
 	my $subtype = $vm->getAttribute("subtype");
 	my $os = $vm->getAttribute("os");
 	

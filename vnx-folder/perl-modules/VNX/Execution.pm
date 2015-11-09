@@ -38,7 +38,7 @@ use POSIX qw(setsid setuid setgid);	# Needed in deamonize subrutine
 use Term::ReadKey;
 
 our @ISA    = qw(Exporter);
-our @EXPORT = qw( wlog press_any_key pak change_to_root back_to_user root user);
+our @EXPORT = qw( wlog press_any_key pak change_to_root back_to_user print_current_user root user);
 
 
 
@@ -224,6 +224,7 @@ sub execute {
 #            }
 #            close (LOG_FILE);
             
+#pak("$command");
             if ( $execution->get_logfile() && ($command !~ m/echo/ ) ) { # "echo .... > file" commands cannot be redirected
                 system "$command 2>> " . $execution->get_logfile() . " >> " . $execution->get_logfile();
             } else {
@@ -418,6 +419,10 @@ sub user { back_to_user() }
 
 sub back_to_user {
     $>=$uid; wlog (VVV, "-- Back to user $uid_name", "");
+}
+
+sub print_current_user {
+    wlog (VVV, '-- Current user = ' . $>)	
 }
 
 sub execute_root {

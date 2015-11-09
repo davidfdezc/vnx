@@ -166,7 +166,7 @@ sub validate_xml {
 #         longer an attribute in this tag)
 #
 #   In addition:
-#   - <vm> and <net> names max of $max_name_length characters
+#   - <vm> and <net> names max of $MAX_NAME_LENGTH characters
 #   - <vm> and <net> 'name' attribute and does not have any whitespace
 # 
 #   - Check that files specified in <conf> tag exist and are readable
@@ -189,17 +189,62 @@ sub validate_xml {
 
 sub check_doc {
 	
-	my $max_name_length = 12;
+	my $MAX_NAME_LENGTH = 12;
 	
 	# Get arguments
 	my $bp = shift;
 	my $uid = shift;
+	
+	#
+	# To check that a tag occurs 0 or 1 times
+	#
+	sub check_tag_occurs_once_at_most {
+		
+		my $node = shift;
+		my $tag  = shift;
+
+        my @aux = $node->findnodes($tag);
+        if ( @aux > 1 ) {
+        	my $section_msg;
+        	if ($node->nodeName() eq 'global') {
+        		$section_msg = "<global> section";
+        	} elsif ($node->nodeName() eq 'vm') {
+                $section_msg = "<vm name='" . $node->getAttribute('name') .  "'> definition";        		
+        	}
+        	return "more than one <$tag> tag defined in $section_msg" 
+        } else { 
+        	return 
+        }	
+		
+	}
+	
 	
 	my $doc = $dh->get_doc;
 	my @vm_ordered = $dh->get_vm_ordered;
 
 	my $is_root = $> == 0 ? 1 : 0;
 	my $uid_name = $is_root ? getpwuid($uid) : getpwuid($>);
+    
+    # Check the number a times (minOccurs, maxOccurs) a tag can appear in <global> tag
+    # It has to be done manually: it is not checked by the XSD after having changed
+    # the list of VM elements from xs:sequence to xs:choice         
+    #
+    my @aux = $doc->findnodes('vnx/global');
+    if ( @aux > 1 ) { return "more than one <global> tag defined" }
+    elsif ( @aux == 1 ) {
+    	my $global = $aux[0];
+        if ( $_ = check_tag_occurs_once_at_most ($global, 'version') )       { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($global, 'scenario_name') ) { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($global, 'ssh_version') ) { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($global, 'automac') ) { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($global, 'netconfig') ) { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($global, 'vm_mgmt') ) { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($global, 'tun_device') ) { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($global, 'vm_defaults') ) { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($global, 'vnx_cfg') ) { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($global, 'dynamips_ext') ) { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($global, 'olive_ext') ) { return $_ };       	    
+    }
     
     # 1b. <scenario_name> content does not have any whitespace
     return "simulaton name \"".$dh->get_scename."\" can not containt whitespaces"
@@ -340,8 +385,8 @@ user();
         my $mode = $net->getAttribute("mode");
       
         # To check name length
-        my $upper = $max_name_length + 1;
-        return "net name $name is too long: max $max_name_length characters"
+        my $upper = $MAX_NAME_LENGTH + 1;
+        return "net name $name is too long: max $MAX_NAME_LENGTH characters"
             if ($name =~ /^.{$upper,}$/);
          
         # To check name has no whitespace
@@ -566,8 +611,8 @@ user();
       my $vm_type = $vm->getAttribute("type");		         
 
       # To check name length
-      my $upper = $max_name_length + 1;
-      return "vm name $name is too long: max $max_name_length characters"
+      my $upper = $MAX_NAME_LENGTH + 1;
+      return "vm name $name is too long: max $MAX_NAME_LENGTH characters"
          if ($name =~ /^.{$upper,}$/);
 
       # To check name has no whitespace
@@ -588,6 +633,20 @@ user();
       else {
          $vm_names{$name} = 1;
       }
+
+        # Check the number a times (minOccurs, maxOccurs) a tag can appear
+        # It has to be done manually: it is not checked by the XSD after having changed
+        # the list of VM elements from xs:sequence to xs:choice         
+        #
+        if ( $_ = check_tag_occurs_once_at_most ($vm, 'filesystem') ) { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($vm, 'mem') )        { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($vm, 'video') )      { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($vm, 'kernel') )     { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($vm, 'conf') )       { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($vm, 'shell') )      { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($vm, 'basedir') )    { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($vm, 'mng_if') )     { return $_ };       
+        if ( $_ = check_tag_occurs_once_at_most ($vm, 'on_boot') )    { return $_ };       
 
       # Hash for duplicated ids detection
       my %if_ids_eth;
@@ -803,7 +862,7 @@ user();
     $> = $uid if ($is_root);
     foreach my $fsystem ($doc->getElementsByTagName("filesystem")) {   	
         my $filesystem = &do_path_expansion(text_tag($fsystem));
-        my $filesystem_type = $fsystem->getAttribute("type");
+        my $filesystem_type = str($fsystem->getAttribute("type"));
         if ($filesystem_type eq "hostfs") {         	
             # 12a. <filesystem> are valid, readable/executable files
             return "$filesystem (filesystem) is not a valid absolute directory name" unless &valid_absolute_directoryname($filesystem);
@@ -829,6 +888,15 @@ user();
             }
         }
     }
+
+    # Check if <filesystem> tags inside <vm> include the 'type' attribute
+    foreach my $fsystem ($doc->findnodes('vnx/vm/filesystem')) {    
+        if ( ! defined($fsystem->getAttribute('type')) ) {
+        	my $vm_name = $fsystem->parentNode()->getAttribute('name');
+        	return "<filesystem> tag in VM '$vm_name' does not include compulsory 'type' attribute";
+        }
+    }
+
 
    #12c. To check default filesystem type is valid
    if ($dh->get_default_filesystem_type eq "direct" ||

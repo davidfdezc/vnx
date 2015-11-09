@@ -73,6 +73,7 @@ my $union_type;
 my $aa_unconfined;
 my $aufs_options;
 my $nested_lxc;
+my $overlayfs_workdir_option;
 
 # ---------------------------------------------------------------------------------------
 #
@@ -120,6 +121,14 @@ sub init {
         $error = "in $vnxConfigFile, cannot activate 'nested_lxc=yes' and 'aa_unconfined=yes' simultaneously. Only one of the two parameters can be set to yes.";
     }
     wlog (VVV, "[lxc] conf: nested_lxc=$nested_lxc");
+
+    $overlayfs_workdir_option = get_conf_value ($vnxConfigFile, 'lxc', 'overlayfs_workdir_option', 'root');
+    if (empty($overlayfs_workdir_option)) {
+        $overlayfs_workdir_option = 'no'; # default value
+    } elsif ( ($overlayfs_workdir_option ne 'yes') && ($overlayfs_workdir_option ne 'no') ){
+        $error = "in $vnxConfigFile, incorrect value ($overlayfs_workdir_option) assigned to '$overlayfs_workdir_option' \nparameter in [lxc] section (should be yes or no).";
+    }
+    wlog (VVV, "[lxc] conf: $overlayfs_workdir_option=$overlayfs_workdir_option");
 
     # Check whether LXC is installed (by executing lxc-info)
     system("which lxc-info > /dev/null 2>&1");
@@ -193,7 +202,15 @@ change_to_root();
 
             # Directory where vm overlay rootfs is going to be mounted
             $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
-
+            
+            # workdir directory needed by overlayfs in new kernels
+            my $workdir;
+            if ($overlayfs_workdir_option eq 'yes') {
+                $workdir = $dh->get_vm_dir($vm_name) . "/tmp/workdir";
+                $execution->execute( $logp, "mkdir -p $workdir" );
+                $workdir = ",workdir=$workdir";
+            }
+        
             # Create the overlay filesystem
             # umount first, just in case it is mounted...
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $vm_lxc_dir );
@@ -201,7 +218,7 @@ change_to_root();
             if ($union_type eq 'overlayfs') {
                 # Ex: mount -t overlayfs -o upperdir=/tmp/lxc1,lowerdir=/var/lib/lxc/vnx_rootfs_lxc_ubuntu-13.04-v025/ none /var/lib/lxc/lxc1
                 $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t overlayfs -o upperdir=" . $vm_cow_dir . 
-                                     ",lowerdir=" . $filesystem . " none " . $vm_lxc_dir );
+                                     ",lowerdir=" . $filesystem . $workdir . " none " . $vm_lxc_dir );
             } elsif ($union_type eq 'aufs') {
                 # Ex: mount -t aufs -o br=/tmp/lxc1-rw:/var/lib/lxc/vnx_rootfs_lxc_ubuntu-12.04-v024/=ro none /tmp/lxc1
                 $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t aufs -o ${aufs_options}br=" . $vm_cow_dir . 

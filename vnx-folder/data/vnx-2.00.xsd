@@ -98,7 +98,7 @@ e-mail: vnx@dit.upm.es
 
   <xs:element name="filesystem">
     <xs:complexType mixed="true">
-      <xs:attribute name="type" use="required">
+      <xs:attribute name="type" use="optional">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
             <xs:enumeration value="direct"/>
@@ -107,6 +107,9 @@ e-mail: vnx@dit.upm.es
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
+      <xs:attribute name="vm_type" type="xs:string" use="optional"/>
+      <xs:attribute name="subtype" type="xs:string" use="optional"/>
+      <xs:attribute name="os" type="xs:string" use="optional"/>
     </xs:complexType>
   </xs:element>
 
@@ -136,7 +139,7 @@ e-mail: vnx@dit.upm.es
 
   <xs:element name="global">
     <xs:complexType>
-      <xs:sequence>
+      <xs:choice maxOccurs="unbounded">
         <xs:element ref="version"/>
         <xs:element ref="scenario_name"/>
         <xs:element minOccurs="0" ref="ssh_version"/>
@@ -152,7 +155,7 @@ e-mail: vnx@dit.upm.es
         <xs:element maxOccurs="1" minOccurs="0" ref="dynamips_ext"/>
         <xs:element maxOccurs="1" minOccurs="0" ref="olive_ext"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="help"/>        
-      </xs:sequence>
+      </xs:choice>
     </xs:complexType>
   </xs:element>
 
@@ -474,7 +477,7 @@ e-mail: vnx@dit.upm.es
 
   <xs:element name="vm">
     <xs:complexType>
-      <xs:sequence>
+      <xs:choice maxOccurs="unbounded">
         <xs:element minOccurs="0" ref="filesystem"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="shareddir"/>
         <!--xs:element ref="dynamips_conf" minOccurs="0" /-->
@@ -495,7 +498,8 @@ e-mail: vnx@dit.upm.es
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="user"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="filetree"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="exec"/>
-      </xs:sequence>
+        <xs:element maxOccurs="unbounded" minOccurs="0" ref="cmd-seq"/>        
+      </xs:choice>
       <xs:attribute name="name" type="xs:string" use="required"/>
       <xs:attribute name="type" type="xs:string" use="required"/>
       <xs:attribute name="subtype" type="xs:string" use="optional"/>
@@ -510,7 +514,7 @@ e-mail: vnx@dit.upm.es
 
   <xs:element name="vm_defaults">
     <xs:complexType>
-      <xs:sequence>
+      <xs:choice maxOccurs="unbounded">
         <xs:element minOccurs="0" ref="filesystem"/>
         <xs:element minOccurs="0" ref="mem"/>
         <xs:element minOccurs="0" ref="kernel"/>
@@ -525,7 +529,7 @@ e-mail: vnx@dit.upm.es
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="user"/>
         <!-- DFC xs:element ref="filetree" minOccurs="0" maxOccurs="unbounded" /-->
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="exec_mode"/>
-      </xs:sequence>
+      </xs:choice>
       
       <!-- DFC 26/8/2011: exec_mode attribute substituted by <exec_mode> tag -->
       <!--xs:attribute name="exec_mode" use="optional" default="net">
@@ -564,7 +568,7 @@ e-mail: vnx@dit.upm.es
   <xs:element name="vnx">
     <xs:complexType>
       <xs:sequence>
-        <xs:element ref="global"/>
+        <xs:element maxOccurs="unbounded" minOccurs="0" ref="global"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="net"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="vm"/>
         <xs:element minOccurs="0" ref="host"/>
