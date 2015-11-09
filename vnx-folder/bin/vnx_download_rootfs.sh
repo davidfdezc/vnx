@@ -307,15 +307,14 @@ function download_rootfs {
         echo "-----------------------------------------------------------------------------"
         echo ""
         sleep 5
-        continue
+    else
+        echo "------------------------------------------------------------------------"
+        echo "$rootfs_name successfully installed."
+        echo "   md5 in repository:      $md5_in_file"
+        echo "   md5 of downloaded file: $md5_calculated"
+        echo "------------------------------------------------------------------------"
+        echo ""
     fi
-    
-    echo "------------------------------------------------------------------------"
-    echo "$rootfs_name successfully installed."
-    echo "   md5 in repository:      $md5_in_file"
-    echo "   md5 of downloaded file: $md5_calculated"
-    echo "------------------------------------------------------------------------"
-    echo ""
             
 }                
                                 

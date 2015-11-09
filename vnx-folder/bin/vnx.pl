@@ -214,6 +214,8 @@ sub main {
     unless (defined($uid_name)) { $uid_name = $ENV{'USER'} }
     
     my $user_name=$uid_name; # Save username to be used if needed in $USER substitution in vnx_dir config value
+    $uid_orig = $uid;
+    $uid_name_orig = $uid_name;
 
     # Check if we have root priviledges. Exit if not
     unless ($opts{'version'} or $opts{'help'} or ($#ARGV == -1)) {
@@ -942,6 +944,8 @@ back_to_user();
         	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
         	unless scenario_exists($dh->get_scename);
      	}
+#print_current_user();
+#pak();
 		mode_console();
    	}
    	elsif ($mode eq 'console-info') {
@@ -1354,6 +1358,16 @@ sub make_vmAPI_doc {
     }
  
     # To get filesystem and type
+    my ($filesystem, $filesystem_type) = $dh->get_vm_filesystem($vm);
+    wlog (VVV, "filesystem ($filesystem, $filesystem_type) defined for VM $vm_name", $logp);
+    # filesystem tag in dom tree        
+    my $fs_tag = $dom->createElement('filesystem');
+    $vm_tag->addChild($fs_tag);
+    # to dom tree
+    $fs_tag->addChild($dom->createAttribute( type => $filesystem_type));
+    $fs_tag->addChild($dom->createTextNode($filesystem));
+
+=BEGIN
     my $filesystem;
     my $filesystem_type;
     my @filesystem_list = $vm->getElementsByTagName("filesystem");
@@ -1367,7 +1381,7 @@ sub make_vmAPI_doc {
         $filesystem_type = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
 
         # to dom tree
-        $fs_tag->addChild( $dom->createAttribute( type => $filesystem_type));
+        $fs_tag->addChild($dom->createAttribute( type => $filesystem_type));
         $fs_tag->addChild($dom->createTextNode($filesystem));       
     }
     else {
@@ -1375,9 +1389,11 @@ sub make_vmAPI_doc {
         $filesystem_type = $dh->get_default_filesystem_type;
 
         #to dom tree
-        $fs_tag->addChild( $dom->createAttribute( type => $filesystem_type));
+        $fs_tag->addChild($dom->createAttribute( type => $filesystem_type));
         $fs_tag->addChild($dom->createTextNode($filesystem));
     }
+=END
+=cut
 
     # shareddir tags
     foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
@@ -1823,10 +1839,7 @@ sub make_vmAPI_doc {
   
     # <ssh_key> tag
     # Ex:   <ssh_key>~/.ssh/id_dsa.pub</ssh_key>
-#pak ($vm_name);
-#print $doc->toString(1);
     if( $doc->exists("/vnx/global/ssh_key") ){
-#pak ($vm_name . " ssh_key found");
         my @ssh_key_list = $doc->findnodes('/vnx/global/ssh_key');
         my $ftree_num = $vm_plugin_ftrees+$vm_ftrees+1;
         wlog (VVV,"ssh ftree_num=$ftree_num");
@@ -2459,17 +2472,18 @@ sub set_vlan_links {
     my $ref_vm_ordered = shift;
     my @vm_ordered = @{$ref_vm_ordered};
 
-    my $first_time='yes';
+    #my $first_time='yes';
 
+    # Configure VLANs on VM interfaces
     for ( my $i = 0; $i < @vm_ordered; $i++) {
         my $vm = $vm_ordered[$i];
         my $vm_name = $vm->getAttribute("name");
 
         foreach my $if ($vm->getElementsByTagName("if")){
         	# Activate network links when openvswitch are used
-        	if(get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0 && ($first_time eq 'yes')){
-                    $first_time='no';
-            }
+        	#if(get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0 && ($first_time eq 'yes')){
+            #        $first_time='no';
+            #}
             if ( (get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0)&& $if->getElementsByTagName("vlan")) {
                 my $if_id = $if->getAttribute("id");
                 my @vlan=$if->getElementsByTagName("vlan");
@@ -2497,6 +2511,8 @@ sub set_vlan_links {
             }
         }
     }
+    
+    # Configure VLANs on connections among switches
     my $doc = $dh->get_doc;
     foreach my $net ($doc->getElementsByTagName("net")) {
         if ($net->getElementsByTagName("connection")){
@@ -2518,6 +2534,43 @@ sub set_vlan_links {
             }
         }
    				
+    }
+    
+    # Configure VLANs on host interfaces
+    if( $doc->exists("/vnx/host") ){
+	    
+	    my $host = $doc->getElementsByTagName("host")->item(0);
+	    foreach my $if ($host->getElementsByTagName("hostif")) {
+	
+	        # To get name and mode attribute
+	        my $net = $if->getAttribute("net");
+	        if ( (get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0)&& $if->getElementsByTagName("vlan")) {
+	            my $if_id = $if->getAttribute("id");
+	            my @vlan=$if->getElementsByTagName("vlan");
+	            my $vlantag= $vlan[0];  
+	            my $trunk = str($vlantag->getAttribute("trunk"));
+	            my $port_name=$net;
+	            my $vlan_tag_list="";
+	            my $vlan_number=0;
+	            foreach my $tag ($vlantag->getElementsByTagName("tag")){
+	                my $tag_id=$tag->getAttribute("id");
+	                $vlan_tag_list.="$tag_id".",";
+	                $vlan_number=$vlan_number+1;    
+	            }
+	            $vlan_tag_list =~ s/,$//;  # eliminate final ","
+	                        
+	            if ($trunk eq 'yes'){
+	                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."trunk=$vlan_tag_list");
+	            } else {
+	                if($vlan_number eq 1){
+	                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."tag=$vlan_tag_list");
+	                } else {  
+	                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set port $port_name "."trunk=$vlan_tag_list");
+	                }
+	            }
+	        }
+	    }
+
     }
 }
 
@@ -3253,6 +3306,28 @@ sub mode_exeinfo {
     my $doc = $dh->get_doc;
     
     wlog (N, "\nVNX exe-info mode:\n") unless $opts{'b'};     
+
+
+    sub print_cmdseq {
+    	
+    	my $nodes_ref = shift;
+        my $seqs_ref = shift;
+    	
+    	foreach my $cmd_seq ( @{$nodes_ref} ) {
+            my $seq_str = $cmd_seq->getFirstChild->getData;
+            my $seq = $cmd_seq->getAttribute("seq");
+
+            wlog (N, sprintf ("%-24s", "Seq: $seq") ) unless $opts{'b'};
+
+            wlog (N, sprintf ("  %-12s %-s", 'Defined as:',  $seq_str) ) unless $opts{'b'};
+            my @vm_ordered = $dh->get_vm_ordered();
+            wlog (N, sprintf ("  %-12s %-s", 'Expanded as:', cmdseq_expand($seq_str, \@vm_ordered ) ) )  unless $opts{'b'};
+            print sprintf ("  %-12s ", 'Description:') unless $opts{'b'};
+            print format_text($dh->get_seq_desc($seq), 80, 12) unless $opts{'b'};
+            print "\n" unless $opts{'b'};
+            push (@{$seqs_ref}, $seq);
+        }        
+    }
     
     my @seqs;   # Array to store seqs when -b (brief) format selected
 
@@ -3264,11 +3339,12 @@ sub mode_exeinfo {
         my $merged_type = $dh->get_vm_merged_type($vm);
         #unless ($vm_hash{$vm_name}){  next; }
             
-        # Get descriptions of user-defines commands
+        # Get descriptions of user-defined commands
         my %vm_seqs = $dh->get_seqs($vm);      
              
         wlog (N, "VM $vm_name user-defined commands:") unless $opts{'b'};
         wlog (N, $hline) unless $opts{'b'};
+        wlog (N, "User-defined commands:") unless $opts{'b'};
         if ( keys(%vm_seqs) > 0) {
             wlog (N, sprintf (" %-24s%s", 'Seq', 'Description') ) unless $opts{'b'};
             wlog (N, sprintf (" %-24s%s", '---', '-----------') ) unless $opts{'b'};
@@ -3277,6 +3353,16 @@ sub mode_exeinfo {
                 print format_text($dh->get_seq_desc($seq), 80, 22) unless $opts{'b'};
                 push (@seqs, $seq);
             }
+        } else {
+            wlog (N, "None defined") unless $opts{'b'};
+        }
+        wlog (N, "") unless $opts{'b'};
+
+        # Get descriptions of user-defined command sequences
+        wlog (N, "User-defined command sequences:") unless $opts{'b'};
+        my @cmdseq_nodes = $vm->findnodes("cmd-seq");
+        if (@cmdseq_nodes > 0) {
+            print_cmdseq (\@cmdseq_nodes, \@seqs);       
         } else {
             wlog (N, "None defined") unless $opts{'b'};
         }
@@ -3324,6 +3410,10 @@ sub mode_exeinfo {
         wlog (N, $hline);
 =END
 =cut
+        my @cmdseq_nodes = $doc->findnodes("/vnx/global/cmd-seq");
+        print_cmdseq (\@cmdseq_nodes, \@seqs);
+        
+=BEGIN        
         foreach my $cmd_seq ( $doc->findnodes("/vnx/global/cmd-seq") ) {
             my $seq_str = $cmd_seq->getFirstChild->getData;
             my $seq = $cmd_seq->getAttribute("seq");
@@ -3338,6 +3428,8 @@ sub mode_exeinfo {
             push (@seqs, $seq);
         }        
         #wlog (N, $hline);
+=END
+=cut
 
     }
     if ($opts{'b'}) { print join(" ", @seqs); }
@@ -5055,17 +5147,31 @@ sub xauth_remove {
 sub cmdseq_expand {
 	
     my $seq_str  = shift; # comma separated 'seq' values
+    my $vm_ordered_ref = shift;
+    my @vm_ordered = @{$vm_ordered_ref};
 
     my $doc = $dh->get_doc;
 
     my @seqs = split /,/, $seq_str; 
     foreach my $seq (@seqs) {
 
+        for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
+            # We expand it using cmd-seqs defined inside the VMs in @vm_ordered
+            my $vm = $vm_ordered[$i];
+            if( $vm->exists("cmd-seq[\@seq='$seq']") ){
+	            my @cmd_seq = $vm->findnodes("cmd-seq[\@seq='$seq']");
+	            my $new_seq = $cmd_seq[0]->getFirstChild->getData;
+	            wlog (VVV, "<cmd_seq> found for seq '$seq'; substituting by '$new_seq'", $logp);
+	            my $new_seq_expanded = cmdseq_expand ($new_seq, \@vm_ordered);
+	            $seq_str =~ s/$seq/$new_seq_expanded/;
+            }
+        }
+
 	    if( $doc->exists("/vnx/global/cmd-seq[\@seq='$seq']") ){
 	        my @cmd_seq = $doc->findnodes("/vnx/global/cmd-seq[\@seq='$seq']");
 	        my $new_seq = $cmd_seq[0]->getFirstChild->getData;
 	        wlog (VVV, "<cmd_seq> found for seq '$seq'; substituting by '$new_seq'", $logp);
-	        my $new_seq_expanded = cmdseq_expand ($new_seq);
+	        my $new_seq_expanded = cmdseq_expand ($new_seq, \@vm_ordered);
 	        $seq_str =~ s/$seq/$new_seq_expanded/;
 	    }
 
@@ -5111,7 +5217,7 @@ sub mode_execute {
 
     my $doc = $dh->get_doc;
 
-    my $seq_str_expanded = cmdseq_expand ($seq_str);
+    my $seq_str_expanded = cmdseq_expand ($seq_str, \@vm_ordered);
     wlog (V, "Command sequence '$seq_str' expanded to '$seq_str_expanded'", $logp);
 
     # $seq_str_expanded is a comma separated list of command tags

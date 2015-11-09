@@ -1,4 +1,36 @@
 
+
+- vnx_distrib_rootfs: improved and adapted to package LXC root filesystems
+
+- XML Schema relaxed to allow any tag order inside <vm> and <global> tags
+
+- Implemented user defined default values for vm filesystems. For example, default filesystems can 
+  be associated to different types of virtual machines: 
+  
+    <vm_defaults>
+      <console id="0" display="no"/>
+      <console id="1" display="yes"/>
+      <filesystem vm_type="uml">/usr/share/vnx/filesystems/rootfs_uml</filesystem>
+      <filesystem vm_type="libvirt" subtype="kvm">filesystems/rootfs_ubuntu</filesystem>
+      <filesystem vm_type="libvirt" subtype="kvm" os="freebsd">filesystems/rootfs_freebsd</filesystem>
+      <filesystem vm_type="libvirt" subtype="kvm" os="windows">filesystems/rootfs_winxp</filesystem>
+      <filesystem vm_type="lxc">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    </vm_defaults>
+  
+  This values are used whenever a <filesystem> tag is not found inside the <vm> defeinition.
+  Also, default filesystems values have been defined in Globals.pm for the case that filesystems are
+  neither specified inside <vm> or <vm_defaults>. 
+  
+ - Added code to configure VLANs in host interfaces also. 
+
+ - Added create-rootfs type script to repository.
+ 
+ - Added overlayfs_workdir_option to /etc/vnx.conf: 
+   - if set to yes, adds workdir=<workdir> to overlayfs mount options. 
+   - Needed in new kernel versions like the one distributed with Ubuntu 15.04
+
+ - Created/improved scripts vnx_create_lxc/kvm_rootfs.sh to automatically create LXC or KVM rootfs's 
+
 23/6/2015
 
 - Bug in dynamips: set_chassis command ignored for 7200 family routers

@@ -51,12 +51,16 @@ our @EXPORT = qw(
 	$vnxConfigFile
     $uid
     $uid_name
+    $uid_orig
+    $uid_name_orig
     $vmfs_on_tmp
     $hline
     $hline10
     $hline50
     $hline100
 
+    $MAX_NAME_LENGTH
+    
     $VNX_INSTALL_DIR
 	$DEFAULT_TMP_DIR
 	$DEFAULT_VNX_DIR
@@ -119,6 +123,16 @@ our @EXPORT = qw(
     @EXEC_OSTYPE_LIBVIRT_KVM_ANDROID
     @EXEC_OSTYPE_LIBVIRT_KVM_WANOS
 	@EXEC_OSTYPE_DYNAMIPS
+	
+    @DEFAUL_FILESYSTEM_UML
+    @DEFAUL_FILESYSTEM_LIBVIRT_KVM_LINUX
+    @DEFAUL_FILESYSTEM_LIBVIRT_KVM_FREEBSD
+    @DEFAUL_FILESYSTEM_LIBVIRT_KVM_WINDOWS
+    @DEFAUL_FILESYSTEM_LIBVIRT_KVM_OLIVE
+    @DEFAUL_FILESYSTEM_LIBVIRT_KVM_ANDROID
+    @DEFAUL_FILESYSTEM_LIBVIRT_KVM_WANOS
+    @DEFAUL_FILESYSTEM_DYNAMIPS
+    @DEFAUL_FILESYSTEM_LXC	
 
 );
 
@@ -147,8 +161,10 @@ our $exemode;       # Execution mode. It stores the value of $execution->get_exe
                     #    print "..." if ($exemode == $EXE_VERBOSE)
 our $hypervisor;    # Hypervisor used for libvirt 	
 our $vnxConfigFile; # VNX Configuration file 
-our $uid;           # User id of the user that issue the "sudo vnx..." command 
+our $uid;           # User id of the user VNX runs as 
 our $uid_name;      # User name associated to $uid 
+our $uid_orig;      # User id of the user that issue the "sudo vnx..." command 
+our $uid_name_orig; # User name associated to $uid_orig 
 our $vmfs_on_tmp;   # Loads the value of vmfs_on_tmp global config value
                     # Used to move the cow and sdisk filesystems to the tmp directory
                     # (used to solve a problem in DIT-UPM laboratories, where root user 
@@ -159,6 +175,8 @@ our $hline100 = "---------------------------------------------------------------
 our $hline = $hline100;
 #our $hline = "----------------------------------------------------------------------------------"; # Just a horizontal line...
 
+# General constants
+Readonly::Scalar our $MAX_NAME_LENGTH => '12';    # Maximum length of VM and NET names 
 
 # Configuration files and directories
 Readonly::Scalar our $VNX_INSTALL_DIR => '/usr/share/vnx';
@@ -237,5 +255,16 @@ our @EXEC_OSTYPE_LIBVIRT_KVM_OLIVE   = qw( show set load system );
 our @EXEC_OSTYPE_LIBVIRT_KVM_ANDROID = qw( system );
 our @EXEC_OSTYPE_LIBVIRT_KVM_WANOS   = qw( sdisk );
 our @EXEC_OSTYPE_DYNAMIPS            = qw( show set load );
+
+# Default filesystem names
+our @DEFAUL_FILESYSTEM_UML                 = '/usr/share/vnx/filesystems/rootfs_uml';
+our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_LINUX   = '/usr/share/vnx/filesystems/rootfs_ubuntu';
+our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_FREEBSD = '/usr/share/vnx/filesystems/rootfs_freebsd';
+our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_WINDOWS = '/usr/share/vnx/filesystems/rootfs_win7';
+our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_OLIVE   = '/usr/share/vnx/filesystems/rootfs_olive';
+our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_ANDROID = '/usr/share/vnx/filesystems/rootfs_android';
+our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_WANOS   = '/usr/share/vnx/filesystems/rootfs_wanos';
+our @DEFAUL_FILESYSTEM_DYNAMIPS            = '/usr/share/vnx/filesystems/c3640';
+our @DEFAUL_FILESYSTEM_LXC                 = '/usr/share/vnx/filesystems/rootfs_lxc';
 
 1;

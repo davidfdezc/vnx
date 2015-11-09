@@ -8,7 +8,7 @@
 # This file is a module part of VNX package.
 #
 # Authors: David Fernández (david@dit.upm.es)
-# Copyright (C) 2014 DIT-UPM
+# Copyright (C) 2015 DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -37,22 +37,44 @@ IMGSRVURL=https://cloud-images.ubuntu.com/trusty/current/
 IMG=trusty-server-cloudimg-amd64-disk1.img # Ubuntu 14.04 64 bits
 
 # Name of image to create
-IMG2=vnx_rootfs_kvm_ubuntu64-14.04-v025-solowan
+IMG2=vnx_rootfs_kvm_ubuntu64-14.04-v025-ostack-compute
 
 # Packages to install in new rootfs
-PACKAGES="aptsh build-essential zenity dialog expect nload iptraf ifstat cbm speedometer autogen autoconf pkg-config libnetfilter-queue-dev xterm vsftpd traceroute nmap socat uml-utilities apache2"
+PACKAGES="aptsh traceroute ntp curl man ubuntu-cloud-keyring"
 
 # Commands to execute after package installation (one per line)
-COMMANDS="
-update-rc.d -f apache2 remove
-"
+COMMANDS=$(cat <<EOF
+
+echo "deb http://ubuntu-cloud.archive.canonical.com/ubuntu" "trusty-updates/kilo main" > /etc/apt/sources.list.d/cloudarchive-kilo.list
+apt-get update 
+apt-get -y dist-upgrade
+
+# STEP 6
+apt-get -y -o Dpkg::Options::="--force-confold" install nova-compute sysfsutils
+
+# STEP 8
+apt-get -y -o Dpkg::Options::="--force-confold" install neutron-plugin-ml2 neutron-plugin-openvswitch-agent
+
+#apt-get -y -o Dpkg::Options::="--force-confold" install software-properties-common
+
+# Allow ssh root login
+sed -i -e 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+EOF
+)
+
+#
+# Do not modify under this line (or do it with care...)
+#
+
+TMPDIR=$( mktemp -d -t 'vnx-XXXXX' )
 
 #
 # Create config file
 #
 function create-cloud-config-file {
 
-cat > vnx-customize-data <<EOF
+cat > $TMPDIR/vnx-customize-data <<EOF
 #cloud-config
 manage_etc_hosts: True
 hostname: vnx
@@ -88,15 +110,15 @@ EOF
 
 # Add aditional packages
 for p in $PACKAGES; do
-  echo " - $p" >> vnx-customize-data 
+  echo " - $p" >> $TMPDIR/vnx-customize-data 
 done
 
 # Add additional commands
 if [ "$COMMANDS" ]; then
-  echo "cc_ready_cmd:" >> vnx-customize-data
+  echo "cc_ready_cmd:" >> $TMPDIR/vnx-customize-data
   echo "$COMMANDS" | while read c; do 
     if [ "$c" ]; then    
-      echo " - $c" >> vnx-customize-data
+      echo " - $c" >> $TMPDIR/vnx-customize-data
     fi
   done
 fi
@@ -109,7 +131,7 @@ fi
 #
 function create-install-vnxaced-script {
 
-cat > install-vnxaced <<EOF
+cat > $TMPDIR/install-vnxaced <<EOF
 #!/bin/bash
 
 # Redirect script STDOUT and STDERR to console and log file 
@@ -195,7 +217,6 @@ echo "-- Downloading image: ${IMGSRVURL}${IMG}"
 echo "--"
 rm -fv $IMG
 wget ${IMGSRVURL}${IMG}
-#cp -v $IMG.orig $IMG
 
 # Convert img to qcow2 format and change name
 echo "--"
@@ -209,13 +230,13 @@ mv ${IMG%.*}.qcow2 ${IMG2}.qcow2
 #   /usr/share/vnx/aced/vnx-aced-lf-2.0b.4058.tgz:application/octet-stream 
 echo "--"
 echo "-- Creating iso customization disk..."
-write-mime-multipart  --output=multi-vnx-customize-data \
-   vnx-customize-data:text/cloud-config  \
-   /usr/share/vnx/aced/vnx-aced-lf-2.0b.4058.tgz:application/octet-stream \
-   install-vnxaced:text/x-shellscript
+write-mime-multipart  --output=$TMPDIR/multi-vnx-customize-data \
+   $TMPDIR/vnx-customize-data:text/cloud-config  \
+   /usr/share/vnx/aced/vnx-aced-lf-latest.tgz:application/octet-stream \
+   $TMPDIR/install-vnxaced:text/x-shellscript
 
 # Create iso disk with customization data
-cloud-localds vnx-customize-data.img multi-vnx-customize-data
+cloud-localds $TMPDIR/vnx-customize-data.img $TMPDIR/multi-vnx-customize-data
 #cloud-localds vnx-customize-data.img vnx-customize-data
 
 # Start virtual machine with the customization data disk
@@ -223,11 +244,15 @@ echo "--"
 echo "-- Starting virtual machine to configure it..."
 echo "--"
 echo "kvm -net nic -net user -hda ${IMG2}.qcow2 -hdb vnx-customize-data.img -m 512"
-kvm -net nic -net user -hda ${IMG2}.qcow2 -hdb vnx-customize-data.img -m 512
+kvm -net nic -net user -hda ${IMG2}.qcow2 -hdb $TMPDIR/vnx-customize-data.img -m 512
+echo "--"
+echo "-- Waiting for virtual machine to finish autoconfiguration..."
 echo "--"
 echo "-- rootfs creation finished:"
 ls -lh ${IMG2}.qcow2
 echo $HLINE
 
 # delete temp files
-rm vnx-customize-data install-vnxaced vnx-customize-data.img $IMG
+rm $TMPDIR/vnx-customize-data $TMPDIR/install-vnxaced $TMPDIR/vnx-customize-data.img $IMG
+rmdir $TMPDIR/
+
