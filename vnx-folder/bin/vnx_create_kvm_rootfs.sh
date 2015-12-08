@@ -38,13 +38,13 @@ IMG=trusty-server-cloudimg-amd64-disk1.img # Ubuntu 14.04 64 bits
 
 # Name of image to create
 IMG2=vnx_rootfs_kvm_ubuntu64-14.04-v025-ostack-compute
+IMG2LINK=rootfs_kvm_ubuntu64-ostack-compute
 
 # Packages to install in new rootfs
 PACKAGES="aptsh traceroute ntp curl man ubuntu-cloud-keyring"
 
 # Commands to execute after package installation (one per line)
 COMMANDS=$(cat <<EOF
-
 echo "deb http://ubuntu-cloud.archive.canonical.com/ubuntu" "trusty-updates/kilo main" > /etc/apt/sources.list.d/cloudarchive-kilo.list
 apt-get update 
 apt-get -y dist-upgrade
@@ -246,13 +246,16 @@ echo "--"
 echo "kvm -net nic -net user -hda ${IMG2}.qcow2 -hdb vnx-customize-data.img -m 512"
 kvm -net nic -net user -hda ${IMG2}.qcow2 -hdb $TMPDIR/vnx-customize-data.img -m 512
 echo "--"
-echo "-- Waiting for virtual machine to finish autoconfiguration..."
-echo "--"
 echo "-- rootfs creation finished:"
 ls -lh ${IMG2}.qcow2
+if [ "$IMG2LINK" ]; then
+  echo "--"
+  echo "-- Creating symbolic link to new rootfs: $IMG2LINK"
+  ln -sv ${IMG2}.qcow2 $IMG2LINK
+  echo "--"
+fi
 echo $HLINE
 
 # delete temp files
-rm $TMPDIR/vnx-customize-data $TMPDIR/install-vnxaced $TMPDIR/vnx-customize-data.img $IMG
+rm $TMPDIR/*-vnx-customize-data $TMPDIR/install-vnxaced $TMPDIR/vnx-customize-data.img $IMG
 rmdir $TMPDIR/
-

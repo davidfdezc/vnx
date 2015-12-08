@@ -220,7 +220,7 @@ sub open_console {
     my $start_console_as_user = ! empty($console_term_mode) && $console_term_mode eq 'user';
     wlog (VVV, "console_term_mode=$console_term_mode, start_console_as_user=$start_console_as_user, user=" . $>, $logp);	
 	
-	if ($con_id != 0) {
+	if ($con_id != 0 or $cons_type eq 'lxc') {
         
         if ($start_console_as_user) {
         	$command = "sudo $command";
@@ -261,7 +261,7 @@ $> = $user;
             }
 	    }
 	} else {
-    wlog (VVV, "exeLine=$exeLine", $logp);
+    #wlog (VVV, "exeLine=$exeLine", $logp);
 	    unless (defined($getLineOnly)) {
 	        $execution->execute_root($logp, $exeLine .  ">/dev/null 2>&1 &");
 	        #$execution->execute( $logp, $exeLine .  ">/dev/null 2>&1 &");

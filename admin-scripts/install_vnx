@@ -182,6 +182,7 @@ cp $VERBOSE bin/vnx_update_host.sh ${VNX_DIR}/bin/vnx_update_host
 cp $VERBOSE bin/vnx_set_def_rootfs.pl ${VNX_DIR}/bin/vnx_set_def_rootfs
 cp $VERBOSE bin/vnx_download_rootfs.sh /usr/bin/vnx_download_rootfs
 cp $VERBOSE bin/vnx_mount_rootfs.sh /usr/bin/vnx_mount_rootfs
+cp $VERBOSE bin/vnx_config_nat.sh /usr/bin/vnx_config_nat
 # Delete old versions copied to /usr/share/bin
 rm -f ${VNX_DIR}/bin/vnx_download_rootfs
 rm -f ${VNX_DIR}/bin/vnx_mount_rootfs

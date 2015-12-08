@@ -261,7 +261,7 @@ function download_rootfs {
     case $rootfs_ext in
     bz2) bunzip2 $rootfs_bzname
          ;;
-    tgz) tar xfzp $rootfs_bzname
+    tgz) tar --numeric-owner -xzpf $rootfs_bzname
          ;;
     esac
 
