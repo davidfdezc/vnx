@@ -125,7 +125,7 @@ e-mail: vnx@dit.upm.es
 
   <xs:element name="forwarding">
     <xs:complexType>
-      <xs:attribute default="ip" name="type" use="optional">
+      <xs:attribute name="type" use="required">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
             <xs:enumeration value="ip"/>

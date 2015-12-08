@@ -10,8 +10,8 @@
 # Authors: David Fernández (david@dit.upm.es)
 #          Raul Alvarez (raul.alvarez@centeropenmiddleware.com)
 # Copyright (C) 2015 DIT-UPM
-#           Departamento de Ingenieria de Sistemas Telematicos
-#           Universidad Politecnica de Madrid
+#           Departamento de Ingeniería de Sistemas Telemáticos
+#           Universidad Politécnica de Madrid
 #           SPAIN
 #           
 # This program is free software; you can redistribute it and/or

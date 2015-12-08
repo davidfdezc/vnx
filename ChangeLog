@@ -1,4 +1,13 @@
 
+- Bug corrected related to <forwarding> tag (not <forwarding> tag was created by make_vm_doc when both ipv4 and ipv6 forwarding tags were included). 
+
+- New --pack-add-files option added to allow including additional files when packaging an scenario. Ex:
+    
+    vnx --pack tutorial_openstack-4nodes.xml --pack-version 013 --pack-add-files add-compute3.xml del-compute3.xml
+
+- Added vnx_config_nat script to configure NAT rules between two network interfaces
+
+10/11/2015
 
 - vnx_distrib_rootfs: improved and adapted to package LXC root filesystems
 

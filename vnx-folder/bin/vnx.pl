@@ -162,6 +162,8 @@ my @opt_rootfstype_modes = ('create-rootfs', 'modify-rootfs');
 # To store command in "exe-cli" mode
 my @exe_cli;
 
+# To store files specified in pack-add-files option
+my @pack_add_files;
 
 main();
 exit(0);
@@ -187,7 +189,7 @@ sub main {
                 'show-map:s', 'show-status', 'console:s', 'console-info', 'exe-info', 'clean-host',
                 'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y',
                 'rootfs-type=s', 'help|h', 'v', 'vv', 'vvv', 'version|V', 'download-rootfs',
-                'pack=s', 'unpack=s', 'include-rootfs|r', 'pack-external-rootfs', 'pack-status', 'pack-version=s',                
+                'pack=s', 'unpack=s', 'include-rootfs|r', 'pack-external-rootfs', 'pack-status', 'pack-version=s', 'pack-add-files=s{1,}' => \@pack_add_files,               
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'user|u:s', '4', '6', 'D', 'no-console|n', 'intervm-delay=s', 'h2vm-timeout=s',
                 'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k', 'video=s'
@@ -1747,17 +1749,39 @@ sub make_vmAPI_doc {
     }
     
     # Forwarding
-    my $f_type = $dh->get_default_forwarding_type;
-    my @forwarding_list = $vm->getElementsByTagName("forwarding");
-    if (@forwarding_list == 1) {
-        $f_type = $forwarding_list[0]->getAttribute("type");
-        $f_type = "ip" if (empty($f_type));
+    my $forward_ipv4 = 'no';
+    my $forward_ipv6 = 'no';
+    foreach my $forwarding ($vm->getElementsByTagName("forwarding")) {       
+        if ( $forwarding->getAttribute("type") eq 'ip' or $forwarding->getAttribute("type") eq 'ipv4' ) {
+            $forward_ipv4 = 'yes';                
+        }
+        if ( $forwarding->getAttribute("type") eq 'ipv6' ) {
+            $forward_ipv6 = 'yes';                
+        }
     }
-    if ($f_type ne ""){
+    if ( $forward_ipv4 eq 'yes' or $dh->get_default_forwarding_ipv4 eq 'yes' ) {
         my $forwarding_tag = $dom->createElement('forwarding');
         $vm_tag->addChild($forwarding_tag);
-        $forwarding_tag->addChild( $dom->createAttribute( type => $f_type));
+        $forwarding_tag->addChild( $dom->createAttribute( type => 'ipv4'));
     }
+    if ( $forward_ipv6 eq 'yes' or $dh->get_default_forwarding_ipv6 eq 'yes' ) {
+        my $forwarding_tag = $dom->createElement('forwarding');
+        $vm_tag->addChild($forwarding_tag);
+        $forwarding_tag->addChild( $dom->createAttribute( type => 'ipv6'));
+    }
+
+#    my $f_type = $dh->get_default_forwarding_type;
+#    my @forwarding_list = $vm->getElementsByTagName("forwarding");
+#    if (@forwarding_list == 1) {
+#        $f_type = $forwarding_list[0]->getAttribute("type");
+#        $f_type = "ip" if (empty($f_type));
+#    }
+#
+#    if ($f_type ne ""){
+#        my $forwarding_tag = $dom->createElement('forwarding');
+#        $vm_tag->addChild($forwarding_tag);
+#        $forwarding_tag->addChild( $dom->createAttribute( type => $f_type));
+#    }
     
 =BEGIN      
     # my @group = getgrnam("@TUN_GROUP@");
@@ -4337,6 +4361,17 @@ sub mode_pack {
     wlog (N, "-- Packaging scenario $scen_bname", '');
     
     my $content="$scen_bname/*.xml $scen_bname/*.cvnx $scen_bname/conf $scen_bname/filesystems/create* $scen_bname/filesystems/rootfs*";
+
+    # Add files specified in --pack-add-files option if specified
+    foreach my $file ( @pack_add_files ) {
+    	if (-e "$scen_bname/$file") {
+    		$content .= " " . "$scen_bname/$file"; 
+    	} else {
+    		vnx_die ("file $file is not valid (perhaps does not exists).");
+    	}
+    }  
+    #print $content . "\n";
+    
     # tar will not create the file if some of the file is missing (for example, if not *.cvnx has been defined)
     # We avoid it doing an ls (see http://www.ingeniousmalarkey.com/2010/11/ignore-missing-files-with-tar.html)
     $content=`ls -d $content 2>/dev/null | xargs`; chomp($content);
@@ -4347,41 +4382,55 @@ sub mode_pack {
     }
     
     if ( $inc_rootfs ) {
-        my $rootfs=`readlink $scen_bname/filesystems/rootfs*`; 
-        chomp ($rootfs);
+        my $rootfs_set=`readlink $scen_bname/filesystems/rootfs*`; 
+        #chomp ($rootfs);
         wlog (N, "--   Including rootfs:", '');
-        wlog (N, "--     $rootfs", '');
-        $content="$content $scen_bname/filesystems/$rootfs";
+        #$rootfs =~ s/[\r\n]+/ /g; # Eliminate line breaks and change them to spaces
+        
+        my @rootfs_list = split /\n/, $rootfs_set;
+        foreach my $rootfs (@rootfs_list) {
+            wlog (N, "--     $rootfs", '');
+	        $content="$content $scen_bname/filesystems/$rootfs";
+        }
     
         # Exclude sockets to avoid errors when making tar file
         $tmpfile=`mktemp`; chomp ($tmpfile);
-        system ( "find $scen_bname/filesystems/$rootfs -type s > $tmpfile" );
+        foreach my $rootfs (@rootfs_list) {
+            system ( "find $scen_bname/filesystems/$rootfs -type s >> $tmpfile" );
+        }
         $tar_opts="-X $tmpfile";
         wlog (N, "--   Scenario excluded content:", '');
         my $excl_content=`cat $tmpfile`;
         open (EXC, "<$tmpfile") or die "Could not open file '$tmpfile' $!";
         while (<EXC>) { chomp; wlog (N, "--     $_", ''); } 
         close (EXC);
-        #wlog (N, "$excl_content", '');
+        wlog (N, "$excl_content", '');
     } else {
         wlog (N, "--   rootfs not packaged (use option -r if you want to include it).", '');
     }
     
-    
     # Estimating tar file size for progress bar 
-    my $size=`du -sb --apparent-size $content | awk '{ total += \$1 - 512; }; END { print total }'`;
-    wlog (V, "size=$size", '');
-    if ( $inc_rootfs ) {
-        $size = int($size * 1040 / 1000);   
-    } else {
-        $size = int($size * 1020 / 1000);
-    }
-    wlog (V, "size=$size", '');
+    #my $size=`du -sb --apparent-size $content | awk '{ total += \$1 - 512; }; END { print total }'`;
+    #wlog (V, "size=$size", '');
+    #if ( $inc_rootfs ) {
+    #    $size = int($size * 1040 / 1000);   
+    #} else {
+    #    $size = int($size * 1020 / 1000);
+    #}
+    #wlog (V, "size=$size", '');
     
     $tar_opts = "$tar_opts -C $cdir";
+
+    if ($opts{'pack-version'}) {
+    	# Change first directory name in tar to include the version
+        #$tar_opts .= " --transform 'flags=r;s|^${scen_bname}|${pack_tgz_name}|'";
+        $tar_opts .= " --transform 's|^${scen_bname}|${pack_tgz_name}|'";
+    }
     
     #print   "LANG=C tar -cpf - $content $tar_opts | pv -p -s ${size} | gzip > ${cdir}/${pack_tgz_name}.tgz\n";
-    system ("LANG=C tar -cpf - $content $tar_opts | pv -p -s ${size} | gzip > ${cdir}/${pack_tgz_name}.tgz");
+    #system ("LANG=C tar -cpf - $content $tar_opts | pv -p -s ${size} | gzip > ${cdir}/${pack_tgz_name}.tgz");
+    print   "LANG=C tar -cpf - $content $tar_opts | pv -p  | gzip > ${cdir}/${pack_tgz_name}.tgz\n";
+    system ("LANG=C tar -cpf - $content $tar_opts | pv -p  | gzip > ${cdir}/${pack_tgz_name}.tgz");
     wlog (N, "-- ...done", '');
     
     if ( defined($tmpfile) ) {
@@ -4406,7 +4455,7 @@ sub mode_unpack {
     wlog (N, "-- Unpackaging scenario $pack_file", '');
 
     #print "LANG=C pv $pack_file | tar xzfp - \n";
-    system ("LANG=C pv $pack_file | tar xzfp - ");
+    system ("LANG=C pv $pack_file | tar --numeric-owner -xzpf - ");
     wlog (N, "-- ...done", '');
             
 }
@@ -7447,6 +7496,7 @@ Usage:
   [sudo] vnx --clean-host
   [sudo] vnx --create-rootfs ROOTFS_file --install-media MEDIA_file 
   [sudo] vnx --modify-rootfs ROOTFS_file [--update-aced]
+  [sudo] vnx --pack VNX_file
 
 Main modes:
   --define      -> define (but not start) the whole scenario, or just the VMs
@@ -7466,6 +7516,7 @@ Main modes:
   --reboot      -> reboot the scenario or the VMs speficied with -M.
   --execute|-x cmd_seq -> execute the commands tagged 'cmd_seq' in VNX_file.
   --exe-cli cmd -> execute the command specified in all VMS or the ones specified in -M option.
+  --validate-xml-> just parse and validate the VNX_file specification  
 
 Virtual machines list specification:
   -M vm_list    -> list of VM names separated by ','
@@ -7482,6 +7533,20 @@ Console management modes:
   Examples:
     vnx -f ex1.xml --console
     vnx -f ex1.xml --console con0 -M A --> open console 0 of vm A of scenario ex1.xml
+
+Packaging scenarios modes:
+  --pack VNX_file    Create a tgz scenario package file including the files needed to start 
+                     virtual scenario VNX_file. Files included by default are: XML specification,
+                     .cnvx file, conf directory and filesystems/{create*|rootfs*} files. 
+  --unpack           Unpacks an scenario created with --pack option. It just extracts the 
+                     tgz file content to current directory.
+  --pack-version     specifies a version string to ve added at the end of package filename.
+  --pack-add-files   specifies a list of additional files to be added to the package. Path 
+                     must be relative to directory where scenario files ()VNX_file) is.
+  --include-rootfs   pack the filesystems used in the scenario stored under filesystem/ directory
+  --include-external-rootfs   pack the filesystems included in the scenario which are not 
+                     under filesystem/ directory
+   
 
 Other modes:
   --show-map [format] -> shows a map of the network scenarios build using graphviz.

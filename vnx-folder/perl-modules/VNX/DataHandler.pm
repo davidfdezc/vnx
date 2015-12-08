@@ -79,7 +79,7 @@ sub new {
    my $no_basedir = 1;
    my $no_mgn_if = 1;
    my $no_xterm = 1;
-   my $no_forwarding = 1;
+   #my $no_forwarding = 1;
    if (@vm_defaults_list == 1) {
    
 #      my @filesystem_list = $vm_defaults_list[0]->getElementsByTagName("filesystem");
@@ -89,22 +89,22 @@ sub new {
 #         $no_filesystem = 0;
 #      }
 
-      my $countcommand = 0;
-      foreach my $command ($vm_defaults_list[0]->getElementsByTagName("filesystem")) {       
+    my $countcommand = 0;
+    foreach my $command ($vm_defaults_list[0]->getElementsByTagName("filesystem")) {       
           my $merged_type = $self->get_vm_merged_type($command);
           my $filesystem_value = &text_tag($command);
           $global_data{"default_filesystem-$merged_type"} =$filesystem_value;
           wlog (VVV, "default exec_mode for vm type $merged_type set to $filesystem_value");
-      } 
+    } 
       
-      my @default_mem_list = $vm_defaults_list[0]->getElementsByTagName("mem");
-      if (@default_mem_list == 1) {
+    my @default_mem_list = $vm_defaults_list[0]->getElementsByTagName("mem");
+    if (@default_mem_list == 1) {
          $global_data{'default_mem'} = &text_tag($default_mem_list[0]);;
          $no_mem = 0;
-      }
+    }
       
-      my @kernel_list = $vm_defaults_list[0]->getElementsByTagName("kernel");
-      if (@kernel_list == 1) {
+    my @kernel_list = $vm_defaults_list[0]->getElementsByTagName("kernel");
+    if (@kernel_list == 1) {
          $global_data{'default_kernel'} = &do_path_expansion(&text_tag($kernel_list[0]));
          $global_data{'default_initrd'} = &do_path_expansion($kernel_list[0]->getAttribute("initrd"));
          $global_data{'default_devfs'} = $kernel_list[0]->getAttribute("devfs");
@@ -112,37 +112,47 @@ sub new {
          $global_data{'default_modules'} = &do_path_expansion($kernel_list[0]->getAttribute("modules"));
          $global_data{'default_trace'} = $kernel_list[0]->getAttribute("trace");
          $no_kernel = 0;
-      }
+    }
       
-      my @shell_list = $vm_defaults_list[0]->getElementsByTagName("shell");
-      if (@shell_list == 1) {
+    my @shell_list = $vm_defaults_list[0]->getElementsByTagName("shell");
+    if (@shell_list == 1) {
          $global_data{'default_shell'} = &do_path_expansion(&text_tag($shell_list[0]));
          $no_shell = 0;
-      }
+    }
 
-      my @basedir_list = $vm_defaults_list[0]->getElementsByTagName("basedir");
-      if (@basedir_list == 1) {
+    my @basedir_list = $vm_defaults_list[0]->getElementsByTagName("basedir");
+    if (@basedir_list == 1) {
          $global_data{'default_basedir'} = &do_path_expansion(&text_tag($basedir_list[0]));
          $no_basedir = 0;
-      }
+    }
       
-      my @mng_if_list = $vm_defaults_list[0]->getElementsByTagName("mng_if");
-      if (@mng_if_list == 1) {
+    my @mng_if_list = $vm_defaults_list[0]->getElementsByTagName("mng_if");
+    if (@mng_if_list == 1) {
          $global_data{'default_mng_if'} = &text_tag($mng_if_list[0]);
          $no_mgn_if = 0;
-      }
+    }
       
-      my @xterm_list = $vm_defaults_list[0]->getElementsByTagName("xterm");
-      if (@xterm_list == 1) {
+    my @xterm_list = $vm_defaults_list[0]->getElementsByTagName("xterm");
+    if (@xterm_list == 1) {
          $global_data{'default_xterm'} = &text_tag($xterm_list[0]);
          $no_xterm = 0;
-      }
-            
-      my @forwarding_list = $vm_defaults_list[0]->getElementsByTagName("forwarding");
-      if (@forwarding_list == 1) {
-         $global_data{'default_forwarding_type'} = $forwarding_list[0]->getAttribute("type");
-         $no_forwarding = 0;
-      }
+    }
+
+    $global_data{'default_forwarding_ipv4'} = 'no';            
+    $global_data{'default_forwarding_ipv6'} = 'no';            
+    foreach my $forwarding ($vm_defaults_list[0]->getElementsByTagName("forwarding")) {       
+        if ( $forwarding->getAttribute("type") eq 'ip' or $forwarding->getAttribute("type") eq 'ipv4' ) {
+            $global_data{'default_forwarding_ipv4'} = 'yes'; 
+        }       
+        if ( $forwarding->getAttribute("type") eq 'ipv6' ) {
+            $global_data{'default_forwarding_ipv6'} = 'yes';                     
+        }            
+    }
+#      my @forwarding_list = $vm_defaults_list[0]->getElementsByTagName("forwarding");
+#      if (@forwarding_list == 1) {
+#         $global_data{'default_forwarding_type'} = $forwarding_list[0]->getAttribute("type");
+#         $no_forwarding = 0;
+#      }
       
 
 #      if ($vm_defaults_list->item(0)->getAttribute("exec_mode") ne "") {
@@ -190,9 +200,9 @@ sub new {
    if ($no_xterm) {
       $global_data{'default_xterm'} = '';
    }
-   if ($no_forwarding) {
-      $global_data{'default_forwarding_type'} = "";
-   }
+   #if ($no_forwarding) {
+   #   $global_data{'default_forwarding_type'} = "";
+   #}
    
    # 2. Fields taken from the scenario  
 
@@ -639,13 +649,22 @@ sub get_default_olive {
    return $self->{'global_data'}->{'olive_ext'};
 }
 
-# get_default_forwarding_type
+# get_default_forwarding_ipv4
 #
 # Returns the default forwarding type
 #
-sub get_default_forwarding_type {
+sub get_default_forwarding_ipv4 {
    my $self = shift;
-   return $self->{'global_data'}->{'default_forwarding_type'};
+   return $self->{'global_data'}->{'default_forwarding_ipv4'};
+}
+
+# get_default_forwarding_ipv6
+#
+# Returns the default forwarding type
+#
+sub get_default_forwarding_ipv6 {
+   my $self = shift;
+   return $self->{'global_data'}->{'default_forwarding_ipv6'};
 }
 
 ####################

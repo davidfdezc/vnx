@@ -204,7 +204,7 @@ change_to_root();
             $vm_lxc_dir = $dh->get_vm_dir($vm_name) . "/mnt";
             
             # workdir directory needed by overlayfs in new kernels
-            my $workdir;
+            my $workdir = '';
             if ($overlayfs_workdir_option eq 'yes') {
                 $workdir = $dh->get_vm_dir($vm_name) . "/tmp/workdir";
                 $execution->execute( $logp, "mkdir -p $workdir" );
