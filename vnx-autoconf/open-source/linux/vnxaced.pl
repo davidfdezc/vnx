@@ -358,9 +358,10 @@ sub daemonize {
     setsid();
 
     # Close descriptors
-    close(STDERR);
-    close(STDOUT);
-    close(STDIN);
+    # Commented on 19/12/2015 due to problems in Openstack Liberty scenario 
+    #close(STDERR);
+    #close(STDOUT);
+    #close(STDIN);
 
     # Set permissions for temporary files
     umask(027);
@@ -877,13 +878,28 @@ sub exe_cmd {
             my $res=`$cmd`;
             wlog (V, $res);
         } else {
-            # vnxace has been started as a deamon with input/output closed
+            # vnxace has been started as a daemon with input/output closed
             # We have to use this way to execute the command to avoid 
             # problems. Other ways tested (using exec or system with all kind of 
             # input/output redirections made some commands fail (for example, when 
             # starting apache: the server starts but does not answer requests and 
             # shows an error in logs related to sockets). 
-            exe_cmd_aux ("$cmd");
+            #exe_cmd_aux ("$cmd");
+            
+            my $cmd_file = `mktemp /root/.vnx/cmd-XXXXXX`;
+            open CMDFILE, ">$cmd_file";
+            my @lines = split(/\n/, $cmd);
+            foreach my $line (@lines) {
+                # Delete ; at the end
+                $line =~ s/;$//;
+                print CMDFILE $line . "\n";
+            }
+            close CMDFILE;
+            my $res=`bash $cmd_file < /dev/null 2>&1`;
+            wlog (V, $res);
+            #system ("rm -f $cmd_file");
+            #exe_cmd_aux ("$cmd");
+            
         } 
     } elsif ($ostype eq 'exec') {
         # Execution mode for commands with no graphical user interface using fork and exec

@@ -61,8 +61,11 @@ sub new {
    # Perl modules mandatory
    my @perlmods_mandatory = qw( NetAddr::IP XML::LibXML XML::Tidy AppConfig Readonly 
                                 Term::ReadKey Net::Pcap Net::IPv6Addr Sys::Virt Net::Telnet 
-                                Error Exception::Class XML::DOM DBI Math::Round IO::Pty 
-                                Net::IP XML::Checker XML::Parser File::HomeDir);
+                                Error Exception::Class DBI IO::Pty Net::IP);
+#   my @perlmods_mandatory = qw( NetAddr::IP XML::LibXML XML::Tidy AppConfig Readonly 
+#                                Term::ReadKey Net::Pcap Net::IPv6Addr Sys::Virt Net::Telnet 
+#                                Error Exception::Class XML::DOM DBI Math::Round IO::Pty 
+#                                Net::IP XML::Checker XML::Parser File::HomeDir);
    
    # List of optional binaries for xterm, vlan, screen and
    # uml_switch (defaults are empty: the add_additional_*_binaries 
@@ -328,7 +331,7 @@ sub add_additional_kvm_binaries {
             
     my @list = ();
     if ( $dh->any_vmtouse_of_type('libvirt', 'kvm') ) {
-        push (@list, "kvm-ok");
+        #push (@list, "kvm-ok"); # deleted: not available in Fedora
     }
     $self->{'binaries_kvm'} = \@list;
     #print "list=@list\n";    

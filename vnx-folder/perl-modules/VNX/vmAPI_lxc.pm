@@ -74,6 +74,8 @@ my $aa_unconfined;
 my $aufs_options;
 my $nested_lxc;
 my $overlayfs_workdir_option;
+my $overlayfs_name = 'overlayfs';   # Should be 'overlay' for Fedora and CentOS, 'overlayfs' for the rest
+
 
 # ---------------------------------------------------------------------------------------
 #
@@ -83,7 +85,7 @@ my $overlayfs_workdir_option;
 sub init {
 
     my $logp = "lxc-init> ";
-    my $error;
+    #my $error;
     
     return unless ( $dh->any_vmtouse_of_type('lxc') );
     
@@ -91,15 +93,33 @@ sub init {
     if (empty($union_type)) {
         $union_type = 'overlayfs'; # default value
     } elsif ( ($union_type ne 'overlayfs') && ($union_type ne 'aufs') ){
-        $error = "in $vnxConfigFile, incorrect value ($union_type) assigned to 'union_type' \nparameter in [lxc] section (should be overlayfs or aufs).";
+        return "in $vnxConfigFile, incorrect value ($union_type) assigned to 'union_type' \nparameter in [lxc] section (should be overlayfs or aufs).";
     }
     wlog (VVV, "[lxc] conf: union_type=$union_type");
+
+    # check if the overlay type is supported by the system
+    if ($union_type eq 'overlayfs') {
+        if ($os_id eq 'fedora' or $os_id eq 'centos') {
+            system( "modprobe overlay" );
+            $overlayfs_name = 'overlay';
+        } else  {
+            system( "modprobe overlayfs" );
+        }
+        if ( $? != 0 ) {
+            return "overlayfs filesystems not supported in this system."
+        }
+    } elsif ($union_type eq 'aufs') {
+        system( "modprobe aufs" );
+        if ( $? != 0 ) {
+            return "aufs filesystems not supported in this system."
+        }
+    }
 
     $aa_unconfined = get_conf_value ($vnxConfigFile, 'lxc', 'aa_unconfined', 'root');
     if (empty($aa_unconfined)) {
         $aa_unconfined = 'no'; # default value
     } elsif ( ($aa_unconfined ne 'yes') && ($aa_unconfined ne 'no') ){
-        $error = "in $vnxConfigFile, incorrect value ($aa_unconfined) assigned to 'aa_unconfined' \nparameter in [lxc] section (should be yes or no).";
+        return "in $vnxConfigFile, incorrect value ($aa_unconfined) assigned to 'aa_unconfined' \nparameter in [lxc] section (should be yes or no).";
     }
     wlog (VVV, "[lxc] conf: aa_unconfined=$aa_unconfined");
 
@@ -115,10 +135,10 @@ sub init {
     if (empty($nested_lxc)) {
         $nested_lxc = 'no'; # default value
     } elsif ( ($nested_lxc ne 'yes') && ($nested_lxc ne 'no') ){
-        $error = "in $vnxConfigFile, incorrect value ($nested_lxc) assigned to 'nested_lxc' \nparameter in [lxc] section (should be yes or no).";
+        return "in $vnxConfigFile, incorrect value ($nested_lxc) assigned to 'nested_lxc' \nparameter in [lxc] section (should be yes or no).";
     }
     if ( ($nested_lxc eq 'yes') && ($aa_unconfined eq 'yes') ){
-        $error = "in $vnxConfigFile, cannot activate 'nested_lxc=yes' and 'aa_unconfined=yes' simultaneously. Only one of the two parameters can be set to yes.";
+        return "in $vnxConfigFile, cannot activate 'nested_lxc=yes' and 'aa_unconfined=yes' simultaneously. Only one of the two parameters can be set to yes.";
     }
     wlog (VVV, "[lxc] conf: nested_lxc=$nested_lxc");
 
@@ -126,16 +146,15 @@ sub init {
     if (empty($overlayfs_workdir_option)) {
         $overlayfs_workdir_option = 'no'; # default value
     } elsif ( ($overlayfs_workdir_option ne 'yes') && ($overlayfs_workdir_option ne 'no') ){
-        $error = "in $vnxConfigFile, incorrect value ($overlayfs_workdir_option) assigned to '$overlayfs_workdir_option' \nparameter in [lxc] section (should be yes or no).";
+        return "in $vnxConfigFile, incorrect value ($overlayfs_workdir_option) assigned to '$overlayfs_workdir_option' \nparameter in [lxc] section (should be yes or no).";
     }
     wlog (VVV, "[lxc] conf: $overlayfs_workdir_option=$overlayfs_workdir_option");
 
     # Check whether LXC is installed (by executing lxc-info)
     system("which lxc-info > /dev/null 2>&1");
     if ( $? != 0 ) {
-    	$error = "Cannot find 'lxc-info' command, check that LXC is installed in the system.";
+    	return "Cannot find 'lxc-info' command, check that LXC is installed in the system.";
     }
-    return $error;
 }
 
 # ---------------------------------------------------------------------------------------
@@ -215,9 +234,10 @@ change_to_root();
             # umount first, just in case it is mounted...
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $vm_lxc_dir );
 
+
             if ($union_type eq 'overlayfs') {
                 # Ex: mount -t overlayfs -o upperdir=/tmp/lxc1,lowerdir=/var/lib/lxc/vnx_rootfs_lxc_ubuntu-13.04-v025/ none /var/lib/lxc/lxc1
-                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t overlayfs -o upperdir=" . $vm_cow_dir . 
+                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t $overlayfs_name -o upperdir=" . $vm_cow_dir . 
                                      ",lowerdir=" . $filesystem . $workdir . " none " . $vm_lxc_dir );
             } elsif ($union_type eq 'aufs') {
                 # Ex: mount -t aufs -o br=/tmp/lxc1-rw:/var/lib/lxc/vnx_rootfs_lxc_ubuntu-12.04-v024/=ro none /tmp/lxc1
@@ -643,7 +663,7 @@ sub start_vm {
 	            # Mount the overlay filesystem
 	            if ($union_type eq 'overlayfs') {
 	                # Ex: mount -t overlayfs -o upperdir=/tmp/lxc1,lowerdir=/var/lib/lxc/vnx_rootfs_lxc_ubuntu-13.04-v025/ none /var/lib/lxc/lxc1
-	                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t overlayfs -o upperdir=" . $vm_cow_dir . 
+	                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t $overlayfs_name -o upperdir=" . $vm_cow_dir . 
 	                                     ",lowerdir=" . $filesystem . " none " . $vm_lxc_dir );
 	            } elsif ($union_type eq 'aufs') {
 	                # Ex: mount -t aufs -o br=/tmp/lxc1-rw:/var/lib/lxc/vnx_rootfs_lxc_ubuntu-12.04-v024/=ro none /tmp/lxc1

@@ -68,20 +68,32 @@ fi
 # Check if internal interface exists
 ifconfig -a | grep "^$1" > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-    echo ""
-    echo "ERROR: internal interface $1 does not exist"
-    echo ""
-    exit 1
+    if [[ "$delete" == "yes" ]]; then 
+        echo ""
+        echo "WARNING: internal interface $1 does not exist"
+        echo ""
+    else
+        echo ""
+        echo "ERROR: internal interface $1 does not exist"
+        echo ""
+        exit 1
+    fi
 fi
 INTERNALIF=$1
 
 # Check if internal interface exists
 ifconfig -a | grep "^$2" > /dev/null 2>&1
 if [ $? -ne 0 ]; then
-    echo ""
-    echo "ERROR: external interface $2 does not exist"
-    echo ""
-    exit 1
+    if [[ "$delete" == "yes" ]]; then 
+        echo ""
+        echo "WARNING: external interface $2 does not exist"
+        echo ""
+    else
+        echo ""
+        echo "ERROR: external interface $2 does not exist"
+        echo ""
+        exit 1
+    fi
 fi
 EXTERNALIF=$2
 

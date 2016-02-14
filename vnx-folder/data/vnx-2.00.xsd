@@ -203,6 +203,7 @@ e-mail: vnx@dit.upm.es
         <xs:element minOccurs="0" ref="mac"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="ipv4"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="ipv6"/>
+        <xs:element maxOccurs="unbounded" minOccurs="0" ref="dns"/>
 
       </xs:sequence>
       <xs:attribute name="net" type="xs:string" use="required"/>
@@ -223,6 +224,10 @@ e-mail: vnx@dit.upm.es
     <xs:complexType mixed="true">
       <xs:attribute name="mask" type="xs:string" use="optional"/>
     </xs:complexType>
+  </xs:element>
+
+  <xs:element name="dns">
+    <xs:complexType mixed="true"/>
   </xs:element>
 
   <xs:element name="vlan">

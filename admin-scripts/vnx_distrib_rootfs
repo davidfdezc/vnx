@@ -62,7 +62,7 @@ do
         cd "$ROOTFS"
         cd ..
         pwd
-        tar cfvzp ${TMPDIR}/${ROOTFSNAME}.tgz $ROOTFSNAME
+        tar --numeric-owner -cvzpf ${TMPDIR}/${ROOTFSNAME}.tgz $ROOTFSNAME
         echo "md5sum ${TMPDIR}/${ROOTFSNAME}.tgz > ${TMPDIR}/$ROOTFSNAME.md5"
         md5sum ${TMPDIR}/${ROOTFSNAME}.tgz > ${TMPDIR}/$ROOTFSNAME.md5
         echo "--   ...done."

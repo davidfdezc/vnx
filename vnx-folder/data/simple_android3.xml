@@ -44,7 +44,7 @@ SPAIN
   
   <vm name="android" type="libvirt" subtype="kvm" os="android">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_android</filesystem>
-    <mem>256M</mem>
+    <mem>1G</mem>
     <video>vmvga</video>
     <if id="1" net="virbr0">
       <ipv4>dhcp</ipv4>

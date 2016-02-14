@@ -44,7 +44,8 @@ our @EXPORT = qw(
     autoconfigure_freebsd
     autoconfigure_android
     autoconfigure_wanos
-	get_code_of_get_os_distro
+    get_os_distro
+    get_code_of_get_os_distro
 	);
 
 use VNX::Execution;
@@ -234,7 +235,11 @@ sub open_console {
 		} elsif ($console_term eq 'xterm') {
 			$exeLine = "xterm -rv -sb -rightbar -fa monospace -fs 10 -title '$vm_name - console #$con_id' -e '$command'";
 		} elsif ($console_term eq 'roxterm') {
-			$exeLine = "roxterm --title '$vm_name - console #$con_id' -e $command";
+			$exeLine = "roxterm --title '$vm_name - console #$con_id' --hide-menubar -e '$command'";
+		} elsif ($console_term eq 'lxterminal') {
+			$exeLine = "lxterminal --title '$vm_name - console #$con_id' -e $command";
+		} elsif ($console_term eq 'xfce4-terminal') {
+			$exeLine = "xfce4-terminal --title '$vm_name - console #$con_id' -e '$command'";
 		} else {
 			$execution->smartdie ("unknown value ($console_term) of console_term parameter in $vnxConfigFile");
 		}
@@ -604,6 +609,61 @@ sub cidr_to_mask {
   # netmask in dotted decimal
   my $mask= join '.', unpack 'C4', pack 'N', $dec;
   return $mask;
+}
+
+sub get_os_distro {
+    
+    my $OS=`uname -s`; chomp ($OS);
+    my $REV=`uname -r`; chomp ($REV);
+    my $MACH=`uname -m`; chomp ($MACH);
+    my $ARCH;
+    my $OSSTR;
+    my $DIST;
+    my $KERNEL;
+    my $PSEUDONAME;
+        
+    if ( $OS eq 'SunOS' ) {
+            $OS='Solaris';
+            $ARCH=`uname -p`;
+            $OSSTR= "$OS,$REV,$ARCH," . `uname -v`;
+    } elsif ( $OS eq "AIX" ) {
+            $OSSTR= "$OS," . `oslevel` . "," . `oslevel -r`;
+    } elsif ( $OS eq "Linux" ) {
+            $KERNEL=`uname -r`;
+            if ( -e '/etc/redhat-release' ) {
+            my $relfile = `cat /etc/redhat-release`;
+            my @fields  = split(/ /, $relfile);
+                    $DIST = $fields[0];
+                    $REV = $fields[2];
+                    $PSEUDONAME = $fields[3];
+                    $PSEUDONAME =~ s/\(//; $PSEUDONAME =~ s/\)//;
+        } elsif ( -e '/etc/SuSE-release' ) {
+                    $DIST=`cat /etc/SuSE-release | tr "\n" ' '| sed s/VERSION.*//`;
+                    $REV=`cat /etc/SuSE-release | tr "\n" ' ' | sed s/.*=\ //`;
+            } elsif ( -e '/etc/mandrake-release' ) {
+                    $DIST='Mandrake';
+                    $PSEUDONAME=`cat /etc/mandrake-release | sed s/.*\(// | sed s/\)//`;
+                    $REV=`cat /etc/mandrake-release | sed s/.*release\ // | sed s/\ .*//`;
+            } elsif ( -e '/etc/lsb-release' ) {
+                    $DIST= `cat /etc/lsb-release | grep DISTRIB_ID | sed 's/DISTRIB_ID=//'`; 
+                    $REV = `cat /etc/lsb-release | grep DISTRIB_RELEASE | sed 's/DISTRIB_RELEASE=//'`;
+                    $PSEUDONAME = `cat /etc/lsb-release | grep DISTRIB_CODENAME | sed 's/DISTRIB_CODENAME=//'`;
+            } elsif ( -e '/etc/debian_version' ) {
+                    $DIST= "Debian"; 
+                    $REV=`cat /etc/debian_version`;
+                    $PSEUDONAME = `LANG=C lsb_release -a 2> /dev/null | grep Codename | sed 's/Codename:\\s*//'`;
+        }
+            if ( -e '/etc/UnitedLinux-release' ) {
+                    $DIST=$DIST . " [" . `cat /etc/UnitedLinux-release | tr "\n" ' ' | sed s/VERSION.*//` . "]";
+            }
+        chomp ($KERNEL); chomp ($DIST); chomp ($PSEUDONAME); chomp ($REV);
+            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+    } elsif ( $OS eq "FreeBSD" ) {
+            $DIST= "FreeBSD";
+        $REV =~ s/-RELEASE//;
+            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+    }
+return $OSSTR;
 }
 
 sub get_code_of_get_os_distro {

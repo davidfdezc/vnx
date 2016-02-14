@@ -134,6 +134,10 @@ our @EXPORT = qw(
     @DEFAUL_FILESYSTEM_DYNAMIPS
     @DEFAUL_FILESYSTEM_LXC	
 
+    $os_prettyname
+    $os_id
+    $os_ver_id
+
 );
 
 # Version information
@@ -196,7 +200,7 @@ Readonly::Scalar our $H2VM_BASE_PORT => '13000';     # Initial TCP port for host
                                                      # (used when USE_UNIX_SOCKETS=0 in vmAPI_libvirt)
 our $H2VM_PORT = $H2VM_BASE_PORT;                    # Points to the next TCP port to be used for H2VM channels
 Readonly::Scalar our $H2VM_BIND_ADDR => '127.0.0.1'; # Address to listen for H2VM channels
-Readonly::Scalar our $H2VM_DEFAULT_TIMEOUT => '60';  # Default maximum time waiting for an answer in H2VM channel 
+Readonly::Scalar our $H2VM_DEFAULT_TIMEOUT => '120'; # Default maximum time waiting for an answer in H2VM channel 
 our $H2VM_TIMEOUT = $H2VM_DEFAULT_TIMEOUT;           # Maximum time waiting for an answer in H2VM channel 
 
 # Console Management
@@ -267,4 +271,10 @@ our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_WANOS   = '/usr/share/vnx/filesystems/rootfs_
 our @DEFAUL_FILESYSTEM_DYNAMIPS            = '/usr/share/vnx/filesystems/c3640';
 our @DEFAUL_FILESYSTEM_LXC                 = '/usr/share/vnx/filesystems/rootfs_lxc';
 
+# OS data
+our $os_prettyname = "";
+our $os_id = "";
+our $os_ver_id = "";
+
 1;
+

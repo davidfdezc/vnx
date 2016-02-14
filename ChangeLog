@@ -1,9 +1,33 @@
 
+- Added --numeric-owner option to all tars related with LXC images.
+
+- Added <dns> tag to define dns address in interfaces. Implemented only for ubunutu/debian
+
+- Eliminated the deletion of /etc/resolv.conf from vnx_halt and autoconfigure functions
+
+- Created function $dh->get_default_ostype to get default ostype for a <exec> in terms of VM merged_type.
+  Set default ostype in creation of <exec> tags in make_vmAPI_doc
+  
+- Memory of android simple examples increases to 1G.
+
+- Network manager nmcli calls commented. They do not work anymore in Ubuntu 14.04 and 15.10 and Fedora 23.
+
+- Changed vmAPI_libvirt init function to not use "kvm-ok" program, as it is not available in Fedora.  
+
+- Changed vmAPI_lxc to use "overlay" instead of "overlayfs" in Fedora systems.
+
+8/12/2015
+
 - Bug corrected related to <forwarding> tag (not <forwarding> tag was created by make_vm_doc when both ipv4 and ipv6 forwarding tags were included). 
 
 - New --pack-add-files option added to allow including additional files when packaging an scenario. Ex:
     
     vnx --pack tutorial_openstack-4nodes.xml --pack-version 013 --pack-add-files add-compute3.xml del-compute3.xml
+    
+- Completed the implementation of --pack an --unpack options
+
+- Added --numeric-owner option to tar command in vnx_download_rootfs to avoid problems with changes in owner/groups of LXC 
+  rootfs files.  
 
 - Added vnx_config_nat script to configure NAT rules between two network interfaces
 

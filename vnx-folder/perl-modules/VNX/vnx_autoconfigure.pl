@@ -66,10 +66,10 @@ sub autoconfigure_debian_ubuntu {
     my $dhclient_file   = "$rootfs_mdir" . "/etc/dhcp/dhclient.conf";
     
     # Backup and delete /etc/resolv.conf file
-    if (-f $resolv_file ) {
-        system "cp $resolv_file ${resolv_file}.bak";
-        system "rm -f $resolv_file";
-    }
+    #if (-f $resolv_file ) {
+    #    system "cp $resolv_file ${resolv_file}.bak";
+    #    system "rm -f $resolv_file";
+    #}
         
     # before the loop, backup /etc/udev/...70
     # and /etc/network/interfaces
@@ -238,6 +238,16 @@ sub autoconfigure_debian_ubuntu {
                 }
             }           
         }
+        
+        # Process dns tags
+        my $dns_addrs;
+        foreach my $dns ($if->getElementsByTagName("dns")) {
+            $dns_addrs .= ' ' . $dns->getFirstChild->getData;
+        }      
+        if (defined($dns_addrs)) {
+            print INTERFACES "   dns-nameservers" . $dns_addrs . "\n";	
+        }            
+        
     }
         
     close RULES;
@@ -317,10 +327,10 @@ sub autoconfigure_redhat {
     my $dhclient_file   = "$rootfs_mdir" . "/etc/dhcp/dhclient.conf";
 
     # Delete /etc/resolv.conf file
-    if (-f $resolv_file ) {
-        system "cp $resolv_file ${resolv_file}.bak";
-        system "rm -f $resolv_file";
-    }
+    #if (-f $resolv_file ) {
+    #    system "cp $resolv_file ${resolv_file}.bak";
+    #    system "rm -f $resolv_file";
+    #}
 
     system "mv $sysconfnet_file ${sysconfnet_file}.bak";
     system "cat ${sysconfnet_file}.bak | grep -v 'NETWORKING=' | grep -v 'NETWORKING_IPv6=' > $sysconfnet_file";
