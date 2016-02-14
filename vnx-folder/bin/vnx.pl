@@ -195,6 +195,20 @@ sub main {
                 'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k', 'video=s'
     ) or vnx_die("Incorrect usage. Type 'vnx -h' for help"); 
 
+    # Get OS data from /etc/os-release
+    if (-e '/etc/os-release') {
+	    $os_prettyname = `gawk -F= '/^PRETTY_NAME=/{print \$2}' /etc/os-release | tr -d '"'`; chomp ($os_prettyname);
+	    $os_id         = `gawk -F= '/^ID=/{print \$2}' /etc/os-release | tr -d '"'`; chomp ($os_id);
+	    $os_ver_id     = `gawk -F= '/^VERSION_ID=/{print \$2}' /etc/os-release | tr -d '"'`; chomp ($os_ver_id);
+    } else {
+    	# No /etc/os-release file
+        my $os_distro = get_os_distro();
+        my @platform = split(/,/, $os_distro);
+        $os_id = lc $platform[1]; 
+        $os_ver_id = $platform[2];
+        $os_prettyname = $platform[1] . " " . $platform[2] . " " . $platform[3];  
+    }
+    
     #
     # Define the user VNX should run as.
     # '-u user' or '--user user' option is use to defines the user VNX is (mostly) run as. By now, VNX has
@@ -265,6 +279,9 @@ sub main {
     
     unless ($opts{b}) {
     	print_header();
+        print "  OS=" . $os_prettyname . "\n";
+        #print "  OS_ID=" . $os_id . "\n";
+        #print "  OS_VID=" . $os_ver_id . "\n";
         print $uid_msg; 
     }
 
@@ -1369,34 +1386,6 @@ sub make_vmAPI_doc {
     $fs_tag->addChild($dom->createAttribute( type => $filesystem_type));
     $fs_tag->addChild($dom->createTextNode($filesystem));
 
-=BEGIN
-    my $filesystem;
-    my $filesystem_type;
-    my @filesystem_list = $vm->getElementsByTagName("filesystem");
-
-    # filesystem tag in dom tree        
-    my $fs_tag = $dom->createElement('filesystem');
-    $vm_tag->addChild($fs_tag);
-
-    if (@filesystem_list == 1) {
-        $filesystem = get_abs_path(text_tag($vm->getElementsByTagName("filesystem")->item(0)));
-        $filesystem_type = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
-
-        # to dom tree
-        $fs_tag->addChild($dom->createAttribute( type => $filesystem_type));
-        $fs_tag->addChild($dom->createTextNode($filesystem));       
-    }
-    else {
-        $filesystem = $dh->get_default_filesystem;
-        $filesystem_type = $dh->get_default_filesystem_type;
-
-        #to dom tree
-        $fs_tag->addChild($dom->createAttribute( type => $filesystem_type));
-        $fs_tag->addChild($dom->createTextNode($filesystem));
-    }
-=END
-=cut
-
     # shareddir tags
     foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
         unless ($type[0] eq 'lxc') {
@@ -1703,28 +1692,36 @@ sub make_vmAPI_doc {
                 }
             }
              
-              # To process interface IPv6 addresses
-             if ($dh->is_ipv6_enabled) {
+            # To process interface IPv6 addresses
+            if ($dh->is_ipv6_enabled) {
                 foreach my $ipv6 ($if->getElementsByTagName("ipv6")) {
-                   my $ipv6_tag = $dom->createElement('ipv6');
-                   $if_tag->addChild($ipv6_tag);
-                   my $ip = text_tag($ipv6);
-                   if (valid_ipv6_with_mask($ip)) {
-                      # Implicit slashed mask in the address
-                      $ipv6_tag->addChild($dom->createTextNode($ip));
-                   }
-                   else {
-                      # Check the value of the mask attribute
-                      my $ipv6_effective_mask = "/64"; # Default mask value        
-                      my $ipv6_mask_attr = $ipv6->getAttribute("mask");
-                      if ( ! empty($ipv6_mask_attr) ) {
-                         # Note that, in the case of IPv6, mask are always slashed
-                         $ipv6_effective_mask = $ipv6_mask_attr;
-                      }
-                      $ipv6_tag->addChild($dom->createTextNode("$ip$ipv6_effective_mask"));
+                    my $ipv6_tag = $dom->createElement('ipv6');
+                    $if_tag->addChild($ipv6_tag);
+                    my $ip = text_tag($ipv6);
+                    if (valid_ipv6_with_mask($ip)) {
+                        # Implicit slashed mask in the address
+                        $ipv6_tag->addChild($dom->createTextNode($ip));
+                    }
+                    else {
+                        # Check the value of the mask attribute
+                        my $ipv6_effective_mask = "/64"; # Default mask value        
+                        my $ipv6_mask_attr = $ipv6->getAttribute("mask");
+                        if ( ! empty($ipv6_mask_attr) ) {
+                            # Note that, in the case of IPv6, mask are always slashed
+                            $ipv6_effective_mask = $ipv6_mask_attr;
+                        }
+                        $ipv6_tag->addChild($dom->createTextNode("$ip$ipv6_effective_mask"));
                     }          
                 }
-             }
+            }
+            
+            # <dns> tag
+            foreach my $dns ($if->getElementsByTagName("dns")) {
+                my $dns_addr = text_tag($dns);
+                my $dns_tag = $dom->createElement('dns');
+                $if_tag->addChild($dns_tag);
+                $dns_tag->addChild($dom->createTextNode($dns_addr));
+            }
         }
     }
 
@@ -2419,7 +2416,7 @@ change_to_root();
                 #chomp ($con_uuid);
                 #wlog (V, "iface ${vm_name}-e0, con_uuid='$con_uuid'", $logp);
                 #$execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
-                $execution->execute($logp, $nmcli . " dev disconnect iface ${vm_name}-e0" );
+                #$execution->execute($logp, $nmcli . " dev disconnect iface ${vm_name}-e0" );
             }
             # Disable IPv6 autoconfiguration in interface
             $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e0.autoconf=0" );
@@ -2459,7 +2456,7 @@ change_to_root();
                 #chomp ($con_uuid);
                 #wlog (VVV, "con_uuid='$con_uuid'", $logp);
                 #$execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
-                $execution->execute($logp, $nmcli . " dev disconnect iface ${vm_name}-e${id}" );
+                #$execution->execute($logp, $nmcli . " dev disconnect iface ${vm_name}-e${id}" );
             }
 back_to_user();               
         }
@@ -4429,8 +4426,8 @@ sub mode_pack {
     
     #print   "LANG=C tar -cpf - $content $tar_opts | pv -p -s ${size} | gzip > ${cdir}/${pack_tgz_name}.tgz\n";
     #system ("LANG=C tar -cpf - $content $tar_opts | pv -p -s ${size} | gzip > ${cdir}/${pack_tgz_name}.tgz");
-    print   "LANG=C tar -cpf - $content $tar_opts | pv -p  | gzip > ${cdir}/${pack_tgz_name}.tgz\n";
-    system ("LANG=C tar -cpf - $content $tar_opts | pv -p  | gzip > ${cdir}/${pack_tgz_name}.tgz");
+    print   "LANG=C tar --numeric-owner -cpf - $content $tar_opts | pv -p  | gzip > ${cdir}/${pack_tgz_name}.tgz\n";
+    system ("LANG=C tar --numeric-owner -cpf - $content $tar_opts | pv -p  | gzip > ${cdir}/${pack_tgz_name}.tgz");
     wlog (N, "-- ...done", '');
     
     if ( defined($tmpfile) ) {
@@ -4704,7 +4701,6 @@ sub create_tun_devices_for_virtual_bridged_networks  {
 
                 # To create TUN device
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"tunctl"} . " -u " . $execution->get_uid . " -t $tun_if -f " . $dh->get_tun_device);
-
                 # To set up device
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set dev $tun_if up");
             }
@@ -5404,6 +5400,8 @@ sub get_vm_ftrees_and_execs {
     my $vm_execs  = 0; 
     
     my $merged_type = $dh->get_vm_merged_type($vm);
+    my @vm_type = $dh->get_vm_type($vm);
+    
     
     # Plugin operations:
     #  1 - for each active plugin, call: $plugin->getFiles
@@ -5637,8 +5635,10 @@ sub get_vm_ftrees_and_execs {
 
                 # Read values of <exec> tag
                 my $type = $command->getAttribute("type");
-                my $mode = $command->getAttribute("mode");
-                my $ostype = $command->getAttribute("ostype");
+                my $ostype = str($command->getAttribute("ostype"));
+                if ($ostype eq '') {
+                	$ostype = $dh->get_default_ostype($merged_type);
+                }
                 #my $value = text_tag($command);
                 my $value = $command->textContent;
                 my $new_value;

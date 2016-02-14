@@ -77,6 +77,10 @@ Repository:    $vnx_rootfs_repo"
 #
 function get_link_name {
 
+   if [[ $1 == *honeydrive* ]] ; then
+      echo "rootfs_honeydrive"; return
+   fi
+
    if [[ $1 == *honeywall* ]] ; then
       echo "rootfs_honeywall"; return
    fi

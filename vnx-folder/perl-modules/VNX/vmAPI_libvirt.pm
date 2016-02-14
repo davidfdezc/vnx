@@ -100,10 +100,11 @@ sub init {
 root();
 
 	# load kvm modules
-    system "kvm-ok > /dev/null";
-    if ( $? == -1 ) {
-        system("kvm-ok"); # To show command output on screen
-        $error = "The scenario contains KVM virtual machines, but the command 'kvm-ok' reports no host support for KVM.";
+    #system "kvm-ok > /dev/null"; // kvm-ok not supported in Fedora
+    system( "egrep '^flags.*(vmx|svm)' /proc/cpuinfo > /dev/null " );
+    if ( $? != 0 ) {
+        #system("kvm-ok"); # To show command output on screen
+        $error = "The scenario contains KVM virtual machines, but the host does not show hardware virtualization support for KVM.";
     } else {
         wlog (N, "  KVM acceleration supported", "") unless ($opts{b});
         # Check if KVM module is loaded and load it if needed

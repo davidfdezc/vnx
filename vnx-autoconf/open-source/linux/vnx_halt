@@ -18,7 +18,7 @@ if [[ $FEDORA  || $CENTOS ]]; then
 fi
 
 # Delete /etc/resolv.conf
-rm -f /etc/resolv.conf
+#rm -f /etc/resolv.conf
 
 # Clean command history
 rm -f /root/.bash_history

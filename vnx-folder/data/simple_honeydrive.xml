@@ -6,12 +6,11 @@
 VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
-Name:        simple_android_v2
-Description: Just one Android X86 virtual machine with:
-                + one interface connected to Net0 with address 10.1.0.26. The host has an interface 
-                  in Net0 with address 10.1.0.1
-                + a management interface of type 'net' connected to virbr0 libvirt bridge that 
-                  provides Internet connection to the VM. 
+Name:        simple_honeydrive
+Description: Just one Honeydrive (https://bruteforce.gr/honeydrive) Linux virtual machine connected to a 
+             Network named Net0 with address 10.1.0.28. 
+             The host has an interface in Net0 with address 10.1.0.1.
+             A second interface connected to 'virbr0' libvirt bridge provides Internet connection.
              This simple scenario is supposed to be used for testing the different 
              types of virtual machines supported by VNX. You can start several simple_*.xml
              scenarios and test the connectivity among virtual machines and the host, as all
@@ -31,10 +30,11 @@ SPAIN
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
     <version>2.0</version>
-    <scenario_name>simple_android</scenario_name>
-    <automac offset="26"/>
-    <vm_mgmt type="net">
-       <mgmt_net net="virbr0" managed="no" config="dhcp"/>
+    <scenario_name>simple_honeydrive</scenario_name>
+    <automac offset="28"/>
+    <!--vm_mgmt type="none" /-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="108">
+       <host_mapping />
     </vm_mgmt> 
     <vm_defaults>
         <console id="0" display="yes"/>
@@ -43,14 +43,17 @@ SPAIN
   </global>
     
   <net name="Net0" mode="virtual_bridge" />
-  <!-- <net name="virbr0" mode="virtual_bridge" managed="no"/> --> 
+  <net name="virbr0" mode="virtual_bridge" managed="no"/>
   
-  <vm name="android" type="libvirt" subtype="kvm" os="android">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_android</filesystem>
-    <mem>1G</mem>
-    <video>vmvga</video>
+  <vm name="honeydrive" type="libvirt" subtype="kvm" os="linux" exec_mode="sdisk">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_honeydrive</filesystem>
+    <mem>512M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.1.0.26/24</ipv4>
+      <ipv4>10.1.0.28/24</ipv4>
+      <dns>8.8.8.8</dns>
+    </if>
+    <if id="2" net="virbr0">
+      <ipv4>dhcp</ipv4>
     </if>
   </vm>
 

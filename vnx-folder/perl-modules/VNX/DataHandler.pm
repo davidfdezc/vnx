@@ -901,6 +901,33 @@ sub get_default_exec_mode {
     return $def_execmode;
 }
 
+# get_default_ostype
+#
+# Returns the default ostype for a given VM merged type
+#
+sub get_default_ostype {
+
+    my $self    = shift;    
+    my $merged_type = shift;
+
+    my $ostype;
+
+    if ($merged_type eq 'uml') {
+        $ostype = $EXEC_OSTYPE_UML[0];
+    } elsif ($merged_type eq 'libvirt-kvm-linux') {
+        $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_LINUX[0];
+    } elsif ($merged_type eq 'libvirt-kvm-freebsd') {
+        $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD[0];
+    } elsif ($merged_type eq 'libvirt-kvm-windows') {
+        $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS[0];
+    } elsif ($merged_type eq 'libvirt-kvm-olive') {
+        $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_OLIVE[0];
+    } elsif ( ($merged_type eq 'dynamips-3600') or ($merged_type eq 'dynamips-7200') )  {
+        $ostype = $EXEC_OSTYPE_DYNAMIPS[0];
+    }
+}
+
+
 # get_default_trace
 #
 # Returns the default trace
