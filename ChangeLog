@@ -1,3 +1,12 @@
+21/3/2016
+
+- Network manager nmcli calls corrected for ubuntu 14.04 or older versions. It seems they are not needed for ubuntu >= 15.04 or fedora/centos
+
+- vnx_download_rootfs: modified to check accessibility to filesystem repository and provide an error in case it is no.
+
+- Management of "-s scenario_name" option:
+  + bash_completion modified to manage "-s scenario" option when completing "-x" names
+  + modified vnx to look for scenario configuration files in the directory where the original file scenario was located. 
 
 14/2/2016
 

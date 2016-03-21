@@ -324,9 +324,24 @@ function download_rootfs {
                                 
 #------------------------------------------------------------------
 
+function check_access_to_repository {
+
+    # Check if the filesystem repository is available
+    wget "$vnx_rootfs_repo" --timeout 5 -O /dev/null 2>/dev/null
+    if [ $? -ne 0 ]; then
+        echo "--"; echo "ERROR: cannot access filesystem repository ($vnx_rootfs_repo)"; echo "--"; exit 1
+    fi
+
+}
+
+#------------------------------------------------------------------
+
 function download_rootfs_interactive {
 
     # show filesystems in server and ask user to choose
+
+    check_access_to_repository
+
     OLD_IFS=$IFS; IFS=$'\n'
     rootfs_links_array=($(curl $vnx_rootfs_repo -s | w3m -dump -T text/html | grep -e 'bz2' -e 'tgz'))
     IFS=$OLD_IFS
@@ -423,6 +438,8 @@ while getopts ":nyshl :r:" opt; do
     r)
         #echo "-r was triggered, Parameter: $OPTARG" >&2
         
+        check_access_to_repository
+
         rootfs_bzname=$OPTARG
         
         NAME=$OPTARG
@@ -446,6 +463,8 @@ while getopts ":nyshl :r:" opt; do
         ;;
     s)
         #echo "-s was triggered, Parameter: $OPTARG" >&2
+        check_access_to_repository
+
         echo "$HEADER1"
         echo ""
         echo "Repository:    $vnx_rootfs_repo"

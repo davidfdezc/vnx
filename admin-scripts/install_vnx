@@ -98,14 +98,14 @@ chmod +x /usr/bin/vnx
 if [ -d /usr/share/bash-completion/completions/ ]; then
   cp $VERBOSE bin/vnx_bash_completion /usr/share/bash-completion/completions/vnx
   chmod 644 /usr/share/bash-completion/completions/vnx
-  cp $VERBOSE bin/ediv_bash_completion /usr/share/bash-completion/completions/ediv
-  chmod 644 /usr/share/bash-completion/completions/ediv
+  #cp $VERBOSE bin/ediv_bash_completion /usr/share/bash-completion/completions/ediv
+  #chmod 644 /usr/share/bash-completion/completions/ediv
 fi
 if [ -d /etc/bash_completion.d/ ]; then
   cp $VERBOSE bin/vnx_bash_completion /etc/bash_completion.d/vnx
   chmod 644 /etc/bash_completion.d/vnx
-  cp $VERBOSE bin/ediv_bash_completion /etc/bash_completion.d/ediv
-  chmod 644 /etc/bash_completion.d/ediv
+  #cp $VERBOSE bin/ediv_bash_completion /etc/bash_completion.d/ediv
+  #chmod 644 /etc/bash_completion.d/ediv
 fi
 
 #

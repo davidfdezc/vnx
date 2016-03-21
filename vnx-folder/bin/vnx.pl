@@ -517,9 +517,21 @@ $>=$uid;
         } else {
             $input_file=$files[0];
         }
-		#print "escenario XML file: $input_file\n"
+		#print "escenario XML file: $input_file\n";
         #$input_file = "$vnx_dir/scenarios/$opts{'scenario'}/$opts{'scenario'}.xml";
-        $xml_dir = getcwd();
+        #$xml_dir = getcwd();
+        #print "xml_dir=$xml_dir\n";
+        my $original_scenario = `cat $input_file  | grep "original path"`;
+        if (!$original_scenario) { vnx_die ("ERROR: cannot find original path scenario line at the end of\n       $input_file\n") }
+        if ($original_scenario =~ /<!-- original path: (.+) -->/) {
+        	$original_scenario = $1;
+        } else {
+        	vnx_die ("ERROR: error in 'original path' line at the end of\n       $input_file\n")
+        }
+      	my $original_dir = dirname $original_scenario;
+      	#print "original_scenario=$original_scenario\n";
+      	#print "original_dir=$original_dir\n";
+        $xml_dir = $original_dir;        
     } 
     pre_wlog ("  INPUT file: " . $input_file) if ( (!$opts{b}) && ($opts{f} || $opts{scenario}) );
 
@@ -1127,6 +1139,7 @@ sub build_topology{
     chomp (my $now = `LANG=es $command`);
     my $input_file_basename = basename $dh->get_input_file;
     $execution->execute($logp, $bd->get_binaries_path_ref->{"cp"} . " " . $dh->get_input_file . " " . $dh->get_sim_dir);
+    $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " '' >> ".$dh->get_sim_dir."/$input_file_basename");       
     $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " '<'!-- copied by $basename at $now --'>' >> ".$dh->get_sim_dir."/$input_file_basename");       
     $execution->execute($logp, $bd->get_binaries_path_ref->{"echo"} . " '<'!-- original path: ".abs_path($dh->get_input_file)." --'>' >> ".$dh->get_sim_dir."/$input_file_basename");
 
@@ -2408,15 +2421,30 @@ change_to_root();
 
             # If Network manager is running, we have to release the management interface from being managed by NM. 
             # If not, the managemente IP address assigned dissapears after some seconds (why?)  
-            if ($nm_running) {
+            unless ( ! $nm_running  or 
+                     ($os_id eq 'fedora' or $os_id eq 'centos') or 
+                     ($os_id eq 'ubuntu' and $os_ver_id gt "14.04" )) {
+            	my $if_name = ${vm_name} . "-e0";
+            	my $mac_addr = get_mac_by_ifname("$if_name");
+				if ($mac_addr eq '') {
+    				wlog (N, "ERROR: cannot get mac address of interface " . $if_name);
+				} else {
+					wlog (VVV, "mac_addr($if_name)=" . $mac_addr, $logp);
+					my $con_uuid = get_nmuuid_by_mac($mac_addr);
+					if (defined($con_uuid)) {
+					    wlog (VVV, "nm uuid associated with $mac_addr found: $con_uuid", $logp);
+                		$execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
+					} else {
+    					wlog (N, "ERROR: nm uuid assicated to $if_name not found");
+					}
+				}
             	# This line does not work in Ubuntu 14.04
-                # my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e0 | awk 'BEGIN {FS=\":\"} {print \$1}' `;
-                
+                #my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e0 | awk 'BEGIN {FS=\":\"} {print \$1}' `;
                 #my $con_uuid = `LANG=C nmcli dev list iface ${vm_name}-e0 | grep "CONNECTIONS.AVAILABLE-CONNECTIONS" | awk '{print \$2}'`;
                 #chomp ($con_uuid);
                 #wlog (V, "iface ${vm_name}-e0, con_uuid='$con_uuid'", $logp);
                 #$execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
-                #$execution->execute($logp, $nmcli . " dev disconnect iface ${vm_name}-e0" );
+                #$execution->execute($logp, $nmcli . " dev disconnect iface ${vm_name}-e0" );                
             }
             # Disable IPv6 autoconfiguration in interface
             $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e0.autoconf=0" );
@@ -2451,7 +2479,23 @@ change_to_root();
             $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e${id}.autoconf=0" );
 
             # Prevent Network manager (if running) from managing VM interfaces
-            if ($nm_running) {
+            unless ( ! $nm_running  or 
+                     ($os_id eq 'fedora' or $os_id eq 'centos') or 
+                     ($os_id eq 'ubuntu' and $os_ver_id gt "14.04" )) {
+            	my $if_name = ${vm_name} . "-e${id}";
+            	my $mac_addr = get_mac_by_ifname("$if_name");
+				if ($mac_addr eq '') {
+    				wlog (N, "ERROR: cannot get mac address of interface " . $if_name);
+				} else {
+					wlog (VVV, "mac_addr($if_name)=" . $mac_addr, $logp);
+					my $con_uuid = get_nmuuid_by_mac($mac_addr);
+					if (defined($con_uuid)) {
+					    wlog (VVV, "nm uuid associated with $mac_addr found: $con_uuid", $logp);
+                		$execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
+					} else {
+    					wlog (N, "ERROR: nm uuid assicated to $if_name not found");
+					}
+				}
                 #my $con_uuid = `nmcli -t -f UUID,DEVICES con status | grep ${vm_name}-e${id} | awk 'BEGIN {FS=\":\"} {print \$1}' `;
                 #chomp ($con_uuid);
                 #wlog (VVV, "con_uuid='$con_uuid'", $logp);
@@ -2482,6 +2526,36 @@ back_to_user();
     }
     return @vm_ordered;  # 
 }
+
+sub get_mac_by_ifname{
+
+    my $if_name = shift;
+
+    my $mac_addr = `ip link show dev $if_name | grep link | awk '{ print \$2 }'`;
+    chomp($mac_addr);
+    return uc $mac_addr;
+}
+
+sub get_nmuuid_by_mac {
+
+    my $mac_addr = shift;
+
+    my $if_uuids = `nmcli -t -f UUID con list | tr '\n' ' '`;
+
+    #print "if_uuids=$if_uuids\n";
+
+    foreach my $uuid (split(/ /,$if_uuids)) {
+
+        #print "uuid=$uuid\n";
+        my $mac_uuid = `nmcli con list uuid $uuid | grep "802-3-ethernet.mac-address:" | awk '{ print \$2}'`;
+        chomp($mac_uuid);
+        #print "mac_uuid=$mac_uuid\n";
+        if (uc $mac_uuid eq $mac_addr) {
+            return $uuid;
+        }
+    }
+}
+
 
 #
 # set_vlan_links
@@ -7475,21 +7549,21 @@ my $usage = <<EOF;
 
 Usage: 
   [sudo] vnx -f VNX_file --define          [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --undefine        [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --start           [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --shutdown --kill [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --undefine        [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --start           [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --shutdown --kill [-M vm_list] [options]
   [sudo] vnx -f VNX_file --create          [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --destroy         [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --save            [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --restore         [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --suspend         [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --resume          [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --reboot          [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --reset           [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --execute cmd_seq [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --exe-cli cmd     [-M vm_list] [options]
-  [sudo] vnx -f VNX_file --show-map [svg|png]
-  [sudo] vnx -f VNX_file --show-status [-b]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --destroy         [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --save            [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --restore         [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --suspend         [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --resume          [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --reboot          [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --reset           [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --execute cmd_seq [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --exe-cli cmd     [-M vm_list] [options]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --show-map [svg|png]
+  [sudo] vnx [-f VNX_file|-s VNX_scenid] --show-status [-b]
   vnx -h
   vnx -V
   [sudo] vnx --show-status

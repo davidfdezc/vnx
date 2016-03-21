@@ -3,7 +3,7 @@
 # This file is part of VNX package.
 #
 # Authors: David Fernández (david@dit.upm.es)
-# Copyright (C) 2014-15 DIT-UPM
+# Copyright (C) 2014-16 DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -62,10 +62,25 @@ _vnx()
         -e|--create-rootfs|--install-media)
                          _filedir
                          ;;
-        --execute|-x)    scenario=`echo $line | awk '{ for (x=1;x<=NF;x++) if ($x~"-f") print $x " " $(x+1) }'`
-                         moption=`echo $line | awk '{ for (x=1;x<=NF;x++) if ($x~"-M") print $x " " $(x+1) }'`
-                         pars=`vnx $scenario $moption --exe-info -b`
-                         COMPREPLY=( $(compgen -W "${pars}" -- ${cur}) )
+        --execute|-x)    if [[ $line == *"-f"* ]]; then
+                            scenario_opt=`echo $line | awk '{ for (x=1;x<=NF;x++) if ($x~"-f") print $x " " $(x+1) }'`
+                            moption=`echo $line | awk '{ for (x=1;x<=NF;x++) if ($x~"-M") print $x " " $(x+1) }'`
+                            scenario=(${scenario_opt// / })
+                            #pars=${scenario[1]}
+                            if [ -r ${scenario[1]} ]; then
+                                pars=`vnx $scenario_opt $moption --exe-info -b`
+                                COMPREPLY=( $(compgen -W "${pars}" -- ${cur}) )
+                            fi
+                         elif [[ $line == *" -s "* || $line == *" --scenario "* ]]; then
+                            scenario_opt=`echo $line | awk '{ for (x=1;x<=NF;x++) if ($x~"-s" || $x~"--scenario") print $x " " $(x+1) }'`
+                            moption=`echo $line | awk '{ for (x=1;x<=NF;x++) if ($x~"-M") print $x " " $(x+1) }'`
+                            pars=`vnx $scenario_opt $moption --exe-info -b`
+                            COMPREPLY=( $(compgen -W "${pars}" -- ${cur}) )
+
+                            #vnx_dir=$( cat /etc/vnx.conf | grep "^vnx_dir" | sed -e 's/vnx_dir=//' )
+                            #scenario_dir=$( eval echo "$vnx_dir/scenarios/${scenario[1]}" )
+                            #scenario_file=$( ls "$scenario_dir/${scenario[1]}.xml" )
+                         fi
                          ;;
         --modify-rootfs) _filedir
                          ;;
