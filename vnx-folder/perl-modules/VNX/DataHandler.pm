@@ -768,6 +768,8 @@ sub get_vm_default_filesystem {
             $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_LINUX[0];
         } elsif ($merged_type eq 'libvirt-kvm-freebsd') {
             $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_FREEBSD[0];
+        } elsif ($merged_type eq 'libvirt-kvm-openbsd') {
+            $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_OPENBSD[0];
         } elsif ($merged_type eq 'libvirt-kvm-windows') {
             $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_WINDOWS[0];
         } elsif ($merged_type eq 'libvirt-kvm-olive') {
@@ -882,6 +884,8 @@ sub get_default_exec_mode {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_LINUX[0];
         } elsif ($merged_type eq 'libvirt-kvm-freebsd') {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_FREEBSD[0];
+        } elsif ($merged_type eq 'libvirt-kvm-openbsd') {
+            $def_execmode = $EXEC_MODES_LIBVIRT_KVM_OPENBSD[0];
         } elsif ($merged_type eq 'libvirt-kvm-windows') {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_WINDOWS[0];
         } elsif ($merged_type eq 'libvirt-kvm-olive') {
@@ -918,6 +922,8 @@ sub get_default_ostype {
         $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_LINUX[0];
     } elsif ($merged_type eq 'libvirt-kvm-freebsd') {
         $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD[0];
+    } elsif ($merged_type eq 'libvirt-kvm-openbsd') {
+        $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_OPENBSD[0];
     } elsif ($merged_type eq 'libvirt-kvm-windows') {
         $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS[0];
     } elsif ($merged_type eq 'libvirt-kvm-olive') {

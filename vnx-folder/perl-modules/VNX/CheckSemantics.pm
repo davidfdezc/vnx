@@ -1210,7 +1210,9 @@ user();
             return "group and perms attribute of <filetree> tag can only be used in Linux or FreeBSD virtual machines"
                 #if ( ( $group ne '' || $perms ne '' ) && ( ( $merged_type ne 'libvirt-kvm-linux') 
                 if ( ( !empty($group) || !empty($perms) ) && ( ( $merged_type ne 'libvirt-kvm-linux') 
-                    && ( $merged_type ne 'libvirt-kvm-freebsd') && ( $merged_type ne 'uml')) ); 
+                    && ( $merged_type ne 'libvirt-kvm-freebsd') 
+                    && ( $merged_type ne 'libvirt-kvm-openbsd') 
+                    && ( $merged_type ne 'uml')) ); 
         
    	   }   	   
    }
@@ -1349,8 +1351,11 @@ user();
 	        } elsif ($merged_type eq 'libvirt-kvm-linux') {
 				if ( "@EXEC_MODES_LIBVIRT_KVM_LINUX" !~ $exec_mode )  {
 					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
-			} elsif ($merged_type eq 'libvirt-kvm-freebsd') {
+		} elsif ($merged_type eq 'libvirt-kvm-freebsd') {
 				if ( "@EXEC_MODES_LIBVIRT_KVM_FREEBSD" !~ $exec_mode )  {
+					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+		} elsif ($merged_type eq 'libvirt-kvm-openbsd') {
+				if ( "@EXEC_MODES_LIBVIRT_KVM_OPENBSD" !~ $exec_mode )  {
 					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
 	        } elsif ($merged_type eq 'libvirt-kvm-windows') {
 				if ( "@EXEC_MODES_LIBVIRT_KVM_WINDOWS" !~ $exec_mode )  {
@@ -1389,6 +1394,12 @@ user();
                 if (empty($cmdOSType)) { # Set default value 
                     $cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD[0]" );
                 } elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD" !~ $cmdOSType )  {
+                    return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
+
+            } elsif ($merged_type eq 'libvirt-kvm-openbsd') {
+                if (empty($cmdOSType)) { # Set default value 
+                    $cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_OPENBSD[0]" );
+                } elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_OPENBSD" !~ $cmdOSType )  {
                     return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
 
             } elsif ($merged_type eq 'libvirt-kvm-windows') {

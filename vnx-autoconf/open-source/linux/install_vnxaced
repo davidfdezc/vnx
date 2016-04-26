@@ -4,7 +4,7 @@
 # Name: install-vnxaced
 #
 # Description: 
-#   script to install vnxaced (Autoconfiguration and Command Execution Daemon) over Linux and FreeBSD 
+#   script to install vnxaced (Autoconfiguration and Command Execution Daemon) over Linux, FreeBSD and OpenBSD
 #
 # This file is a module part of VNX package.
 #
@@ -53,7 +53,9 @@ if ($res) {
         $cmd = "yum -y install perl-XML-LibXML";
     } elsif ($platform[0] eq 'FreeBSD') {
         $cmd = "pkg_add -r perl p5-xml-libxml";
-    } 
+    } elsif ($platform[0] eq 'OpenBSD') {
+        $cmd = "pkg_add -r perl p5-xml-libxml";
+    }
     print "       Install it manually with the following command:\n";
     print "         $cmd\n";
     print "       and execute again vnxaced installation script.\n";
@@ -70,6 +72,8 @@ if ($res) {
     } elsif ($platform[1] eq 'Fedora' || $platform[1] eq 'CentOS' ) {
         $cmd = "yum -y install perl-NetAddr-IP";
     } elsif ($platform[0] eq 'FreeBSD') {
+        $cmd = "pkg install p5-NetAddr-IP";
+    } elsif ($platform[0] eq 'OpenBSD') {
         $cmd = "pkg install p5-NetAddr-IP";
     } 
     print "       Install it manually with the following command:\n";
@@ -189,6 +193,30 @@ if ($platform[0] eq 'Linux'){
 	system "chown root:wheel /usr/local/bin/xsu";
 	system "chmod 755 /usr/local/bin/xsu";
 
+} elsif ($platform[0] eq 'OpenBSD'){
+
+	# ~~~~~~~~~~~~~~~~~~~~
+	#  Update for OpenBSD       
+	# ~~~~~~~~~~~~~~~~~~~~
+	print "-- OpenBSD platform detected\n";
+	system "cp vnxaced.pl /usr/local/bin/vnxaced";
+	system "chown root:wheel /usr/local/bin/vnxaced";
+	system "chmod 555 /usr/local/bin/vnxaced";
+
+        system "cp openbsd/vnx_halt /usr/local/bin/";
+        system "chown root:wheel /usr/local/bin/vnx_halt";
+        system "chmod 755 /usr/local/bin/vnx_halt";
+
+	system "cp openbsd/vnxaced /etc/rc.d/";
+	system "chown root:wheel /etc/rc.d/vnxaced";
+	system "chmod 555 /etc/rc.d/vnxaced";
+
+	system "cp linux/bin/xsu /usr/local/bin";
+	system "chown root:wheel /usr/local/bin/xsu";
+	system "chmod 755 /usr/local/bin/xsu";
+	
+	system "test -e /etc/rc.conf.local && (grep -q -v vnxaced /etc/rc.conf.local && (grep -q '^pkg_scripts' /etc/rc.conf.local && sed -i '/pkg_scripts=/ s/\$/ vnxaced/' /etc/rc.conf.local || echo pkg_scripts=vnxaced >> /etc/rc.conf.local) || true) || echo pkg_scripts=vnxaced >> /etc/rc.conf.local";
+
 } else {
 	print "-- Unknown platform\n";
 }
@@ -256,6 +284,10 @@ sub getOSDistro {
 	        $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
 	} elsif ( $OS eq "FreeBSD" ) {
 	        $DIST= "FreeBSD";
+		$REV =~ s/-RELEASE//;
+	        $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+	} elsif ( $OS eq "OpenBSD" ) {
+	        $DIST= "OpenBSD";
 		$REV =~ s/-RELEASE//;
 	        $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
 	}

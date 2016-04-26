@@ -1765,7 +1765,9 @@ sub make_vmAPI_doc {
         if ( $forwarding->getAttribute("type") eq 'ip' or $forwarding->getAttribute("type") eq 'ipv4' ) {
             $forward_ipv4 = 'yes';                
         }
-        if ( $forwarding->getAttribute("type") eq 'ipv6' ) {
+        // fruiz, according to documentation ip forwarding should cover both IPv4 and IPv6 
+        // if ( $forwarding->getAttribute("type") eq 'ipv6' ) {
+        if ( $forwarding->getAttribute("type") eq 'ip' or $forwarding->getAttribute("type") eq 'ipv6' ) {
             $forward_ipv6 = 'yes';                
         }
     }

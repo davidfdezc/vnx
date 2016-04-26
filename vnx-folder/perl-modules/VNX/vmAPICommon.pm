@@ -42,6 +42,7 @@ our @EXPORT = qw(
 	autoconfigure_debian_ubuntu
 	autoconfigure_redhat
     autoconfigure_freebsd
+    autoconfigure_openbsd
     autoconfigure_android
     autoconfigure_wanos
     get_os_distro
@@ -662,6 +663,10 @@ sub get_os_distro {
             $DIST= "FreeBSD";
         $REV =~ s/-RELEASE//;
             $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+    } elsif ( $OS eq "OpenBSD" ) {
+            $DIST= "OpenBSD";
+        $REV =~ s/-RELEASE//;
+            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
     }
 return $OSSTR;
 }
@@ -730,6 +735,10 @@ sub get_os_distro {
             $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
     } elsif ( $OS eq "FreeBSD" ) {
             $DIST= "FreeBSD";
+        $REV =~ s/-RELEASE//;
+            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+    } elsif ( $OS eq "OpenBSD" ) {
+            $DIST= "OpenBSD";
         $REV =~ s/-RELEASE//;
             $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
     }
