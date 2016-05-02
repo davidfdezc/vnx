@@ -1,3 +1,14 @@
+2/5/2016
+
+- get_vm_ftrees_and_execs modified to cope with multiline commands (lines that end with '\' are joined with the following line)  
+
+- <exec> tags processing:
+  + Corrected errors that prevented execution of exec tags of type='file'
+  + Now the comments and multiline commands are processed also in execs of type='file'
+  + When -M option is selected, host <exec> commands are only executed if 'host' is added to -M list 
+
+- Added support for OpenBSD thanks to Javier Ruiz contribution.
+
 21/3/2016
 
 - Network manager nmcli calls corrected for ubuntu 14.04 or older versions. It seems they are not needed for ubuntu >= 15.04 or fedora/centos

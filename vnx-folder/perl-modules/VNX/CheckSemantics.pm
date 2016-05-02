@@ -1210,7 +1210,10 @@ user();
             return "group and perms attribute of <filetree> tag can only be used in Linux or FreeBSD virtual machines"
                 #if ( ( $group ne '' || $perms ne '' ) && ( ( $merged_type ne 'libvirt-kvm-linux') 
                 if ( ( !empty($group) || !empty($perms) ) && ( ( $merged_type ne 'libvirt-kvm-linux') 
-                    && ( $merged_type ne 'libvirt-kvm-freebsd') && ( $merged_type ne 'uml')) ); 
+                    && ( $merged_type ne 'libvirt-kvm-freebsd') 
+                    && ( $merged_type ne 'libvirt-kvm-openbsd') 
+                    && ( $merged_type ne 'libvirt-kvm-netbsd') 
+                    && ( $merged_type ne 'uml')) ); 
         
    	   }   	   
    }
@@ -1304,17 +1307,21 @@ user();
 	}
 
 
-	# Check the vm names in -M option correspond to vms defined in the scenario
+	# Check the vm names in -M option correspond to vms defined in the scenario or the host
 	my $opt_M = $dh->{'vm_to_use'};
 	if ($opt_M) {
 		my @vms = split (/,/, $opt_M);
 		foreach my $vmName (@vms) {
 		   	my %vm_hash = $dh->get_vm_to_use;
 		   	my $vmFound;
-		   	for ( my $i = 0; $i < @vm_ordered; $i++) {
-		      my $vm = $vm_ordered[$i];
-		      my $name = $vm->getAttribute("name");
-		      if ($vmName eq $name) { $vmFound = 'true'}
+		   	if ($vmName eq 'host') {
+                $vmFound = 'true';		   	    
+		   	} else {
+    		   	for ( my $i = 0; $i < @vm_ordered; $i++) {
+    		      my $vm = $vm_ordered[$i];
+    		      my $name = $vm->getAttribute("name");
+    		      if ($vmName eq $name) { $vmFound = 'true'}
+    		   	}
 		   	}
 		   	if (!$vmFound) {
 		   		return "virtual machine $vmName specified in -M option does not exist"
@@ -1351,6 +1358,9 @@ user();
 					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
 			} elsif ($merged_type eq 'libvirt-kvm-freebsd') {
 				if ( "@EXEC_MODES_LIBVIRT_KVM_FREEBSD" !~ $exec_mode )  {
+					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
+		} elsif ($merged_type eq 'libvirt-kvm-openbsd') {
+				if ( "@EXEC_MODES_LIBVIRT_KVM_OPENBSD" !~ $exec_mode )  {
 					return "incorrect value ($exec_mode) of exec_mode attribute in <vm> tag of vm $vmName"; }      
 	        } elsif ($merged_type eq 'libvirt-kvm-windows') {
 				if ( "@EXEC_MODES_LIBVIRT_KVM_WINDOWS" !~ $exec_mode )  {
@@ -1389,6 +1399,18 @@ user();
                 if (empty($cmdOSType)) { # Set default value 
                     $cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD[0]" );
                 } elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD" !~ $cmdOSType )  {
+                    return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
+
+            } elsif ($merged_type eq 'libvirt-kvm-openbsd') {
+                if (empty($cmdOSType)) { # Set default value 
+                    $cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_OPENBSD[0]" );
+                } elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_OPENBSD" !~ $cmdOSType )  {
+                    return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
+
+            } elsif ($merged_type eq 'libvirt-kvm-netbsd') {
+                if (empty($cmdOSType)) { # Set default value 
+                    $cmd->setAttribute( 'ostype', "$EXEC_OSTYPE_LIBVIRT_KVM_NETBSD[0]" );
+                } elsif ( "@EXEC_OSTYPE_LIBVIRT_KVM_NETBSD" !~ $cmdOSType )  {
                     return "incorrect ostype ($cmdOSType) in <exec> tag of vm $vmName (" . $cmd->toString . ")"; }
 
             } elsif ($merged_type eq 'libvirt-kvm-windows') {

@@ -52,6 +52,7 @@ use constant VNXACED_STATUS => VNXACED_STATUS_DIR . '/vnxaced.status';
 use constant VNXACED_STATUS_TEST_FILE => VNXACED_STATUS_DIR . '/testfs';
 
 use constant FREEBSD_CD_DIR => '/cdrom';
+use constant OPENBSD_CD_DIR => '/cdrom';
 use constant LINUX_CD_DIR   => '/media/cdrom';
 
 use constant INIT_DELAY   => '10';
@@ -64,6 +65,7 @@ use constant H2VM_CHANNEL => 'SERIAL';
 
 use constant LINUX_TTY   => '/dev/ttyS1';
 use constant FREEBSD_TTY => '/dev/cuau1';
+use constant OPENBSD_TTY => '/dev/tty01';
 
 use constant MSG_FILE => '/mnt/sdisk/cmd/command';
 
@@ -228,8 +230,18 @@ if ($platform[0] eq 'linux'){
     system "mkdir -p /mnt/sdisk";
     $console_ttys = "/dev/ttyv0";
     
+} elsif ($platform[0] eq 'openbsd'){
+    
+    $vm_tty = OPENBSD_TTY;
+    $mount_cdrom_cmd = 'mount /cdrom';
+    $umount_cdrom_cmd = 'umount -f /cdrom';
+    $mount_sdisk_cmd  = 'mount_msdos /dev/wd1i /mnt/sdisk';
+    $umount_sdisk_cmd = 'umount /mnt/sdisk';
+    system "mkdir -p /mnt/sdisk";
+    $console_ttys = "/dev/tty00";
+    
 } else {
-    wlog (V, "ERROR: unknown platform ($platform[0]). Only Linux and FreeBSD supported.");
+    wlog (V, "ERROR: unknown platform ($platform[0]). Only Linux, FreeBSD and OpenBSD supported.");
     exit (1);
 }
 
@@ -544,6 +556,8 @@ sub process_cmd {
         $cd_dir = LINUX_CD_DIR;
     } elsif ($platform[0] eq 'freebsd'){
         $cd_dir = FREEBSD_CD_DIR;
+    } elsif ($platform[0] eq 'openbsd'){
+        $cd_dir = OPENBSD_CD_DIR;
     }
 
     wlog (V, "Command received: '$line'");
@@ -740,6 +754,18 @@ sub autoupdate {
     #############################
     elsif ($platform[0] eq 'freebsd'){
         wlog (V, "     updating vnxdaemon for FreeBSD...");
+
+        if (-e "$files_dir/install_vnxaced") {
+            system "$files_dir/uninstall_vnxaced -n";
+            $res = system "$files_dir/install_vnxaced";
+        } elsif (-e "$files_dir/vnxaced-lf/install_vnxaced") {
+            system "$files_dir/vnxaced-lf/uninstall_vnxaced -n";
+            $res = system "$files_dir/vnxaced-lf/install_vnxaced";
+        }
+        #system "cp /cdrom/vnxaced.pl /usr/local/bin/vnxaced";
+        #system "cp /cdrom/freebsd/vnxace /etc/rc.d/vnxace";
+    } elsif ($platform[0] eq 'openbsd'){
+        wlog (V, "     updating vnxdaemon for OpenBSD...");
 
         if (-e "$files_dir/install_vnxaced") {
             system "$files_dir/uninstall_vnxaced -n";
@@ -947,6 +973,10 @@ sub exe_cmd {
                         wlog (V, "system \"detach sh -c \\\"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] \'$cmd\'\\\"\" < /dev/null > /dev/null 2>&1");
                         system "detach sh -c \"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] '$cmd'\" > /dev/null 2>&1 < /dev/null";
                         exit (0);
+                    } elsif ($platform[0] eq 'openbsd'){
+                        wlog (V, "system \"detach sh -c \\\"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] \'$cmd\'\\\"\" < /dev/null > /dev/null 2>&1");
+                        system "detach sh -c \"DISPLAY=:0.0 /usr/local/bin/xsu $userOnDisplay0[0] '$cmd'\" > /dev/null 2>&1 < /dev/null";
+                        exit (0);
                     }
                     
                 }
@@ -1049,6 +1079,10 @@ EOF
         #wlog (V, "calling autoconfigure_freebsd");
         write_console ("$warn_msg\n");
         autoconfigure_freebsd ($dom, '/', 'yes')
+    } elsif ($platform[0] eq 'openbsd') {
+        #wlog (V, "calling autoconfigure_openbsd");
+        write_console ("$warn_msg\n");
+        autoconfigure_openbsd ($dom, '/', 'yes')
     }
     
     # Change the message of the day (/etc/motd) to eliminate the
@@ -1115,7 +1149,12 @@ sub execute_filetree {
                 system "mkdir -p $root";
             }
 
-            $cmd="cp -vR ${source_path}* $root";
+            #$cmd="cp -vR ${source_path}* $root";
+	    	if ($platform[0] eq 'openbsd') {
+				$cmd="cp -R ${source_path}* $root";
+	    	} else {
+				$cmd="cp -vR ${source_path}* $root";
+	    	}
             wlog (V, "   Executing '$cmd' ...");
             $res=`$cmd`;
             wlog (V, "Copying filetree files ($root):") if ($VERBOSE);
@@ -1149,7 +1188,12 @@ sub execute_filetree {
                 wlog (V, "   creating unexisting dir '$file_dir'...");
                 system "mkdir -p $file_dir";
             }
-            $cmd="cp -v ${source_path}* $root";
+            #$cmd="cp -v ${source_path}* $root";
+	    	if ($platform[0] eq 'openbsd') {
+				$cmd="cp ${source_path}* $root";
+	    	} else {
+				$cmd="cp -v ${source_path}* $root";
+	    	}
             wlog (V, "   Executing '$cmd' ...");
             $res=`$cmd`;
             wlog (V, "Copying filetree file ($root):") if ($VERBOSE);
@@ -1194,47 +1238,57 @@ sub get_os_distro {
     my $PSEUDONAME;
         
     if ( $OS eq 'SunOS' ) {
-            $OS='Solaris';
-            $ARCH=`uname -p`;
-            $OSSTR= "$OS,$REV,$ARCH," . `uname -v`;
+        $OS='Solaris';
+        $ARCH=`uname -p`;
+        $OSSTR= "$OS,$REV,$ARCH," . `uname -v`;
     } elsif ( $OS eq "AIX" ) {
-            $OSSTR= "$OS," . `oslevel` . "," . `oslevel -r`;
+        $OSSTR= "$OS," . `oslevel` . "," . `oslevel -r`;
     } elsif ( $OS eq "Linux" ) {
-            $KERNEL=`uname -r`;
-            if ( -e '/etc/redhat-release' ) {
+        $KERNEL=`uname -r`;
+        if ( -e '/etc/redhat-release' ) {
             my $relfile = `cat /etc/redhat-release`;
             my @fields  = split(/ /, $relfile);
-                    $DIST = $fields[0];
-                    $REV = $fields[2];
-                    $PSEUDONAME = $fields[3];
-                    $PSEUDONAME =~ s/\(//; $PSEUDONAME =~ s/\)//;
+            $DIST = $fields[0];
+            $REV = $fields[2];
+            $PSEUDONAME = $fields[3];
+            $PSEUDONAME =~ s/\(//; $PSEUDONAME =~ s/\)//;
         } elsif ( -e '/etc/SuSE-release' ) {
-                    $DIST=`cat /etc/SuSE-release | tr "\n" ' '| sed s/VERSION.*//`;
-                    $REV=`cat /etc/SuSE-release | tr "\n" ' ' | sed s/.*=\ //`;
-            } elsif ( -e '/etc/mandrake-release' ) {
-                    $DIST='Mandrake';
-                    $PSEUDONAME=`cat /etc/mandrake-release | sed s/.*\(// | sed s/\)//`;
-                    $REV=`cat /etc/mandrake-release | sed s/.*release\ // | sed s/\ .*//`;
-            } elsif ( -e '/etc/lsb-release' ) {
-                    $DIST= `cat /etc/lsb-release | grep DISTRIB_ID | sed 's/DISTRIB_ID=//'`; 
-                    $REV = `cat /etc/lsb-release | grep DISTRIB_RELEASE | sed 's/DISTRIB_RELEASE=//'`;
-                    $PSEUDONAME = `cat /etc/lsb-release | grep DISTRIB_CODENAME | sed 's/DISTRIB_CODENAME=//'`;
-            } elsif ( -e '/etc/debian_version' ) {
-                    $DIST= "Debian"; 
-                    $REV=`cat /etc/debian_version`;
-                    $PSEUDONAME = `LANG=C lsb_release -a 2> /dev/null | grep Codename | sed 's/Codename:\\s*//'`;                    
+            $DIST=`cat /etc/SuSE-release | tr "\n" ' '| sed s/VERSION.*//`;
+            $REV=`cat /etc/SuSE-release | tr "\n" ' ' | sed s/.*=\ //`;
+        } elsif ( -e '/etc/mandrake-release' ) {
+            $DIST='Mandrake';
+            $PSEUDONAME=`cat /etc/mandrake-release | sed s/.*\(// | sed s/\)//`;
+            $REV=`cat /etc/mandrake-release | sed s/.*release\ // | sed s/\ .*//`;
+        } elsif ( -e '/etc/lsb-release' ) {
+            $DIST= `cat /etc/lsb-release | grep DISTRIB_ID | sed 's/DISTRIB_ID=//'`; 
+            $REV = `cat /etc/lsb-release | grep DISTRIB_RELEASE | sed 's/DISTRIB_RELEASE=//'`;
+            $PSEUDONAME = `cat /etc/lsb-release | grep DISTRIB_CODENAME | sed 's/DISTRIB_CODENAME=//'`;
+        } elsif ( -e '/etc/debian_version' ) {
+            $DIST= "Debian"; 
+            $REV=`cat /etc/debian_version`;
+            $PSEUDONAME = `LANG=C lsb_release -a 2> /dev/null | grep Codename | sed 's/Codename:\\s*//'`;                    
         }
-            if ( -e '/etc/UnitedLinux-release' ) {
-                    $DIST=$DIST . " [" . `cat /etc/UnitedLinux-release | tr "\n" ' ' | sed s/VERSION.*//` . "]";
-            }
+        if ( -e '/etc/UnitedLinux-release' ) {
+            $DIST=$DIST . " [" . `cat /etc/UnitedLinux-release | tr "\n" ' ' | sed s/VERSION.*//` . "]";
+        }
         chomp ($KERNEL); chomp ($DIST); chomp ($PSEUDONAME); chomp ($REV);
-            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+        $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
     } elsif ( $OS eq "FreeBSD" ) {
-            $DIST= "FreeBSD";
+        $DIST= "FreeBSD";
         $REV =~ s/-RELEASE//;
-            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
-    }
-return $OSSTR;
+        $ARCH=`uname -p`;
+        $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+    } elsif ( $OS eq "NetBSD" ) {
+        $DIST= "NetBSD";
+        $ARCH=`uname -p`;
+        $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+	} elsif ( $OS eq "OpenBSD" ) {
+        $DIST= "OpenBSD";
+        $REV =~ s/-RELEASE//;
+        $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+    }    
+	return $OSSTR;
+
 }
 
 #

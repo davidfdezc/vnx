@@ -672,11 +672,12 @@ user();
 	}
 	
 	#
-	# define_vm for libvirt-kvm-linux/freebsd/olive
+	# define_vm for libvirt-kvm-linux/freebsd/openbsd/olive
 	#
-	elsif ( ($type eq "libvirt-kvm-linux")||($type eq "libvirt-kvm-freebsd")||
-	        ($type eq "libvirt-kvm-olive")||($type eq "libvirt-vbox") || 
-	        ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
+	elsif ( ($type eq "libvirt-kvm-linux")   || ($type eq "libvirt-kvm-freebsd") ||
+	        ($type eq "libvirt-kvm-olive")   || ($type eq "libvirt-vbox")        || 
+	        ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos")   ||
+	        ($type eq "libvirt-kvm-netbsd")  || ($type eq "libvirt-kvm-openbsd") ) {
 
         # Create vnxboot.xml file under $sdisk_content directory
         unless ( $execution->get_exe_mode() eq $EXE_DEBUG || $type eq "libvirt-kvm-android" || $type eq "libvirt-kvm-wanos" ) {
@@ -738,7 +739,8 @@ user();
 
         if ( ($type eq "libvirt-kvm-linux") || ($type eq "libvirt-kvm-freebsd") ||
              ($type eq "libvirt-kvm-olive") || ($type eq "libvirt-kvm-android") || 
-             ($type eq "libvirt-kvm-wanos") ) {
+             ($type eq "libvirt-kvm-wanos") || ($type eq "libvirt-kvm-netbsd")  ||
+             ($type eq "libvirt-kvm-openbsd") ) {
     		# Note: changed the first line to 
     		# <domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
     		# to allow the use of <qemu:commandline> tag to especify the bios in Olive routers
@@ -1620,11 +1622,12 @@ sub undefine_vm {
 	my $con;
 
 	#
-	# undefine_vm for libvirt-kvm-windows/linux/freebsd/olive
+	# undefine_vm for libvirt-kvm-windows/linux/freebsd/openbsd/olive
 	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") || 
-         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") || 
+         ($type eq "libvirt-kvm-netbsd")  || ($type eq "libvirt-kvm-openbsd") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -1700,11 +1703,12 @@ sub start_vm {
     my $con;
     
     #
-    # start_vm for libvirt-kvm-windows/linux/freebsd/olive
+    # start_vm for libvirt-kvm-windows/linux/freebsd/openbsd/olive
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
-         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ||
+         ($type eq "libvirt-kvm-netbsd")  || ($type eq "libvirt-kvm-openbsd") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -1877,11 +1881,12 @@ sub shutdown_vm {
     wlog (V, "Shutting down vm $vm_name of type $type", $logp);
 
     #
-    # shutdown_vm for libvirt-kvm-windows/linux/freebsd#
+    # shutdown_vm for libvirt-kvm-windows/linux/freebsd/openbsd#
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
-         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ||
+         ($type eq "libvirt-kvm-netbsd")  || ($type eq "libvirt-kvm-openbsd") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -1963,11 +1968,12 @@ sub suspend_vm {
     my $con;
 
     #
-    # suspend_vm for libvirt-kvm-windows/linux/freebsd
+    # suspend_vm for libvirt-kvm-windows/linux/freebsd/openbsd
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
-         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ||
+         ($type eq "libvirt-kvm-netbsd")  || ($type eq "libvirt-kvm-openbsd") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2032,11 +2038,12 @@ sub resume_vm {
     wlog (V, "resuming VM $vm_name", $logp);
 
     #
-    # resume_vm for libvirt-kvm-windows/linux/freebsd
+    # resume_vm for libvirt-kvm-windows/linux/freebsd/openbsd
     #
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
-         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ||
+         ($type eq "libvirt-kvm-netbsd")  || ($type eq "libvirt-kvm-openbsd") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2132,10 +2139,11 @@ user();
 
 	}
 	#
-	# save_vm for libvirt-kvm-windows/linux/freebsd
+	# save_vm for libvirt-kvm-windows/linux/freebsd/openbsd
 	#
-    elsif ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
-             ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") )   {
+    elsif (  ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
+             ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
+             ($type eq "libvirt-kvm-netbsd")  || ($type eq "libvirt-kvm-openbsd") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2203,11 +2211,12 @@ sub restore_vm {
 	wlog (V, "restoring vm $vm_name of type $type from file $filename", $logp);
 
  	#
-	# restore_vm for libvirt-kvm-windows/linux/freebsd#
+	# restore_vm for libvirt-kvm-windows/linux/freebsd/openbsd#
 	#
     if ( ($type eq "libvirt-kvm-windows") || ($type eq "libvirt-kvm-linux") ||
          ($type eq "libvirt-kvm-freebsd") || ($type eq "libvirt-kvm-olive") ||
-         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ) {
+         ($type eq "libvirt-kvm-android") || ($type eq "libvirt-kvm-wanos") ||
+         ($type eq "libvirt-kvm-netbsd")  || ($type eq "libvirt-kvm-openbsd") ) {
 	    
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2684,10 +2693,11 @@ sub execute_cmd {
 
 		
 	#
-	# execute_cmd for LINUX & FREEBSD
+	# execute_cmd for LINUX & FREEBSD & OpenBSD
 	#
 	} elsif ( ($merged_type eq "libvirt-kvm-linux") || ($merged_type eq "libvirt-kvm-freebsd") || 
-	          ($merged_type eq "libvirt-kvm-olive") ) {
+	          ($merged_type eq "libvirt-kvm-olive") || ($merged_type eq "libvirt-kvm-netbsd")  || 
+              ($merged_type eq "libvirt-kvm-openbsd") ) {
 		
         my $sdisk_content;
         my $sdisk_fname;

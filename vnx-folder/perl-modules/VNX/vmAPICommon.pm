@@ -42,6 +42,7 @@ our @EXPORT = qw(
 	autoconfigure_debian_ubuntu
 	autoconfigure_redhat
     autoconfigure_freebsd
+    autoconfigure_openbsd
     autoconfigure_android
     autoconfigure_wanos
     get_os_distro
@@ -94,31 +95,50 @@ sub execute_host_command {
             
         my $type = $exec->getAttribute("type");
 
+        #
+        # Get the commands to execute
+        #
+        my $cmds;
+
         # Case 1. Verbatim type
         if ( $type eq "verbatim" ) {
-
-            # To include the command "as is"
-            $execution->execute( $logp,  text_tag_multiline($exec) );
-            $num_host_execs++;
+            $cmds = $exec->textContent;
         }
-
         # Case 2. File type
         elsif ( $type eq "file" ) {
-
-            # We open file and write commands line by line
-            my $include_file = do_path_expansion( text_tag($exec) );
-            open INCLUDE_FILE, "$include_file"
-              or $execution->smartdie("can not open $include_file: $!");
-            while (<INCLUDE_FILE>) {
-                chomp;
-                $execution->execute( $logp, $_);
-            }
-            close INCLUDE_FILE;
-            $num_host_execs++;
+            my $cmd_file = do_path_expansion( text_tag($exec) );
+	        $cmds = do {
+                local $/ = undef;
+                open my $fh, "<", $cmd_file
+                    or vnx_die ("could not open command file $cmd_file $! defined in '$seq' <exec> tag");
+                <$fh>;
+            };
         }
 
-        # Other case. Don't do anything (it would be an error in the XML!)
-    }  
+        # 
+        # Process the commands
+        #     
+        my $new_cmds;
+        # Join lines ending with an '\' to have each complete command in a line  
+        $cmds =~ s/\\\s*\n\s*/ /g; 
+        my @lines = split /\n/, $cmds;
+        if ($lines[0]) { $new_cmds = ''} else { $new_cmds = "\n"}
+        foreach my $line (@lines) {
+            $line =~ s/^\s+//; # delete leading spaces
+            $line =~ s/\s+$//; # delete trailing spaces
+            next if $line =~ /^#/; # ignore comments
+            next if $line =~ /^$/; # ignore empty lines
+            $line .= ';' if ( ($line !~ /;$/) && ($line !~ /&$/) );
+            #print $line . "\n";
+            $new_cmds .= $line . "\n";
+        }
+        #print $new_cmds . "\n";                
+
+        # Execute the commands
+        $execution->execute( $logp,  $new_cmds);
+
+    } 
+     
     return $num_host_execs
       
 }
@@ -662,6 +682,10 @@ sub get_os_distro {
             $DIST= "FreeBSD";
         $REV =~ s/-RELEASE//;
             $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+    } elsif ( $OS eq "OpenBSD" ) {
+            $DIST= "OpenBSD";
+        $REV =~ s/-RELEASE//;
+            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
     }
 return $OSSTR;
 }
@@ -730,6 +754,10 @@ sub get_os_distro {
             $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
     } elsif ( $OS eq "FreeBSD" ) {
             $DIST= "FreeBSD";
+        $REV =~ s/-RELEASE//;
+            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+    } elsif ( $OS eq "OpenBSD" ) {
+            $DIST= "OpenBSD";
         $REV =~ s/-RELEASE//;
             $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
     }

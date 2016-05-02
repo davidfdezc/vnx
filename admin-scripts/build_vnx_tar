@@ -121,6 +121,7 @@ cp vnx-autoconf/windows/vnx-aced-win-${ACED_WIN_VERSION}.exe tmp/aced
 echo "**   Creating vnx-aced-lf-${ACED_LF_VERSION}.tgz file... "
 mkdir -p tmp/aced/vnx-aced-lf-$ACED_LF_VERSION
 cp -r vnx-autoconf/open-source/freebsd \
+      vnx-autoconf/open-source/openbsd \
       vnx-autoconf/open-source/linux \
       vnx-autoconf/open-source/linux/vnxaced.pl \
       vnx-autoconf/open-source/linux/install_vnxaced \

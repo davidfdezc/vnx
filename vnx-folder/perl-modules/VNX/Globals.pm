@@ -108,6 +108,8 @@ our @EXPORT = qw(
 	@EXEC_MODES_UML
     @EXEC_MODES_LIBVIRT_KVM_LINUX
     @EXEC_MODES_LIBVIRT_KVM_FREEBSD
+    @EXEC_MODES_LIBVIRT_KVM_NETBSD
+    @EXEC_MODES_LIBVIRT_KVM_OPENBSD
 	@EXEC_MODES_LIBVIRT_KVM_WINDOWS
 	@EXEC_MODES_LIBVIRT_KVM_OLIVE
 	@EXEC_MODES_LIBVIRT_KVM_ANDROID
@@ -118,6 +120,8 @@ our @EXPORT = qw(
 	@EXEC_OSTYPE_UML
     @EXEC_OSTYPE_LIBVIRT_KVM_LINUX  
     @EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD
+    @EXEC_OSTYPE_LIBVIRT_KVM_NETBSD
+    @EXEC_OSTYPE_LIBVIRT_KVM_OPENBSD
 	@EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS
     @EXEC_OSTYPE_LIBVIRT_KVM_OLIVE
     @EXEC_OSTYPE_LIBVIRT_KVM_ANDROID
@@ -127,6 +131,8 @@ our @EXPORT = qw(
     @DEFAUL_FILESYSTEM_UML
     @DEFAUL_FILESYSTEM_LIBVIRT_KVM_LINUX
     @DEFAUL_FILESYSTEM_LIBVIRT_KVM_FREEBSD
+    @DEFAUL_FILESYSTEM_LIBVIRT_KVM_NETBSD
+    @DEFAUL_FILESYSTEM_LIBVIRT_KVM_OPENBSD
     @DEFAUL_FILESYSTEM_LIBVIRT_KVM_WINDOWS
     @DEFAUL_FILESYSTEM_LIBVIRT_KVM_OLIVE
     @DEFAUL_FILESYSTEM_LIBVIRT_KVM_ANDROID
@@ -242,6 +248,8 @@ use constant ERR => 4;
 our @EXEC_MODES_UML                 = qw( mconsole net sdisk);
 our @EXEC_MODES_LIBVIRT_KVM_LINUX   = qw( sdisk cdrom net );
 our @EXEC_MODES_LIBVIRT_KVM_FREEBSD = qw( sdisk cdrom net );
+our @EXEC_MODES_LIBVIRT_KVM_NETBSD  = qw( sdisk cdrom net );
+our @EXEC_MODES_LIBVIRT_KVM_OPENBSD = qw( sdisk cdrom net );
 our @EXEC_MODES_LIBVIRT_KVM_WINDOWS = qw( cdrom sdisk );
 our @EXEC_MODES_LIBVIRT_KVM_OLIVE   = qw( sdisk net );
 our @EXEC_MODES_LIBVIRT_KVM_ANDROID = qw( adb );
@@ -254,6 +262,8 @@ our @EXEC_MODES_LXC            		= qw( lxc-attach );
 our @EXEC_OSTYPE_UML                 = qw( system );
 our @EXEC_OSTYPE_LIBVIRT_KVM_LINUX   = qw( system exec xsystem xexec );
 our @EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD = qw( system exec xsystem xexec );
+our @EXEC_OSTYPE_LIBVIRT_KVM_NETBSD  = qw( system exec xsystem xexec );
+our @EXEC_OSTYPE_LIBVIRT_KVM_OPENBSD = qw( system exec xsystem xexec );
 our @EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS = qw( cmd system exec );
 our @EXEC_OSTYPE_LIBVIRT_KVM_OLIVE   = qw( show set load system );
 our @EXEC_OSTYPE_LIBVIRT_KVM_ANDROID = qw( system );
@@ -264,6 +274,8 @@ our @EXEC_OSTYPE_DYNAMIPS            = qw( show set load );
 our @DEFAUL_FILESYSTEM_UML                 = '/usr/share/vnx/filesystems/rootfs_uml';
 our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_LINUX   = '/usr/share/vnx/filesystems/rootfs_ubuntu';
 our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_FREEBSD = '/usr/share/vnx/filesystems/rootfs_freebsd';
+our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_NETBSD  = '/usr/share/vnx/filesystems/rootfs_netbsd';
+our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_OPENBSD = '/usr/share/vnx/filesystems/rootfs_openbsd';
 our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_WINDOWS = '/usr/share/vnx/filesystems/rootfs_win7';
 our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_OLIVE   = '/usr/share/vnx/filesystems/rootfs_olive';
 our @DEFAUL_FILESYSTEM_LIBVIRT_KVM_ANDROID = '/usr/share/vnx/filesystems/rootfs_android';

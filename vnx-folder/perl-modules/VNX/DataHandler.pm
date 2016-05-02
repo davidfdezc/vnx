@@ -768,6 +768,10 @@ sub get_vm_default_filesystem {
             $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_LINUX[0];
         } elsif ($merged_type eq 'libvirt-kvm-freebsd') {
             $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_FREEBSD[0];
+        } elsif ($merged_type eq 'libvirt-kvm-netbsd') {
+            $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_NETBSD[0];
+        } elsif ($merged_type eq 'libvirt-kvm-openbsd') {
+            $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_OPENBSD[0];
         } elsif ($merged_type eq 'libvirt-kvm-windows') {
             $def_execmode = $DEFAUL_FILESYSTEM_LIBVIRT_KVM_WINDOWS[0];
         } elsif ($merged_type eq 'libvirt-kvm-olive') {
@@ -882,6 +886,10 @@ sub get_default_exec_mode {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_LINUX[0];
         } elsif ($merged_type eq 'libvirt-kvm-freebsd') {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_FREEBSD[0];
+        } elsif ($merged_type eq 'libvirt-kvm-netbsd') {
+            $def_execmode = $EXEC_MODES_LIBVIRT_KVM_NETBSD[0];
+        } elsif ($merged_type eq 'libvirt-kvm-openbsd') {
+            $def_execmode = $EXEC_MODES_LIBVIRT_KVM_OPENBSD[0];
         } elsif ($merged_type eq 'libvirt-kvm-windows') {
             $def_execmode = $EXEC_MODES_LIBVIRT_KVM_WINDOWS[0];
         } elsif ($merged_type eq 'libvirt-kvm-olive') {
@@ -918,6 +926,10 @@ sub get_default_ostype {
         $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_LINUX[0];
     } elsif ($merged_type eq 'libvirt-kvm-freebsd') {
         $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_FREEBSD[0];
+    } elsif ($merged_type eq 'libvirt-kvm-netbsd') {
+        $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_NETBSD[0];
+    } elsif ($merged_type eq 'libvirt-kvm-openbsd') {
+        $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_OPENBSD[0];
     } elsif ($merged_type eq 'libvirt-kvm-windows') {
         $ostype = $EXEC_OSTYPE_LIBVIRT_KVM_WINDOWS[0];
     } elsif ($merged_type eq 'libvirt-kvm-olive') {
@@ -1108,6 +1120,30 @@ sub get_vm_to_use_ordered {
     }
     return @vms_ordered;
 }
+
+#
+# host_in_M_option 
+#
+# Returns 'true':
+# - if the -M option is selected and the 'host' is included in the list
+# - if the -M option is not selected
+# Returns undefined otherwise 
+#
+sub host_in_M_option {
+       
+    my $self = shift;
+       
+    if ($self->{'vm_to_use'}) {  # VNX has been invoked with option -M
+        if ($self->{'vm_to_use'} =~ /^host,|,host,|,host$|^host$/) {
+            return 'true'
+        } else {
+            return
+        }
+    } else {
+        return 'true'    
+    }
+}
+
 
 # get_vm_to_use
 #

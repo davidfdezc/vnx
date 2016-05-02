@@ -821,6 +821,215 @@ sub autoconfigure_freebsd {
     return $error;            
 }
 
+
+#
+# autoconfigure for OpenBSD
+#
+sub autoconfigure_openbsd {
+
+    my $dom = shift;         # DOM object of VM XML specification
+    my $rootfs_mdir = shift; # Directory where the rootfs image is mounted
+    my $vnxaced     = shift; # defined if called from vnxaced code
+    my $error;
+
+    my $logp = "autoconfigure_openbsd> ";
+
+    # Big danger if rootfs mount directory ($rootfs_mount_dir) is empty: 
+    # host files will be modified instead of rootfs image ones
+    if ( !defined($rootfs_mdir) || $rootfs_mdir eq '' || (!defined($vnxaced) && $rootfs_mdir eq '/' ) ) {
+        die;
+    }    
+
+    my $vm = $dom->findnodes("/create_conf/vm")->[0];
+    my $vm_name = $vm->getAttribute("name");
+
+    wlog (VVV, "vm_name=$vm_name, rootfs_mdir=$rootfs_mdir", $logp);
+
+    # IF prefix names assigned to interfaces  
+    my $IF_MGMT_PREFIX="re";    # type rtl8139 for management if    
+    my $IF_PREFIX="em";         # type e1000 for the rest of ifs   
+    
+    # Files to modify
+    my $hosts_file      = "$rootfs_mdir" . "/etc/hosts";
+    my $hostname_file   = "$rootfs_mdir" . "/etc/myname";
+    my $if_file_prefix  = "$rootfs_mdir" . "/etc/hostname";
+    my $rclocal_file    = "$rootfs_mdir" . "/etc/rc.local";
+
+    open HNF, ">>" . $hostname_file or return "error opening $hostname_file";
+    chomp (my $now = `date`);
+
+    print HNF "\n";
+    print HNF "#\n";
+    print HNF "# VNX Autoconfiguration commands ($now)\n";
+    print HNF "#\n";
+    print HNF "\n";
+
+    print HNF "$vm_name\n";
+    close HNF;
+
+    # Network interfaces configuration: <if> tags
+    my @if_list = $vm->getElementsByTagName("if");
+    my $k = 0; # Index to the next $IF_PREFIX interface to be used
+    for (my $i = 0 ; $i < @if_list; $i++){
+        my $if = $if_list[$i];
+        my $id    = $if->getAttribute("id");
+        my $net   = $if->getAttribute("net");
+        my $mac   = $if->getAttribute("mac");
+        $mac =~ s/,//g; 
+        
+        # IF names
+        my $if_orig_name;
+        my $if_new_name;
+        if ($id eq 0) { # Management interface 
+            $if_orig_name = $IF_MGMT_PREFIX . "0";    
+        } else { 
+            my $if_num = $k;
+            $k++;
+            $if_orig_name = $IF_PREFIX . $if_num;    
+        }
+
+	my $if_file_name = $if_file_prefix . "." . $if_orig_name;
+        open IF, ">>" . $if_file_name or return "error opening $if_file_name";
+        chomp (my $now = `date`);
+
+        print IF "\n";
+        print IF "#\n";
+        print IF "# VNX Autoconfiguration commands ($now)\n";
+        print IF "#\n";
+        print IF "\n";
+
+        my $alias_num=-1;
+                
+        # IPv4 addresses
+        my @ipv4_tag_list = $if->getElementsByTagName("ipv4");
+        for ( my $j = 0 ; $j < @ipv4_tag_list ; $j++ ) {
+
+            my $ipv4 = $ipv4_tag_list[$j];
+            my $mask = $ipv4->getAttribute("mask");
+            my $ip   = $ipv4->getFirstChild->getData;
+
+            if ($ip == 'dhcp') {
+                print IF "dhcp\n";
+            } else {
+                if ($alias_num == -1) {
+                    print IF "inet " .  $ip . " " . $mask . " NONE\n";
+                } else {
+                    print IF "inet alias " .  $ip . " " . $mask . " NONE\n";
+                }
+            }
+            $alias_num++;
+        }
+
+        # IPv6 addresses
+        my @ipv6_tag_list = $if->getElementsByTagName("ipv6");
+        for ( my $j = 0 ; $j < @ipv6_tag_list ; $j++ ) {
+
+            my $ipv6 = $ipv6_tag_list[$j];
+            my $ip   = $ipv6->getFirstChild->getData;
+            my $mask = $ip;
+            $mask =~ s/.*\///;
+            $ip =~ s/\/.*//;
+
+            if ($alias_num == -1) {
+                print IF "inet6 " .  $ip . " " . $mask . " \n";
+            } else {
+                print IF "inet6 alias " .  $ip . " " . $mask . " \n";
+            }
+            $alias_num++;
+        }
+	close IF;
+    }
+        
+    # Network routes configuration: <route> tags
+    # Example content:
+    #     static_routes="r1 r2"
+    #     ipv6_static_routes="r3 r4"
+    #     default_router="10.0.1.2"
+    #     route_r1="-net 10.1.1.0/24 10.0.0.3"
+    #     route_r2="-net 10.1.2.0/24 10.0.0.3"
+    #     ipv6_default_router="2001:db8:1::1"
+    #     ipv6_route_r3="2001:db8:7::/3 2001:db8::2"
+    #     ipv6_route_r4="2001:db8:8::/64 2001:db8::2"
+    my @route_list = $vm->getElementsByTagName("route");
+    my @routeCfg;           # Stores the route_* lines 
+    my $static_routes;      # Stores the names of the ipv4 routes
+    my $ipv6_static_routes; # Stores the names of the ipv6 routes
+    my $i = 1;
+    system "rm -f /etc/mygate";
+    for (my $j = 0 ; $j < @route_list; $j++){
+        my $route_tag = $route_list[$j];
+        if (defined($route_tag)){
+            my $route_type = $route_tag->getAttribute("type");
+            my $route_gw   = $route_tag->getAttribute("gw");
+            my $route      = $route_tag->getFirstChild->getData;
+
+            if ($route_type eq 'ipv4') {
+                if ($route eq 'default'){
+		    system "echo $route_gw >> /etc/mygate";
+                } else {
+                    push (@routeCfg, "route add -net $route $route_gw\n");
+                    $static_routes = ($static_routes eq '') ? "r$i" : "$static_routes r$i";
+                    $i++;
+                }
+            } elsif ($route_type eq 'ipv6') {
+                if ($route eq 'default'){
+		    system "echo $route_gw >> /etc/mygate";
+                } else {
+                    push (@routeCfg, "route add -inet6 -net $route $route_gw \n");
+                    $ipv6_static_routes = ($ipv6_static_routes eq '') ? "r$i" : "$ipv6_static_routes r$i";
+                    $i++;                   
+                }
+            }
+        }
+    }
+
+    open RC, ">>" . $rclocal_file or return "error opening $rclocal_file";
+    chomp (my $now = `date`);
+
+    print RC @routeCfg;
+
+    close RC;
+
+    # Packet forwarding: <forwarding> tag
+    my $ipv4_forwarding = 0;
+    my $ipv6_forwarding = 0;
+    my @forwarding_list = $vm->getElementsByTagName("forwarding");
+    for (my $j = 0 ; $j < @forwarding_list ; $j++){
+        my $forwarding   = $forwarding_list[$j];
+        my $forwarding_type = $forwarding->getAttribute("type");
+        if ($forwarding_type eq "ip"){
+            $ipv4_forwarding = 1;
+            $ipv6_forwarding = 1;
+        } elsif ($forwarding_type eq "ipv4"){
+            $ipv4_forwarding = 1;
+        } elsif ($forwarding_type eq "ipv6"){
+            $ipv6_forwarding = 1;
+        }
+    }
+    if ($ipv4_forwarding == 1) {
+        wlog (VVV, "   configuring ipv4 forwarding...", $logp);
+        system "echo 'net.inet.ip.forwarding=1' >> /etc/sysctl.conf";
+    }
+    if ($ipv6_forwarding == 1) {
+        wlog (VVV, "   configuring ipv6 forwarding...", $logp);
+        system "echo 'net.inet6.ip6.forwarding=1' >> /etc/sysctl.conf";
+    }
+       
+    # Configuring /etc/hosts and /etc/hostname
+    wlog (VVV, "   configuring $hosts_file and $hostname_file", $logp);
+    system "cp $hosts_file $hosts_file.backup";
+    # Delete loopback entries (127.0.0.1 and 127.0.1.1)
+    system "sed -i -e '/127.0.0.1/d' -e '/127.0.1.1/d' $hosts_file";
+    # Insert the new 127.0.0.1 line
+    system "sed -i '1s/^/127.0.0.1  $vm_name \\\n/' $hosts_file";
+    # Insert the new 127.0.0.1 line
+    system "sed -i '1s/^/127.0.0.1  localhost.localdomain   localhost\\\n/' $hosts_file";
+    # Change /etc/hostname
+    system "echo $vm_name > $hostname_file";
+
+    return $error;            
+}
+
 #
 # autoconfigure for Android
 #

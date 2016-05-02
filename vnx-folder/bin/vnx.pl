@@ -517,10 +517,6 @@ $>=$uid;
         } else {
             $input_file=$files[0];
         }
-		#print "escenario XML file: $input_file\n";
-        #$input_file = "$vnx_dir/scenarios/$opts{'scenario'}/$opts{'scenario'}.xml";
-        #$xml_dir = getcwd();
-        #print "xml_dir=$xml_dir\n";
         my $original_scenario = `cat $input_file  | grep "original path"`;
         if (!$original_scenario) { vnx_die ("ERROR: cannot find original path scenario line at the end of\n       $input_file\n") }
         if ($original_scenario =~ /<!-- original path: (.+) -->/) {
@@ -529,8 +525,6 @@ $>=$uid;
         	vnx_die ("ERROR: error in 'original path' line at the end of\n       $input_file\n")
         }
       	my $original_dir = dirname $original_scenario;
-      	#print "original_scenario=$original_scenario\n";
-      	#print "original_dir=$original_dir\n";
         $xml_dir = $original_dir;        
     } 
     pre_wlog ("  INPUT file: " . $input_file) if ( (!$opts{b}) && ($opts{f} || $opts{scenario}) );
@@ -1765,7 +1759,9 @@ sub make_vmAPI_doc {
         if ( $forwarding->getAttribute("type") eq 'ip' or $forwarding->getAttribute("type") eq 'ipv4' ) {
             $forward_ipv4 = 'yes';                
         }
-        if ( $forwarding->getAttribute("type") eq 'ipv6' ) {
+        # fruiz, according to documentation ip forwarding should cover both IPv4 and IPv6 
+        # if ( $forwarding->getAttribute("type") eq 'ipv6' ) {
+        if ( $forwarding->getAttribute("type") eq 'ip' or $forwarding->getAttribute("type") eq 'ipv6' ) {
             $forward_ipv6 = 'yes';                
         }
     }
@@ -5322,7 +5318,7 @@ sub mode_execute {
     my @vm_ordered;
     if ( defined($ref_vms) ) {
         # List of VMs to use passed as parameter
-        @vm_ordered = @{$ref_vms};  
+        @vm_ordered = @{$ref_vms};
     } else {
         # List not specified, get the list of vms 
         # to process having into account -M option
@@ -5416,7 +5412,7 @@ sub mode_execute {
 	        }
 		}
 	
-        if ( $type eq 'all' && !defined($ref_vms) && $doc->exists("/vnx/host/exec[\@seq='$seq']") ) {
+        if ( $type eq 'all' && !defined($ref_vms) && $doc->exists("/vnx/host/exec[\@seq='$seq']") && $dh->host_in_M_option ) {
             wlog (N, "Calling execute_host_cmd with seq '$seq'"); 
             $num_host_execs = execute_host_command($seq);
         }
@@ -5697,7 +5693,7 @@ sub get_vm_ftrees_and_execs {
         # To get attributes
         my $cmd_seq_string = $command->getAttribute("seq");
   
-        # We accept several commands in the same seq tag, separated by commas
+        # We accept several commands in the same seq tag, separated by commas or in different lines
         my @cmd_seqs = split(',',$cmd_seq_string);
         foreach my $cmd_seq (@cmd_seqs) {
             
@@ -5707,18 +5703,43 @@ sub get_vm_ftrees_and_execs {
     
             if ( $cmd_seq eq $seq ) {
 
-                # Read values of <exec> tag
                 my $type = $command->getAttribute("type");
                 my $ostype = str($command->getAttribute("ostype"));
                 if ($ostype eq '') {
                 	$ostype = $dh->get_default_ostype($merged_type);
                 }
-                #my $value = text_tag($command);
-                my $value = $command->textContent;
-                my $new_value;
-                
-                my @lines = split /\n/, $value;
-                if ($lines[0]) { $new_value = ''} else { $new_value = "\n"}
+
+
+                #
+                # Get the commands to execute
+                #
+                my $cmds;
+
+                # Case 1. Verbatim type
+                if ( $type eq "verbatim" ) {  
+                    $cmds = $command->textContent;
+                }
+                # Case 2. File type
+                elsif ( $type eq "file" ) {
+                    my $cmd_file = do_path_expansion( text_tag($command) );
+					$cmds = do {
+					    local $/ = undef;
+					    open my $fh, "<", $cmd_file
+					        or vnx_die ("could not open command file $cmd_file $! defined in '$seq' <exec> tag");
+					    <$fh>;
+					};
+                }
+
+                #print $cmds . "\n";
+
+                # 
+                # Process the commands
+                #     
+                my $new_cmds;
+				# Join lines ending with an '\' to have each complete command in a line  
+                $cmds =~ s/\\\s*\n\s*/ /g; 
+                my @lines = split /\n/, $cmds;
+                if ($lines[0]) { $new_cmds = ''} else { $new_cmds = "\n"}
                 foreach my $line (@lines) {
                     $line =~ s/^\s+//; # delete leading spaces
                     $line =~ s/\s+$//; # delete trailing spaces
@@ -5726,47 +5747,23 @@ sub get_vm_ftrees_and_execs {
                     next if $line =~ /^$/; # ignore empty lines
                     $line .= ';' if ( ($line !~ /;$/) && ($line !~ /&$/) );
                     #print $line . "\n";
-                    $new_value .= $line . "\n";
+                    $new_cmds .= $line . "\n";
                 }
-                #$comma->appendText($new_value);
-                
-                wlog (VVV, "Creating <exec> tag for user-defined command '$value'", $logp);
+                #print $new_cmds . "\n";                
 
-                # Case 1. Verbatim type
-                if ( $type eq "verbatim" ) {  
-                        
-                    # Including command "as is"
-                    # Create the new node
-                    my $new_exec = XML::LibXML::Element->new('exec');
-                    $new_exec->setAttribute( seq => $seq);
-                    $new_exec->setAttribute( type => $type);
-                    $new_exec->setAttribute( ostype => $ostype);
-                    $new_exec->appendTextNode( $new_value );
-  
-                    # Add the exec node to the list passed to execute_cmd
-                    push (@{$exec_list_ref}, $new_exec);
-                }
+                #
+                # Create the <exec tag>
+                #
+                wlog (VVV, "Creating <exec> tag for user-defined command '$cmds'", $logp);
 
-                # Case 2. File type
-                elsif ( $type eq "file" ) {
-                    # We open the file and write commands line by line
-                    my $include_file = do_path_expansion( text_tag($command) );
-                    open INCLUDE_FILE, "$include_file" or $execution->smartdie("can not open $include_file: $!");
-                    while (<INCLUDE_FILE>) {
-                        chomp;
-
-                        # Create a new node
-                        my $new_exec = XML::LibXML::Element->new('exec');
-                        $new_exec->setAttribute( seq => $seq);
-                        $new_exec->setAttribute( type => $type);
-                        $new_exec->setAttribute( ostype => $ostype);
-                        $new_exec->appendTextNode( $_ );
-        
-                        # Add the exec node to the list passed to execute_cmd
-                        push (@{$exec_list_ref}, $new_exec);
-                    }
-                    close INCLUDE_FILE;
-                }
+                # Create the new node
+                my $new_exec = XML::LibXML::Element->new('exec');
+                $new_exec->setAttribute( seq => $seq);
+                #$new_exec->setAttribute( type => $type);
+                $new_exec->setAttribute( ostype => $ostype);
+                $new_exec->appendTextNode( $new_cmds );
+                # Add the exec node to the list passed to execute_cmd
+                push (@{$exec_list_ref}, $new_exec);
 
                 #$any_cmd = 1;
                 $vm_execs++;

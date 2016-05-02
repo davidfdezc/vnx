@@ -33,6 +33,10 @@ Address		System				MAC offset 		Mgmt if offset
 10.1.0.26   simple_android          26              100
 10.1.0.27   simple_remnux64         27              104
 10.1.0.28   simple_honeydrive       28              108
+10.1.0.29   simple_netbsd           29              112
+10.1.0.30   simple_netbsd64         30              116
+10.1.0.31   simple_openbsd          31              120
+10.1.0.32   simple_openbsd64        32              124
 
 
 

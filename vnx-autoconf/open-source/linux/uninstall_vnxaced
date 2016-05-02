@@ -44,10 +44,11 @@ if ($ARGV[0] eq '-n') {
 	if (-e '/etc/init.d/vnxace')       { system "/etc/init.d/vnxace stop" }
 	if (-e '/etc/init.d/vnxdaemon')    { system "/etc/init.d/vnxdaemon stop" }
 	if (-e '/etc/rc.d/vnxace')         { system "/etc/rc.d/vnxace stop" }
+	if (-e '/etc/rc.d/vnxaced')        { system "/etc/rc.d/vnxaced stop" }
 	if (-e '/etc/rc.d/vnxdaemon')      { system "/etc/rc.d/vnxace stop" }
 }
 
 print "-- Deleting files\n";
 system "rm -f /etc/init/vnxace.conf /etc/init/vnxdaemon.conf /etc/init.d/vnxace /etc/init.d/vnxdaemon";
-system "rm -f /etc/rc.d/vnxace /etc/rc.d/vnxdaemon";
+system "rm -f /etc/rc.d/vnxace /etc/rc.d/vnxaced /etc/rc.d/vnxdaemon";
 system "rm -f /etc/init.d/vnxdaemon.pl /usr/local/bin/vnxaced /usr/sbin/vnxaced";
