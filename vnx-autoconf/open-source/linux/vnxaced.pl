@@ -210,10 +210,22 @@ if ($platform[0] eq 'linux'){
         $mount_cdrom_cmd = 'mount /dev/cdrom /media/cdrom';
         $umount_cdrom_cmd = 'eject; umount /media/cdrom';           
     }
+
     if ($platform[1] eq 'centos' && $platform[2]=~ /^5/ ) {
         $mount_sdisk_cmd  = 'mount /dev/hdb /mnt/sdisk';    	
     } else {
-        $mount_sdisk_cmd  = 'mount /dev/sdb /mnt/sdisk';
+        #$mount_sdisk_cmd  = 'mount /dev/sdb /mnt/sdisk';
+        if (-b '/dev/vdb') {
+            $mount_sdisk_cmd  = "mount /dev/vdb /mnt/sdisk"
+        } elsif (-b '/dev/sdb') {
+            $mount_sdisk_cmd  = "mount /dev/sdb /mnt/sdisk"
+        } elsif (-b '/dev/hdb') {
+            $mount_sdisk_cmd  = "mount /dev/hdb /mnt/sdisk"
+        } else {
+            wlog (V, "ERROR: linux configuration disk not found (vdb, sdb and hdb not available). Aborting");
+            exit (1);
+        }
+        #$mount_sdisk_cmd  = 'if [ -b /dev/vdb ]; then mount /dev/vdb /mnt/sdisk; elif [ -b /dev/sdb ]; then mount /dev/sdb /mnt/sdisk; elif [ -b /dev/hdb ]; then mount /dev/hdb /mnt/sdisk; fi';
     }
 
     $umount_sdisk_cmd = 'umount /mnt/sdisk';
@@ -225,7 +237,19 @@ if ($platform[0] eq 'linux'){
     $vm_tty = FREEBSD_TTY;
     $mount_cdrom_cmd = 'mount /cdrom';
     $umount_cdrom_cmd = 'umount -f /cdrom';
-    $mount_sdisk_cmd  = 'mount -t msdosfs /dev/ad1 /mnt/sdisk';
+    #$mount_sdisk_cmd  = 'mount -t msdosfs /dev/ad1 /mnt/sdisk';
+    system "fdisk ada1 > /dev/null 2>&1";
+    if ($? == 0) {
+        $mount_sdisk_cmd = "mount -t msdosfs /dev/ada1 /mnt/sdisk";
+    } else {
+        system "fdisk vtbd1 > /dev/null 2>&1";
+        if ($? == 0) {
+            $mount_sdisk_cmd = "mount -t msdosfs /dev/vtbd1 /mnt/sdisk"
+        } else {
+            wlog (V, "ERROR: openbsd configuration disk not found (ada1 and vtbd1 not available). Aborting");
+            exit (1);
+        }
+    }
     $umount_sdisk_cmd = 'umount /mnt/sdisk';
     system "mkdir -p /mnt/sdisk";
     $console_ttys = "/dev/ttyv0";
@@ -235,7 +259,19 @@ if ($platform[0] eq 'linux'){
     $vm_tty = OPENBSD_TTY;
     $mount_cdrom_cmd = 'mount /cdrom';
     $umount_cdrom_cmd = 'umount -f /cdrom';
-    $mount_sdisk_cmd  = 'mount_msdos /dev/wd1i /mnt/sdisk';
+    #$mount_sdisk_cmd  = 'mount_msdos /dev/wd1i /mnt/sdisk';
+    system "fdisk wd1 > /dev/null 2>&1";
+    if ($? == 0) {
+        $mount_sdisk_cmd = "mount_msdos /dev/wd1i /mnt/sdisk";
+    } else {
+        system "fdisk sd1 > /dev/null 2>&1";
+        if ($? == 0) {
+            $mount_sdisk_cmd = "mount_msdos /dev/sd1c /mnt/sdisk"
+        } else {
+            wlog (V, "ERROR: openbsd configuration disk not found (wd1 and sd1 not available). Aborting");
+            exit (1);
+        }
+    }
     $umount_sdisk_cmd = 'umount /mnt/sdisk';
     system "mkdir -p /mnt/sdisk";
     $console_ttys = "/dev/tty00";

@@ -1,3 +1,19 @@
+16/05/2016
+
+- vnx_create_lxc_rootfs script updated to not use /var/lib/lxc directory
+
+- Added new '-p pattern' option to vnx_download_rootfs command to allow filtering the list of root filesystems shown.
+
+- CheckSemantics now checks that filesystems are directories in LXC and files in other VM types. Besides it check filesystems used in direct mode are not used in more than one VM.
+
+- Use of virtio drivers in KVM implemented. Added a new parameter in vnx.conf to control the use of virtio drivers (virtio=yes|no under [libvirt] section 
+
+- Bug in the management of timeouts when starting VMs with --modify-rootfs corrected.  
+
+- Concurrent command execution. mode_execute has been modified to allow the execution of commands in parallel. A new option has been added to control it: exe_cmd_concurrent=yes|no under [general] section.
+  The implementation is based on the use of the classic unix fork call. An implementation based on perl threads was tried but discarted due to problems to access the LibXML objects from threads.
+ 
+
 2/5/2016
 
 - get_vm_ftrees_and_execs modified to cope with multiline commands (lines that end with '\' are joined with the following line)  

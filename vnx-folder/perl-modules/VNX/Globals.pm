@@ -87,7 +87,8 @@ our @EXPORT = qw(
     $LIBVIRT_KVM_HYPERVISOR        
     $LIBVIRT_VBOX_HYPERVISOR        
     $DEFAULT_ONE_PASS_AUTOCONF
-	$DEFAULT_HOST_PASSTHROUGH
+    $DEFAULT_HOST_PASSTHROUGH
+    $DEFAULT_VIRTIO
     
 	$DYNAMIPS_DEFAULT_PORT        
 	$DYNAMIPS_DEFAULT_IDLE_PC
@@ -221,6 +222,7 @@ Readonly::Scalar our $LIBVIRT_KVM_HYPERVISOR => 'qemu:///system';
 Readonly::Scalar our $LIBVIRT_VBOX_HYPERVISOR => 'vbox:///system'; 
 Readonly::Scalar our $DEFAULT_ONE_PASS_AUTOCONF => 'no'; 
 Readonly::Scalar our $DEFAULT_HOST_PASSTHROUGH => 'no'; 
+Readonly::Scalar our $DEFAULT_VIRTIO => 'no'; 
        
 
 # Dynamips

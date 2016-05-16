@@ -193,7 +193,8 @@ sub execute {
     my $self = shift;
     my $verb_prompt = shift;
    
-    my $exe_mode = $self->{'exe_mode'};
+    my $exe_mode;
+    $exe_mode = $self->{'exe_mode'};
     #my $verb_prompt = $self->{'verb_prompt'};
     #my $verb_prompt = @{$self->{'verb_prompt'}}[0];
     my $exe_interactive = $self->{'exe_interactive'};
@@ -286,6 +287,86 @@ sub execute {
         }
         elsif ($exe_mode == $EXE_NORMAL) {
             print $CMD_OUT "$command\n";
+        }
+    }
+
+    return $retval;
+
+}
+
+# 
+# execute_host
+#
+sub execute_host {
+    
+    my $self = shift;
+    my $verb_prompt = shift;
+   
+    my $exe_mode;
+    $exe_mode = $self->{'exe_mode'};
+    #my $verb_prompt = $self->{'verb_prompt'};
+    #my $verb_prompt = @{$self->{'verb_prompt'}}[0];
+    my $exe_interactive = $self->{'exe_interactive'};
+
+    my $retval = 0; # By default, all right
+    if ((my ($command, $CMD_OUT) = @_) == 1) {
+        #
+        # Direct mode: Direct mode: command execution throught perl system function.
+        #
+        if ($exe_mode == $EXE_DEBUG) {
+            #print "D-" . $verb_prompt . "$command\n";
+            $command =~ s/\n/\\n/g;
+            print sprintf("D-%-8s %s", $verb_prompt, "$command\n");
+        }
+        elsif ($exe_mode == $EXE_VERBOSE) {
+            #print $verb_prompt . "$command\n";
+            my $cmd_line = $command; $cmd_line =~ s/\n/\\n/g;
+            #if ( $EXE_VERBOSITY_LEVEL >= VV ) { 
+                print_log ($cmd_line, $verb_prompt);
+            #}      
+
+#            if ($execution->get_logfile()) { 
+#                open LOG_FILE, ">> " . $execution->get_logfile() 
+#                    or $execution->smartdie( "can not open log file (" . $execution->get_logfile . ") for writting" );
+#                print LOG_FILE sprintf("%-10s %s", $verb_prompt, "$cmd_line\n");
+#            } else {
+#               print sprintf("%-10s %s", $verb_prompt, "$cmd_line\n");
+#            }
+#            close (LOG_FILE);
+            
+#pak("$command");
+            if ( $execution->get_logfile() && ($command !~ m/echo/ ) ) { # "echo .... > file" commands cannot be redirected
+                system "$command 2>> " . $execution->get_logfile() . " >> " . $execution->get_logfile();
+            } else {
+                system "$command";
+            }
+            $retval = $?;
+            if ($exe_interactive) {
+                &press_any_key;
+            }
+        }
+        elsif ($exe_mode == $EXE_NORMAL) {
+            # system "$command > /dev/null"; # redirection eliminated to avoid problems with commands of type "echo XXXX > file"
+            # 
+#            # Trick to avoid problems with "echo .... > file" commands
+#            #print "command=$command\n";
+#            if ($command =~ m/echo/ ) {
+                #print "echo\n";
+#                system "$command";
+#            } else {
+#                #print "NO echo\n";
+                # We add parenthesys "()" to the command to avoid 
+                # problems in case the command includes i/o redirections
+                # (e.g.:    echo ... > file )
+
+#                system "( $command ) > /dev/null 2>&1";
+#            }
+
+            system "( $command ) > /dev/null 2>&1";
+            $retval = $?;
+            if ($exe_interactive) {
+                &press_any_key;
+            }
         }
     }
 
@@ -400,7 +481,7 @@ sub execute_getting_output {
             system "cat $tmp_file >> " . $execution->get_logfile();
         }
         # Delete tmp file
-        system "rm -f $tmp_file";
+        #system "rm -f $tmp_file";
         if ($exe_interactive) {
             &press_any_key;
         }

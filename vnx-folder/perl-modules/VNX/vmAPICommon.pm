@@ -135,8 +135,8 @@ sub execute_host_command {
         #print $new_cmds . "\n";                
 
         # Execute the commands
-        $execution->execute( $logp,  $new_cmds);
-
+        my $res = $execution->execute_getting_output( $logp,  $new_cmds);
+        wlog (N, "---\n$res---", '') if ($res ne '');                
     } 
      
     return $num_host_execs

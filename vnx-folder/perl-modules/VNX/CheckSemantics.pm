@@ -626,13 +626,13 @@ user();
          $effective_basedir = text_tag($basedir_list[0]);
       }
 
-      # 9a. To check if the same name has been seen before
-      if (defined($vm_names{$name})) {
-         return "duplicated vm name: $name";
-      }
-      else {
-         $vm_names{$name} = 1;
-      }
+        # 9a. To check if the same name has been seen before
+        if (defined($vm_names{$name})) {
+            return "duplicated vm name: $name";
+        }
+        else {
+            $vm_names{$name} = 1;
+        }
 
         # Check the number a times (minOccurs, maxOccurs) a tag can appear
         # It has to be done manually: it is not checked by the XSD after having changed
@@ -648,9 +648,9 @@ user();
         if ( $_ = check_tag_occurs_once_at_most ($vm, 'mng_if') )     { return $_ };       
         if ( $_ = check_tag_occurs_once_at_most ($vm, 'on_boot') )    { return $_ };       
 
-      # Hash for duplicated ids detection
-      my %if_ids_eth;
-      my %if_ids_lo;
+        # Hash for duplicated ids detection
+        my %if_ids_eth;
+        my %if_ids_lo;
 
         foreach my $if ($vm->getElementsByTagName("if")) {
             #my $if = $if_list->item($j);
@@ -860,6 +860,41 @@ user();
 
     #12. To check <filesystem>
     $> = $uid if ($is_root);
+    
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
+        my $name = $vm->getAttribute("name");
+        my $vm_type = $vm->getAttribute("type");               
+ 
+        if( $vm->exists("filesystem") ){
+            my @fsystem = $vm->findnodes("filesystem");
+            my $filesystem = get_abs_path($fsystem[0]->getFirstChild->getData);
+            my $filesystem_type = str($fsystem[0]->getAttribute("type"));
+
+            # 12a. <filesystem> are valid, readable/executable files
+            if ($vm_type eq 'lxc') {
+                return "LXC filesystem ($filesystem) does not point to a valid directory" unless (-d $filesystem);
+            } elsif ( ($vm_type eq 'libvirt') || ($vm_type eq 'dynamips') || ($vm_type eq 'uml') ) {
+                return "$vm_type filesystem ($filesystem) is a directory (it must be a file)" if (-d $filesystem);
+                return "filesystem ($filesystem) does not exist or is not readable (user $uid_name)" unless (-r $filesystem);
+                if ($filesystem_type eq "direct") {
+                    return "filesystem ($filesystem) is not writeable (user $uid_name)" unless (-w $filesystem);
+                }
+            } 
+        }
+    }
+    
+    # Check that each filesystem used in direct mode is only used by one vm
+    my %direct_fss = ();
+    foreach my $fsystem ( $doc->findnodes("/vnx/vm/filesystem[\@type='direct']") ) {
+        my $filesystem = get_abs_path($fsystem->getFirstChild->getData);
+        if ( defined($direct_fss{$filesystem}) ) {
+            return "filesystem ($filesystem) used in 'direct' mode in two or more VMs"
+        } 
+        $direct_fss{$filesystem} = 'yes';
+    }    
+    
+=BEGIN    
     foreach my $fsystem ($doc->getElementsByTagName("filesystem")) {   	
         my $filesystem = &do_path_expansion(text_tag($fsystem));
         my $filesystem_type = str($fsystem->getAttribute("type"));
@@ -888,6 +923,8 @@ user();
             }
         }
     }
+=END
+=cut
 
     # Check if <filesystem> tags inside <vm> include the 'type' attribute
     foreach my $fsystem ($doc->findnodes('vnx/vm/filesystem')) {    

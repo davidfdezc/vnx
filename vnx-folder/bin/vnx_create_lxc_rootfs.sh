@@ -9,7 +9,7 @@
 #
 # Authors: David Fernández (david@dit.upm.es)
 #          Raul Alvarez (raul.alvarez@centeropenmiddleware.com)
-# Copyright (C) 2015 DIT-UPM
+# Copyright (C) 2016 DIT-UPM
 #           Departamento de Ingeniería de Sistemas Telemáticos
 #           Universidad Politécnica de Madrid
 #           SPAIN
@@ -37,12 +37,11 @@
 
 
 BASEROOTFSNAME=vnx_rootfs_lxc_ubuntu64-14.04-v025
-ROOTFSNAME=vnx_rootfs_lxc_ubuntu64-14.04-v025-openstack-network
-ROOTFSLINKNAME="rootfs_lxc_ubuntu64-ostack-network"
+ROOTFSNAME=vnx_rootfs_lxc_ubuntu64-14.04-v025-openstack-controller
+ROOTFSLINKNAME="rootfs_lxc_ubuntu64-ostack-controller"
 # General tools
-PACKAGES="wget iperf unzip telnet xterm curl ethtool ntp man software-properties-common"
-# Openstack packages
-PACKAGES+=" ubuntu-cloud-keyring" 
+PACKAGES="aptsh wget iperf traceroute telnet xterm curl ethtool chrony man bash_completion"
+
 
 CUSTOMIZESCRIPT=$(cat <<EOF
 
@@ -54,33 +53,26 @@ CUSTOMIZESCRIPT=$(cat <<EOF
 sed -i -e 's/.*sleep [\d]*.*/\tsleep 1/' /etc/init/failsafe.conf
 
 # Add ~/bin to root PATH
-sed -i -e '$aPATH=$PATH:~/bin' /root/.bashrc
+sed -i -e '\$aPATH=\$PATH:~/bin' /root/.bashrc
 
 # Allow root login by ssh
 sed -i -e 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
 
-# STEP 1
-echo "deb http://ubuntu-cloud.archive.canonical.com/ubuntu" "trusty-updates/kilo main" > /etc/apt/sources.list.d/cloudarchive-kilo.list
-apt-get update
-apt-get -y dist-upgrade
+export DEBIAN_FRONTEND=noninteractive
 
-# STEP 8
-sed -i -e '/net\.ipv4\.ip_forward/d' /etc/sysctl.conf
-sed -i -e '/net\.ipv4\.conf\.all\.rp_filter/d' /etc/sysctl.conf
-sed -i -e '/net\.ipv4\.conf\.default\.rp_filter/d' /etc/sysctl.conf
-echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
-echo "net.ipv4.conf.all.rp_filter=0" >> /etc/sysctl.conf
-echo "net.ipv4.conf.default.rp_filter=0" >> /etc/sysctl.conf
-apt-get -y -o Dpkg::Options::="--force-confold" install neutron-plugin-ml2 neutron-plugin-openvswitch-agent neutron-l3-agent neutron-dhcp-agent neutron-metadata-agent
-service openvswitch-switch restart
-ovs-vsctl add-br br-ex
+# Customize script
 
 EOF
 )
 
 function customize_rootfs {
 
-  lxc-attach -n MV -- bash -c "$CUSTOMIZESCRIPT"
+  echo "-----------------------------------------------------------------------"
+  echo "Customizing rootfs..."
+  echo "--"
+  #echo "$CUSTOMIZESCRIPT"
+  echo lxc-attach -n $ROOTFSNAME -P $CDIR -- bash -c "$CUSTOMIZESCRIPT" -P $CDIR
+  lxc-attach -n $ROOTFSNAME -P $CDIR -- bash -c "$CUSTOMIZESCRIPT" -P $CDIR
 
 }
 
@@ -90,10 +82,6 @@ function customize_rootfs {
 
 function create_new_rootfs {
 
-  # move to the directory where the script is located
-  CDIR=`dirname $0`
-  cd $CDIR
-  CDIR=$(pwd)
 
   #clear
 
@@ -126,19 +114,20 @@ function start_and_install_packages {
   echo "Installing packages in rootfs..."
 
   # Install packages in rootfs
-  lxc-start --daemon -n MV -f ${ROOTFSNAME}/config
-  lxc-wait -n MV -s RUNNING
+  lxc-start --daemon -n $ROOTFSNAME -f ${ROOTFSNAME}/config -P $CDIR
+  echo lxc-wait -n $ROOTFSNAME -s RUNNING -P $CDIR
+  lxc-wait -n $ROOTFSNAME -s RUNNING -P $CDIR
   sleep 3
-  lxc-attach -n MV -- dhclient eth0
-  lxc-attach -n MV -- ifconfig eth0
-  lxc-attach -n MV -- ping -c 3 www.dit.upm.es
-  lxc-attach -n MV -- apt-get update
-  lxc-attach -n MV -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get -y install $PACKAGES"
+  lxc-attach -n $ROOTFSNAME -P $CDIR -- dhclient eth0
+  lxc-attach -n $ROOTFSNAME -P $CDIR -- ifconfig eth0
+  lxc-attach -n $ROOTFSNAME -P $CDIR -- ping -c 3 www.dit.upm.es
+  lxc-attach -n $ROOTFSNAME -P $CDIR -- apt-get update
+  lxc-attach -n $ROOTFSNAME -P $CDIR -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get -y install $PACKAGES"
 
   # Create /dev/net/tun device
-  lxc-attach -n MV -- mkdir /dev/net 
-  lxc-attach -n MV -- mknod /dev/net/tun c 10 200 
-  lxc-attach -n MV -- chmod 666 /dev/net/tun 
+  lxc-attach -n $ROOTFSNAME -P $CDIR -- mkdir /dev/net 
+  lxc-attach -n $ROOTFSNAME -P $CDIR -- mknod /dev/net/tun c 10 200 
+  lxc-attach -n $ROOTFSNAME -P $CDIR -- chmod 666 /dev/net/tun 
 
 }
 
@@ -170,10 +159,15 @@ echo "  Rootfs link:  $ROOTFSLINKNAME"
 echo "  Packages to install: $PACKAGES"
 echo "-----------------------------------------------------------------------"
 
+# move to the directory where the script is located
+CDIR=`dirname $0`
+cd $CDIR
+CDIR=$(pwd)
+
 create_new_rootfs
 start_and_install_packages 
 customize_rootfs
-lxc-stop -n MV  # Stop the VM
+lxc-stop -n $ROOTFSNAME -P $CDIR # Stop the VM
 create_rootfs_tgz
 
 echo "...done"

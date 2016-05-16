@@ -66,6 +66,7 @@ use File::Basename;
 use XML::LibXML;
 use IO::Socket::UNIX qw( SOCK_STREAM );
 use Cwd qw(abs_path);
+use Data::Dumper;
 
 my $lxc_dir="/var/lib/lxc";
 # LXC config options 
@@ -1016,7 +1017,7 @@ sub execute_cmd {
     my $random_id  = &generate_random_string(6);
 
     if ($merged_type eq "lxc")    {
-        
+
         my $user   = get_user_in_seq( $vm, $seq );
         # exec_mode should always be 'lxc-attach' 
         my $exec_mode   = $dh->get_vm_exec_mode($vm);

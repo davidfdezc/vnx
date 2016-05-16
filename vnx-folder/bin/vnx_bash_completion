@@ -19,7 +19,7 @@ _vnx()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     line=${COMP_LINE}
-    opts="--define --undefine --start --create -t --shutdown -d --destroy -P --modify -m --scenario -s --save --restore --suspend --resume --reboot --reset --recreate --execute -x --exe-cli --show-map --show-status --console --console-info --exe-info --clean-host --create-rootfs --modify-rootfs --download-rootfs --install-media --update-aced --mem --yes -y --rootfs-type --help -h -v -vv -vvv --version -V -f -c -T --config -C -M -i -g --user -u -4 -6 -D --no-console -n --intervm-delay --h2vm-timeout -e -w -F -B -o -Z -b --arch --vcpu --kill -k --pack --unpack --include-rootfs -r --pack-external-rootfs --pack-status --pack-version --pack-add-files --validate-xml"
+    opts="--define --undefine --start --create -t --shutdown -d --destroy -P --modify -m --scenario -s --save --restore --suspend --resume --reboot --reset --recreate --execute -x --exe-cli --show-map --show-status --console --console-info --exe-info --clean-host --create-rootfs --modify-rootfs --download-rootfs --install-media --update-aced --mem --yes -y --rootfs-type --help -h -v -vv -vvv --version -V -f -c -T --config -C -M -i -g --user -u -4 -6 -D --no-console -n --intervm-delay --h2vm-timeout -e -w -F -B -o -Z -b --arch --vcpu --kill -k --pack --unpack --include-rootfs -r --pack-external-rootfs --pack-status --pack-version --pack-add-files --validate-xml --skip-cloudinit"
 
     #echo 
     #echo cur=${cur}

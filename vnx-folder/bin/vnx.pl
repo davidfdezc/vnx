@@ -60,8 +60,9 @@ use Getopt::Long;
 use IO::Socket;
 use NetAddr::IP;
 use Data::Dumper;
+use Data::Dump;
 use v5.10;
-
+use threads;
 use XML::LibXML;
 use XML::Tidy;
 
@@ -187,7 +188,7 @@ sub main {
                 'define', 'undefine', 'start', 'create|t', 'shutdown|d', 'destroy|P', 'modify|m=s', 'scenario|s=s', 'validate-xml',
                 'save', 'restore', 'suspend', 'resume', 'reboot', 'reset', 'recreate', 'execute|x=s', 'exe-cli=s{1,}' => \@exe_cli, 
                 'show-map:s', 'show-status', 'console:s', 'console-info', 'exe-info', 'clean-host',
-                'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y',
+                'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y', 'skip-cloudinit',
                 'rootfs-type=s', 'help|h', 'v', 'vv', 'vvv', 'version|V', 'download-rootfs',
                 'pack=s', 'unpack=s', 'include-rootfs|r', 'pack-external-rootfs', 'pack-status', 'pack-version=s', 'pack-add-files=s{1,}' => \@pack_add_files,               
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
@@ -3445,7 +3446,7 @@ sub mode_exeinfo {
                 push (@seqs, $seq);
             }
         } else {
-            wlog (N, "None defined") unless $opts{'b'};
+            wlog (N, "  None defined") unless $opts{'b'};
         }
         wlog (N, "") unless $opts{'b'};
 
@@ -3455,7 +3456,7 @@ sub mode_exeinfo {
         if (@cmdseq_nodes > 0) {
             print_cmdseq (\@cmdseq_nodes, \@seqs);       
         } else {
-            wlog (N, "None defined") unless $opts{'b'};
+            wlog (N, "  None defined") unless $opts{'b'};
         }
         wlog (N, "") unless $opts{'b'};
              
@@ -3475,7 +3476,7 @@ sub mode_exeinfo {
                     }
                 }
             } else {
-                wlog (N, "None defined") unless $opts{'b'};
+                wlog (N, "  None defined") unless $opts{'b'};
             }
             wlog (N, "") unless $opts{'b'};
         }
@@ -3488,41 +3489,45 @@ sub mode_exeinfo {
         wlog (N, "Global user defined command sequences ") unless $opts{'b'};
         wlog (N, $hline) unless $opts{'b'};
         
-=BEGIN        
-        wlog (N, sprintf (" %-24s", 'Seq') );
-        wlog (N, sprintf (" %-24s", '---') );
-        foreach my $cmd_seq ( $doc->findnodes("/vnx/global/cmd-seq") ) {
-            my $seq_str = $cmd_seq->getFirstChild->getData;
-            my $seq = $cmd_seq->getAttribute("seq");
-            wlog (N, sprintf (" %-24s %-12s %-s" , $seq, 'Defined as:',  $seq_str) );
-            wlog (N, sprintf (" %-24s %-12s %-s", ''   , 'Expanded as:', cmdseq_expand($seq_str) ) );
-            wlog (N, sprintf (" %-24s %-12s %-s", ''   , 'Description:', $dh->get_seq_desc($seq) ) );
-        }        
-        wlog (N, $hline);
-=END
-=cut
         my @cmdseq_nodes = $doc->findnodes("/vnx/global/cmd-seq");
         print_cmdseq (\@cmdseq_nodes, \@seqs);
-        
-=BEGIN        
-        foreach my $cmd_seq ( $doc->findnodes("/vnx/global/cmd-seq") ) {
-            my $seq_str = $cmd_seq->getFirstChild->getData;
-            my $seq = $cmd_seq->getAttribute("seq");
-
-            wlog (N, sprintf ("%-24s", "Seq: $seq") ) unless $opts{'b'};
-
-            wlog (N, sprintf ("  %-12s %-s", 'Defined as:',  $seq_str) ) unless $opts{'b'};
-            wlog (N, sprintf ("  %-12s %-s", 'Expanded as:', cmdseq_expand($seq_str) ) ) unless $opts{'b'};
-            print sprintf ("  %-12s ", 'Description:') unless $opts{'b'};
-            print format_text($dh->get_seq_desc($seq), 80, 12) unless $opts{'b'};
-            print "\n" unless $opts{'b'};
-            push (@seqs, $seq);
-        }        
-        #wlog (N, $hline);
-=END
-=cut
-
+       
     }
+
+    # Print commands defined for the host
+    if( $doc->exists("/vnx/host") ){
+        my @host_tag = $doc->findnodes("/vnx/host");
+
+        # Get descriptions of user-defined commands
+        my %host_seqs = $dh->get_seqs($host_tag[0]);      
+
+        wlog (N, "Host user-defined commands:") unless $opts{'b'};
+        wlog (N, $hline) unless $opts{'b'};
+        wlog (N, "User-defined commands:") unless $opts{'b'};
+        if ( keys(%host_seqs) > 0) {
+            wlog (N, sprintf (" %-24s%s", 'Seq', 'Description') ) unless $opts{'b'};
+            wlog (N, sprintf (" %-24s%s", '---', '-----------') ) unless $opts{'b'};
+            foreach my $seq ( keys %host_seqs ) {
+                print sprintf (" %-24s", $seq) unless $opts{'b'};
+                print format_text($dh->get_seq_desc($seq), 80, 22) unless $opts{'b'};
+                push (@seqs, $seq);
+            }
+        } else {
+            wlog (N, "  None defined") unless $opts{'b'};
+        }
+        wlog (N, "") unless $opts{'b'};
+
+        # Get descriptions of user-defined command sequences
+        wlog (N, "User-defined command sequences:") unless $opts{'b'};
+        my @cmdseq_nodes = $host_tag[0]->findnodes("cmd-seq");
+        if (@cmdseq_nodes > 0) {
+            print_cmdseq (\@cmdseq_nodes, \@seqs);       
+        } else {
+            wlog (N, "  None defined") unless $opts{'b'};
+        }
+        wlog (N, "") unless $opts{'b'};
+    }
+
     if ($opts{'b'}) { print join(" ", @seqs); }
 }
 
@@ -3794,6 +3799,21 @@ back_to_user();
                  "Create it first with 'qemu-img' command, e.g:\n" .
                  "  qemu-img create -f qcow2 rootfs_file.qcow2 8G");
     }
+
+    # get virtio parameter from config file
+    my $disk_a;
+    my $disk_b;
+    my $virtio = get_conf_value ($vnxConfigFile, 'libvirt', 'virtio', 'root');
+    if (!defined $virtio) { $virtio = $DEFAULT_VIRTIO };
+    wlog (VVV, "virtio=$virtio");
+    if ($virtio eq 'yes') {
+        $disk_a = 'vda';
+        $disk_b = 'hdb';
+    } else {
+        $disk_a = 'hda';
+        $disk_b = 'hdb';        
+    }
+
         
 =BEGIN   
     # virt-install -n freebsd -r 512 --vcpus=1 --accelerate -v -c /almacen/iso/FreeBSD-9.1-RELEASE-amd64-disc1.iso -w bridge:virbr0 --vnc --disk path=vnx_rootfs_kvm_freebsd64-9.1-v025m3.qcow2,size=12,format=qcow2 --arch x86_64
@@ -3807,7 +3827,7 @@ back_to_user();
     $vm_libirt_xml_hdb =  <<EOF;
 <disk type='file' device='cdrom'>
     <source file='$cdrom_fname'/>
-    <target dev='hdb'/>
+    <target dev='$disk_b'/>
 </disk>
 EOF
 
@@ -3840,7 +3860,7 @@ EOF
     <emulator>/usr/bin/kvm</emulator>
     <disk type='file' device='disk'>
       <source file='$rootfs_fname'/>
-      <target dev='hda'/>
+      <target dev='$disk_a'/>
       <driver name="qemu" type="qcow2"/>
     </disk>
     $vm_libirt_xml_hdb
@@ -3894,6 +3914,7 @@ sub mode_modifyrootfs {
     my $sdisk_fname; # shared disk complete file name 
     my $h2vm_port;   # host tcp port used to access the the host-to-VM comms channel 
     my $vm_libirt_xml_hdb;
+    my $vm_libirt_xml_vdb;
     my $video_mode;   # Libvirt video mode 
     my $default_video_mode = "cirrus";
     my @allowed_video_types = qw/vga cirrus vmvga xen vbox qxl/;
@@ -4049,19 +4070,34 @@ back_to_user();
             
     } elsif ( $rootfs_type eq 'libvirt-kvm' ) {
 
+        # get virtio parameter from config file
+        my $disk_a;
+        my $disk_b;
+        my $virtio = get_conf_value ($vnxConfigFile, 'libvirt', 'virtio', 'root');
+        if (!defined $virtio) { $virtio = $DEFAULT_VIRTIO };
+        wlog (VVV, "virtio=$virtio");
+        if ($virtio eq 'yes') {
+            $disk_a = 'vda';
+            $disk_b = 'vdb';
+        } else {
+            $disk_a = 'hda';
+            $disk_b = 'hdb';        
+        }
+
 	    # Create a temp directory to store everything
 	    my $base_dir = `mktemp --tmpdir=$tmp_dir -td vnx_modify_rootfs.XXXXXX`;
 	    chomp ($base_dir);
 	    my $rootfs_fname = `readlink -f $rootfs`; chomp ($rootfs_fname);
 	    my $vm_xml_fname = "$base_dir/${rootfs_name}.xml";
 	
+        my $content_dir;
+        
 	    if ( defined($opts{'update-aced'}) ) {
 	
 	        wlog (N, "mode_modifyrootfs: update-aced option selected ($opts{'update-aced'})");
 	        #
 	        # Create shared disk with latest versions of VNXACE daemon
 	        #
-	        my $content_dir;
 	        my $make_iso_cmd;
 	        my $sdisk_mount;
         
@@ -4170,7 +4206,7 @@ if (USE_CDROM_FORMAT) {
 	                system "cp $aced_tar_file $content_dir";                
 	            }
 	        }
-
+	        
 if (USE_CDROM_FORMAT) {
 	
 	        wlog (N, "-- Creating iso filesystem...");
@@ -4194,13 +4230,50 @@ if (USE_CDROM_FORMAT) {
             $vm_libirt_xml_hdb = <<EOF;
 <disk type="file" device="disk">
     <source file="$sdisk_fname"/>
-    <target dev="hdb"/>
+    <target dev="$disk_b"/>
 </disk>
 EOF
 	
 	    } else {
 	        $vm_libirt_xml_hdb = "";
 	    }
+	
+
+        if ( defined($opts{'skip-cloudinit'}) ) {
+	       
+    	    # Cloud init tests
+            #system "echo 'instance-id: b8af93ff-8e4d-4df5-8772-2d884ec09e1c' > $content_dir/meta-data";
+            #system "echo '' > $content_dir/user-data";
+                
+            my $config_dir;
+            if ($virtio eq 'yes') {
+                $config_dir = $content_dir;
+                $vm_libirt_xml_vdb = "";
+            } else {
+                # Create cloud-init
+                my $config_dir = `mktemp --tmpdir=$tmp_dir -d configXXXXXX`;
+                chomp($config_dir);
+
+                $vm_libirt_xml_vdb = <<EOF;
+<disk type='file' device='disk'>
+    <driver name="qemu" type="raw"/>
+    <source file='$config_dir/vnx-cloud-init.iso'/>
+    <target bus="virtio" dev="vdb"/>
+</disk>
+EOF
+    
+            }               
+
+            #print("*** config_dir=$config_dir--\n");            
+            system "touch $config_dir/meta-data";
+            system "echo '#!/bin/bash'                 >  $config_dir/user-data";
+            system "echo 'rm -rf /var/lib/cloud/sem/*' >> $config_dir/user-data";
+            system "mkisofs -o '$config_dir/vnx-cloud-init.iso' -V cidata -r -J --quiet $config_dir";
+    
+        } else {
+            $vm_libirt_xml_vdb = "";
+        }
+
 	
 	    # Get a free port for h2vm channel
 	    $h2vm_port = get_next_free_port (\$VNX::Globals::H2VM_PORT);    
@@ -4235,10 +4308,11 @@ EOF
     <emulator>/usr/bin/kvm</emulator>
     <disk type='file' device='disk'>
       <source file='$rootfs_fname'/>
-      <target dev='hda'/>
+      <target dev='$disk_a'/>
       <driver name="qemu" type="qcow2"/>
     </disk>
     $vm_libirt_xml_hdb
+    $vm_libirt_xml_vdb
     <interface type='network'>
       <source network='default'/>
     </interface>
@@ -4261,7 +4335,7 @@ EOF
 </domain>
 
 EOF
-	
+	    	    
 	    
 	    # Create XML file
 	    open (XMLFILE, "> $vm_xml_fname") or vnx_die ("cannot open file $vm_xml_fname");
@@ -4294,7 +4368,7 @@ change_to_root();
 	        
 	        $vmsocket->flush;
 	        print $vmsocket "hello\n";
-	        my $res = recv_sock ($vmsocket);
+	        my $res = recv_sock ($vmsocket, 10);
 	        wlog (VVV, "    res=$res", $logp);
 	        last if ( $res =~ /^OK/);
             #if ( time() - $t > $timeout) {
@@ -5331,6 +5405,14 @@ sub mode_execute {
     }
 
     my $doc = $dh->get_doc;
+    
+    my $exe_concurrent = '';
+    my $exe_cmd_concurrent = get_conf_value ($vnxConfigFile, 'general', "exe_cmd_concurrent", 'root');
+    if (defined $exe_cmd_concurrent && $exe_cmd_concurrent eq 'yes') { 
+        $exe_concurrent = 'yes' 
+    } elsif (defined $exe_cmd_concurrent && $exe_cmd_concurrent ne 'yes' && $exe_cmd_concurrent ne 'no') {
+        vnx_die ("incorrect value ($exe_cmd_concurrent) in exe_cmd_concurrent parameter of vnx.conf (must be 'yes' or 'no')");
+    }
 
     my $seq_str_expanded = cmdseq_expand ($seq_str, \@vm_ordered);
     wlog (V, "Command sequence '$seq_str' expanded to '$seq_str_expanded'", $logp);
@@ -5348,6 +5430,7 @@ sub mode_execute {
 	    my $num_ftrees = 0;
         my $num_execs  = 0;
         my $num_host_execs = 0;
+        my %exe_threads = ();
 	
 	   	# If -B, block until ready
 	   	if ($opts{B}) {
@@ -5366,8 +5449,12 @@ sub mode_execute {
 	    	$execution->smartdie ("some vm is not ready to exec sequence $seq through net. Wait a while and retry...\n") 
 	    		unless UMLs_cmd_ready(%vm_ips);
 	   	}
-	   
-		# First loop: 
+
+        # Variables used by concurrent processes
+        my $forks;
+        my %exe_processes = ();
+
+		# First loop 
 		for ( my $i = 0 ; $i < @vm_ordered ; $i++ ) {
 			my $vm = $vm_ordered[$i];
 			my $vm_name = $vm->getAttribute("name");
@@ -5394,28 +5481,68 @@ sub mode_execute {
 	        $num_plugin_execs  += $vm_plugin_execs;
 	        $num_ftrees += $vm_ftrees;
 	        $num_execs  += $vm_execs;
-	          
+
 	        if ($vm_plugin_ftrees + $vm_plugin_execs + $vm_ftrees + $vm_execs > 0) { 
-	            wlog (N, "Calling execute_cmd for vm '$vm_name' with seq '$seq'..."); 
-	            wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", $logp);
-				# call the corresponding vmAPI
-		    	my $error = "VNX::vmAPI_$vm_type"->execute_cmd(
-		    	                         $vm_name, $merged_type, $seq, $vm,  
-		    	                         \@plugin_ftree_list, \@plugin_exec_list, 
-		    	                         \@ftree_list, \@exec_list);
-		        if ($error) {
-		            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->execute_cmd returns '" . $error . "'\n$hline");
-		        } else {
-		            wlog (N, "...OK");
-		        }
-	            
+
+                if ($exe_concurrent)  {
+                    wlog (V, "concurrent execute mode enabled", $logp);
+
+                    my $pid = fork();
+                    vnx_die ("cannot fork new process") if not defined $pid;
+                    
+                    if (not $pid) {
+                        # We are in child process
+                        wlog (V, "Created new process $$ for vm '$vm_name'", $logp);
+                        wlog (N, "Calling execute_cmd for vm '$vm_name' with seq '$seq'..."); 
+                        wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", $logp);
+                        # call the corresponding vmAPI
+                        my $error = "VNX::vmAPI_$vm_type"->execute_cmd(
+                                                 $vm_name, $merged_type, $seq, $vm,  
+                                                 \@plugin_ftree_list, \@plugin_exec_list, 
+                                                 \@ftree_list, \@exec_list);
+                        if ($error) {
+                            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->execute_cmd returns '" . $error . "'\n$hline");
+                        } else {
+                            wlog (N, "...execute_cmd for vm '$vm_name' with seq '$seq' returns OK");
+                        }
+                        exit;
+                    } else {
+                        # We are the parent: increment the fork count number
+                        $forks++;
+                        $exe_processes{$pid} = $vm_name;
+                    }
+                } else {
+                    wlog (V, "concurrent execute mode disabled", $logp);
+                    wlog (V, "Created new process $$ for vm '$vm_name'", $logp);
+                    wlog (N, "Calling execute_cmd for vm '$vm_name' with seq '$seq'..."); 
+                    wlog (VVV, "   plugin_filetrees=$vm_plugin_ftrees, plugin_execs=$vm_plugin_execs, user-defined_filetrees=$vm_ftrees, user-defined_execs=$vm_execs", $logp);
+                    # call the corresponding vmAPI
+                    my $error = "VNX::vmAPI_$vm_type"->execute_cmd(
+                                             $vm_name, $merged_type, $seq, $vm,  
+                                             \@plugin_ftree_list, \@plugin_exec_list, 
+                                             \@ftree_list, \@exec_list);
+                    if ($error) {
+                        wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->execute_cmd returns '" . $error . "'\n$hline");
+                    } else {
+                        wlog (N, "...execute_cmd for vm '$vm_name' with seq '$seq' returns OK");
+                    }
+                }
 	        }
 		}
-	
+		
         if ( $type eq 'all' && !defined($ref_vms) && $doc->exists("/vnx/host/exec[\@seq='$seq']") && $dh->host_in_M_option ) {
-            wlog (N, "Calling execute_host_cmd with seq '$seq'"); 
+            wlog (N, "Calling execute_host_cmd with seq '$seq'..."); 
             $num_host_execs = execute_host_command($seq);
         }
+
+        if ($exe_concurrent)  {
+    		# Wait for all processes to finish
+    		for (1 .. $forks) {
+                my $pid = wait();
+                wlog (V, "Process '$pid' asoociated with " . $exe_processes{$pid} . " ended", $logp);
+            }
+            wlog (V, "All exe_processes finished", $logp);
+        }		
 
 	    wlog (VVV, "Total number of commands executed for seq $seq:", $logp);
 	    wlog (VVV, "   plugin_filetrees=$num_plugin_ftrees, plugin_execs=$num_plugin_execs,", $logp); 

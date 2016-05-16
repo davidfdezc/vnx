@@ -376,15 +376,19 @@ sub wait_sock_answer {
 sub recv_sock {
 
     my $socket = shift;
-    #my $timeout = 15;
+    my $timeout = shift;
+    if (!defined $timeout) {
+        $timeout = $H2VM_TIMEOUT
+    }
+    
     my $line;
     
     wlog (VVV, "recv_sock called... $socket");
 
     eval {
         local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
-        #alarm $timeout;
-        alarm $H2VM_TIMEOUT;
+        alarm $timeout;
+        #alarm $H2VM_TIMEOUT;
         $line = <$socket>;
         wlog (VVV, "line=$line", "");
         alarm 0;
@@ -392,13 +396,10 @@ sub recv_sock {
     if ($@) {
         die unless $@ eq "alarm\n";   # propagate unexpected errors
         # timed out
-        wlog (N, "ERROR: timeout waiting for response on VM socket");
+        wlog (V, "WARNING: timeout waiting for response on VM socket");
         return '';
     }
     else {
         return "$line";
     }
 }
-
-
-1;

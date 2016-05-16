@@ -69,6 +69,9 @@ use IO::Socket::UNIX qw( SOCK_STREAM );
 use constant USE_UNIX_SOCKETS => 0;  # Use unix sockets (1) or TCP (0) to communicate with virtual machine 
 my $one_pass_autoconf;
 my $host_passthrough;
+my $virtio;
+my $disk_a;
+my $disk_b;
 
 # ---------------------------------------------------------------------------------------
 #
@@ -96,6 +99,18 @@ sub init {
     $host_passthrough = get_conf_value ($vnxConfigFile, 'libvirt', 'host_passthrough', 'root');
     if (!defined $host_passthrough) { $host_passthrough = $DEFAULT_HOST_PASSTHROUGH };
     wlog (VVV, "[libvirt] conf: host_passthrough=$host_passthrough");
+
+    # get virtio parameter from config file
+    $virtio = get_conf_value ($vnxConfigFile, 'libvirt', 'virtio', 'root');
+    if (!defined $virtio) { $virtio = $DEFAULT_VIRTIO };
+    wlog (VVV, "[libvirt] conf: virtio=$virtio");
+    if ($virtio eq 'yes') {
+        $disk_a = 'vda';
+        $disk_b = 'vdb';
+    } else {
+        $disk_a = 'hda';
+        $disk_b = 'hdb';        
+    }
 	
 root();
 
@@ -412,7 +427,7 @@ sub define_vm {
 			$init_xml->createAttribute( file => $filesystem ) );
 		my $target1_tag = $init_xml->createElement('target');
 		$disk1_tag->addChild($target1_tag);
-		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
+        $target1_tag->addChild( $init_xml->createAttribute( dev => $disk_a ) );
 		
 		# DFC: Added '<driver name='qemu' type='qcow2'/>' to work with libvirt 0.8.x 
         my $driver1_tag = $init_xml->createElement('driver');
@@ -432,7 +447,7 @@ sub define_vm {
 			$init_xml->createAttribute( file => $filesystem_small ) );
 		my $target2_tag = $init_xml->createElement('target');
 		$disk2_tag->addChild($target2_tag);
-		$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
+		$target2_tag->addChild( $init_xml->createAttribute( dev => $disk_b ) );
 
         # network <interface> tags
 		my $mng_if_exists = 0;
@@ -869,7 +884,7 @@ user();
 			$init_xml->createAttribute( file => $filesystem ) );
 		my $target1_tag = $init_xml->createElement('target');
 		$disk1_tag->addChild($target1_tag);
-		$target1_tag->addChild( $init_xml->createAttribute( dev => 'hda' ) );
+        $target1_tag->addChild( $init_xml->createAttribute( dev => $disk_a ) );
 
 		# DFC: Added '<driver name='qemu' type='qcow2'/>' to work with libvirt 0.8.x 
         my $driver1_tag = $init_xml->createElement('driver');
@@ -922,7 +937,7 @@ user();
 				$init_xml->createAttribute( file => $filesystem_small ) );
 			my $target2_tag = $init_xml->createElement('target');
 			$disk2_tag->addChild($target2_tag);
-			$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
+			$target2_tag->addChild( $init_xml->createAttribute( dev => $disk_b ) );
         
         } elsif ($exec_mode eq "sdisk") {
 
@@ -955,7 +970,7 @@ user();
 				$init_xml->createAttribute( file => $sdisk_fname ) );
 			my $target2_tag = $init_xml->createElement('target');
 			$disk2_tag->addChild($target2_tag);
-			$target2_tag->addChild( $init_xml->createAttribute( dev => 'hdb' ) );
+			$target2_tag->addChild( $init_xml->createAttribute( dev => $disk_b ) );
 			# Testing Fedora 17 problem with shared disk...
 			#$target2_tag->addChild( $init_xml->createAttribute( cache => 'none' ) );
 			
@@ -2426,126 +2441,7 @@ sub execute_cmd {
 				}
 			}
 		}
-#		$execution->execute( $logp, "</filetrees>", *COMMAND_FILE );
 
-# NO CERRAMOS COMMAND_FILE PORQUE VAMOS A SEGUIR ESCRIBIENDO LOS COMANDOS A CONTINUACION DE LOS FILETREES
-#		close COMMAND_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-
-
-
-
-=BEGIN		
-		open( DU, "du -hs0c " . $dh->get_vm_hostfs_dir($vm_name) . " | awk '{ var = \$1; var2 = substr(var,0,length(var)); print var2} ' |") || die "Failed: $!\n";
-		my $dimension = <DU>;
-		$dimension = $dimension + 20;
-		my $dimensiondisk = $dimension + 30;
-		close DU unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-		open( DU, "du -hs0c " . $dh->get_vm_hostfs_dir($vm_name) . " | awk '{ var = \$1; var3 = substr(var,length(var),length(var)+1); print var3} ' |") || die "Failed: $!\n";
-		my $unit = <DU>;
-		close DU unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-=END
-=cut
-
-# ESTO NO VEO QUE SE USE :-m
-		# Calculate dimension and units of hostfs_dir
-#		my $cmd = "du -hs0c " . $dh->get_vm_hostfs_dir($vm_name); 
-#		my $dures = `$cmd`;
-#		my @dures = split (/\t| /,$dures);
-#		my $dimension=$dures[0];	$dimension=~ s/[B|K|M|G]//;
-#		my $unit=$dures[0];		$unit=~ s/\d*//;
-#		print "**** dimension=$dimension, unit=$unit\n" if ($exemode == $EXE_VERBOSE);
-#		$dimension = $dimension + 20;
-#		my $dimensiondisk = $dimension + 30;
-#
-#		if ($dst_num > 0){
-#			if (   ( $unit eq "K\n" || $unit eq "B\n" )|| ( ( $unit eq "M\n" ) && ( $dimension <= 32 ) ) ){
-#				$unit          = 'M';
-#				$dimension     = 32;
-#				$dimensiondisk = 50;
-#			}
-# Y ESTO AHORA NO HACE FALTA AQUI
-#			$execution->execute( $logp, "mkdir /tmp/disk.$random_id");
-#			$execution->execute( $logp, "mkdir  /tmp/disk.$random_id/filetree");
-#			$execution->execute( $logp, "cp " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree.xml" . " " . "$filetree_host" );
-			#$execution->execute( $logp, "cp -rL " . $filetree_host . "/*" . " " . "/tmp/disk.$random_id/filetree" );
-
-# TODAVIA NO HACEMOS EL ISO, PORQUE HABRA QUE METER LOS COMANDOS
-#			$execution->execute( $logp, "mkisofs -R -nobak -follow-links -max-iso9660-filename -allow-leading-dots " . 
-#			                    "-pad -quiet -allow-lowercase -allow-multidot -o /tmp/disk.$random_id.iso $filetree_host");
-
-
-# TAMPOCO CREAMOS EL XML DEL DISPOSITIVO TODAVIA							
-#			my $disk_filetree_windows_xml;
-#			$disk_filetree_windows_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
-#			
-#			my $disk_filetree_windows_tag = $disk_filetree_windows_xml->createElement('disk');
-#			$disk_filetree_windows_xml->addChild($disk_filetree_windows_tag);
-#			$disk_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( type => "file" ) );
-#			$disk_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( device => "cdrom" ) );
-#			
-#			my $driver_filetree_windows_tag =$disk_filetree_windows_xml->createElement('driver');
-#			$disk_filetree_windows_tag->addChild($driver_filetree_windows_tag);
-#			$driver_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( name => "qemu" ) );
-#			$driver_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( cache => "default" ) );
-#			
-#			my $source_filetree_windows_tag =$disk_filetree_windows_xml->createElement('source');
-#			$disk_filetree_windows_tag->addChild($source_filetree_windows_tag);
-#			$source_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( file => "/tmp/disk.$random_id.iso" ) );
-#			
-#			my $target_filetree_windows_tag =$disk_filetree_windows_xml->createElement('target');
-#			$disk_filetree_windows_tag->addChild($target_filetree_windows_tag);
-#			$target_filetree_windows_tag->addChild( $disk_filetree_windows_xml->createAttribute( dev => "hdb" ) );
-#			
-#			my $readonly_filetree_windows_tag =$disk_filetree_windows_xml->createElement('readonly');
-#			$disk_filetree_windows_tag->addChild($readonly_filetree_windows_tag);
-#			my $format_filetree_windows   = 1;
-#			my $xmlstring_filetree_windows = $disk_filetree_windows_xml->toString($format_filetree_windows );
-#			
-#			$execution->execute( $logp, "rm -f ". $dh->get_vm_hostfs_dir($vm_name) . "/filetree_libvirt.xml"); 
-#			open XML_FILETREE_WINDOWS_FILE, ">" . $dh->get_vm_hostfs_dir($vm_name) . '/' . 'filetree_libvirt.xml'
-#	 			or $execution->smartdie("can not open " . $dh->get_vm_hostfs_dir . '/' . 'filetree_libvirt.xml' )
-#	  			unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-#			print XML_FILETREE_WINDOWS_FILE "$xmlstring_filetree_windows\n";
-#			close XML_FILETREE_WINDOWS_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-#			
-#			#$execution->execute( $logp, "virsh -c qemu:///system 'attach-disk \"$vm_name\" /tmp/disk.$random_id.iso hdb --mode readonly --driver file --type cdrom'");
-#			$execution->execute( $logp, "virsh -c qemu:///system 'attach-device \"$vm_name\" ". $dh->get_vm_hostfs_dir($vm_name) . "/filetree_libvirt.xml'");
-#			print "Copying file tree in client, through socket: \n" . $dh->get_vm_dir($vm_name). '/'.$vm_name.'_socket' if ($exemode == $EXE_VERBOSE);
-#			waitfiletree($dh->get_vm_dir($vm_name) .'/'.$vm_name.'_socket');
-#			sleep(4);
-#			# 3d. Cleaning
-#			$execution->execute( $logp, "rm /tmp/disk.$random_id.iso");
-#			$execution->execute( $logp, "rm -r /tmp/disk.$random_id");
-#			$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_tmp_dir . "/vnx.$vm_name.$seq.$random_id" );
-#			$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree.$random_id" );
-#			$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf $filetree_host" );
-#			$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree_cp.$random_id" );
-#			$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree.xml" );
-#			$execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -f " . $dh->get_vm_hostfs_dir($vm_name) . "/filetree_cp.$random_id.end" );
-#		}
-		############ COMMAND_FILE ########################
-		# We open file
-
-# VAMOS A USAR EL COMMAND_FILE DEL FILETREE, YA ABIERTO, AL QUE AÑADIREMOS LOS COMANDOS
-#		open COMMAND_FILE,">" . $dh->get_tmp_dir . "/vnx.$vm_name.$seq.$random_id" or $execution->smartdie("can not open " . $dh->get_tmp_dir . "/vnx.$vm_name.$seq: $!" )
-#		  unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-
-		# FIXME: consider to use a different new VNX::Execution object to perform this
-		# actions (avoiding this nasty verb_prompt backup)
-#		$execution->set_verb_prompt("$vm_name> ");
-#		$cmd = $bd->get_binaries_path_ref->{"date"};
-#		chomp( $now = `$cmd` );
-
-		# To process exec tags of matching commands sequence
-		#my $command_list = $vm->getElementsByTagName("exec");
-
-# EL COMMAND_FILE YA ESTA CREADO
-		# To process list, dumping commands to file
-#		$execution->execute( $logp, "<command>", *COMMAND_FILE );
-		
-		# Insert random id number for the command file
-#		$fileid = $vm_name . "-" . &generate_random_string(6);
-#		$execution->execute( $logp, "<id>" . $fileid ."</id>", *COMMAND_FILE );
 
 		my $countcommand = 0;
 		foreach my $command ($vm->getElementsByTagName("exec")) {
@@ -2632,7 +2528,7 @@ sub execute_cmd {
 			
 			my $target_command_windows_tag =$disk_command_windows_xml->createElement('target');
 			$disk_command_windows_tag->addChild($target_command_windows_tag);
-			$target_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( dev => "hdb" ) );
+			$target_command_windows_tag->addChild( $disk_command_windows_xml->createAttribute( dev => $disk_b ) );
 			
 			my $readonly_command_windows_tag =$disk_command_windows_xml->createElement('readonly');
 			$disk_command_windows_tag->addChild($readonly_command_windows_tag);
@@ -2878,7 +2774,7 @@ sub execute_cmd {
 			$execution->execute( $logp, $bd->get_binaries_path_ref->{"mkisofs"} . " -d -nobak -follow-links -max-iso9660-filename -allow-leading-dots " . 
 			                    "-pad -quiet -allow-lowercase -allow-multidot " . 
 			                    "-o $iso_disk $sdisk_content");
-			$execution->execute( $logp, "virsh -c qemu:///system 'attach-disk \"$vm_name\" $iso_disk hdb --mode readonly --type cdrom'");
+			$execution->execute( $logp, "virsh -c qemu:///system 'attach-disk \"$vm_name\" $iso_disk $disk_b --mode readonly --type cdrom'");
 
             # Send the exeCommand order to the virtual machine using the socket
 
@@ -2923,7 +2819,7 @@ sub execute_cmd {
             #waitfiletree($dh->get_vm_dir($vm_name) .'/'.$vm_name.'_socket');
 			# mount empty iso, while waiting for new command	
 			$execution->execute( $logp, "touch $empty_iso_disk");
-			$execution->execute( $logp, "virsh -c qemu:///system 'attach-disk \"$vm_name\" $empty_iso_disk hdb --mode readonly --type cdrom'");
+			$execution->execute( $logp, "virsh -c qemu:///system 'attach-disk \"$vm_name\" $empty_iso_disk $disk_b --mode readonly --type cdrom'");
 			sleep 1;
 
 		   	# Cleaning

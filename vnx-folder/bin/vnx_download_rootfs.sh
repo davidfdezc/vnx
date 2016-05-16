@@ -9,7 +9,7 @@
 # This file is a module part of VNX package.
 #
 # Authors: Jorge Somavilla (somavilla@dit.upm.es), David Fernández (david@dit.upm.es)
-# Copyright (C) 2012,   DIT-UPM
+# Copyright (C) 2012,2016   DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -34,8 +34,8 @@
 #
 # Constant and variables
 #
-VNXACED_VER='MM.mm.rrrr'
-VNXACED_BUILT='DD/MM/YYYY'
+VNXACED_VER='2.0b.5815'
+VNXACED_BUILT='02/05/2016_19:03'
 #fsdir="/usr/share/vnx/filesystems"
 vnx_rootfs_repo="http://vnx.dit.upm.es/vnx/filesystems/"
 create_sym_link=""
@@ -54,8 +54,10 @@ Options:    -s -> show root filesystems available at VNX repository
             -r <rootfsname> -> use it to download a specific root filesystem
             -y -> overwrite local files without asking for permission
             -n -> execute wget in no-verbose mode (--nv option)
+            -p -> pattern to filter rootfs names (no regular expressions allowed)
             -h -> show this help
-            when no options invoked vnx_download_rootfs starts in interactive mode            
+
+When no rootfs (-r option) is specified, vnx_download_rootfs starts in interactive mode            
 "
 HEADER1="
 ----------------------------------------------------------------------------------
@@ -137,6 +139,20 @@ function get_link_name {
       fi
    fi
 
+   if [[ $1 == *openbsd64* ]] ; then
+      if [[ $1 == *gui* ]] ; then
+         echo "rootfs_openbsd64-gui"; return
+      else
+         echo "rootfs_openbsd64"; return
+      fi   
+   elif [[ $1 == *openbsd* ]] ; then
+      if [[ $1 == *gui* ]] ; then
+         echo "rootfs_openbsd-gui"; return
+      else
+         echo "rootfs_openbsd"; return
+      fi
+   fi
+
    if [[ $1 == *fedora64* ]] ; then
       if [[ $1 == *gui* ]] ; then
          echo "rootfs_fedora64-gui"; return
@@ -182,21 +198,29 @@ function get_link_name {
 function show_rootfs_array {
 
     OLD_IFS=$IFS; IFS=$'\n'
-    rootfs_links_array=($(curl $vnx_rootfs_repo -s | w3m -dump -T text/html | grep bz2))
+    if [ "$pattern" ]; then
+        rootfs_links_array=($(curl $vnx_rootfs_repo -s | w3m -dump -T text/html | grep $pattern | grep -e 'bz2' -e 'tgz'))
+    else
+        rootfs_links_array=($(curl $vnx_rootfs_repo -s | w3m -dump -T text/html | grep -e 'bz2' -e 'tgz'))
+    fi
     IFS=$OLD_IFS
 
-    echo "Num   Rootfs name                                    Date        Size"
-    echo "-----------------------------------------------------------------------"
+    printf "%-4s %-60s %-11s %6s\n" "Num" "Rootfs name" "Date" "Size" 
+    echo "------------------------------------------------------------------------------------"
 
     # Show filesystems on server in columns
     for (( i = 0 ; i < ${#rootfs_links_array[@]} ; i++ ))
     do
         OLD_IFS=$IFS; IFS=$'\n'
-        NUM=$(printf "%-3s" "$i") 
-        echo ${rootfs_lvnx_rootfs_kvm_ubuntu-8.04-metasploitable-v023.qcow2inks_array[$i]} | sed -e "s/\[ \]/$NUM/g" | column
+        rootfs_num=$(( i + 1 ))  
+        #echo ${rootfs_links_array[$i]} | sed -e "s/\[ \]/$NUM/g" | column
+        rootfs_name=$( echo ${rootfs_links_array[$i]} | awk '{ print $3 }' )
+        rootfs_date=$( echo ${rootfs_links_array[$i]} | awk '{ print $4 }' )
+        rootfs_size=$( echo ${rootfs_links_array[$i]} | awk '{ print $5 }' )
+        printf "%-4s %-60s %-11s %6s\n" "$rootfs_num" "$rootfs_name" "$rootfs_date" "$rootfs_size" 
         IFS=$OLD_IFS
     done
-    echo "-----------------------------------------------------------------------"
+    echo "------------------------------------------------------------------------------------"
 
 }
 
@@ -343,23 +367,16 @@ function download_rootfs_interactive {
     check_access_to_repository
 
     OLD_IFS=$IFS; IFS=$'\n'
-    rootfs_links_array=($(curl $vnx_rootfs_repo -s | w3m -dump -T text/html | grep -e 'bz2' -e 'tgz'))
+    if [ "$pattern" ]; then
+        rootfs_links_array=($(curl $vnx_rootfs_repo -s | w3m -dump -T text/html | grep $pattern | grep -e 'bz2' -e 'tgz'))
+    else
+        rootfs_links_array=($(curl $vnx_rootfs_repo -s | w3m -dump -T text/html | grep -e 'bz2' -e 'tgz'))
+    fi
     IFS=$OLD_IFS
 
     while true; do
 
-        echo "Num   Rootfs name                                    Date        Size"
-        echo "-----------------------------------------------------------------------"
-
-        # Show filesystems on server in columns
-        for (( i = 0 ; i < ${#rootfs_links_array[@]} ; i++ ))
-        do
-            saveIFS=$IFS
-            IFS=$'\n'
-            NUM=$(printf "%-3s" "$i") 
-            echo ${rootfs_links_array[$i]} | sed -e "s/\[ \]/$NUM/g" | column
-            IFS=$saveIFS
-        done
+        show_rootfs_array {
 
         # Read choice from user
         echo ""
@@ -382,6 +399,7 @@ function download_rootfs_interactive {
         fi
 
         # Check that chosen number is on the list (0<=$choice<=max) and install
+        choice=$(($choice-1)) # rootfs numbers start in 1
         if [ $choice -ge 0 ] ; then 
             if [ $choice -le `expr ${#rootfs_links_array[@]} - 1` ] ; then
 
@@ -424,7 +442,7 @@ for cmd in $cmds_required; do
 done
 
 
-while getopts ":nyshl :r:" opt; do
+while getopts ":nyshl :r:p:" opt; do
     case $opt in
 
     l)
@@ -464,17 +482,15 @@ while getopts ":nyshl :r:" opt; do
     s)
         #echo "-s was triggered, Parameter: $OPTARG" >&2
         check_access_to_repository
-
-        echo "$HEADER1"
-        echo ""
-        echo "Repository:    $vnx_rootfs_repo"
-        echo ""
-        show_rootfs_array
-        exit 0
+        show_listing='yes' 
         ;;
     n)
         #echo "-n was triggered" >&2
         NV="-nv"
+        ;;
+    p)
+        #echo "-p was triggered" >&2
+        pattern="$OPTARG"
         ;;
     h)
         #echo "-h was triggered, Parameter: $OPTARG" >&2
@@ -500,10 +516,18 @@ echo -n "Current dir:   "
 pwd 
 echo ""
 
-if [ ! $rootfs_bzname = "" ] ; then
+if [ "$show_listing" == "yes" ] ; then
+
+    echo "$HEADER1"
+    echo ""
+    echo "Repository:    $vnx_rootfs_repo"
+    echo ""
+    show_rootfs_array
+
+elif [ ! $rootfs_bzname = "" ] ; then
     download_rootfs
-else
-    # No rootfs specified; go to interactive mode
+
+else # No rootfs specified; go to interactive mode
     interactive="yes"
     download_rootfs_interactive
 fi
