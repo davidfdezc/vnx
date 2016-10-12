@@ -94,6 +94,8 @@ BUGS:
       --pack-status -> to include rootfs status
     vnx --unpack opennop-sdn-v2-lxc.tgz
 
+- Guess how to set window title in gnome-terminal based consoles, since the simple --title option has been silly deprecated...     
 
-
+- When activating the command execution concurrent mode, the terminal gets corrupted probably due to the concurrent access to write on the screen. 
+  Problem detected when testing the CORD vRouter example.  
 

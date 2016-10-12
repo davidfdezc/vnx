@@ -178,7 +178,7 @@ sub new {
       $global_data{'default_filesystem_type'} = "cow";
    }
    if ($no_mem) {
-      $global_data{'default_mem'} = "64M";
+      $global_data{'default_mem'} = "256M";
    }
    if ($no_kernel) {
       $global_data{'default_kernel'} = &do_path_expansion("/usr/share/vnx/kernels/linux");
@@ -701,6 +701,7 @@ sub get_vm_filesystem {
     
     if (@filesystem_list == 1) {
         $filesystem = get_abs_path(text_tag($vm->getElementsByTagName("filesystem")->item(0)));
+        $filesystem =~ s/\R//g;  # Just in case it has a break line at the end
         $filesystem_type = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
     } else {
         ($filesystem, $filesystem_type) = $dh->get_vm_default_filesystem ($type, $subtype, $os);

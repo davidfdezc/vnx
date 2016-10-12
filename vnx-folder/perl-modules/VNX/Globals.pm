@@ -45,6 +45,7 @@ our @EXPORT = qw(
 	$dh
 	$bd
 	%opts
+	$mode
 	@plugins
 	$exemode
 	$hypervisor
@@ -165,6 +166,7 @@ our $dh;            # the VNX::DataHandler object
 our $bd;            # the VNX::BinariesData object
 #our $args;          # the VNX::Arguments object
 our %opts = ();     # Command line options hash
+our $mode;          # main mode specified in command line
 
 our @plugins;       # plugins array
 our $exemode;       # Execution mode. It stores the value of $execution->get_exe_mode()

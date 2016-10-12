@@ -395,7 +395,8 @@ change_to_root();
         # Configure Memory
         if( $vm->exists("/create_conf/vm/mem") ){
             my $mem = $vm->findnodes("/create_conf/vm/mem")->[0]->getFirstChild->getData;
-            $execution->execute( $logp, "memory.limit_in_bytes = $mem", *CONFIG_FILE );
+            $mem = $mem/1024;
+            $execution->execute( $logp, "memory.limit_in_bytes = ${mem}M", *CONFIG_FILE );
             # Ex: lxc.cgroup.memory.limit_in_bytes = 256M        
         }        
         
@@ -1116,7 +1117,9 @@ sub execute_cmd {
         	# each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
         	# 
         	$command =~ s/'/'\\''/g;
-        	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
+            wlog (VVV, "shell: $shell", $logp);
+            wlog (VVV, "original command: $command", $logp);
+            wlog (VVV, "scaped command: $command", $logp);
             wlog (V, "executing user defined exec command '$command'", $logp);
         	my $cmd_output = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$command'");
             wlog (N, "---\n$cmd_output---", '') if ($cmd_output ne '');
@@ -1143,7 +1146,9 @@ sub execute_cmd {
         	# each "'" by "'\''" (see http://www.grymoire.com/Unix/Quote.html#uh-8)
         	# 
         	$command =~ s/'/'\\''/g;
-        	wlog (VVV, "shell: $shell, original command: $command, scaped command: $command", $logp);
+            wlog (VVV, "shell: $shell", $logp);
+            wlog (VVV, "original command: $command", $logp);
+            wlog (VVV, "scaped command: $command", $logp);
             wlog (V, "executing user defined exec command:", $logp);
             my @lines = split /\n/, $command;
             foreach my $line (@lines) { wlog (V, "    $line", $logp) if $line };  

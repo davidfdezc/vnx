@@ -72,6 +72,7 @@ my $host_passthrough;
 my $virtio;
 my $disk_a;
 my $disk_b;
+my $disk_c;
 
 # ---------------------------------------------------------------------------------------
 #
@@ -107,9 +108,11 @@ sub init {
     if ($virtio eq 'yes') {
         $disk_a = 'vda';
         $disk_b = 'vdb';
+        $disk_c = 'vdc';
     } else {
         $disk_a = 'hda';
         $disk_b = 'hdb';        
+        $disk_c = 'hdc';        
     }
 	
 root();
@@ -835,12 +838,28 @@ user();
 		}
 		$type_tag->addChild( $init_xml->createAttribute( machine => "$machine" ) );
 		$type_tag->addChild( $init_xml->createTextNode("hvm") );
+
+        # boot tag
+        print $vm->toString() . "\n";
+        if( $vm->exists("./boot") ){
+            my $boot = $vm->findnodes('./boot')->[0]->to_literal();
+            if ($boot eq 'network') {
+                my $boot0_tag = $init_xml->createElement('boot');
+                $os_tag->addChild($boot0_tag);
+                $boot0_tag->addChild( $init_xml->createAttribute( dev => 'network' ) );                
+            } elsif ($boot eq 'cdrom') {
+                my $boot0_tag = $init_xml->createElement('boot');
+                $os_tag->addChild($boot0_tag);
+                $boot0_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );                
+            }
+            wlog (VVV,"boot tag set to $boot", $logp);
+        }
 		my $boot1_tag = $init_xml->createElement('boot');
 		$os_tag->addChild($boot1_tag);
 		$boot1_tag->addChild( $init_xml->createAttribute( dev => 'hd' ) );
-		my $boot2_tag = $init_xml->createElement('boot');
-		$os_tag->addChild($boot2_tag);
-		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
+		#my $boot2_tag = $init_xml->createElement('boot');
+		#$os_tag->addChild($boot2_tag);
+		#$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
 
         # <features> tag
         my $features_tag = $init_xml->createElement('features');
@@ -975,6 +994,29 @@ user();
 			#$target2_tag->addChild( $init_xml->createAttribute( cache => 'none' ) );
 			
         }
+        
+        #<disk type='file' device='cdrom'>
+        #    <source file='$cdrom_fname'/>
+        #    <target dev='$disk_b'/>
+        #</disk>
+        if ( $vm->exists("./cdrom") ) {
+            my $cdrom = $vm->findnodes('./cdrom')->[0]->to_literal();
+
+            # Create the cdrom definition in libvirt XML doc
+            my $disk2_tag = $init_xml->createElement('disk');
+            $devices_tag->addChild($disk2_tag);
+            $disk2_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
+            $disk2_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
+            my $source2_tag = $init_xml->createElement('source');
+            $disk2_tag->addChild($source2_tag);
+            $source2_tag->addChild(
+                $init_xml->createAttribute( file => $cdrom ) );
+            my $target2_tag = $init_xml->createElement('target');
+            $disk2_tag->addChild($target2_tag);
+            $target2_tag->addChild( $init_xml->createAttribute( dev => $disk_c ) );
+
+        }
+        
         
         # network <interface> tags linux
 		my $mng_if_exists = 0;

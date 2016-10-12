@@ -20,7 +20,21 @@ e-mail: vnx@dit.upm.es
     <xs:complexType mixed="true"/>
   </xs:element>
 
+  <xs:element name="boot">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:enumeration value="network"/>
+        <xs:enumeration value="cdrom"/>
+        <xs:enumeration value="disk"/>
+      </xs:restriction>
+    </xs:simpleType>  
+  </xs:element>
+
   <xs:element name="bw">
+    <xs:complexType mixed="true"/>
+  </xs:element>
+
+  <xs:element name="cdrom">
     <xs:complexType mixed="true"/>
   </xs:element>
 
@@ -326,6 +340,7 @@ e-mail: vnx@dit.upm.es
       <xs:attribute name="of_version" type="xs:string" use="optional"/>
       <xs:attribute name="hwaddr" type="xs:string" use="optional"/>
       <xs:attribute name="fail_mode" type="xs:string" use="optional"/>
+      <xs:attribute name="mtu" type="xs:unsignedShort" use="optional"/>
       <xs:attribute name="mode" use="required">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
@@ -483,6 +498,8 @@ e-mail: vnx@dit.upm.es
   <xs:element name="vm">
     <xs:complexType>
       <xs:choice maxOccurs="unbounded">
+        <xs:element minOccurs="0" maxOccurs="1" ref="boot"/>
+        <xs:element minOccurs="0" maxOccurs="1" ref="cdrom"/>
         <xs:element minOccurs="0" ref="filesystem"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="shareddir"/>
         <!--xs:element ref="dynamips_conf" minOccurs="0" /-->

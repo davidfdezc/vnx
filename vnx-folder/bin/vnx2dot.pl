@@ -204,6 +204,12 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "freebsd")) { 
         $ctype="freebsd";
         $vm_legend{"freebsd"} = "libvirt KVM FreeBSD"       
+    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "openbsd")) { 
+        $ctype="openbsd";
+        $vm_legend{"openbsd"} = "libvirt KVM OpenBSD"       
+    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "netbsd")) { 
+        $ctype="netbsd";
+        $vm_legend{"netbsd"} = "libvirt KVM NetBSD"       
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "win")) { 
         $ctype="windows";
         $vm_legend{"windows"} = "libvirt KVM Windows"       

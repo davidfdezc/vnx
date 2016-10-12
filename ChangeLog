@@ -1,3 +1,20 @@
+
+12/10/2016:
+
+- Implemented <boot>network</boot>
+
+- Implemented mtu
+
+- Improved the management of xfce4-terminal based consoles adding a small expect script to get a clear login at startup with LXC VMs. 
+  xfce4-terminal is the preferred console terminal since gnome-terminal has deprecated the --title option (why????) 
+
+- Changed execute_getting_output function in Execution.pm from: 
+    system "( $command 2>&1 ) > $tmp_file ";
+  to
+    system "( $command ) 2>&1 > $tmp_file ";
+  to avoid a problem found when starting karaf in CORD-router scenario (https://github.com/ralvarep/CORD-vRouter)
+
+
 16/05/2016
 
 - vnx_create_lxc_rootfs script updated to not use /var/lib/lxc directory

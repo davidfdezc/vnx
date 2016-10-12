@@ -259,7 +259,12 @@ sub open_console {
 		} elsif ($console_term eq 'lxterminal') {
 			$exeLine = "lxterminal --title '$vm_name - console #$con_id' -e $command";
 		} elsif ($console_term eq 'xfce4-terminal') {
-			$exeLine = "xfce4-terminal --title '$vm_name - console #$con_id' -e '$command'";
+            if ($mode eq 'console') {
+                $exeLine = "xfce4-terminal --title '$vm_name - console #$con_id' --hide-menubar -e '$command'";
+            } else {
+                #$exeLine = "xfce4-terminal --title '$vm_name - console #$con_id' --hide-menubar -x expect -c 'spawn $command; sleep 10; send k\\n; sleep 1; send \\003; interact'";
+                $exeLine = "xfce4-terminal --title '$vm_name - console #$con_id' --hide-menubar -x expect -c 'spawn $command; sleep 5; send \\015; interact'";
+            }
 		} else {
 			$execution->smartdie ("unknown value ($console_term) of console_term parameter in $vnxConfigFile");
 		}

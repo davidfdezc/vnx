@@ -473,7 +473,7 @@ sub execute_getting_output {
 =cut
         
         my $tmp_file = `mktemp --tmpdir=/tmp -t vnx_cmd_output.XXXXXX`;
-        system "( $command 2>&1 )  > $tmp_file ";
+        system "( $command ) 2>&1 > $tmp_file ";
         # Return command output...
         $retval = `cat $tmp_file`;
         if ( $execution->get_logfile() )  {
@@ -481,7 +481,7 @@ sub execute_getting_output {
             system "cat $tmp_file >> " . $execution->get_logfile();
         }
         # Delete tmp file
-        #system "rm -f $tmp_file";
+        system "rm -f $tmp_file";
         if ($exe_interactive) {
             &press_any_key;
         }

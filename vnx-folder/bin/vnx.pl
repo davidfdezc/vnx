@@ -60,7 +60,6 @@ use Getopt::Long;
 use IO::Socket;
 use NetAddr::IP;
 use Data::Dumper;
-use Data::Dump;
 use v5.10;
 use threads;
 use XML::LibXML;
@@ -344,7 +343,7 @@ $>=$uid;
    
    	my $how_many_args = 0;
    	my $mode_args = '';
-   	my $mode;
+   	#$mode;
     if ($opts{'define'})           { $how_many_args++; $mode_args .= 'define ';          $mode = "define";         }
     if ($opts{'undefine'})         { $how_many_args++; $mode_args .= 'undefine ';        $mode = "undefine";       }
     if ($opts{'start'})            { $how_many_args++; $mode_args .= 'start ';           $mode = "start";          }
@@ -376,6 +375,8 @@ $>=$uid;
     if ($opts{'unpack'})           { $how_many_args++; $mode_args .= 'unpack ';          $mode = "unpack";         }
     if ($opts{'validate-xml'})     { $how_many_args++; $mode_args .= 'validate-xml';     $mode = "validate-xml";   }
     chop ($mode_args);
+    
+    
     
    	if ($how_many_args gt 1) {
       	usage();
@@ -1383,7 +1384,26 @@ sub make_vmAPI_doc {
     unless (empty($vcpu_quota)) { 
         $vm_tag->setAttribute( vcpu_quota => $vcpu_quota );
     }
- 
+
+    # boot tag
+    if( $vm->exists("./boot") ){
+        my $boot = $vm->findnodes('./boot')->[0]->to_literal();
+        my $boot_tag = $dom->createElement('boot');
+        $boot_tag->appendTextNode($boot);
+        $vm_tag->addChild($boot_tag);
+        wlog (VVV,"boot tag set to $boot", $logp);
+    }
+
+    # cdrom tag
+    if( $vm->exists("./cdrom") ){
+        my $cdrom = get_abs_path($vm->findnodes('./cdrom')->[0]->to_literal());
+        my $cdrom_tag = $dom->createElement('cdrom');
+        $cdrom_tag->appendTextNode($cdrom);
+        $vm_tag->addChild($cdrom_tag);
+        wlog (VVV,"cdrom tag set to $cdrom", $logp);
+    }
+    
+    
     # To get filesystem and type
     my ($filesystem, $filesystem_type) = $dh->get_vm_filesystem($vm);
     wlog (VVV, "filesystem ($filesystem, $filesystem_type) defined for VM $vm_name", $logp);
@@ -2247,6 +2267,7 @@ sub mode_start {
     # Configure network related aspects
     tun_connect(\@vm_ordered);
     set_vlan_links(\@vm_ordered);
+    set_link_mtu(\@vm_ordered);
     connect_ovs_to_controllers(\@vm_ordered);
         
     # Execute 'on_boot' commands
@@ -2666,6 +2687,36 @@ sub set_vlan_links {
     }
 }
 
+#
+# set_link_mtu
+#
+# Configure the mtu if specified in <net> tag for the interfaces of the VMs specified in $ref_vm_ordered
+#
+sub set_link_mtu {
+    
+    my $ref_vm_ordered = shift;
+    my @vm_ordered = @{$ref_vm_ordered};
+
+    # Configure MTU on VM interfaces
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
+        my $vm_name = $vm->getAttribute("name");
+
+        foreach my $if ($vm->getElementsByTagName("if")){
+            # Skip management interfaces
+            next if ($if->getAttribute("net") eq "vm_mgmt");
+            # Set MTU if specified in "mtu" attribute of <net> tag
+            my $net = get_net_by_mode($if->getAttribute("net"), "*");
+            if($net->getAttribute("mtu") ){
+                my $mtu = $net->getAttribute("mtu");
+                my $if_id = $if->getAttribute("id");
+                my $port_name="$vm_name"."-e"."$if_id";
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $port_name mtu $mtu");
+            }                               
+        }
+    }
+    
+}
 #
 # connect_ovs_to_controllers
 #
@@ -4091,6 +4142,7 @@ back_to_user();
 	    my $vm_xml_fname = "$base_dir/${rootfs_name}.xml";
 	
         my $content_dir;
+        my $sdisk_mount;
         
 	    if ( defined($opts{'update-aced'}) ) {
 	
@@ -4099,7 +4151,6 @@ back_to_user();
 	        # Create shared disk with latest versions of VNXACE daemon
 	        #
 	        my $make_iso_cmd;
-	        my $sdisk_mount;
         
 if (USE_CDROM_FORMAT) {
 
@@ -4120,7 +4171,7 @@ if (USE_CDROM_FORMAT) {
 	        wlog (VVV, "make_iso_cmd=$make_iso_cmd", $logp);
 	
 	        # Create temp directory to store VNXACED
-	        my $content_dir="$base_dir/iso-content";
+	        $content_dir="$base_dir/iso-content";
 	        wlog (N, "Creating iso-content temp directory ($content_dir)...");
 	        system "mkdir $content_dir";
     
@@ -4234,7 +4285,7 @@ if (USE_CDROM_FORMAT) {
 </disk>
 EOF
 	
-	    } else {
+	    } else {  # no --update-aced option
 	        $vm_libirt_xml_hdb = "";
 	    }
 	
@@ -4246,12 +4297,12 @@ EOF
             #system "echo '' > $content_dir/user-data";
                 
             my $config_dir;
-            if ($virtio eq 'yes') {
+            if ( ($virtio eq 'yes') && ( defined($opts{'update-aced'}) ) ) {
                 $config_dir = $content_dir;
                 $vm_libirt_xml_vdb = "";
             } else {
                 # Create cloud-init
-                my $config_dir = `mktemp --tmpdir=$tmp_dir -d configXXXXXX`;
+                $config_dir = `mktemp --tmpdir=$tmp_dir -d configXXXXXX`;
                 chomp($config_dir);
 
                 $vm_libirt_xml_vdb = <<EOF;
@@ -4934,6 +4985,13 @@ sub create_bridges_for_virtual_bridged_networks  {
                 
                 # Disable IPv6 autoconfiguration in bridge
                 $execution->execute($logp, "sysctl -w net.ipv6.conf.${brtap_name}.autoconf=0" );
+                
+                # Set MTU if specified in "mtu" attribute of <net> tag
+                if($net->getAttribute("mtu") ){
+                    my $mtu = $net->getAttribute("mtu");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name mtu $mtu");
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name mtu $mtu");
+                }                               
 
             } elsif ($mode eq "openvswitch") {
             	
@@ -4960,6 +5018,14 @@ sub create_bridges_for_virtual_bridged_networks  {
                 #    my $controller = $net->getAttribute("controller");
                 #    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set-controller $net_name $controller");
                 #}
+                
+                # Set MTU if specified in "mtu" attribute of <net> tag
+                if($net->getAttribute("mtu") ){
+                    my $mtu = $net->getAttribute("mtu");
+                    sleep 3;
+                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name mtu $mtu");
+                }                                
+                
             } elsif ($mode eq "veth") {
                 my ($vms,$ifs) = $dh->get_vms_in_a_net ($net_name);
                 my $vm1 = $dh->get_vm_name (@$vms[0]);
@@ -7068,10 +7134,12 @@ sub scenario_exists {
 #
 sub get_net_by_mode {
    
-   my $name_target = shift;
-   my $mode_target = shift;
+    my $name_target = shift;
+    my $mode_target = shift;
    
-   my $doc = $dh->get_doc;
+    my $logp = "get_net_by_mode";
+    wlog (VVV, "name=$name_target, mode=$mode_target", $logp);
+    my $doc = $dh->get_doc;
    
     # To get list of defined <net>
    	foreach my $net ($doc->getElementsByTagName("net")) {
