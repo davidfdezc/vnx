@@ -590,7 +590,12 @@ user();
             }
         }
        
-      
+        # 8n. Check <net stp=...> attribute
+        if(my $stp = $net->getAttribute("stp") ){
+            if ( $stp ne 'on' && $stp ne 'off') {
+                return "incorrect value ($stp) for 'stp' attribute in <net name=\"$name\"> tag";
+            }      
+        }
    }
    
    # 9. To check <vm> and <if>

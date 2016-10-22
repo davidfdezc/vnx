@@ -1,3 +1,6 @@
+22/10/2016:
+
+- Added new 'stp=on|off' attribute to <net> tag to enable|disable spanning tree on virtual_bridge and openvswitch based networks
 
 12/10/2016:
 

@@ -4955,10 +4955,22 @@ sub create_bridges_for_virtual_bridged_networks  {
             if ($mode eq "virtual_bridge") {
                 # If bridged does not exists, we create and set up it
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addbr $net_name");
-                if ($dh->get_stp) {
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name on");
-                }else {
-                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
+                
+                # Set STP on or off depending on <netconfig> default values or if specified in "stp" attribute of <net> tag
+                if(my $stp = $net->getAttribute("stp") ){
+                    # Specific value specified in <net> tag
+                    if ( $stp eq 'on') {
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name on");
+                    } else {
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
+                    }
+                } else {
+                    # Check default value 
+                    if ($dh->get_stp) {
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name on");
+                    }else {
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " stp $net_name off");
+                    }
                 }
 
                 #
@@ -5002,6 +5014,24 @@ sub create_bridges_for_virtual_bridged_networks  {
                 } else {
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " --may-exist add-br $net_name");
                 }                	
+
+                # Set STP on or off depending on <netconfig> default values or if specified in "stp" attribute of <net> tag
+                if($net->getAttribute("stp") ){
+                    # Specific value specified in <net> tag
+                    if ( $net->getAttribute("stp") eq 'on') {
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name stp_enable=true");
+                    } else {
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name stp_enable=false");
+                    }
+                } else {
+                    # Check default value 
+                    if ($dh->get_stp) {
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name stp_enable=true");
+                    }else {
+                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name stp_enable=false");
+                    }
+                }
+                
                 if($net->getAttribute("of_version") ){
                     my $of_version = $net->getAttribute("of_version");
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set bridge $net_name protocols=$of_version");

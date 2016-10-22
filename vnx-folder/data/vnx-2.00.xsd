@@ -341,6 +341,7 @@ e-mail: vnx@dit.upm.es
       <xs:attribute name="hwaddr" type="xs:string" use="optional"/>
       <xs:attribute name="fail_mode" type="xs:string" use="optional"/>
       <xs:attribute name="mtu" type="xs:unsignedShort" use="optional"/>
+      <xs:attribute name="stp" type="xs:string" use="optional"/>
       <xs:attribute name="mode" use="required">
         <xs:simpleType>
           <xs:restriction base="xs:NMTOKEN">
