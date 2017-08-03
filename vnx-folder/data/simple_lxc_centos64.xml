@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        simple_lxc_centos64
+Description: Just one Ubuntu virtual machine connected to a Network named Net0 with address 10.1.0.4. 
+             The host has an interface in Net0 with address 10.1.0.1  
+             This simple scenario is supposed to be used for testing the different 
+             types of virtual machines supported by VNX. You can start several simple_*.xml
+             scenarios and test the connectivity among virtual machines and the host, as all
+             scenarios share the same "Net0" network.  
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>simple_lxc_centos64</scenario_name>
+    <automac offset="34"/>
+    <!--vm_mgmt type="none" /!-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="132">
+       <host_mapping />
+    </vm_mgmt> 
+    <vm_defaults>
+        <console id="0" display="no"/>
+        <console id="1" display="yes"/>
+    </vm_defaults>
+  </global>
+    
+  <net name="Net0" mode="virtual_bridge" />
+  <net name="virbr0" mode="virtual_bridge" managed="no"/>
+  
+  <vm name="centos64" type="lxc" exec_mode="lxc-attach" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_centos64</filesystem>
+    <if id="1" net="Net0">
+      <ipv4>10.1.0.34/24</ipv4>
+    </if>
+    <if id="2" net="virbr0">
+      <ipv4>dhcp</ipv4>
+    </if>
+
+    <route type="ipv4" gw="10.1.0.1">default</route>
+
+    <!-- Virtual machine command examples -->
+
+    <!-- filetree commands -->    
+    <!-- Copy file conf/on_boot.txt to /root directory during 
+         vm startup. All filetree and exec commands with seq='on_boot'
+         are automatically executed during vm startup -->
+    <filetree seq="on_boot" root="/root/">conf/on_boot.txt</filetree>
+
+    <!-- Copy the file conf/on_boot.txt changing its name to to copyfile.txt -->
+    <filetree seq="copyfile" root="/root/copyfile.txt" perms="644">conf/on_boot.txt</filetree>
+    
+    <!-- Copy the files under conf/txtfile to vm /var/www directory 
+         and change owner to www-data.www-data and permissions to 644 -->
+    <filetree seq="start-www" root="/var/www/" user="www-data" group="www-data" perms="644">conf/txtfile</filetree>
+
+    <!-- Copy file conf/on_shutdown.txt to /root directory just before 
+         vm shutdown. All filetree and exec commands with seq='on_shutdown
+         are automatically executed before sending the shutdown signal to the vm -->
+    <filetree seq="on_shutdown" root="/root/">conf/on_shutdown.txt</filetree>
+
+    <!-- exec commands -->    
+    <!-- Make a copy of on_boot.txt file during vm startup. -->
+    <exec seq="on_boot" type="verbatim">cp /root/on_boot.txt /root/on_boot2.txt</exec>
+    
+    <!-- Start/stop apache www server -->
+    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>
+    
+    <!-- Simple command to move a file -->
+    <exec seq="movefile" type="verbatim"  ostype="system">mv /tmp/vnx.txt /root/</exec>
+
+    <!-- Make a copy of on_shutdown.txt before file vm shutdown. -->
+    <exec seq="on_shutdown" type="verbatim">cp /root/on_shutdown.txt /root/on_shutdown2.txt</exec>
+
+  </vm>
+
+  <host>
+    <hostif net="Net0">
+       <ipv4>10.1.0.1/24</ipv4>
+    </hostif>
+  </host>
+  
+</vnx>
