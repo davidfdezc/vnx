@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        tutorial_lxc_vyos
+Description: As simple tutorial scenario made of 4 LXC Ubuntu virtual machines (h1, h2, h3 and h4) 
+             and 2 VyOS routers (r1 and r2) connected through three virtual networks. The host participates 
+             in the scenario having a network interface in Net3. All virtual machines have an interface (eth9) 
+             connected to Internet.     
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>tutorial_lxc_vyos</scenario_name>
+    <automac/>
+    <vm_mgmt type="none" />
+    <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="200">
+       <host_mapping />
+    </vm_mgmt-->
+    <vm_defaults>
+        <console id="0" display="no"/>
+        <console id="1" display="yes"/>
+    </vm_defaults>
+
+    <vnx_cfg>tutorial_lxc_ubuntu.cvnx</vnx_cfg>
+
+    <help>
+        <seq_help seq='start-www'>Start apache2 web server</seq_help>
+        <seq_help seq='stop-www'>Stop apache2 web server</seq_help>
+    </help>
+    
+  </global>
+
+  <net name="Net0" mode="virtual_bridge" />
+  <net name="Net1" mode="virtual_bridge" />
+  <net name="Net2" mode="virtual_bridge" />
+  <net name="Net3" mode="virtual_bridge" />
+  <net name="virbr0" mode="virtual_bridge" managed="no"/>
+
+  <vm name="h1" type="lxc">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <if id="1" net="Net0">
+      <ipv4>10.1.0.2/24</ipv4>
+      <ipv6>2001:db8:0::2/64</ipv6>
+    </if>
+    <if id="9" net="virbr0">
+      <ipv4>dhcp</ipv4>
+    </if>
+    <route type="ipv4" gw="10.1.0.1">default</route>   
+    <route type="ipv6" gw="2001:db8:0::1">default</route>
+  </vm>
+
+  <vm name="h2" type="lxc">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <if id="1" net="Net0">
+      <ipv4>10.1.0.3/24</ipv4>
+      <ipv6>2001:db8:0::3/64</ipv6>
+    </if>
+    <if id="9" net="virbr0">
+      <ipv4>dhcp</ipv4>
+    </if>
+    <route type="ipv4" gw="10.1.0.1">default</route>
+    <route type="ipv6" gw="2001:db8:0::1">default</route>
+    <exec seq="ls1" type="verbatim">ls -al /tmp</exec>
+    <exec seq="ls2" type="verbatim">ls -al /root</exec>
+    <exec seq="ls3" type="verbatim">ls -al /usr</exec>
+    <exec seq="ls4" type="verbatim">ls -al /bin</exec>
+  </vm>
+
+  <vm name="r1" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_vyos</filesystem>
+    <if id="1" net="Net0">
+      <ipv4>10.1.0.1/24</ipv4>
+      <ipv6>2001:db8:0::1/64</ipv6>
+    </if>
+    <if id="2" net="Net1">
+      <ipv4>10.1.1.1/24</ipv4>
+      <ipv6>2001:db8:1::1/64</ipv6>
+    </if>
+    <if id="3" net="Net3">
+      <ipv4>10.1.3.1/24</ipv4>
+      <ipv6>2001:db8:3::1/64</ipv6>
+    </if>
+    <if id="9" net="virbr0">
+      <ipv4>dhcp</ipv4>
+    </if>
+    <route type="ipv4" gw="10.1.1.2">10.1.2.0/24</route>
+    <route type="ipv6" gw="2001:db8:1::2">2001:db8:2::/64</route>
+    <forwarding type="ip" />
+  </vm>
+
+  <vm name="r2" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_vyos</filesystem>
+    <if id="1" net="Net1">
+      <ipv4>10.1.1.2/24</ipv4>
+      <ipv6>2001:db8:1::2/64</ipv6>
+    </if>
+    <if id="2" net="Net2">
+      <ipv4>10.1.2.1/24</ipv4>
+      <ipv6>2001:db8:2::1/64</ipv6>
+    </if>
+    <if id="9" net="virbr0">
+      <ipv4>dhcp</ipv4>
+    </if>
+    <route type="ipv4" gw="10.1.1.1">default</route>
+    <route type="ipv6" gw="2001:db8:1::1">2001:db8:0::/64</route>
+    <forwarding type="ip" />
+  </vm>
+
+  <vm name="h3" type="lxc">
+   <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+   <if id="1" net="Net2">
+      <ipv4>10.1.2.2/24</ipv4>
+      <ipv6>2001:db8:2::2/64</ipv6>
+    </if>
+    <if id="9" net="virbr0">
+      <ipv4>dhcp</ipv4>
+    </if>
+    <route type="ipv4" gw="10.1.2.1">default</route>
+    <route type="ipv6" gw="2001:db8:2::1">default</route>
+    <!-- Copy the files under conf/tutorial_ubuntu/h3 to vm /var/www directory -->
+    <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h3</filetree>
+    <!-- Start/stop apache www server -->
+    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>    
+  </vm>
+  
+  <vm name="h4" type="lxc">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <if id="1" net="Net2">
+      <ipv4>10.1.2.3/24</ipv4>
+      <ipv6>2001:db8:2::3/64</ipv6>
+    </if>
+    <if id="9" net="virbr0">
+      <ipv4>dhcp</ipv4>
+    </if>
+    <route type="ipv4" gw="10.1.2.1">default</route>    
+    <route type="ipv6" gw="2001:db8:2::1">default</route>
+    <!-- Copy the files under conf/tutorial_ubuntu/h4 to vm /var/www directory -->
+    <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h4</filetree>
+    <!-- Start/stop apache www server -->
+    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>    
+  </vm>
+  
+  <host>
+    <hostif net="Net3">
+      <ipv4>10.1.3.2/24</ipv4>
+      <ipv6>2001:db8:3::2/64</ipv6>
+    </hostif>
+    <route type="ipv4" gw="10.1.3.1">10.1.0.0/16</route>
+    <route type="ipv6" gw="2001:db8:3::1">2001:db8::/32</route>
+  </host>
+
+</vnx>
