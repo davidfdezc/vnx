@@ -561,13 +561,13 @@ sub get_commands {
         push (@{$commands_ref}, "mkdir -v /var/run/quagga");
         push (@{$commands_ref}, "chown quagga.quagga /var/run/quagga");
         push (@{$commands_ref}, "chmod 755 /var/run/quagga");
-        push (@{$commands_ref}, "$zebra_bin -d");
-        push (@{$commands_ref}, "$ospfd_bin -d");
+        push (@{$commands_ref}, "$zebra_bin -d >/dev/null 2>&1");
+        push (@{$commands_ref}, "$ospfd_bin -d >/dev/null 2>&1");
 
     } elsif(($seq eq "start") || ($seq eq "ospf-start")){
 
-        push (@{$commands_ref}, "$zebra_bin -d");
-        push (@{$commands_ref}, "$ospfd_bin -d");
+        push (@{$commands_ref}, "$zebra_bin -d >/dev/null 2>&1");
+        push (@{$commands_ref}, "$ospfd_bin -d >/dev/null 2>&1");
 
     } elsif(($seq eq "restart") || ($seq eq "ospf-restart")){
         
@@ -578,8 +578,8 @@ sub get_commands {
         push (@{$commands_ref}, "chown quagga.quagga /var/log/zebra");
         push (@{$commands_ref}, "mkdir /var/run/quagga");
         push (@{$commands_ref}, "chown quagga.quagga /var/run/quagga");
-        push (@{$commands_ref}, "$zebra_bin -d");
-        push (@{$commands_ref}, "$ospfd_bin -d");
+        push (@{$commands_ref}, "$zebra_bin -d >/dev/null 2>&1");
+        push (@{$commands_ref}, "$ospfd_bin -d >/dev/null 2>&1");
         
     }elsif(($seq eq "stop") || ($seq eq "ospf-stop") ||
            ($seq eq "on_shutdown") ){

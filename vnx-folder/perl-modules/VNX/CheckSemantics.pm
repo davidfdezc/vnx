@@ -3,7 +3,7 @@
 # This file is a module part of VNX package.
 #
 # Authors: Fermin Galan Marquez (galan@dit.upm.es), David Fernandez (david@dit.upm.es)
-# Copyright (C) 2005-2011 DIT-UPM
+# Copyright (C) 2005-2016 DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN

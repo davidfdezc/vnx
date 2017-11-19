@@ -5,7 +5,7 @@
 # Authors: David Fernández
 # Coordinated by: David Fernández (david@dit.upm.es)
 #
-# Copyright (C) 2014   DIT-UPM
+# Copyright (C) 2016   DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -100,7 +100,9 @@ sub init {
 
     # check if the overlay type is supported by the system
     if ($union_type eq 'overlayfs') {
-        if ($os_id eq 'fedora' or $os_id eq 'centos') {
+        if ( ($os_id eq 'fedora' or $os_id eq 'centos') ||
+           ($os_id eq 'ubuntu' and $os_ver_id >= 16.10 ) ||
+           ($os_id eq 'kali' and $os_ver_id >= 2016.2 ) ) {
             system( "modprobe overlay" );
             $overlayfs_name = 'overlay';
         } else  {
@@ -280,6 +282,7 @@ change_to_root();
         open (GETOSDISTROFILE, "> $get_os_distro_file"); # or vnx_die ("cannot open file $get_os_distro_file");
         print GETOSDISTROFILE "$get_os_distro_code";
         close (GETOSDISTROFILE); 
+        
         system "chmod +x $rootfs_mount_dir/tmp/get_os_distro";
         
         # Second, execute the script chrooted to the image
@@ -373,7 +376,7 @@ change_to_root();
             $execution->execute( $logp, "lxc.mount.entry = $shared_dir_value $root none $options 0 0", *CONFIG_FILE );
         }
         
-        unless ($platform[0] eq 'Linux' && $platform[1] eq 'Debian') {
+        unless ($platform[0] eq 'Linux' && ( $platform[1] eq 'Debian') || ( $platform[1] eq 'Debian-VyOS') ) {
 	        # Set lxc.mount: lxc.mount = $vm_lxc_dir/fstab
 	        $execution->execute( $logp, "lxc.mount = $vm_lxc_dir/fstab", *CONFIG_FILE );
         }
@@ -489,19 +492,21 @@ change_to_root();
         
         if ($nested_lxc eq 'yes') {
 	        $execution->execute( $logp, "lxc.mount.auto = cgroup", *CONFIG_FILE );        
-	        $execution->execute( $logp, "lxc.aa_profile=lxc-container-default-with-nesting", *CONFIG_FILE );        
+	        #$execution->execute( $logp, "lxc.aa_profile=lxc-container-default-with-nesting", *CONFIG_FILE );        
+	        $execution->execute( $logp, "lxc.aa_profile=lxc-container-default-with-netns", *CONFIG_FILE );        
         }
 
         close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
         # Call the VM autoconfiguration function
         if ($platform[0] eq 'Linux'){
-            if    ($platform[1] eq 'Ubuntu')   { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'ubuntu') }           
-            elsif ($platform[1] eq 'Debian')   { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'debian') }           
-            elsif ($platform[1] eq 'Fedora')   { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'fedora') }
-            elsif ($platform[1] eq 'CentOS')   { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'centos') }
+            if    ($platform[1] eq 'Ubuntu')      { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'ubuntu') }           
+            elsif ($platform[1] eq 'Debian')      { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'debian') }           
+            elsif ($platform[1] eq 'Fedora')      { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'fedora') }
+            elsif ($platform[1] eq 'CentOS')      { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'centos') }
+            elsif ($platform[1] eq 'Debian-VyOS') { autoconfigure_vyos ($vm_doc, $rootfs_mount_dir, 'debian') }           
         } else {
-            return "Platform not supported. LXC can only be used to start Linux images.";
+            return "Platform not supported. LXC can only be used to start Linux images (Ubuntu, Debian, Fedora, CentOS or VyOS).";
         }
 
 back_to_user();     
@@ -664,9 +669,15 @@ sub start_vm {
 	
 	            # Mount the overlay filesystem
 	            if ($union_type eq 'overlayfs') {
+			        my $workdir;
+            		if ($overlayfs_workdir_option eq 'yes') {
+                		$workdir = $dh->get_vm_dir($vm_name) . "/tmp/workdir";
+                		$execution->execute( $logp, "mkdir -p $workdir" );
+                		$workdir = ",workdir=$workdir";
+            		}
 	                # Ex: mount -t overlayfs -o upperdir=/tmp/lxc1,lowerdir=/var/lib/lxc/vnx_rootfs_lxc_ubuntu-13.04-v025/ none /var/lib/lxc/lxc1
 	                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t $overlayfs_name -o upperdir=" . $vm_cow_dir . 
-	                                     ",lowerdir=" . $filesystem . " none " . $vm_lxc_dir );
+                                             ",lowerdir=" . $filesystem . $workdir . " none " . $vm_lxc_dir );
 	            } elsif ($union_type eq 'aufs') {
 	                # Ex: mount -t aufs -o br=/tmp/lxc1-rw:/var/lib/lxc/vnx_rootfs_lxc_ubuntu-12.04-v024/=ro none /tmp/lxc1
 	                $execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " -t aufs -o ${aufs_options}br=" . $vm_cow_dir . 
@@ -1121,7 +1132,7 @@ sub execute_cmd {
             wlog (VVV, "original command: $command", $logp);
             wlog (VVV, "scaped command: $command", $logp);
             wlog (V, "executing user defined exec command '$command'", $logp);
-        	my $cmd_output = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$command'");
+        	my $cmd_output = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " --clear-env -n $vm_name -- $shell -l -c '$command'");
             wlog (N, "---\n$cmd_output---", '') if ($cmd_output ne '');
         	
         }
@@ -1154,7 +1165,7 @@ sub execute_cmd {
             foreach my $line (@lines) { wlog (V, "    $line", $logp) if $line };  
             	       
             $command =~ s/\n//;            	       
-        	my $cmd_output = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$command'");
+        	my $cmd_output = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " --clear-env -n $vm_name -- $shell -l -c '$command'");
             wlog (N, "---\n$cmd_output---", '') if ($cmd_output ne '');            
         }
 
@@ -1240,12 +1251,12 @@ sub execute_filetree {
             wlog (VVV, $file . "," . $fname, $logp);
             if ( ($user ne '') or ($group ne '')  ) {
                 my $cmd="chown -R $user.$group $root/$fname"; 
-                my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
+                my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " --clear-env -n $vm_name -- $shell -l -c '$cmd'");
                 wlog (N, "---\n$res---", '') if ($res ne '');                
             }
             if ( $perms ne '' ) {
                 my $cmd="chmod -R $perms $root/$fname"; 
-                my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
+                my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " --clear-env -n $vm_name -- $shell -l -c '$cmd'");
                 wlog (N, "---\n$res---", '') if ($res ne '');                
             }
         }
@@ -1273,12 +1284,12 @@ sub execute_filetree {
         # Change owner and permissions of file $root if specified in <filetree>
         if ( ($user ne '') or ($group ne '') ) {
             $cmd="chown -R $user.$group $root"; 
-            my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
+            my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " --clear-env -n $vm_name -- $shell -l -c '$cmd'");
             wlog (N, "---\n$res---", '') if ($res ne '');                
         }
         if ( $perms ne '' ) {
             $cmd="chmod -R $perms $root";
-            my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " -n $vm_name -- $shell -c '$cmd'");
+            my $res = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " --clear-env -n $vm_name -- $shell -l -c '$cmd'");
             wlog (N, "---\n$res---", '') if ($res ne '');                
         }
     }

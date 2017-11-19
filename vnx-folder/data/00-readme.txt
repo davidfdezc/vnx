@@ -26,8 +26,8 @@ Address		System				MAC offset 		Mgmt if offset
 10.1.0.19	simple_caine			19				72
 10.1.0.20   simple_honeyd           20              76
 10.1.0.21         "
-10.1.0.22         "
-10.1.0.23	simple_kali				23				88
+10.1.0.22   simple_kali             22              84
+10.1.0.23	simple_kali64			23				88
 10.1.0.24	simple_debian			24				92
 10.1.0.25   simple_debian           25              96
 10.1.0.26   simple_android          26              100
@@ -37,6 +37,8 @@ Address		System				MAC offset 		Mgmt if offset
 10.1.0.30   simple_netbsd64         30              116
 10.1.0.31   simple_openbsd          31              120
 10.1.0.32   simple_openbsd64        32              124
+10.1.0.33   simple_fedora64         33              128
+10.1.0.34   simple_lxc_centos64     34              132
 
 
 

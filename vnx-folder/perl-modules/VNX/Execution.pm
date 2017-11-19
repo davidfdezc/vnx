@@ -499,7 +499,13 @@ sub change_to_root {
 sub user { back_to_user() }
 
 sub back_to_user {
-    $>=$uid; wlog (VVV, "-- Back to user $uid_name", "");
+    my $user = shift;
+    
+    if ( defined($user) ) {
+        $>=$user; wlog (VVV, "-- Back to user $user", "");
+    } else {
+        $>=$uid; wlog (VVV, "-- Back to user $uid_name", "");
+    }
 }
 
 sub print_current_user {

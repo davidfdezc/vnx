@@ -86,17 +86,24 @@ function create_new_rootfs {
   #clear
 
   echo "-----------------------------------------------------------------------"
-  echo "Deleting base and new rootfs directories..."
-  rm -rf ${BASEROOTFSNAME}
+  echo "Deleting new rootfs directory if already exists..."
   rm -rf ${ROOTFSNAME}
-  rm -f ${BASEROOTFSNAME}.tgz
+
+  # Create a tmp dir
+  TMPDIR=$( mktemp --tmpdir=. -td tmp-rootfs.XXXXXX )
+  echo "TMPDIR=$TMPDIR"
+  cd $TMPDIR
 
   # Download base rootfs
   echo "-----------------------------------------------------------------------"
   echo "Downloading base rootfs..."
   vnx_download_rootfs -r ${BASEROOTFSNAME}.tgz
 
-  mv ${BASEROOTFSNAME} ${ROOTFSNAME}
+  mv ${BASEROOTFSNAME} ../${ROOTFSNAME}
+  rm -f ${BASEROOTFSNAME}.tgz
+  cd .. 
+  rmdir $TMPDIR
+
   echo "--"
   echo "Changing rootfs config file..."
   # Change rootfs config to adapt it to the directory wher is has been downloaded
@@ -140,7 +147,7 @@ function create_rootfs_tgz {
   #cat $tmpfile
   size=$(du -sb --apparent-size ${ROOTFSNAME} | awk '{ total += $1 - 512; }; END { print total }')
   size=$(( $size * 1020 / 1000 ))
-  LANG=C tar -cpf - ${ROOTFSNAME} -X $tmpfile | pv -p -s $size | gzip > ${ROOTFSNAME}.tgz
+  LANG=C tar --numeric-owner -cpf - ${ROOTFSNAME} -X $tmpfile | pv -p -s $size | gzip > ${ROOTFSNAME}.tgz
   for LINK in $ROOTFSLINKNAME; do
     rm -f $LINK
     ln -s ${ROOTFSNAME} $LINK

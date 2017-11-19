@@ -1,3 +1,38 @@
+
+19/11/2017
+
+- Eliminated final '/' in vnx_dir and tmp_dir configuration values. The duplicated '/' at the end of vnx_dir caused unnecessary remounts of the overlayfs.
+
+- vmAPI_lxc: included $workdir in overlayfs remounts
+
+- vmAPI_lxc: changed execution parameters of lxc-attach. Added --clean-env option to not pass host environment variables and added -l to 
+  the "bash -c" command to load root environment variables for the command executed. 
+
+- Tutorial scenarios: corrected some problems related to the startup of apache server
+
+30/8/2017
+
+- Added support for LXC and KVM VyOS images. Added tutorial examples using VyOS (tutorial_lxc_vyos.xml and tutorial_vyos.xml)
+
+3/8/2017
+
+- Added an Apparmor profile (lxc-default-with-netns) to allow nested namespaces to work inside LXC containers. 
+  Adapted from: https://gist.github.com/jjo/ff32b08e48e4a52bfc36
+
+- Adapted vmAPI_lxc to Ubuntu 16.10 and Kali Linux 2016.2: overlayfs is now named overlay as in Fedora.
+
+- Changed 'gawk' when used to 'awk' 
+
+- vnx2dot: minor bug corrected that caused a failure painting maps in scenarios with virtual machines including "-" in their names. 
+
+- modify-rootfs option for LXC: added -P option to lxc-start
+
+6/12/2016:
+
+- Corrected error in execute_host_command. It did not return the number of host commands executed.
+
+- Scenario --unpack option: file permissions change to the original user executing the command after untaring the escenario
+
 22/10/2016:
 
 - Added new 'stp=on|off' attribute to <net> tag to enable|disable spanning tree on virtual_bridge and openvswitch based networks
@@ -6,7 +41,8 @@
 
 - Implemented <boot>network</boot>
 
-- Implemented mtu
+- Implemented mtu attribute for <net> tag. It changes the MTU in the virtual bridges created, but it does no change (yet) the MTU in 
+  virtual machine interfaces.
 
 - Improved the management of xfce4-terminal based consoles adding a small expect script to get a clear login at startup with LXC VMs. 
   xfce4-terminal is the preferred console terminal since gnome-terminal has deprecated the --title option (why????) 
@@ -26,7 +62,7 @@
 
 - CheckSemantics now checks that filesystems are directories in LXC and files in other VM types. Besides it check filesystems used in direct mode are not used in more than one VM.
 
-- Use of virtio drivers in KVM implemented. Added a new parameter in vnx.conf to control the use of virtio drivers (virtio=yes|no under [libvirt] section 
+- Use of virtio drivers in KVM implemented. Added a new parameter in vnx.conf to control the use of virtio drivers (virtio=yes|no) under [libvirt] section 
 
 - Bug in the management of timeouts when starting VMs with --modify-rootfs corrected.  
 

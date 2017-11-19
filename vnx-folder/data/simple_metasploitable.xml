@@ -42,14 +42,18 @@ SPAIN
   </global>
     
   <net name="Net0" mode="virtual_bridge" />
+  <net name="virbr0" mode="virtual_bridge" managed="no"/>
   
   <vm name="ubuntu" type="libvirt" subtype="kvm" os="linux" exec_mode="sdisk">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_metasploitable</filesystem>
-    <mem>256M</mem>
+    <mem>512M</mem>
     <if id="1" net="Net0">
       <ipv4>10.1.0.18/24</ipv4>
     </if>
-
+    <if id="2" net="virbr0">
+      <ipv4>dhcp</ipv4>
+    </if>
+    
     <!-- Virtual machine command examples -->
 
     <!-- Copy file conf/on_boot.txt to /root directory during 

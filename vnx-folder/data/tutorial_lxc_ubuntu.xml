@@ -57,16 +57,20 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net0">
       <ipv4>10.1.0.2/24</ipv4>
+      <ipv6>2001:db8:0::2/64</ipv6>
     </if>
     <route type="ipv4" gw="10.1.0.1">default</route>   
+    <route type="ipv6" gw="2001:db8:0::1">default</route>
   </vm>
 
   <vm name="h2" type="lxc">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net0">
       <ipv4>10.1.0.3/24</ipv4>
+      <ipv6>2001:db8:0::3/64</ipv6>
     </if>
     <route type="ipv4" gw="10.1.0.1">default</route>
+    <route type="ipv6" gw="2001:db8:0::1">default</route>
     <exec seq="ls1" type="verbatim">ls -al /tmp</exec>
     <exec seq="ls2" type="verbatim">ls -al /root</exec>
     <exec seq="ls3" type="verbatim">ls -al /usr</exec>
@@ -77,26 +81,33 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net0">
       <ipv4>10.1.0.1/24</ipv4>
+      <ipv6>2001:db8:0::1/64</ipv6>
     </if>
     <if id="2" net="Net1">
       <ipv4>10.1.1.1/24</ipv4>
+      <ipv6>2001:db8:1::1/64</ipv6>
     </if>
     <if id="3" net="Net3">
       <ipv4>10.1.3.1/24</ipv4>
+      <ipv6>2001:db8:3::1/64</ipv6>
     </if>
     <route type="ipv4" gw="10.1.1.2">10.1.2.0/24</route>
+    <route type="ipv6" gw="2001:db8:1::2">2001:db8:2::/64</route>
     <forwarding type="ip" />
   </vm>
 
   <vm name="r2" type="lxc">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
-    <if id="1" net="Net1" name="s1/0">
+    <if id="1" net="Net1">
       <ipv4>10.1.1.2/24</ipv4>
+      <ipv6>2001:db8:1::2/64</ipv6>
     </if>
-    <if id="2" net="Net2" name="e0/0">
+    <if id="2" net="Net2">
       <ipv4>10.1.2.1/24</ipv4>
+      <ipv6>2001:db8:2::1/64</ipv6>
     </if>
     <route type="ipv4" gw="10.1.1.1">default</route>
+    <route type="ipv6" gw="2001:db8:1::1">2001:db8:0::/64</route>
     <forwarding type="ip" />
   </vm>
 
@@ -104,13 +115,17 @@ SPAIN
    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
    <if id="1" net="Net2">
       <ipv4>10.1.2.2/24</ipv4>
+      <ipv6>2001:db8:2::2/64</ipv6>
     </if>
     <route type="ipv4" gw="10.1.2.1">default</route>
-    <!-- Copy the files under conf/tutorial_ubuntu/h3 to vm /var/www directory -->
-    <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h3</filetree>
+    <route type="ipv6" gw="2001:db8:2::1">default</route>
+    <!-- Copy the files under conf/tutorial_ubuntu/h3 to vm /var/www/html directory -->
+    <filetree seq="start-www" root="/var/www/html">conf/tutorial_ubuntu/h3/*</filetree>
     <!-- Start/stop apache www server -->
-    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
-    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">
+        chmod 644 /var/www/html/*
+        service apache2 start
+    </exec>
     <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>    
   </vm>
   
@@ -118,21 +133,27 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="Net2">
       <ipv4>10.1.2.3/24</ipv4>
+      <ipv6>2001:db8:2::3/64</ipv6>
     </if>
     <route type="ipv4" gw="10.1.2.1">default</route>    
-    <!-- Copy the files under conf/tutorial_ubuntu/h4 to vm /var/www directory -->
-    <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h4</filetree>
+    <route type="ipv6" gw="2001:db8:2::1">default</route>
+    <!-- Copy the files under conf/tutorial_ubuntu/h4 to vm /var/www/html directory -->
+    <filetree seq="start-www" root="/var/www/html">conf/tutorial_ubuntu/h4/*</filetree>
     <!-- Start/stop apache www server -->
-    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
-    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">
+        chmod 644 /var/www/html/*
+        service apache2 start
+    </exec>
     <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>    
   </vm>
   
   <host>
     <hostif net="Net3">
-       <ipv4>10.1.3.2/24</ipv4>
+      <ipv4>10.1.3.2/24</ipv4>
+      <ipv6>2001:db8:3::2/64</ipv6>
     </hostif>
     <route type="ipv4" gw="10.1.3.1">10.1.0.0/16</route>
+    <route type="ipv6" gw="2001:db8:3::1">2001:db8::/32</route>
   </host>
 
 </vnx>

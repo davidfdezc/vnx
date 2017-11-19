@@ -6,7 +6,7 @@
 VNX Sample scenarios
 ~~~~~~~~~~~~~~~~~~~~
 
-Name:        tutorial_ubuntu
+Name:        tutorial_ubuntu64
 Description: As simple tutorial scenario made of 6 LXC Ubuntu virtual machines (4 hosts: h1, h2, h3 and h4; 
              and 2 routers: r1 and r2) connected through three virtual networks. The host participates 
              in the scenario having a network interface in Net3.     
@@ -24,7 +24,7 @@ SPAIN
   xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
   <global>
     <version>2.0</version>
-    <scenario_name>tutorial_lxc_ubuntu</scenario_name>
+    <scenario_name>tutorial_lxc_ubuntu64</scenario_name>
     <automac/>
     <vm_mgmt type="none" />
     <!--vm_mgmt type="private" network="10.250.0.0" mask="24" offset="200">
@@ -119,11 +119,13 @@ SPAIN
     </if>
     <route type="ipv4" gw="10.1.2.1">default</route>
     <route type="ipv6" gw="2001:db8:2::1">default</route>
-    <!-- Copy the files under conf/tutorial_ubuntu/h3 to vm /var/www directory -->
-    <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h3</filetree>
+    <!-- Copy the files under conf/tutorial_ubuntu/h3 to vm /var/www/html directory -->
+    <filetree seq="start-www" root="/var/www/html/">conf/tutorial_ubuntu/h3/*</filetree>
     <!-- Start/stop apache www server -->
-    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
-    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">
+        chmod 644 /var/www/html/*
+        service apache2 start
+    </exec>
     <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>    
   </vm>
   
@@ -135,11 +137,13 @@ SPAIN
     </if>
     <route type="ipv4" gw="10.1.2.1">default</route>    
     <route type="ipv6" gw="2001:db8:2::1">default</route>
-    <!-- Copy the files under conf/tutorial_ubuntu/h4 to vm /var/www directory -->
-    <filetree seq="start-www" root="/var/www/">conf/tutorial_ubuntu/h4</filetree>
+    <!-- Copy the files under conf/tutorial_ubuntu/h4 to vm /var/www/html directory -->
+    <filetree seq="start-www" root="/var/www/html/">conf/tutorial_ubuntu/h4/*</filetree>
     <!-- Start/stop apache www server -->
-    <exec seq="start-www" type="verbatim" ostype="system">chmod 644 /var/www/*</exec>
-    <exec seq="start-www" type="verbatim" ostype="system">service apache2 start</exec>
+    <exec seq="start-www" type="verbatim" ostype="system">
+        chmod 644 /var/www/html/*
+        service apache2 start
+    </exec>
     <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>    
   </vm>
   

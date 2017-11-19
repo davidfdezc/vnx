@@ -41,17 +41,16 @@ SPAIN
   </global>
     
   <net name="Net0" mode="virtual_bridge" />
-  <net name="Net1" mode="virtual_bridge" />
+  <net name="virbr0" mode="virtual_bridge" managed="no"/>
   
   <vm name="ubuntu64" type="lxc" exec_mode="lxc-attach" arch="x86_64">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_ubuntu64</filesystem>
     <if id="1" net="Net0">
       <ipv4>10.1.0.4/24</ipv4>
     </if>
-    <if id="2" net="Net1">
-      <ipv4>10.0.1.4/24</ipv4>
+    <if id="2" net="virbr0">
+      <ipv4>dhcp</ipv4>
     </if>
-    <route type="ipv4" gw="10.1.0.1">default</route>
 
     <!-- Virtual machine command examples -->
 

@@ -167,7 +167,11 @@ function get_link_name {
       fi
    fi
 
-   if [[ $1 == *centos64* ]] ; then
+   if [[ $1 == *lxc*centos64* ]] ; then
+      echo "rootfs_lxc_centos64"; return
+   elif [[ $1 == *lxc*centos* ]] ; then
+      echo "rootfs_lxc rootfs_lxc_centos"; return
+   elif [[ $1 == *centos64* ]] ; then
       if [[ $1 == *gui* ]] ; then
          echo "rootfs_centos64-gui"; return
       else
@@ -189,6 +193,13 @@ function get_link_name {
       echo "rootfs_kali64"; return
    elif [[ $1 == *kali* ]] ; then
       echo "rootfs_kali"; return
+   fi
+
+   # VyOS
+   if [[ $1 == *lxc*vyos64* ]] ; then
+      echo "rootfs_lxc_vyos rootfs_lxc_vyos64"; return
+   elif [[ $1 == *vyos64* ]] ; then
+      echo "rootfs_vyos rootfs_vyos64"; return
    fi
 
 }

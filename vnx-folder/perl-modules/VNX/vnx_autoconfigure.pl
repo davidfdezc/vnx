@@ -409,7 +409,7 @@ sub autoconfigure_redhat {
             #print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
 
         } elsif ($os_type eq 'centos') { 
-#           print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"" . $if_name . "\"\n\n";
+            print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"" . $if_name . "\"\n\n";
         }
 
         my $if_file;
@@ -1348,5 +1348,192 @@ sub autoconfigure_wanos {
     return $error;
     
 }
+
+#
+# autoconfigure for VyOS
+#
+sub autoconfigure_vyos {
+    
+    my $dom         = shift; # DOM object of VM XML specification
+    my $rootfs_mdir = shift; # Directory where the rootfs image is mounted
+    my $os_type     = shift; # ubuntu or debian
+    my $vnxaced     = shift; # defined if called from vnxaced code
+    my $error;
+    
+    my $logp = "autoconfigure_vyos> ";
+
+    wlog (VVV, "rootfs_mdir=$rootfs_mdir", $logp);
+    
+    # Big danger if rootfs mount directory ($rootfs_mdir) is empty: 
+    # host files will be modified instead of rootfs image ones
+    #unless ( defined($rootfs_mdir) && $rootfs_mdir ne '' && $rootfs_mdir ne '/' ) {
+    #    die;
+    #}    
+    if ( !defined($rootfs_mdir) || $rootfs_mdir eq '' || (!defined($vnxaced) && $rootfs_mdir eq '/' ) ) {
+        die;
+    }    
+
+    my $vm = $dom->findnodes("/create_conf/vm")->[0];
+    my $vm_name = $vm->getAttribute("name");
+
+    wlog (VVV, "vm_name=$vm_name, rootfs_mdir=$rootfs_mdir", $logp);
+
+    # Files modified
+    my $vyos_config_file = "$rootfs_mdir" . "/opt/vyatta/etc/config/config.boot";
+    my $rules_file       = "$rootfs_mdir" . "/etc/udev/rules.d/70-persistent-net.rules";
+
+	# Open if udev rules file
+    system "echo \"\" > $rules_file";
+    open RULES, ">" . $rules_file or return "error opening $rules_file";
+
+    # Network routes configuration: we read all <route> tags
+    # and store the ip route configuration commands in @ip_routes
+    my @ip_interfaces;   # Stores the IP interface config lines
+    my @ip_routes;       # Stores the IP route config lines
+    my @dns_addrs;		 # Stores the DNS server addresses
+
+    my @route_list = $vm->getElementsByTagName("route");
+	push (@ip_routes, "protocols {\n    static {\n");
+    for (my $j = 0 ; $j < @route_list; $j++) {
+        my $route_tag  = $route_list[$j];
+        my $route_type = $route_tag->getAttribute("type");
+        my $route_gw   = $route_tag->getAttribute("gw");
+        my $route      = $route_tag->getFirstChild->getData;
+        if ($route_type eq 'ipv4') {
+            if ($route eq 'default') { $route = '0.0.0.0/0'; }
+            push (@ip_routes, "        route $route { next-hop " . $route_gw . " { } }\n");
+        } elsif ($route_type eq 'ipv6') {
+            if ($route eq 'default') { $route = '::/0' }
+            push (@ip_routes, "        route6 $route { next-hop " . $route_gw . " { } }\n");
+        }
+    }   
+	push (@ip_routes, "    }\n}\n");
+
+    # Network interfaces configuration: <if> tags
+    my @if_list = $vm->getElementsByTagName("if");
+	push (@ip_interfaces, "interfaces {\n");
+    for (my $j = 0 ; $j < @if_list; $j++){
+        my $if  = $if_list[$j];
+        my $id  = $if->getAttribute("id");
+        my $net = $if->getAttribute("net");
+        my $mac = $if->getAttribute("mac");
+        $mac =~ s/,//g;
+
+        my $if_name;
+        # Special cases: loopback interface and management
+        if ( !defined($net) && $id == 0 ) {
+            $if_name = "eth" . $id;
+        } elsif ( $net eq "lo" ) {
+            $if_name = "lo:" . $id;
+        } else {
+            $if_name = "eth" . $id;
+        }
+
+        print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac .  "\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $if_name . "\"\n\n";
+
+        my @ipv4_tag_list = $if->getElementsByTagName("ipv4");
+        my @ipv6_tag_list = $if->getElementsByTagName("ipv6");
+        my @ipv4_addr_list;
+        my @ipv4_mask_list;
+        my @ipv6_addr_list;
+        my @ipv6_mask_list;
+
+   		push (@ip_interfaces, "   ethernet $if_name {\n");
+        # Config IPv4 addresses
+        for ( my $j = 0 ; $j < @ipv4_tag_list ; $j++ ) {
+
+            my $ipv4 = $ipv4_tag_list[$j];
+            my $mask = $ipv4->getAttribute("mask");
+            my $ip   = $ipv4->getFirstChild->getData;
+
+			if ($ip =~ /^dhcp/) {
+				push (@ip_interfaces, "       address dhcp\n");
+			} else {
+				# Convert mask to masklen
+				my $aux_ip = NetAddr::IP->new ($ip, $mask);
+				$mask = $aux_ip->masklen();
+				push (@ip_interfaces, "       address $ip/$mask\n");
+			}
+		}
+		# Config IPv6 addresses
+		for ( my $j = 0 ; $j < @ipv6_tag_list ; $j++ ) {
+
+			my $ipv6 = $ipv6_tag_list[$j];
+			my $ip   = $ipv6->getFirstChild->getData;
+			my $mask = $ip;
+			$mask =~ s/.*\///;
+			$ip =~ s/\/.*//;
+
+			if ($ip eq 'dhcp') {
+				push (@ip_interfaces, "       address dhcp6\n");
+			} else {
+				push (@ip_interfaces, "       address $ip/$mask\n");
+            }
+
+		}
+        
+        # Process dns tags
+        my $dns_addrs;
+        foreach my $dns ($if->getElementsByTagName("dns")) {
+            push (@dns_addrs, "    name-server " . $dns->getFirstChild->getData);
+        }      
+   		
+   		push (@ip_interfaces, "   }\n");
+        
+    }
+	push (@ip_interfaces, "}\n");
+    
+    close RULES;
+    
+	#print "Interfaces:\n";
+	#print @ip_interfaces . "\n";
+	#foreach (@ip_interfaces) { print "$_"; }
+
+	#print "Routes:\n";
+	#print @ip_routes . "\n";
+	#foreach (@ip_routes) { print "$_"; }
+
+	# Load default VyOS configuration from $vyos_config_file into $vyos_config_content
+	my $vyos_config_content;
+    open(my $fh, '<', $vyos_config_file) or die "error opening $vyos_config_file file";
+    {
+        local $/;
+        $vyos_config_content = <$fh>;
+    }
+    close($fh);
+    #print "Original config file:\n";
+    #print $vyos_config_content . "\n";
+
+	# Delete interface and protocol sections
+	my $new_vyos_config_content;
+	# Regular expresion taken from https://stackoverflow.com/questions/14952113/how-can-i-match-nested-brackets-using-regex
+	while( $vyos_config_content =~ /(\w+\s+\{([^{}]|(?R))*\})/g ) {
+  		my $block = $1;
+  		if ( $block !~ /^interfaces.*/ && $block !~ /^protocols.*/ ) {
+ 			$new_vyos_config_content .= $block . "\n";
+  		}
+	}
+
+	# Add new interfaces and protocols sections
+	foreach (@ip_interfaces) { $new_vyos_config_content .= "$_"; }
+	foreach (@ip_routes) { $new_vyos_config_content .= "$_"; }
+    
+    # Configure hostname
+	$new_vyos_config_content =~ s/^system\s+{/system {\n    host-name $vm_name/;  
+
+	# Configure DNS server addresses
+	foreach (@dns_addrs) { $new_vyos_config_content =~ s/^system\s+{/system {\n$_/ };  
+    
+    #print "New config file:\n";
+    #print $new_vyos_config_content . "\n";
+
+    open VCF, ">" . $vyos_config_file or return "error opening $vyos_config_file file";
+    print VCF "$new_vyos_config_content\n";
+    close VCF;
+
+    return $error;
+    
+}
+
 
 1;

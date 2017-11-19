@@ -7,7 +7,7 @@
 #             Jorge Somavilla (somavilla@dit.upm.es), Jorge Rodriguez (jrodriguez@dit.upm.es), 
 #             Carlos González (carlosgonzalez@dit.upm.es)
 # Coordinated by: David Fernández (david@dit.upm.es)
-# Copyright (C) 2005-2014 DIT-UPM
+# Copyright (C) 2005-2016 DIT-UPM
 #                         Departamento de Ingenieria de Sistemas Telematicos
 #                         Universidad Politecnica de Madrid
 #                         SPAIN
@@ -165,6 +165,10 @@ my @exe_cli;
 # To store files specified in pack-add-files option
 my @pack_add_files;
 
+# To save the original username and id who sudoed to be used later
+my $user_name;
+my $user_id;
+
 main();
 exit(0);
 
@@ -197,9 +201,9 @@ sub main {
 
     # Get OS data from /etc/os-release
     if (-e '/etc/os-release') {
-	    $os_prettyname = `gawk -F= '/^PRETTY_NAME=/{print \$2}' /etc/os-release | tr -d '"'`; chomp ($os_prettyname);
-	    $os_id         = `gawk -F= '/^ID=/{print \$2}' /etc/os-release | tr -d '"'`; chomp ($os_id);
-	    $os_ver_id     = `gawk -F= '/^VERSION_ID=/{print \$2}' /etc/os-release | tr -d '"'`; chomp ($os_ver_id);
+	    $os_prettyname = `awk -F= '/^PRETTY_NAME=/{print \$2}' /etc/os-release | tr -d '"'`; chomp ($os_prettyname);
+	    $os_id         = `awk -F= '/^ID=/{print \$2}' /etc/os-release | tr -d '"'`; chomp ($os_id);
+	    $os_ver_id     = `awk -F= '/^VERSION_ID=/{print \$2}' /etc/os-release | tr -d '"'`; chomp ($os_ver_id);
     } else {
     	# No /etc/os-release file
         my $os_distro = get_os_distro();
@@ -226,10 +230,14 @@ sub main {
     my $uid_msg;
     $uid=$ENV{'SUDO_UID'};
     $uid_name=$ENV{'SUDO_USER'};
+    #print "ENV{'SUDO_UID'}=$ENV{'SUDO_UID'}\n";
+    #print "ENV{'SUDO_USER'}=$ENV{'SUDO_USER'}\n";
+        
     unless (defined($uid)) { $uid = $ENV{'USER'} }
     unless (defined($uid_name)) { $uid_name = $ENV{'USER'} }
     
-    my $user_name=$uid_name; # Save username to be used if needed in $USER substitution in vnx_dir config value
+    $user_name=$uid_name; # Save username to be used if needed in $USER substitution in vnx_dir config value
+    $user_id=$uid;        # Same for user id
     $uid_orig = $uid;
     $uid_name_orig = $uid_name;
 
@@ -304,9 +312,14 @@ $>=0;
    	my $tmp_dir=get_conf_value ($vnxConfigFile, 'general', 'tmp_dir');
    	if (!defined $tmp_dir) {
    		$tmp_dir = $DEFAULT_TMP_DIR;
+   	} else {
+   		$tmp_dir =~ s|/$||; # eliminate final '/' if it exists
    	}
    	pre_wlog ("  TMP dir=$tmp_dir") if (!$opts{b});
    	my $vnx_dir=get_conf_value ($vnxConfigFile, 'general', 'vnx_dir');
+   	if (defined $vnx_dir) {
+   		$vnx_dir =~ s|/$||; # eliminate final '/' if it exists	
+   	}
 
     # vmfs_on_tmp
     $vmfs_on_tmp=get_conf_value ($vnxConfigFile, 'general', 'vmfs_on_tmp');
@@ -737,7 +750,7 @@ $>=$uid;
 
    	# Semantic check (in addition to validation)
    	if (my $err_msg = check_doc($bd->get_binaries_path_ref,$execution->get_uid)) {
-      	vnx_die ("$err_msg\n");
+      	vnx_die ("$err_msg\n") unless ($mode eq 'show-map');
    	}
    
    	# Validate extended XML configuration files
@@ -2440,7 +2453,7 @@ change_to_root();
             # If Network manager is running, we have to release the management interface from being managed by NM. 
             # If not, the managemente IP address assigned dissapears after some seconds (why?)  
             unless ( ! $nm_running  or 
-                     ($os_id eq 'fedora' or $os_id eq 'centos') or 
+                     ($os_id eq 'fedora' or $os_id eq 'centos' or $os_id eq 'kali') or 
                      ($os_id eq 'ubuntu' and $os_ver_id gt "14.04" )) {
             	my $if_name = ${vm_name} . "-e0";
             	my $mac_addr = get_mac_by_ifname("$if_name");
@@ -2449,8 +2462,9 @@ change_to_root();
 				} else {
 					wlog (VVV, "mac_addr($if_name)=" . $mac_addr, $logp);
 					my $con_uuid = get_nmuuid_by_mac($mac_addr);
-					if (defined($con_uuid)) {
+					if (defined($con_uuid) && $con_uuid ne '') {
 					    wlog (VVV, "nm uuid associated with $mac_addr found: $con_uuid", $logp);
+                		wlog (VVV, $nmcli . " con delete uuid $con_uuid", $logp );
                 		$execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
 					} else {
     					wlog (N, "ERROR: nm uuid assicated to $if_name not found");
@@ -2498,7 +2512,7 @@ change_to_root();
 
             # Prevent Network manager (if running) from managing VM interfaces
             unless ( ! $nm_running  or 
-                     ($os_id eq 'fedora' or $os_id eq 'centos') or 
+                     ($os_id eq 'fedora' or $os_id eq 'centos' or $os_id eq 'kali') or 
                      ($os_id eq 'ubuntu' and $os_ver_id gt "14.04" )) {
             	my $if_name = ${vm_name} . "-e${id}";
             	my $mac_addr = get_mac_by_ifname("$if_name");
@@ -2507,7 +2521,7 @@ change_to_root();
 				} else {
 					wlog (VVV, "mac_addr($if_name)=" . $mac_addr, $logp);
 					my $con_uuid = get_nmuuid_by_mac($mac_addr);
-					if (defined($con_uuid)) {
+					if (defined($con_uuid) && $con_uuid ne '') {
 					    wlog (VVV, "nm uuid associated with $mac_addr found: $con_uuid", $logp);
                 		$execution->execute($logp, $nmcli . " con delete uuid $con_uuid" ) if (!empty($con_uuid));
 					} else {
@@ -2558,20 +2572,36 @@ sub get_nmuuid_by_mac {
 
     my $mac_addr = shift;
 
-    my $if_uuids = `nmcli -t -f UUID con list | tr '\n' ' '`;
+    my $logp = 'get_nmuuid_by_mac> ';
+    
+    my $uuid = '';
 
+    wlog (VVV, "mac_addr=$mac_addr", $logp);
+
+    #my $if_name = `ifconfig -a | awk '/^[a-z]/ { iface=\$1; mac=\$NF; next } /inet addr:/ { print iface, mac }' | grep -i $mac_addr`;
+    my $if_name = `for if in \$(ls /sys/class/net/); do echo -n "\$if "; cat /sys/class/net/\$if/address; done  | grep -i $mac_addr | awk '{ print \$1 }'`;
+    chomp($if_name);
+    wlog (VVV, "if_name=$if_name", $logp);
+
+    return $uuid if ($if_name eq '');
+
+    $uuid = `nmcli -f GENERAL.UUID connection show id $if_name | awk '{ print \$2 }'`;
+    chomp($uuid);
+    wlog (VVV, "uuid=$uuid", $logp);
+
+    return $uuid;
+
+    #my $if_uuids = `nmcli -t -f UUID con list | tr '\n' ' '`;
     #print "if_uuids=$if_uuids\n";
-
-    foreach my $uuid (split(/ /,$if_uuids)) {
-
+    #foreach my $uuid (split(/ /,$if_uuids)) {
         #print "uuid=$uuid\n";
-        my $mac_uuid = `nmcli con list uuid $uuid | grep "802-3-ethernet.mac-address:" | awk '{ print \$2}'`;
-        chomp($mac_uuid);
+    #    my $mac_uuid = `nmcli con list uuid $uuid | grep "802-3-ethernet.mac-address:" | awk '{ print \$2}'`;
+    #    chomp($mac_uuid);
         #print "mac_uuid=$mac_uuid\n";
-        if (uc $mac_uuid eq $mac_addr) {
-            return $uuid;
-        }
-    }
+    #    if (uc $mac_uuid eq $mac_addr) {
+    #        return $uuid;
+    #    }
+    #}
 }
 
 
@@ -3748,7 +3778,7 @@ sub mode_createrootfs {
     my $vm_libirt_xml_hdb;
     my $video_mode;   # Libvirt video mode 
     my $default_video_mode = "cirrus";
-    my @allowed_video_types = qw/vga cirrus vmvga xen vbox qxl/;
+    my @allowed_video_types = qw/vga cirrus vmvga xen vbox qxl virtio/;
     my $mem;          # Memory assigned to the virtual machine
     my $default_mem   = "512M";
     my $arch;         # Virtual machine architecture type (32 or 64 bits)
@@ -3968,7 +3998,7 @@ sub mode_modifyrootfs {
     my $vm_libirt_xml_vdb;
     my $video_mode;   # Libvirt video mode 
     my $default_video_mode = "cirrus";
-    my @allowed_video_types = qw/vga cirrus vmvga xen vbox qxl/;
+    my @allowed_video_types = qw/vga cirrus vmvga xen vbox qxl virtio/;
     my $mem;          # Memory assigned to the virtual machine
     my $default_mem   = "512M";
     my $arch;         # Virtual machine architecture type (32 or 64 bits)
@@ -3994,6 +4024,8 @@ back_to_user();
     	# No type specified. Let's try to guess the type... 
     	if (-d $rootfs  && -f $rootfs . "/config" && -d $rootfs . "/rootfs" ) {
     		
+            $rootfs_type = 'lxc';   
+
     		# Get the rootfs directory pointed by config file 
     		my $lxc_rootfs_config_line = `cat $rootfs/config | grep '^lxc.rootfs'`;
     		chomp ($lxc_rootfs_config_line);
@@ -4037,7 +4069,6 @@ back_to_user();
 			    #    exit;
 			    #}
             }
-            $rootfs_type = 'lxc';   
     	} else {
 	        # Set it to default value
 	        $rootfs_type = 'libvirt-kvm';   
@@ -4109,12 +4140,13 @@ back_to_user();
         
         # Generate random id (http://answers.oreilly.com/topic/416-how-to-generate-random-numbers-in-perl/)
         my @chars = ( "A" .. "Z", "a" .. "z", 0 .. 9 );
-        my $id = join("", @chars[ map { rand @chars } ( 1 .. 8 ) ]);
+        #my $id = join("", @chars[ map { rand @chars } ( 1 .. 8 ) ]);
+        my $container_id = basename $rootfs;
 
-        pre_wlog ("...vnx-$id");
+        pre_wlog ("...$container_id");
 
-        
-        my $res = $execution->execute( $logp, "lxc-start -F -n vnx-$id -f $rootfs/$lxc_config_file");
+        my $res = $execution->execute( $logp, "lxc-start -F -n $container_id -f $rootfs/$lxc_config_file -P " . abs_path("$rootfs/..") );
+        #my $res = $execution->execute( $logp, "lxc-start -F -n vnx-$id -f $rootfs/$lxc_config_file");
         if ($res) { 
             wlog (N, "$res", $logp)
         }
@@ -4515,7 +4547,8 @@ sub mode_pack {
 
 	my $input_file;
 	my $xml_dir;
-	my $scen_bname;
+    my $scen_bname;
+    my $scen_bdir;
 	my $pack_version;
 	my $inc_rootfs;
 	my $pack_tgz_name;
@@ -4530,15 +4563,20 @@ sub mode_pack {
     }
     #print abs_path($input_file) . "\n";
     $xml_dir = dirname abs_path($input_file);
-    $scen_bname = basename $xml_dir;
-
+    $scen_bdir = basename $xml_dir;
+    
+    #$scen_bname = $scen_bdir;
+    #$scen_bname =~ s/-v\d*//;  # delete version (-vXX at the end) if it exists
+    $scen_bname = $input_file;
+    $scen_bname =~ s/\.xml$//; # delete extension
+    
     if ($opts{'pack-version'}) {
         $pack_version = $opts{'pack-version'};
         $pack_tgz_name = "${scen_bname}-v${pack_version}";
     } else {
         $pack_tgz_name = ${scen_bname};
     }
-    wlog (VVV, "input_file=$input_file, xml_dir=$xml_dir, scen_bname=$scen_bname, pack_tgz_name=$pack_tgz_name", '');
+    wlog (VVV, "input_file=$input_file, xml_dir=$xml_dir, scen_bname=$scen_bname, scen_bdir=$scen_bdir, pack_tgz_name=$pack_tgz_name", '');
     
     if ($opts{'include-rootfs'}) {
         $inc_rootfs = 'yes';
@@ -4552,12 +4590,16 @@ sub mode_pack {
 
     wlog (N, "-- Packaging scenario $scen_bname", '');
     
-    my $content="$scen_bname/*.xml $scen_bname/*.cvnx $scen_bname/conf $scen_bname/filesystems/create* $scen_bname/filesystems/rootfs*";
+    #my $content="$scen_bdir/*.xml $scen_bdir/*.cvnx $scen_bdir/conf $scen_bdir/filesystems/create* $scen_bdir/filesystems/rootfs*";
+    my $cvnx_file = "$scen_bdir/$input_file";
+    $cvnx_file =~ s/\.xml$/\.cvnx/;
+    if ( ! -e $cvnx_file) { $cvnx_file = '' }
+    my $content="$scen_bdir/$input_file $cvnx_file $scen_bdir/conf $scen_bdir/filesystems/create* $scen_bdir/filesystems/rootfs*";
 
     # Add files specified in --pack-add-files option if specified
     foreach my $file ( @pack_add_files ) {
-    	if (-e "$scen_bname/$file") {
-    		$content .= " " . "$scen_bname/$file"; 
+    	if (-e "$scen_bdir/$file") {
+    		$content .= " " . "$scen_bdir/$file"; 
     	} else {
     		vnx_die ("file $file is not valid (perhaps does not exists).");
     	}
@@ -4574,7 +4616,7 @@ sub mode_pack {
     }
     
     if ( $inc_rootfs ) {
-        my $rootfs_set=`readlink $scen_bname/filesystems/rootfs*`; 
+        my $rootfs_set=`readlink $scen_bdir/filesystems/rootfs*`; 
         #chomp ($rootfs);
         wlog (N, "--   Including rootfs:", '');
         #$rootfs =~ s/[\r\n]+/ /g; # Eliminate line breaks and change them to spaces
@@ -4582,13 +4624,13 @@ sub mode_pack {
         my @rootfs_list = split /\n/, $rootfs_set;
         foreach my $rootfs (@rootfs_list) {
             wlog (N, "--     $rootfs", '');
-	        $content="$content $scen_bname/filesystems/$rootfs";
+	        $content="$content $scen_bdir/filesystems/$rootfs";
         }
     
         # Exclude sockets to avoid errors when making tar file
         $tmpfile=`mktemp`; chomp ($tmpfile);
         foreach my $rootfs (@rootfs_list) {
-            system ( "find $scen_bname/filesystems/$rootfs -type s >> $tmpfile" );
+            system ( "find $scen_bdir/filesystems/$rootfs -type s >> $tmpfile" );
         }
         $tar_opts="-X $tmpfile";
         wlog (N, "--   Scenario excluded content:", '');
@@ -4613,11 +4655,10 @@ sub mode_pack {
     
     $tar_opts = "$tar_opts -C $cdir";
 
-    if ($opts{'pack-version'}) {
-    	# Change first directory name in tar to include the version
-        #$tar_opts .= " --transform 'flags=r;s|^${scen_bname}|${pack_tgz_name}|'";
-        $tar_opts .= " --transform 's|^${scen_bname}|${pack_tgz_name}|'";
-    }
+    #if ($opts{'pack-version'}) {
+    # Change first directory name in tar to scenario name
+    $tar_opts .= " --transform 's|^${scen_bdir}/|${pack_tgz_name}/|'";
+    #}
     
     #print   "LANG=C tar -cpf - $content $tar_opts | pv -p -s ${size} | gzip > ${cdir}/${pack_tgz_name}.tgz\n";
     #system ("LANG=C tar -cpf - $content $tar_opts | pv -p -s ${size} | gzip > ${cdir}/${pack_tgz_name}.tgz");
@@ -4643,13 +4684,36 @@ sub mode_unpack {
     wlog (N, "\nVNX unpack scenario mode:");
 
     my $pack_file = $opts{'unpack'};
+
+#back_to_user($user_id); # Execute as the user who sudoed. If not, files will be created as root
+#print "user_id=$user_id\n";
+#my $grp = getpwnam $user_name;
+#print "group=$grp\n";
+#$) = $grp;
+#$( = $grp;
+#print "group=" . $) . "\n";
+#print "group=" . $( . "\n";
+
+#$>=$user_id;
+#$<=$user_id;
+#print "user=" . $> . "\n";
+#print "user=" . $< . "\n";
+ 
     vnx_die ("file $pack_file is not valid (perhaps does not exists).") unless ( -f $pack_file );
     wlog (N, "-- Unpackaging scenario $pack_file", '');
 
     #print "LANG=C pv $pack_file | tar xzfp - \n";
     system ("LANG=C pv $pack_file | tar --numeric-owner -xzpf - ");
     wlog (N, "-- ...done", '');
-            
+
+    # Change the owner of files (all but the rootfs directories where LXC images reside)
+    my $top_dir = `tar -tzf $pack_file | head -1 | cut -f1 -d"/"`;
+    chomp ($top_dir);
+    #print "top_dir=$top_dir\n";
+    #print "find $top_dir -name rootfs -prune -o -print0 | xargs -0 chown $user_id\n";
+    #system ("find $top_dir -name rootfs -prune -o -print0 | xargs -0 chown $user_id");            
+    #print "find $top_dir ! -path \"*/filesystems/*rootfs*\" -print0 | xargs -0 chown $user_id";            
+    system ("find $top_dir ! -path \"*/filesystems/*rootfs*\" -print0 | xargs -0 chown $user_id");            
 }
 
 

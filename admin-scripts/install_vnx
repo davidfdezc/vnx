@@ -82,7 +82,7 @@ if [ $VERBOSE ]; then
 else
     tar cfz ${VNX_DIR}/src/${FNAME}.tgz $DIRNAME
 fi
-rm ${VNX_DIR}/src/vnx-latest.tgz
+rm -vf ${VNX_DIR}/src/vnx-latest.tgz
 ln -s ${FNAME}.tgz ${VNX_DIR}/src/vnx-latest.tgz
 popd > /dev/null
 
@@ -204,6 +204,11 @@ chmod 600 ${VNX_DIR}/etc/vnx.conf.sample
 #
 cp $VERBOSE etc/cluster.conf ${VNX_DIR}/etc/vnx.cluster.conf.sample
 chmod 600 ${VNX_DIR}/etc/vnx.cluster.conf.sample
+
+#
+# Copy AppArmor profile
+#
+cp $VERBOSE etc/lxc-default-with-netns /etc/apparmor.d/lxc
 
 #
 # Copy ace daemons 

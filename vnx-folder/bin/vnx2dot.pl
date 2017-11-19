@@ -288,7 +288,7 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
 	            print "$vmname2 -- lo_$vmname [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\", len=\"0.8\" ];\n" ;                        
             } elsif ($net eq 'virbr0' || $net eq 'lxcbr0') {
                 print "//   interface $id with IP addresses $ipaddrs connected to network $net\n" ;
-                print "$vmname2 -- ${net}_${vmname} [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\", len=\"0.8\" ];\n" ;                        
+                print "$vmname2 -- ${net}_${vmname2} [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\", len=\"0.8\" ];\n" ;                        
             } else {
 	            print "//   interface $id with IP addresses $ipaddrs connected to network $net\n" ;
 	            print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;                        

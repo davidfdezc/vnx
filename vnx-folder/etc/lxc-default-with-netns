@@ -1,0 +1,48 @@
+# /etc/apparmor.d/lxc/lxc-default-with-netns
+#
+# Adapted from: https://gist.github.com/jjo/ff32b08e48e4a52bfc36
+#
+# Do not load this file.  Rather, load /etc/apparmor.d/lxc-containers, which
+# will source all profiles under /etc/apparmor.d/lxc
+
+profile lxc-container-default-with-netns flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/lxc/container-base>
+  #include <abstractions/lxc/start-container>
+
+
+  # - onetime mount, if /run/netns was not mounted yet:
+  #   strace: mount("", "/var/run/netns", "none", MS_REC|MS_SHARED, NULL) = 0
+  # fwiw fstype=none doesn't match, protect by denying mount with /dev argument
+  deny mount options=(rw, make-rshared) /** -> /run/netns/,
+  mount options=(rw, make-rshared) -> /run/netns/,
+  #   strace: mount("/var/run/netns", "/var/run/netns", 0x43981d, MS_BIND, NULL) = 0
+  mount options=(rw, bind) /run/netns/ -> /run/netns/,
+
+  # - one mount per each netns: ip netns add foo:
+  #   strace: mount("/proc/self/ns/net", "/var/run/netns/foo", 0x43981d, MS_BIND, NULL) = 0
+  mount options=(rw, bind) @{PROC} -> /run/netns/**,
+  # kernel 4.2 doesn't match above, needs this one:
+  mount options=(rw, bind) / -> /run/netns/**,
+
+  # - used by: ip netns exec foo ...: 
+  #   strace: mount("", "/", "none", MS_REC|MS_SLAVE, NULL) = 0
+  # fwiw fstype=none doesn't match, protect by denying mount with /dev argument
+  deny mount options=(rw, make-rslave) /** -> /,
+  mount options=(rw, make-rslave) -> /,
+
+  # Lines taken from lxc-default-with-nesting profile
+  # The last line is needed to avoid a problem when starting the containers (see the trace 
+  # from /var/log/kern.log):
+  #
+  #   Jul 31 17:48:52 idefix kernel: [272215.316183] audit: type=1400 audit(1501516132.947:2262): 
+  #     apparmor="DENIED" operation="mount" info="failed flags match" error=-13 
+  #     profile="lxc-container-default-with-netns" name="/sys/fs/cgroup/systemd/" pid=25719 
+  #     comm="systemd" fstype="cgroup" srcname="cgroup" flags="rw, nosuid, nodev, noexec"
+  #
+  #deny /dev/.lxc/proc/** rw,
+  #deny /dev/.lxc/sys/** rw,
+  #mount fstype=proc -> /var/cache/lxc/**,
+  #mount fstype=sysfs -> /var/cache/lxc/**,
+  #mount options=(rw,bind),
+  mount fstype=cgroup -> /sys/fs/cgroup/**,
+}

@@ -3,7 +3,7 @@
 # This file is a module part of VNX package.
 #
 # Author: David Fernández (david@dit.upm.es)
-# Copyright (C) 2010, 	DIT-UPM
+# Copyright (C) 2010,2016 	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN
@@ -31,6 +31,7 @@ package VNX::vmAPICommon;
 use strict;
 use warnings;
 use Exporter;
+use B::Deparse ();
 
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(	
@@ -45,6 +46,7 @@ our @EXPORT = qw(
     autoconfigure_openbsd
     autoconfigure_android
     autoconfigure_wanos
+    autoconfigure_vyos
     get_os_distro
     get_code_of_get_os_distro
 	);
@@ -87,6 +89,8 @@ sub execute_host_command {
     my @execs = $doc->findnodes("/vnx/host/exec[\@seq='$seq']");
     foreach my $exec (@execs) {
         	
+        $num_host_execs++;
+        
         if (!$exe_allowed) {
             wlog (N, "--\n-- ERROR. Host command execution forbidden by configuration.\n" . 
                      "--        Change 'exe_host_cmds' config value in [general] section of /etc/vnx.conf file).");
@@ -647,42 +651,57 @@ sub get_os_distro {
     my $KERNEL;
     my $PSEUDONAME;
         
-    if ( $OS eq 'SunOS' ) {
-            $OS='Solaris';
-            $ARCH=`uname -p`;
-            $OSSTR= "$OS,$REV,$ARCH," . `uname -v`;
+	if ( $OS eq 'SunOS' ) {
+		$OS='Solaris';
+		$ARCH=`uname -p`;
+		$OSSTR= "$OS,$REV,$ARCH," . `uname -v`;
+
     } elsif ( $OS eq "AIX" ) {
-            $OSSTR= "$OS," . `oslevel` . "," . `oslevel -r`;
+		$OSSTR= "$OS," . `oslevel` . "," . `oslevel -r`;
+
     } elsif ( $OS eq "Linux" ) {
-            $KERNEL=`uname -r`;
-            if ( -e '/etc/redhat-release' ) {
-            my $relfile = `cat /etc/redhat-release`;
-            my @fields  = split(/ /, $relfile);
-                    $DIST = $fields[0];
-                    $REV = $fields[2];
-                    $PSEUDONAME = $fields[3];
-                    $PSEUDONAME =~ s/\(//; $PSEUDONAME =~ s/\)//;
-        } elsif ( -e '/etc/SuSE-release' ) {
-                    $DIST=`cat /etc/SuSE-release | tr "\n" ' '| sed s/VERSION.*//`;
-                    $REV=`cat /etc/SuSE-release | tr "\n" ' ' | sed s/.*=\ //`;
-            } elsif ( -e '/etc/mandrake-release' ) {
-                    $DIST='Mandrake';
-                    $PSEUDONAME=`cat /etc/mandrake-release | sed s/.*\(// | sed s/\)//`;
-                    $REV=`cat /etc/mandrake-release | sed s/.*release\ // | sed s/\ .*//`;
-            } elsif ( -e '/etc/lsb-release' ) {
-                    $DIST= `cat /etc/lsb-release | grep DISTRIB_ID | sed 's/DISTRIB_ID=//'`; 
-                    $REV = `cat /etc/lsb-release | grep DISTRIB_RELEASE | sed 's/DISTRIB_RELEASE=//'`;
-                    $PSEUDONAME = `cat /etc/lsb-release | grep DISTRIB_CODENAME | sed 's/DISTRIB_CODENAME=//'`;
-            } elsif ( -e '/etc/debian_version' ) {
-                    $DIST= "Debian"; 
-                    $REV=`cat /etc/debian_version`;
-                    $PSEUDONAME = `LANG=C lsb_release -a 2> /dev/null | grep Codename | sed 's/Codename:\\s*//'`;
-        }
-            if ( -e '/etc/UnitedLinux-release' ) {
-                    $DIST=$DIST . " [" . `cat /etc/UnitedLinux-release | tr "\n" ' ' | sed s/VERSION.*//` . "]";
-            }
-        chomp ($KERNEL); chomp ($DIST); chomp ($PSEUDONAME); chomp ($REV);
-            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+		$KERNEL=`uname -r`;
+		if ( -e '/etc/redhat-release' ) {
+			my $relfile = `cat /etc/redhat-release`;
+			my @fields  = split(/ /, $relfile);
+			$DIST = $fields[0];
+			$REV = $fields[2];
+			$PSEUDONAME = $fields[3];
+			$PSEUDONAME =~ s/\(//; $PSEUDONAME =~ s/\)//;
+
+    	} elsif ( -e '/etc/SuSE-release' ) {
+			$DIST=`cat /etc/SuSE-release | tr "\n" ' '| sed s/VERSION.*//`;
+			$REV=`cat /etc/SuSE-release | tr "\n" ' ' | sed s/.*=\ //`;
+
+    	} elsif ( -e '/etc/mandrake-release' ) {
+			$DIST='Mandrake';
+			$PSEUDONAME=`cat /etc/mandrake-release | sed s/.*\(// | sed s/\)//`;
+			$REV=`cat /etc/mandrake-release | sed s/.*release\ // | sed s/\ .*//`;
+
+		} elsif ( -e '/etc/lsb-release' ) {
+			$DIST= `cat /etc/lsb-release | grep DISTRIB_ID | sed 's/DISTRIB_ID=//'`; 
+			$REV = `cat /etc/lsb-release | grep DISTRIB_RELEASE | sed 's/DISTRIB_RELEASE=//'`;
+			$PSEUDONAME = `cat /etc/lsb-release | grep DISTRIB_CODENAME | sed 's/DISTRIB_CODENAME=//'`;
+
+		} elsif ( -e '/etc/debian_version' ) {
+			
+			if ( -e '/opt/vyatta/etc/version' ) {
+				$DIST= "Debian-VyOS"; 
+				$REV=`cat /opt/vyatta/etc/version | grep Version | awk '{print \$3}'`;
+				$PSEUDONAME = `LANG=C lsb_release -a 2> /dev/null | grep Codename | sed 's/Codename:\\s*//'`;
+			} else {
+				$DIST= "Debian"; 
+				$REV=`cat /etc/debian_version`;
+				$PSEUDONAME = `LANG=C lsb_release -a 2> /dev/null | grep Codename | sed 's/Codename:\\s*//'`;
+			}
+		}
+
+		if ( -e '/etc/UnitedLinux-release' ) {
+			$DIST=$DIST . " [" . `cat /etc/UnitedLinux-release | tr "\n" ' ' | sed s/VERSION.*//` . "]";
+		}
+		chomp ($KERNEL); chomp ($DIST); chomp ($PSEUDONAME); chomp ($REV);
+		$OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
+		
     } elsif ( $OS eq "FreeBSD" ) {
             $DIST= "FreeBSD";
         $REV =~ s/-RELEASE//;
@@ -695,10 +714,15 @@ sub get_os_distro {
 return $OSSTR;
 }
 
+
 sub get_code_of_get_os_distro {
-    
-return <<'EOF';
-#!/usr/bin/perl
+
+my $deparse = B::Deparse->new;
+my $get_os_distro_ref = \&get_os_distro;
+my $get_os_distro_code = $deparse->coderef2text($get_os_distro_ref);
+$get_os_distro_code = "sub get_os_distro $get_os_distro_code \n";
+
+my $get_os_distro_script_header = '#!/usr/bin/perl
 
 use strict;
 use warnings;
@@ -707,69 +731,10 @@ my @os_distro = get_os_distro();
 
 print join(", ", @os_distro);
 
-#my @platform = split(/,/, $os_distro);
-#print "$platform[0],$platform[1],$platform[2],$platform[3],$platform[4],$platform[5]\n";
+';
 
-sub get_os_distro {
+return "$get_os_distro_script_header\n$get_os_distro_code";
 
-    my $OS=`uname -s`; chomp ($OS);
-    my $REV=`uname -r`; chomp ($REV);
-    my $MACH=`uname -m`; chomp ($MACH);
-    my $ARCH;
-    my $OSSTR;
-    my $DIST;
-    my $KERNEL;
-    my $PSEUDONAME;
-        
-    if ( $OS eq 'SunOS' ) {
-            $OS='Solaris';
-            $ARCH=`uname -p`;
-            $OSSTR= "$OS,$REV,$ARCH," . `uname -v`;
-    } elsif ( $OS eq "AIX" ) {
-            $OSSTR= "$OS," . `oslevel` . "," . `oslevel -r`;
-    } elsif ( $OS eq "Linux" ) {
-            $KERNEL=`uname -r`;
-            if ( -e '/etc/redhat-release' ) {
-            my $relfile = `cat /etc/redhat-release`;
-            my @fields  = split(/ /, $relfile);
-                    $DIST = $fields[0];
-                    $REV = $fields[2];
-                    $PSEUDONAME = $fields[3];
-                    $PSEUDONAME =~ s/\(//; $PSEUDONAME =~ s/\)//;
-        } elsif ( -e '/etc/SuSE-release' ) {
-                    $DIST=`cat /etc/SuSE-release | tr "\n" ' '| sed s/VERSION.*//`;
-                    $REV=`cat /etc/SuSE-release | tr "\n" ' ' | sed s/.*=\ //`;
-            } elsif ( -e '/etc/mandrake-release' ) {
-                    $DIST='Mandrake';
-                    $PSEUDONAME=`cat /etc/mandrake-release | sed s/.*\(// | sed s/\)//`;
-                    $REV=`cat /etc/mandrake-release | sed s/.*release\ // | sed s/\ .*//`;
-            } elsif ( -e '/etc/lsb-release' ) {
-                    $DIST= `cat /etc/lsb-release | grep DISTRIB_ID | sed 's/DISTRIB_ID=//'`; 
-                    $REV = `cat /etc/lsb-release | grep DISTRIB_RELEASE | sed 's/DISTRIB_RELEASE=//'`;
-                    $PSEUDONAME = `cat /etc/lsb-release | grep DISTRIB_CODENAME | sed 's/DISTRIB_CODENAME=//'`;
-            } elsif ( -e '/etc/debian_version' ) {
-                    $DIST= "Debian"; 
-                    $REV=`cat /etc/debian_version`;
-                    $PSEUDONAME = `LANG=C lsb_release -a 2> /dev/null | grep Codename | sed 's/Codename:\\s*//'`;
-        }
-            if ( -e '/etc/UnitedLinux-release' ) {
-                    $DIST=$DIST . " [" . `cat /etc/UnitedLinux-release | tr "\n" ' ' | sed s/VERSION.*//` . "]";
-            }
-        chomp ($KERNEL); chomp ($DIST); chomp ($PSEUDONAME); chomp ($REV);
-            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
-    } elsif ( $OS eq "FreeBSD" ) {
-            $DIST= "FreeBSD";
-        $REV =~ s/-RELEASE//;
-            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
-    } elsif ( $OS eq "OpenBSD" ) {
-            $DIST= "OpenBSD";
-        $REV =~ s/-RELEASE//;
-            $OSSTR="$OS,$DIST,$REV,$PSEUDONAME,$KERNEL,$MACH";
-    }
-return $OSSTR;
 }
-EOF
-}
-
 
 1;

@@ -5,7 +5,7 @@
 # Authors: David Fernández, Jorge Somavilla
 # Coordinated by: David Fernández (david@dit.upm.es)
 #
-# Copyright (C) 2011, 	DIT-UPM
+# Copyright (C) 2011,2016 	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN

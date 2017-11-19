@@ -5,7 +5,7 @@
 # Authors: Jorge Somavilla, Jorge Rodriguez, Miguel Ferrer, Francisco José Martín, David Fernández
 # Coordinated by: David Fernández (david@dit.upm.es)
 #
-# Copyright (C) 2014 	DIT-UPM
+# Copyright (C) 2016 	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN
@@ -1510,7 +1510,8 @@ user();
                 { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'debian') }           
 		    elsif ($platform[1] eq 'Fedora') 
                 { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'fedora') }
-		    #elsif ($platform[1] eq 'CentOS') { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'centos') }
+		    elsif ($platform[1] eq 'CentOS') 
+		        { autoconfigure_redhat ($vm_doc, $rootfs_mount_dir, 'centos') }
 		    
 		#} elsif ($platform[0] eq 'FreeBSD'){
 		#        wlog (VVV,  "FreeBSD");

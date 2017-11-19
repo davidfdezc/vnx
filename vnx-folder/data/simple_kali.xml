@@ -30,9 +30,9 @@ SPAIN
   <global>
     <version>2.0</version>
     <scenario_name>simple_kali</scenario_name>
-    <automac offset="23"/>
+    <automac offset="22"/>
     <!--vm_mgmt type="none" /-->
-    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="88">
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="84">
        <host_mapping />
     </vm_mgmt> 
     <vm_defaults>
@@ -48,7 +48,7 @@ SPAIN
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_kali</filesystem>
     <mem>512M</mem>
     <if id="1" net="Net0">
-      <ipv4>10.1.0.23/24</ipv4>
+      <ipv4>10.1.0.22/24</ipv4>
     </if>
     <if id="2" net="virbr0">
       <ipv4>dhcp</ipv4>

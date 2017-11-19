@@ -110,7 +110,7 @@ else
 
     # Uncompress vnx and install
     tar xfz $FULLVNXFNAME
-    cd vnx-*
+    cd vnx-*-*
     ./install_vnx
 
     #vnx --version

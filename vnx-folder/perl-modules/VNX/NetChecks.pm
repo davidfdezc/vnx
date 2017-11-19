@@ -3,7 +3,7 @@
 # This file is a module part of VNUML package.
 #
 # Author: Fermin Galan Marquez (galan@dit.upm.es)
-# Copyright (C) 2005, 	DIT-UPM
+# Copyright (C) 2005,2016 	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN
