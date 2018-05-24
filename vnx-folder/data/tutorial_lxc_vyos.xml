@@ -52,7 +52,7 @@ SPAIN
   <net name="virbr0" mode="virtual_bridge" managed="no"/>
 
   <vm name="h1" type="lxc" arch="x86_64">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc64</filesystem>
     <if id="1" net="Net0">
       <ipv4>10.1.0.2/24</ipv4>
       <ipv6>2001:db8:0::2/64</ipv6>
@@ -65,7 +65,7 @@ SPAIN
   </vm>
 
   <vm name="h2" type="lxc" arch="x86_64">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc64</filesystem>
     <if id="1" net="Net0">
       <ipv4>10.1.0.3/24</ipv4>
       <ipv6>2001:db8:0::3/64</ipv6>
@@ -122,7 +122,7 @@ SPAIN
   </vm>
 
   <vm name="h3" type="lxc" arch="x86_64">
-   <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+   <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc64</filesystem>
    <if id="1" net="Net2">
       <ipv4>10.1.2.2/24</ipv4>
       <ipv6>2001:db8:2::2/64</ipv6>
@@ -143,7 +143,7 @@ SPAIN
   </vm>
   
   <vm name="h4" type="lxc" arch="x86_64">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc64</filesystem>
     <if id="1" net="Net2">
       <ipv4>10.1.2.3/24</ipv4>
       <ipv6>2001:db8:2::3/64</ipv6>

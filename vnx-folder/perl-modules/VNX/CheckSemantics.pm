@@ -450,6 +450,7 @@ user();
         # returned by ifconfig command) 
 
         my $external_if = $net->getAttribute("external");
+        if ($opts{'ignore-ext'}) { $external_if=''}        
         #unless ($external_if =~ /^$/) {
         unless (empty($external_if)) {
             #print $bp->{"ifconfig"} . " $external_if &> /dev/null\n";
@@ -459,7 +460,8 @@ user();
 			my $external_base_if = $external_if;
 			$external_base_if =~ s/\..*//;
 		    if (system($bp->{"ifconfig"} . " $external_base_if > /dev/null 2>&1")) {
-		      return "in network $name, $external_base_if does not exist";
+		      return "In <network name=\"$name\" ... >, external '$external_base_if' network interface does not exist.\n" . 
+		             "Use '--ignore-ext' option if you want to ignore 'external' attribute in <net> tags";
 		    } 
 		    # Check the VLAN attribute (to compose the physical name, for 
 		    # duplication checking)
@@ -541,9 +543,20 @@ user();
         if ( !empty($of_version) && $mode ne 'openvswitch' ) {
             return "'of_version' attribute can only be used in 'openvswitch' based networks (used in <net name='$name'>)"
         } 
-        if ( !empty($of_version) && $of_version ne 'OpenFlow10' && $of_version ne 'OpenFlow12' && $of_version ne 'OpenFlow13' ) {
+        if ( !empty($of_version) && $of_version ne 'OpenFlow10' && $of_version ne 'OpenFlow12' && $of_version ne 'OpenFlow13' && 
+             $of_version ne 'OpenFlow14' && $of_version ne 'OpenFlow15' && $of_version ne 'OpenFlow16' ) {
             return "incorrect value in <net> 'of_version' attribute. Valid values: OpenFlow10, OpenFlow12, OpenFlow13"
         } 
+          
+        if ( !empty($controller) ) {
+	        my @controllers = split(',', $controller);
+	  		foreach my $ctrl (@controllers) {
+	    		if ( not $ctrl =~ /^tcp:[A-Za-z0-9\-\.]+:[0-9]+$/ ) {
+	    			return "Incorrect controller specified in <net name='$name' ... controller='$controller' ...>.\n" .
+	    			       "Format must be a comma separated list of: tcp:<domain name or ip address>:<port>"
+	    		}
+	  		}       	
+        }        
       
         # 8k. Check 'hwaddr' attributes 
         my $hwaddr = $net->getAttribute("hwaddr");
@@ -595,6 +608,11 @@ user();
             if ( $stp ne 'on' && $stp ne 'off') {
                 return "incorrect value ($stp) for 'stp' attribute in <net name=\"$name\"> tag";
             }      
+        }
+
+        # 8o. Net name "unconnected" is reserved
+        if ($net eq "unconnected") {
+            return "net name '$net' is reserved for unconnected interfaces and cannot be used as a network name";
         }
    }
    
@@ -697,7 +715,7 @@ user();
             }
 
             # 9d. To check that there is a net with this name or "lo"
-            unless (($net eq "lo") || ($net eq "vm_mgmt") || (defined($net_names{$net}))) {
+            unless (($net eq "lo") || ($net eq "vm_mgmt") || ($net eq "unconnected") || (defined($net_names{$net}))) {
                 return "net $net defined for interface $id of virtual machine $name is not valid: it must be defined in a <net> tag (or use \"lo\")";
             }
          
@@ -945,6 +963,23 @@ user();
       $dh->get_default_filesystem_type eq "hostfs") {
       return "default filesystem type " . $dh->get_default_filesystem_type . " is forbidden";
    }
+
+	# Check <storage> tags
+	for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
+        my $name = $vm->getAttribute("name");
+        my $vm_type = $vm->getAttribute("type");               
+ 
+    	foreach my $storage ($vm->getElementsByTagName("storage")) {
+	        my $storage_image = get_abs_path($storage->getFirstChild->getData);
+            my $storage_type = str($storage->getAttribute("type"));
+
+            # 12a. <storage> are valid, readable/executable files
+            return "storage ($storage_image) does not exist or is not readable (user $uid_name)" unless (-r $storage_image);
+            return "storage ($storage_image) is not writeable (user $uid_name)" unless (-w $storage_image);
+        }
+    }
+
 
    #13. To check <kernel>
    foreach my $kernel ($doc->getElementsByTagName("kernel")) {

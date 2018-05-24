@@ -8,7 +8,7 @@
 # This file is a module part of VNX package.
 #
 # Authors: David Fernández (david@dit.upm.es)
-# Copyright (C) 2015 DIT-UPM
+# Copyright (C) 2018 DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -33,18 +33,38 @@
 # Input data:
 
 # Image to download
-IMGSRVURL=https://cloud-images.ubuntu.com/trusty/current/
-IMG=trusty-server-cloudimg-amd64-disk1.img # Ubuntu 14.04 64 bits
+IMGSRVURL=https://cloud-images.ubuntu.com/xenial/current/
+IMG=xenial-server-cloudimg-amd64-disk1.img # Ubuntu 16.04 64 bits
 
 # Name of image to create
-IMG2=vnx_rootfs_kvm_ubuntu64-14.04-v025-ostack-compute
-IMG2LINK=rootfs_kvm_ubuntu64-ostack-compute
+IMG2=vnx_rootfs_kvm_ubuntu64-16.04-v025-modified
+IMG2LINK=rootfs_kvm_ubuntu64-modified
+
+# Size of image created
+IMG2SIZE=40G
 
 # Packages to install in new rootfs
-PACKAGES="aptsh traceroute ntp curl man ubuntu-cloud-keyring"
+PACKAGES="aptsh traceroute ntp curl man "
 
 # Commands to execute after package installation (one per line)
 COMMANDS=$(cat <<EOF
+
+# Create a file and wait till it is ready
+touch /root/.create-rootfs
+while [ ! -e /root/.create-rootfs ]; do sleep 3; done
+
+# Installation commands go here. Included are the example commands for an openstack compute node
+
+# Modify failsafe script to avoid delays on startup
+sed -i -e 's/.*sleep [\d]*.*/\tsleep 1/' /etc/init/failsafe.conf
+
+# Add ~/bin to root PATH
+sed -i -e '\$aPATH=\$PATH:~/bin' /root/.bashrc
+
+# Allow ssh root login
+sed -i -e 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+
 echo "deb http://ubuntu-cloud.archive.canonical.com/ubuntu" "trusty-updates/kilo main" > /etc/apt/sources.list.d/cloudarchive-kilo.list
 apt-get update 
 apt-get -y dist-upgrade
@@ -68,6 +88,7 @@ EOF
 #
 
 TMPDIR=$( mktemp -d -t 'vnx-XXXXX' )
+START_TIME=$SECONDS
 
 #
 # Create config file
@@ -141,6 +162,9 @@ cat > $TMPDIR/install-vnxaced <<EOF
 #exec >  >(tee $CONSOLE | tee -a $LOG)
 #exec 2> >(tee $CONSOLE | tee -a $LOG >&2)
 
+# Configure classic network interfaces naming
+sed -i -e 's/\(GRUB_CMDLINE_LINUX=.*\)"/\1 net.ifnames=0 biosdevnames=0"/' /etc/default/grub
+update-grub
 
 USERDATAFILE=\$( find /var/lib/cloud -name user-data.txt )
 echo \$USERDATAFILE
@@ -218,6 +242,11 @@ echo "--"
 rm -fv $IMG
 wget ${IMGSRVURL}${IMG}
 
+# Resize image 
+echo "--"
+echo "-- Resizing image to ${IMG2SIZE}..."
+qemu-img resize ${IMG} ${IMG2SIZE}
+
 # Convert img to qcow2 format and change name
 echo "--"
 echo "-- Converting image to qcow2 format..."
@@ -243,19 +272,22 @@ cloud-localds $TMPDIR/vnx-customize-data.img $TMPDIR/multi-vnx-customize-data
 echo "--"
 echo "-- Starting virtual machine to configure it..."
 echo "--"
-echo "kvm -net nic -net user -hda ${IMG2}.qcow2 -hdb vnx-customize-data.img -m 512"
-kvm -net nic -net user -hda ${IMG2}.qcow2 -hdb $TMPDIR/vnx-customize-data.img -m 512
+echo "kvm -net nic -net user -hda ${IMG2}.qcow2 -hdb vnx-customize-data.img -m 1024 -smp 2"
+kvm -net nic -net user -hda ${IMG2}.qcow2 -hdb $TMPDIR/vnx-customize-data.img -m 1024 -smp 2
+
+ELAPSED_TIME=$(($SECONDS - $START_TIME))
 echo "--"
-echo "-- rootfs creation finished:"
+echo "-- rootfs creation finished ($ELAPSED_TIME secs.):"
 ls -lh ${IMG2}.qcow2
 if [ "$IMG2LINK" ]; then
   echo "--"
   echo "-- Creating symbolic link to new rootfs: $IMG2LINK"
+  rm -f $IMG2LINK
   ln -sv ${IMG2}.qcow2 $IMG2LINK
   echo "--"
 fi
 echo $HLINE
 
 # delete temp files
-rm $TMPDIR/*-vnx-customize-data $TMPDIR/install-vnxaced $TMPDIR/vnx-customize-data.img $IMG
+rm -f $TMPDIR/*vnx-customize-data $TMPDIR/install-vnxaced $TMPDIR/vnx-customize-data.img $IMG
 rmdir $TMPDIR/

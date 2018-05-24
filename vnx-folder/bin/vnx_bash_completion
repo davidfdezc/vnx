@@ -19,7 +19,7 @@ _vnx()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     line=${COMP_LINE}
-    opts="--define --undefine --start --create -t --shutdown -d --destroy -P --modify -m --scenario -s --save --restore --suspend --resume --reboot --reset --recreate --execute -x --exe-cli --show-map --show-status --console --console-info --exe-info --clean-host --create-rootfs --modify-rootfs --download-rootfs --install-media --update-aced --mem --yes -y --rootfs-type --help -h -v -vv -vvv --version -V -f -c -T --config -C -M -i -g --user -u -4 -6 -D --no-console -n --intervm-delay --h2vm-timeout -e -w -F -B -o -Z -b --arch --vcpu --kill -k --pack --unpack --include-rootfs -r --pack-external-rootfs --pack-status --pack-version --pack-add-files --validate-xml --skip-cloudinit"
+    opts="--define --undefine --start --create -t --shutdown -d --destroy -P --modify -m --scenario -s --save --restore --suspend --resume --reboot --reset --recreate --execute -x --exe-cli --show-map --show-status --console --console-info --exe-info --clean-host --create-rootfs --modify-rootfs --download-rootfs --install-media --update-aced --mem --yes -y --rootfs-type --help -h -v -vv -vvv --version -V -f -c -T --config -C -M -i -g --user -u -4 -6 -D --no-console -n --intervm-delay --h2vm-timeout -e -w -F -B -o -Z -b --arch --vcpu --kill -k --pack --unpack --include-rootfs -r --pack-external-rootfs --pack-status --pack-version --pack-add-files --validate-xml --skip-cloudinit --ignore-ext"
 
     #echo 
     #echo cur=${cur}
@@ -68,13 +68,13 @@ _vnx()
                             scenario=(${scenario_opt// / })
                             #pars=${scenario[1]}
                             if [ -r ${scenario[1]} ]; then
-                                pars=`vnx $scenario_opt $moption --exe-info -b`
+                                pars=`sudo vnx $scenario_opt $moption --exe-info -b`
                                 COMPREPLY=( $(compgen -W "${pars}" -- ${cur}) )
                             fi
                          elif [[ $line == *" -s "* || $line == *" --scenario "* ]]; then
                             scenario_opt=`echo $line | awk '{ for (x=1;x<=NF;x++) if ($x~"-s" || $x~"--scenario") print $x " " $(x+1) }'`
                             moption=`echo $line | awk '{ for (x=1;x<=NF;x++) if ($x~"-M") print $x " " $(x+1) }'`
-                            pars=`vnx $scenario_opt $moption --exe-info -b`
+                            pars=`sudo vnx $scenario_opt $moption --exe-info -b`
                             COMPREPLY=( $(compgen -W "${pars}" -- ${cur}) )
 
                             #vnx_dir=$( cat /etc/vnx.conf | grep "^vnx_dir" | sed -e 's/vnx_dir=//' )

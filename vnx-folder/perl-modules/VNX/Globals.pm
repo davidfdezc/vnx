@@ -55,6 +55,7 @@ our @EXPORT = qw(
     $uid_orig
     $uid_name_orig
     $vmfs_on_tmp
+    $ipv6_enabled
     $hline
     $hline10
     $hline50
@@ -182,6 +183,8 @@ our $vmfs_on_tmp;   # Loads the value of vmfs_on_tmp global config value
                     # Used to move the cow and sdisk filesystems to the tmp directory
                     # (used to solve a problem in DIT-UPM laboratories, where root user 
                     # cannot write to network-mounted user directories)  
+our $ipv6_enabled;  # Tells if IPv6 is enabled on the system running VNX                    
+                    
 our $hline10 = "----------"; # Just a horizontal line of 10 '-'
 our $hline50 = "--------------------------------------------------"; # Just a horizontal line of 50 '-'
 our $hline100 = "----------------------------------------------------------------------------------------------------"; # Just a horizontal line of 100 '-'

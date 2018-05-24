@@ -473,6 +473,19 @@ e-mail: vnx@dit.upm.es
     <xs:complexType mixed="true"/>
   </xs:element>
 
+  <xs:element name="storage">
+    <xs:complexType mixed="true">
+      <xs:attribute name="type">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="usb"/>
+            <xs:enumeration value="ide"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
   <xs:element name="tun_device">
     <xs:complexType mixed="true"/>
   </xs:element>
@@ -502,6 +515,7 @@ e-mail: vnx@dit.upm.es
         <xs:element minOccurs="0" maxOccurs="1" ref="boot"/>
         <xs:element minOccurs="0" maxOccurs="1" ref="cdrom"/>
         <xs:element minOccurs="0" ref="filesystem"/>
+        <xs:element minOccurs="0" ref="storage"/>
         <xs:element maxOccurs="unbounded" minOccurs="0" ref="shareddir"/>
         <!--xs:element ref="dynamips_conf" minOccurs="0" /-->
         <xs:element minOccurs="0" ref="mem"/>
@@ -527,6 +541,7 @@ e-mail: vnx@dit.upm.es
       <xs:attribute name="type" type="xs:string" use="required"/>
       <xs:attribute name="subtype" type="xs:string" use="optional"/>
       <xs:attribute name="os" type="xs:string" use="optional"/>
+      <xs:attribute name="os_subtype" type="xs:string" use="optional"/>
       <xs:attribute name="arch" type="xs:string" use="optional"/>
       <xs:attribute name="vcpu" type="xs:string" use="optional"/>
       <xs:attribute name="vcpu_quota" type="xs:string" use="optional"/>

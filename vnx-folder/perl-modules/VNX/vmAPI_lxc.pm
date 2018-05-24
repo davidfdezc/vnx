@@ -336,167 +336,372 @@ change_to_root();
         #}
         # Modify LXC VM config file
         # Backup config file just in case...
-        $execution->execute( $logp, "cp $vm_lxc_config $vm_lxc_config" . ".bak" ); 
+        $execution->execute( $logp, "cp $vm_lxc_config $vm_lxc_config" . ".bak" );
 
-        # Delete lines with "lxc.utsname" 
-        $execution->execute( $logp, "sed -i -e '/lxc.utsname/d' $vm_lxc_config" ); 
-        # Delete lines with "lxc.rootfs" 
-        $execution->execute( $logp, "sed -i -e '/lxc.rootfs/d' $vm_lxc_config" ); 
-        # Delete lines with "lxc.fstab" 
-        $execution->execute( $logp, "sed -i -e '/lxc.mount/d' $vm_lxc_config" ); 
-        # Delete lines with "lxc.network" 
-        $execution->execute( $logp, "sed -i -e '/lxc.network/d' $vm_lxc_config" ); 
+        # Check lxc version to adapt the config file if needed
+        # See config file format differences here: https://discuss.linuxcontainers.org/t/lxc-2-1-has-been-released/487
+        my $lxc_vers = `lxc-start --version`; chomp($lxc_vers);
+		my $exit = system("grep -q lxc.rootfs.path $vm_lxc_config");
+		my $lxc_configfile_vers;
+		if ($exit) { $lxc_configfile_vers = 'old' } else { $lxc_configfile_vers = 'new' }
+        wlog (V, "LXC config file version: $lxc_configfile_vers", $logp);
 
-        # Open LXC vm config file
-        open CONFIG_FILE, ">> $vm_lxc_config" 
-            or  $execution->smartdie("cannot open $vm_lxc_config file $!" ) 
-            unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
-                          
-        # Set vm name: lxc.utsname = $vm_name
-        $execution->execute( $logp, "", *CONFIG_FILE );
-        $execution->execute( $logp, "lxc.utsname = $vm_name", *CONFIG_FILE );
-        
-        # Set lxc.rootfs: lxc.rootfs = $vm_lxc_dir/rootfs
-        $execution->execute( $logp, "lxc.rootfs = $vm_lxc_dir/rootfs", *CONFIG_FILE );
-        
-        # Create lxc.mount.entry's for shared directories
-        foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
-            my $root    = $shared_dir->getAttribute("root");
-            my $options = $shared_dir->getAttribute("options");
-            if ($options) { $options .= ',bind' } else { $options = 'bind' };
-            my $shared_dir_value = text_tag($shared_dir);
-            $shared_dir_value = get_abs_path($shared_dir_value);
-#            if (! -d $shared_dir_value) {
-#            	$execution->execute( $logp, "mkdir -p $shared_dir_value" );
-#            }            
-            $root = $vm_lxc_rootfs . "/" . $root;
-            if (! -d $root) {
-                $execution->execute( $logp, "mkdir -p $root" );
-            }            
-            $execution->execute( $logp, "lxc.mount.entry = $shared_dir_value $root none $options 0 0", *CONFIG_FILE );
+		my $lxc_format;
+
+        if ( $lxc_vers =~ /^2\.1/ or $lxc_vers =~ /^3\./) {
+        	$lxc_format = 'new';
+			if ( $lxc_configfile_vers eq 'old' ) {
+        		wlog (V, "LXC config file in old format. Converting to new format.", $logp);
+		        my $res = $execution->execute( $logp, "vnx_convert_lxc_config -q -n $vm_lxc_config" );
+			}
+        } else {
+        	$lxc_format = 'old';
+			if ( $lxc_configfile_vers eq 'new' ) {
+        		wlog (V, "LXC config file in new format. Converting to old format.", $logp);
+		        my $res = $execution->execute( $logp, "vnx_convert_lxc_config -q -o $vm_lxc_config" );
+			}
         }
-        
-        unless ($platform[0] eq 'Linux' && ( $platform[1] eq 'Debian') || ( $platform[1] eq 'Debian-VyOS') ) {
-	        # Set lxc.mount: lxc.mount = $vm_lxc_dir/fstab
-	        $execution->execute( $logp, "lxc.mount = $vm_lxc_dir/fstab", *CONFIG_FILE );
-        }
-        
+        wlog (V, "LXC version: $lxc_vers ($lxc_format format)", $logp);
 
-        # Configure CPU related attributes
-        my $vcpu = $vm->getAttribute("vcpu");
-        if (defined($vcpu) and $vcpu ne '') {
-            $execution->execute( $logp, "lxc.cgroup.cpuset.cpus = $vcpu", *CONFIG_FILE );
-        }        
-        my $vcpu_quota = $vm->getAttribute("vcpu_quota");
-        if (defined($vcpu_quota)) {
-        	my $PERIOD = 50000;
-        	$vcpu_quota =~ s/%//;
-            $execution->execute( $logp, "lxc.cgroup.cpu.cfs_quota_us = " . int($PERIOD*$vcpu_quota/100), *CONFIG_FILE );
-            $execution->execute( $logp, "lxc.cgroup.cpu.cfs_period_us = $PERIOD", *CONFIG_FILE );
-        }        
-        
-        # Configure Memory
-        if( $vm->exists("/create_conf/vm/mem") ){
-            my $mem = $vm->findnodes("/create_conf/vm/mem")->[0]->getFirstChild->getData;
-            $mem = $mem/1024;
-            $execution->execute( $logp, "memory.limit_in_bytes = ${mem}M", *CONFIG_FILE );
-            # Ex: lxc.cgroup.memory.limit_in_bytes = 256M        
-        }        
-        
-        #
-        # Configure network interfaces
-        #   
-        # Example:
-		#    # interface eth0
-		#    lxc.network.type=veth
-		#    # ifname inside VM
-		#    lxc.network.name = eth0
-		#    # ifname on the host
-		#    lxc.network.veth.pair = lxc1e0
-		#    lxc.network.hwaddr = 02:fd:00:04:01:00
-		#    # bridge if connects to
-		#    lxc.network.link=lxcbr0
-		#    lxc.network.flags=up        
-       
-        my $mng_if_exists = 0;
-        my $mng_if_mac;
+		if ($lxc_format eq 'new') {
 
-        # Create vm /etc/network/interfaces file
-        #my $vm_etc_net_ifs = $vm_lxc_rootfs . "/etc/network/interfaces";
-        # Backup file, just in case.... 
-        #$execution->execute( $logp, "cp $vm_etc_net_ifs ${vm_etc_net_ifs}.bak" );
-        # Add loopback interface        
-        #$execution->execute( $logp, "echo 'auto lo' > $vm_etc_net_ifs" );
-        #$execution->execute( $logp, "echo 'iface lo inet loopback' >> $vm_etc_net_ifs" );
-
-        foreach my $if ($vm->getElementsByTagName("if")) {
-            my $id       = $if->getAttribute("id");
-            my $net      = $if->getAttribute("net");
-            my $net_type = $dh->get_net_type($net);
-            my $net_mode = $dh->get_net_mode($net);
-            my $mac      = $if->getAttribute("mac");
-            $mac =~ s/,//; # TODO: why is there a comma before mac addresses?
-
-            if ( str($net) eq "lo" ) { next }
-            $execution->execute( $logp, "", *CONFIG_FILE );
-            $execution->execute( $logp, "# interface eth$id", *CONFIG_FILE );
-
-            if ( $net_mode eq "veth") {
-	            $execution->execute( $logp, "lxc.network.type=phys", *CONFIG_FILE );
-            } else {
-	            $execution->execute( $logp, "lxc.network.type=veth", *CONFIG_FILE );
-	            $execution->execute( $logp, "# ifname on the host", *CONFIG_FILE );
-	            $execution->execute( $logp, "lxc.network.veth.pair=$vm_name-e$id", *CONFIG_FILE );              
-            }
-	        $execution->execute( $logp, "# ifname inside VM", *CONFIG_FILE );
-	        $execution->execute( $logp, "lxc.network.name=eth$id", *CONFIG_FILE );
-
-            $execution->execute( $logp, "# if mac address", *CONFIG_FILE );
-            $execution->execute( $logp, "lxc.network.hwaddr=$mac", *CONFIG_FILE );
-            if ($id != 0) {
-            	if ($net_mode eq "virtual_bridge") {
-	                $execution->execute( $logp, "# name of bridge interface connects to", *CONFIG_FILE );
-	                $execution->execute( $logp, "lxc.network.link=$net", *CONFIG_FILE );
-            	} elsif ($net_mode eq "veth") {
-                    $execution->execute( $logp, "# veth link endpoint name", *CONFIG_FILE );
-                    $execution->execute( $logp, "lxc.network.link=${net}_${vm_name}", *CONFIG_FILE );            		
-            	}
-            } 
-#            else {
-#
-#                my $ipv4_tag = $if->getElementsByTagName("ipv4")->item(0);
-#                my $mask    = $ipv4_tag->getAttribute("mask");
-#                my $ip      = $ipv4_tag->getFirstChild->getData;
-#
-#                my $ip_addr = NetAddr::IP->new($ip, $mask);
-#	            $execution->execute( $logp, "lxc.network.ipv4=" . $ip_addr->cidr(), *CONFIG_FILE );
-#            }
-            
-            $execution->execute( $logp, "lxc.network.flags=up", *CONFIG_FILE );
-
-            #
-            # Add interface to /etc/network/interfaces
-            #
-            #$execution->execute( $logp, "echo 'iface lo inet loopback' >> $vm_etc_net_ifs" );
-
-        }                       
-
-        # Change to unconfined mode to avoid problems with apparmor if configured in /etc/vnx.conf
-        if ( $aa_unconfined eq 'yes' ){
+	        # Delete lines with "lxc.utsname" 
+	        $execution->execute( $logp, "sed -i -e '/lxc\.uts\.name/d' $vm_lxc_config" ); 
+	        # Delete lines with "lxc.rootfs" 
+	        $execution->execute( $logp, "sed -i -e '/lxc\.rootfs\.path/d' $vm_lxc_config" ); 
+	        # Delete lines with "lxc.fstab" 
+	        $execution->execute( $logp, "sed -i -e '/lxc\.mount/d' $vm_lxc_config" ); 
+	        # Delete lines with "lxc.network" 
+	        $execution->execute( $logp, "sed -i -e '/lxc\.net\./d' $vm_lxc_config" ); 
+	
+	        # Open LXC vm config file
+	        open CONFIG_FILE, ">> $vm_lxc_config" 
+	            or  $execution->smartdie("cannot open $vm_lxc_config file $!" ) 
+	            unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+	                          
+	        # Set vm name: lxc.utsname = $vm_name
 	        $execution->execute( $logp, "", *CONFIG_FILE );
-	        $execution->execute( $logp, "# Set unconfined to avoid problems with apparmor", *CONFIG_FILE );
-	        $execution->execute( $logp, "lxc.aa_profile=unconfined", *CONFIG_FILE );
-            $execution->execute( $logp, "lxc.cgroup.devices.allow = b 7:* rwm", *CONFIG_FILE );
-            $execution->execute( $logp, "lxc.cgroup.devices.allow = c 10:237 rwm", *CONFIG_FILE );
-        }
-        
-        if ($nested_lxc eq 'yes') {
-	        $execution->execute( $logp, "lxc.mount.auto = cgroup", *CONFIG_FILE );        
-	        #$execution->execute( $logp, "lxc.aa_profile=lxc-container-default-with-nesting", *CONFIG_FILE );        
-	        $execution->execute( $logp, "lxc.aa_profile=lxc-container-default-with-netns", *CONFIG_FILE );        
-        }
+	        $execution->execute( $logp, "lxc.uts.name = $vm_name", *CONFIG_FILE );
+	        
+	        # Set lxc.rootfs: lxc.rootfs = $vm_lxc_dir/rootfs
+	        $execution->execute( $logp, "lxc.rootfs.path = $vm_lxc_dir/rootfs", *CONFIG_FILE );
+	        
+	        # Create lxc.mount.entry's for shared directories
+	        foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
+	            my $root    = $shared_dir->getAttribute("root");
+	            my $options = $shared_dir->getAttribute("options");
+	            if ($options) { $options .= ',bind' } else { $options = 'bind' };
+	            my $shared_dir_value = text_tag($shared_dir);
+	            $shared_dir_value = get_abs_path($shared_dir_value);
+	#            if (! -d $shared_dir_value) {
+	#            	$execution->execute( $logp, "mkdir -p $shared_dir_value" );
+	#            }            
+	            $root = $vm_lxc_rootfs . "/" . $root;
+	            if (! -d $root) {
+	                $execution->execute( $logp, "mkdir -p $root" );
+	            }            
+	            $execution->execute( $logp, "lxc.mount.entry = $shared_dir_value $root none $options 0 0", *CONFIG_FILE );
+	        }
+	        
+	        unless ($platform[0] eq 'Linux' && ( $platform[1] eq 'Debian') || ( $platform[1] eq 'Debian-VyOS') ) {
+		        # Set lxc.mount: lxc.mount = $vm_lxc_dir/fstab
+		        $execution->execute( $logp, "lxc.mount.fstab = $vm_lxc_dir/fstab", *CONFIG_FILE );
+		        $execution->execute( $logp, "touch $vm_lxc_dir/fstab" ) unless (-f "$vm_lxc_dir/fstab");
+	        }
+	
+	        # Configure CPU related attributes
+	        my $vcpu = $vm->getAttribute("vcpu");
+	        if (defined($vcpu) and $vcpu ne '') {
+	            $execution->execute( $logp, "lxc.cgroup.cpuset.cpus = $vcpu", *CONFIG_FILE );
+	        }        
+	        my $vcpu_quota = $vm->getAttribute("vcpu_quota");
+	        if (defined($vcpu_quota)) {
+	        	my $PERIOD = 50000;
+	        	$vcpu_quota =~ s/%//;
+	            $execution->execute( $logp, "lxc.cgroup.cpu.cfs_quota_us = " . int($PERIOD*$vcpu_quota/100), *CONFIG_FILE );
+	            $execution->execute( $logp, "lxc.cgroup.cpu.cfs_period_us = $PERIOD", *CONFIG_FILE );
+	        }        
+	        
+	        # Configure Memory
+	        if( $vm->exists("/create_conf/vm/mem") ){
+	            my $mem = $vm->findnodes("/create_conf/vm/mem")->[0]->getFirstChild->getData;
+	            $mem = $mem/1024;
+	            $execution->execute( $logp, "memory.limit_in_bytes = ${mem}M", *CONFIG_FILE );
+	            # Ex: lxc.cgroup.memory.limit_in_bytes = 256M        
+	        }        
+	        
+	        #
+	        # Configure network interfaces
+	        #   
+	        # Example:
+			#    # interface eth0
+			#    lxc.network.type=veth
+			#    # ifname inside VM
+			#    lxc.network.name = eth0
+			#    # ifname on the host
+			#    lxc.network.veth.pair = lxc1e0
+			#    lxc.network.hwaddr = 02:fd:00:04:01:00
+			#    # bridge if connects to
+			#    lxc.network.link=lxcbr0
+			#    lxc.network.flags=up        
+	       
+	        my $mng_if_exists = 0;
+	        my $mng_if_mac;
+	
+	        # Create vm /etc/network/interfaces file
+	        #my $vm_etc_net_ifs = $vm_lxc_rootfs . "/etc/network/interfaces";
+	        # Backup file, just in case.... 
+	        #$execution->execute( $logp, "cp $vm_etc_net_ifs ${vm_etc_net_ifs}.bak" );
+	        # Add loopback interface        
+	        #$execution->execute( $logp, "echo 'auto lo' > $vm_etc_net_ifs" );
+	        #$execution->execute( $logp, "echo 'iface lo inet loopback' >> $vm_etc_net_ifs" );
+	
+	        foreach my $if ($vm->getElementsByTagName("if")) {
+	            my $id       = $if->getAttribute("id");
+	            my $net      = $if->getAttribute("net");
+	            my $net_type = $dh->get_net_type($net);
+	            my $net_mode = $dh->get_net_mode($net);
+	            my $mac      = $if->getAttribute("mac");
+	            $mac =~ s/,//; # TODO: why is there a comma before mac addresses?
+	
+	            if ( str($net) eq "lo" ) { next }
+	            $execution->execute( $logp, "", *CONFIG_FILE );
+	            $execution->execute( $logp, "# interface eth$id", *CONFIG_FILE );
+	
+	            if ( $net_mode eq "veth") {
+		            $execution->execute( $logp, "lxc.net.$id.type=phys", *CONFIG_FILE );
+	            } else {
+		            $execution->execute( $logp, "lxc.net.$id.type=veth", *CONFIG_FILE );
+		            $execution->execute( $logp, "# ifname on the host", *CONFIG_FILE );
+		            $execution->execute( $logp, "lxc.net.$id.veth.pair=$vm_name-e$id", *CONFIG_FILE );              
+	            }
+		        $execution->execute( $logp, "# ifname inside VM", *CONFIG_FILE );
+		        $execution->execute( $logp, "lxc.net.$id.name=eth$id", *CONFIG_FILE );
+	
+	            $execution->execute( $logp, "# if mac address", *CONFIG_FILE );
+	            $execution->execute( $logp, "lxc.net.$id.hwaddr=$mac", *CONFIG_FILE );
+	            if ($id != 0) {
+	            	if ($net_mode eq "virtual_bridge" and $net ne 'unconnected') {
+		                $execution->execute( $logp, "# name of bridge interface connects to", *CONFIG_FILE );
+		                $execution->execute( $logp, "lxc.net.$id.link=$net", *CONFIG_FILE );
+	            	} elsif ($net_mode eq "veth") {
+	                    $execution->execute( $logp, "# veth link endpoint name", *CONFIG_FILE );
+	                    $execution->execute( $logp, "lxc.net.$id.link=${net}_${vm_name}", *CONFIG_FILE );            		
+	            	}
+	            } 
+	#            else {
+	#
+	#                my $ipv4_tag = $if->getElementsByTagName("ipv4")->item(0);
+	#                my $mask    = $ipv4_tag->getAttribute("mask");
+	#                my $ip      = $ipv4_tag->getFirstChild->getData;
+	#
+	#                my $ip_addr = NetAddr::IP->new($ip, $mask);
+	#	            $execution->execute( $logp, "lxc.network.ipv4=" . $ip_addr->cidr(), *CONFIG_FILE );
+	#            }
+	            
+	            $execution->execute( $logp, "lxc.net.$id.flags=up", *CONFIG_FILE );
+	
+	            #
+	            # Add interface to /etc/network/interfaces
+	            #
+	            #$execution->execute( $logp, "echo 'iface lo inet loopback' >> $vm_etc_net_ifs" );
+	
+	        }                       
+	
+	        # Change to unconfined mode to avoid problems with apparmor if configured in /etc/vnx.conf
+	        if ( $aa_unconfined eq 'yes' ){
+		        $execution->execute( $logp, "", *CONFIG_FILE );
+		        $execution->execute( $logp, "# Set unconfined to avoid problems with apparmor", *CONFIG_FILE );
+		        $execution->execute( $logp, "lxc.apparmor.profile =unconfined", *CONFIG_FILE );
+	            $execution->execute( $logp, "lxc.cgroup.devices.allow = b 7:* rwm", *CONFIG_FILE );
+	            $execution->execute( $logp, "lxc.cgroup.devices.allow = c 10:237 rwm", *CONFIG_FILE );
+	        }
+	        
+	        if ($nested_lxc eq 'yes') {
+		        $execution->execute( $logp, "lxc.mount.auto = cgroup", *CONFIG_FILE );        
+		        #$execution->execute( $logp, "lxc.aa_profile=lxc-container-default-with-nesting", *CONFIG_FILE );        
+		        $execution->execute( $logp, "lxc.apparmor.profile=lxc-container-default-with-netns", *CONFIG_FILE );        
+	        }
+	
+	        close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
-        close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+			# End of new format configuration
+			
+		} else {
+			
+	        # Delete lines with "lxc.utsname" 
+	        $execution->execute( $logp, "sed -i -e '/lxc.utsname/d' $vm_lxc_config" ); 
+	        # Delete lines with "lxc.rootfs" 
+	        $execution->execute( $logp, "sed -i -e '/lxc.rootfs/d' $vm_lxc_config" ); 
+	        # Delete lines with "lxc.fstab" 
+	        $execution->execute( $logp, "sed -i -e '/lxc.mount/d' $vm_lxc_config" ); 
+	        # Delete lines with "lxc.network" 
+	        $execution->execute( $logp, "sed -i -e '/lxc.network/d' $vm_lxc_config" ); 
+	
+	        # Open LXC vm config file
+	        open CONFIG_FILE, ">> $vm_lxc_config" 
+	            or  $execution->smartdie("cannot open $vm_lxc_config file $!" ) 
+	            unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+	                          
+	        # Set vm name: lxc.utsname = $vm_name
+	        $execution->execute( $logp, "", *CONFIG_FILE );
+	        $execution->execute( $logp, "lxc.utsname = $vm_name", *CONFIG_FILE );
+	        
+	        # Set lxc.rootfs: lxc.rootfs = $vm_lxc_dir/rootfs
+	        $execution->execute( $logp, "lxc.rootfs = $vm_lxc_dir/rootfs", *CONFIG_FILE );
+	        
+	        # Create lxc.mount.entry's for shared directories
+	        foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
+	            my $root    = $shared_dir->getAttribute("root");
+	            my $options = $shared_dir->getAttribute("options");
+	            if ($options) { $options .= ',bind' } else { $options = 'bind' };
+	            my $shared_dir_value = text_tag($shared_dir);
+	            $shared_dir_value = get_abs_path($shared_dir_value);
+	#            if (! -d $shared_dir_value) {
+	#            	$execution->execute( $logp, "mkdir -p $shared_dir_value" );
+	#            }            
+	            $root = $vm_lxc_rootfs . "/" . $root;
+	            if (! -d $root) {
+	                $execution->execute( $logp, "mkdir -p $root" );
+	            }            
+	            $execution->execute( $logp, "lxc.mount.entry = $shared_dir_value $root none $options 0 0", *CONFIG_FILE );
+	        }
+	        
+	        unless ($platform[0] eq 'Linux' && ( $platform[1] eq 'Debian') || ( $platform[1] eq 'Debian-VyOS') ) {
+		        # Set lxc.mount: lxc.mount = $vm_lxc_dir/fstab
+		        $execution->execute( $logp, "lxc.mount = $vm_lxc_dir/fstab", *CONFIG_FILE );
+		        $execution->execute( $logp, "touch $vm_lxc_dir/fstab" ) unless (-f "$vm_lxc_dir/fstab");		        
+	        }
+	        
+	
+	        # Configure CPU related attributes
+	        my $vcpu = $vm->getAttribute("vcpu");
+	        if (defined($vcpu) and $vcpu ne '') {
+	            $execution->execute( $logp, "lxc.cgroup.cpuset.cpus = $vcpu", *CONFIG_FILE );
+	        }        
+	        my $vcpu_quota = $vm->getAttribute("vcpu_quota");
+	        if (defined($vcpu_quota)) {
+	        	my $PERIOD = 50000;
+	        	$vcpu_quota =~ s/%//;
+	            $execution->execute( $logp, "lxc.cgroup.cpu.cfs_quota_us = " . int($PERIOD*$vcpu_quota/100), *CONFIG_FILE );
+	            $execution->execute( $logp, "lxc.cgroup.cpu.cfs_period_us = $PERIOD", *CONFIG_FILE );
+	        }        
+	        
+	        # Configure Memory
+	        if( $vm->exists("/create_conf/vm/mem") ){
+	            my $mem = $vm->findnodes("/create_conf/vm/mem")->[0]->getFirstChild->getData;
+	            $mem = $mem/1024;
+	            $execution->execute( $logp, "memory.limit_in_bytes = ${mem}M", *CONFIG_FILE );
+	            # Ex: lxc.cgroup.memory.limit_in_bytes = 256M        
+	        }        
+	        
+	        #
+	        # Configure network interfaces
+	        #   
+	        # Example:
+			#    # interface eth0
+			#    lxc.network.type=veth
+			#    # ifname inside VM
+			#    lxc.network.name = eth0
+			#    # ifname on the host
+			#    lxc.network.veth.pair = lxc1e0
+			#    lxc.network.hwaddr = 02:fd:00:04:01:00
+			#    # bridge if connects to
+			#    lxc.network.link=lxcbr0
+			#    lxc.network.flags=up        
+	       
+	        my $mng_if_exists = 0;
+	        my $mng_if_mac;
+	
+	        # Create vm /etc/network/interfaces file
+	        #my $vm_etc_net_ifs = $vm_lxc_rootfs . "/etc/network/interfaces";
+	        # Backup file, just in case.... 
+	        #$execution->execute( $logp, "cp $vm_etc_net_ifs ${vm_etc_net_ifs}.bak" );
+	        # Add loopback interface        
+	        #$execution->execute( $logp, "echo 'auto lo' > $vm_etc_net_ifs" );
+	        #$execution->execute( $logp, "echo 'iface lo inet loopback' >> $vm_etc_net_ifs" );
+	
+	        foreach my $if ($vm->getElementsByTagName("if")) {
+	            my $id       = $if->getAttribute("id");
+	            my $net      = $if->getAttribute("net");
+	            my $net_type = $dh->get_net_type($net);
+	            my $net_mode = $dh->get_net_mode($net);
+	            my $mac      = $if->getAttribute("mac");
+	            $mac =~ s/,//; # TODO: why is there a comma before mac addresses?
+	
+	            if ( str($net) eq "lo" ) { next }
+	            $execution->execute( $logp, "", *CONFIG_FILE );
+	            $execution->execute( $logp, "# interface eth$id", *CONFIG_FILE );
+	
+	            if ( $net_mode eq "veth") {
+		            $execution->execute( $logp, "lxc.network.type=phys", *CONFIG_FILE );
+	            } else {
+		            $execution->execute( $logp, "lxc.network.type=veth", *CONFIG_FILE );
+		            $execution->execute( $logp, "# ifname on the host", *CONFIG_FILE );
+		            $execution->execute( $logp, "lxc.network.veth.pair=$vm_name-e$id", *CONFIG_FILE );              
+	            }
+		        $execution->execute( $logp, "# ifname inside VM", *CONFIG_FILE );
+		        $execution->execute( $logp, "lxc.network.name=eth$id", *CONFIG_FILE );
+	
+	            $execution->execute( $logp, "# if mac address", *CONFIG_FILE );
+	            $execution->execute( $logp, "lxc.network.hwaddr=$mac", *CONFIG_FILE );
+	            if ($id != 0) {
+	            	if ($net_mode eq "virtual_bridge" and $net ne 'unconnected') {
+		                $execution->execute( $logp, "# name of bridge interface connects to", *CONFIG_FILE );
+		                $execution->execute( $logp, "lxc.network.link=$net", *CONFIG_FILE );
+	            	} elsif ($net_mode eq "veth") {
+	                    $execution->execute( $logp, "# veth link endpoint name", *CONFIG_FILE );
+	                    $execution->execute( $logp, "lxc.network.link=${net}_${vm_name}", *CONFIG_FILE );            		
+	            	}
+	            } 
+	#            else {
+	#
+	#                my $ipv4_tag = $if->getElementsByTagName("ipv4")->item(0);
+	#                my $mask    = $ipv4_tag->getAttribute("mask");
+	#                my $ip      = $ipv4_tag->getFirstChild->getData;
+	#
+	#                my $ip_addr = NetAddr::IP->new($ip, $mask);
+	#	            $execution->execute( $logp, "lxc.network.ipv4=" . $ip_addr->cidr(), *CONFIG_FILE );
+	#            }
+	            
+	            $execution->execute( $logp, "lxc.network.flags=up", *CONFIG_FILE );
+	
+	            #
+	            # Add interface to /etc/network/interfaces
+	            #
+	            #$execution->execute( $logp, "echo 'iface lo inet loopback' >> $vm_etc_net_ifs" );
+	
+	        }                       
+	
+	        # Change to unconfined mode to avoid problems with apparmor if configured in /etc/vnx.conf
+	        if ( $aa_unconfined eq 'yes' ){
+		        $execution->execute( $logp, "", *CONFIG_FILE );
+		        $execution->execute( $logp, "# Set unconfined to avoid problems with apparmor", *CONFIG_FILE );
+		        $execution->execute( $logp, "lxc.aa_profile=unconfined", *CONFIG_FILE );
+	            $execution->execute( $logp, "lxc.cgroup.devices.allow = b 7:* rwm", *CONFIG_FILE );
+	            $execution->execute( $logp, "lxc.cgroup.devices.allow = c 10:237 rwm", *CONFIG_FILE );
+	        }
+	        
+	        if ($nested_lxc eq 'yes') {
+		        $execution->execute( $logp, "lxc.mount.auto = cgroup", *CONFIG_FILE );        
+		        #$execution->execute( $logp, "lxc.aa_profile=lxc-container-default-with-nesting", *CONFIG_FILE );        
+		        $execution->execute( $logp, "lxc.aa_profile=lxc-container-default-with-netns", *CONFIG_FILE );        
+	        }
+	
+	        close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
+
+			# End of old format configuration
+		}
+
+#        # Convert config file to lxc 2.1 format if 2.1 is used (default in ubuntu 17.10 or newer)
+#        my $lxc_vers = `lxc-start --version`;
+#        wlog (VVV, "LXC version: $lxc_vers", $logp);
+#
+#        if ( $lxc_vers =~ /^2\.1/ or $lxc_vers =~ /^3\./) {
+#              wlog (VVV, "Updating $vm_lxc_config to new LXC format", $logp);
+#              #$execution->execute( $logp, $bd->get_binaries_path_ref->{"lxc-update-config"} . " -c $vm_lxc_config");
+#              $execution->execute( $logp, "lxc-update-config -c $vm_lxc_config");
+#        }
 
         # Call the VM autoconfiguration function
         if ($platform[0] eq 'Linux'){

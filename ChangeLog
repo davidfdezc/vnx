@@ -1,3 +1,26 @@
+24/5/2018
+
+- vnx_create_lxc_rootfs.sh: to support new and old LXC config format versions. Now it is copied to /usr/share/vnx/bin directory when installing vnx.
+- vnx_create_kvm_rootfs.sh: updated and copied to /usr/share/vnx/bin/ directory during installation. 
+- vnx.pl: modified to allow multiple controller specification in openvswitch SDN based <net> 
+- vmAPI_libvirt.xml: 
+    - added <storage> tag
+    - added new types libvirt-kvm-cisco y libvirt-kvm-extreme 
+- CheckSemantics: allowed new versions of OpenFlow (1.4-1.6) in <net> controller attribute      
+- Added --ignore-ext option to vnx to ignore "external" attributes in <net> tags
+
+6/5/2018
+
+- modify-rootfs mode: added the line lxc.aa_profile=unconfined to the temp config file in case unconfined option is configured in /etc/vnx.conf.
+- vnx2dot: corrected a bug when using connections between switches with names including '-'
+- vmAPI_lxc: convert LXC config files to 2.1 format in case LXC 2.1 is used (default in Ubuntu 17.10 or newer)
+- bash_completion: added sudo to vnx commands.
+- vmAPI_lxc: unconnected interface functionality added. If an interface is defined with net="unconnected", the interface is created but not connected to any network.
+- vnx: check if ipv6 is disabled to not issue the sysctl commands to disable autoconfiguration.
+- vnx_mount_rootfs: eliminated "-n" option in qemu-nbd and added a call to partx to solve the error "file 
+  system may not support O_DIRECT. qemu-nbd: Failed to blk_new_open ...
+- Implemented the <shareddir> tag for libvirt-kvm
+- LXC: modified vnx.pl and vmAPI_lxc.pm to allow LXC containers with config filers in old and new format.
 
 19/11/2017
 

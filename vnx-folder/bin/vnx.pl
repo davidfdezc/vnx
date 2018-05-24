@@ -7,7 +7,7 @@
 #             Jorge Somavilla (somavilla@dit.upm.es), Jorge Rodriguez (jrodriguez@dit.upm.es), 
 #             Carlos González (carlosgonzalez@dit.upm.es)
 # Coordinated by: David Fernández (david@dit.upm.es)
-# Copyright (C) 2005-2016 DIT-UPM
+# Copyright (C) 2005-2018 DIT-UPM
 #                         Departamento de Ingenieria de Sistemas Telematicos
 #                         Universidad Politecnica de Madrid
 #                         SPAIN
@@ -196,7 +196,7 @@ sub main {
                 'pack=s', 'unpack=s', 'include-rootfs|r', 'pack-external-rootfs', 'pack-status', 'pack-version=s', 'pack-add-files=s{1,}' => \@pack_add_files,               
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'user|u:s', '4', '6', 'D', 'no-console|n', 'intervm-delay=s', 'h2vm-timeout=s',
-                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k', 'video=s'
+                'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k', 'video=s', 'ignore-ext'
     ) or vnx_die("Incorrect usage. Type 'vnx -h' for help"); 
 
     # Get OS data from /etc/os-release
@@ -300,6 +300,14 @@ sub main {
    		$vnxConfigFile = $DEFAULT_CONF_FILE;
    	}
    	pre_wlog ("  CONF file: $vnxConfigFile") if (!$opts{b});
+   
+	if ( system('test -f /proc/net/if_inet6') ) {
+    	$ipv6_enabled = 0;
+    	pre_wlog ("  IPv6 enabled: no") if (!$opts{b});
+	} else {
+    	$ipv6_enabled = 1;
+    	pre_wlog ("  IPv6 enabled: yes") if (!$opts{b});
+	}
    
 # change_to_root() # root permissions needed to read main config file
 $>=0;
@@ -1373,6 +1381,12 @@ sub make_vmAPI_doc {
     $vm_tag->setAttribute( subtype => $type[2] );
     $vm_tag->setAttribute( os => $type[2] );
 
+    # os_subtype attribute if available      
+    my $os_subtype = $vm->getAttribute("os_subtype");
+    if (not empty($os_subtype)) { 
+    	$vm_tag->setAttribute( os_subtype => $os_subtype );
+    }
+
     # exec mode attribute      
     my $exec_mode   = $dh->get_vm_exec_mode($vm);
     $vm_tag->setAttribute( exec_mode => $exec_mode );
@@ -1427,9 +1441,23 @@ sub make_vmAPI_doc {
     $fs_tag->addChild($dom->createAttribute( type => $filesystem_type));
     $fs_tag->addChild($dom->createTextNode($filesystem));
 
+    # <storage> tags
+    foreach my $storage ($vm->getElementsByTagName("storage")) {
+        unless ($type[0] eq 'libvirt') {
+            wlog (N, "WARNING: <storage> tag not supported for VM '$vm_name' of type '$type[0]'");
+            next;
+        }
+        my $type = $storage->getAttribute("type");
+	    my $storage_image = text_tag($storage);
+        my $storage_tag = $dom->createElement('storage');
+        $vm_tag->addChild($storage_tag);
+        $storage_tag->addChild($dom->createTextNode($storage_image));
+        $storage_tag->addChild($dom->createAttribute( type => $type ));
+    }       
+
     # shareddir tags
     foreach my $shared_dir ($vm->getElementsByTagName("shareddir")) {
-        unless ($type[0] eq 'lxc') {
+        unless ($type[0] eq 'lxc' or $type[0] eq 'libvirt') {
             wlog (N, "WARNING: <shareddir> tag not supported for VM '$vm_name' of type '$type[0]'");
             next;
         }
@@ -2479,7 +2507,7 @@ change_to_root();
                 #$execution->execute($logp, $nmcli . " dev disconnect iface ${vm_name}-e0" );                
             }
             # Disable IPv6 autoconfiguration in interface
-            $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e0.autoconf=0" );
+            $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e0.autoconf=0" ) if ($ipv6_enabled);
     
             # Configure management IP address
             unless ($dh->get_vmmgmt_type eq 'net') {
@@ -2508,7 +2536,7 @@ change_to_root();
             if ($id eq 0 || $dh->get_net_mode($net) eq 'veth' ) { next }
 
             # Disable IPv6 autoconfiguration in interface
-            $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e${id}.autoconf=0" );
+            $execution->execute($logp, "sysctl -w net.ipv6.conf.${vm_name}-e${id}.autoconf=0" ) if ($ipv6_enabled);
 
             # Prevent Network manager (if running) from managing VM interfaces
             unless ( ! $nm_running  or 
@@ -2737,7 +2765,7 @@ sub set_link_mtu {
             next if ($if->getAttribute("net") eq "vm_mgmt");
             # Set MTU if specified in "mtu" attribute of <net> tag
             my $net = get_net_by_mode($if->getAttribute("net"), "*");
-            if($net->getAttribute("mtu") ){
+            if( $net != 0 and $net->getAttribute("mtu") ){
                 my $mtu = $net->getAttribute("mtu");
                 my $if_id = $if->getAttribute("id");
                 my $port_name="$vm_name"."-e"."$if_id";
@@ -2765,7 +2793,8 @@ sub connect_ovs_to_controllers {
         my $mode        = $net->getAttribute("mode");
         if ($mode eq "openvswitch") {
             if($net->getAttribute("controller") ){
-                my $controller = $net->getAttribute("controller");
+                my $controller = $net->getAttribute("controller"); 
+                $controller =~ tr/,/ /; # translate comma separated list into space separated list 
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set-controller $net_name $controller");
             }
         }
@@ -4027,7 +4056,7 @@ back_to_user();
             $rootfs_type = 'lxc';   
 
     		# Get the rootfs directory pointed by config file 
-    		my $lxc_rootfs_config_line = `cat $rootfs/config | grep '^lxc.rootfs'`;
+    		my $lxc_rootfs_config_line = `cat $rootfs/config | grep '^lxc.rootfs' | sed -e 's/dir://' `;
     		chomp ($lxc_rootfs_config_line);
             my @fields = split /=/, $lxc_rootfs_config_line; 
             my $rootfs_dir = $fields[1];
@@ -4040,35 +4069,68 @@ back_to_user();
             
             # And check if it points to the rootfs directory under $rootfs to avoid stupid errors 
             # when copying or moving LXC images...
-            unless ( `stat -c "%d:%i" $rootfs/rootfs` eq `stat -c "%d:%i" $rootfs_dir`) {
-                pre_wlog ("$hline\nWARNING!\nlxc.rootfs line in LXC config file:\n" . 
-                          "  $lxc_rootfs_config_line\ndoes not point to rootfs subdirectory under the directory specified:\n  $rootfs/rootfs\n$hline");
-
-                # Create temporal config file
-                my $abs_rootfs = $rootfs;
-                unless ( valid_absolute_directoryname($rootfs) ) {
-                    $abs_rootfs = getcwd() . "/$rootfs";
-                } 
-                pre_wlog ("rootfs=$rootfs,abs_rootfs=$abs_rootfs");
-                $lxc_config_file = 'tmpconfig';
-                $execution->execute( $logp, "cp $rootfs/config $rootfs/$lxc_config_file" ); 
-                $execution->execute( $logp, "sed -i -e '/lxc.rootfs/d' $rootfs/$lxc_config_file" ); 
-                $execution->execute( $logp, "sed -i -e '/lxc.mount/d' $rootfs/$lxc_config_file" ); 
-                $execution->execute( $logp, "echo 'lxc.rootfs = $abs_rootfs/rootfs' >> $rootfs/$lxc_config_file" ); 
-                $execution->execute( $logp, "echo 'lxc.mount = $abs_rootfs/fstab' >> $rootfs/$lxc_config_file" ); 
-
-			    #my $answer;
-			    #unless ($opts{'yes'}) {
-			    #    print ("Do you want to continue (yes/no)? ");
-			    #    $answer = readline(*STDIN);
-			    #} else {
-			    #    $answer = 'yes'; 
-			    #}
-			    #unless ( $answer =~ /^yes/ ) {
-			    #    pre_wlog ("Exiting...\n$hline");
-			    #    exit;
-			    #}
+            unless ( `stat -c "%d:%i" $rootfs/rootfs 2> /dev/null` eq `stat -c "%d:%i" $rootfs_dir 2> /dev/null`) {
+                wlog (V, "$hline\nWARNING!\nlxc.rootfs line in LXC config file:\n" . 
+                          "  $lxc_rootfs_config_line\ndoes not point to rootfs subdirectory under the directory specified:\n  $rootfs/rootfs\n$hline", $logp);
             }
+
+            # Create temporal config file. We do not modify the original config file...
+            my $abs_rootfs = $rootfs;
+            unless ( valid_absolute_directoryname($rootfs) ) {
+                $abs_rootfs = getcwd() . "/$rootfs";
+            } 
+            pre_wlog ("rootfs=$rootfs,abs_rootfs=$abs_rootfs");
+            $lxc_config_file = 'tmpconfig';
+            $execution->execute( $logp, "cp $rootfs/config $rootfs/$lxc_config_file" );
+            
+            # Check lxc version to adapt the config file if needed
+        	my $lxc_vers = `lxc-start --version`;
+        	wlog (V, "System LXC version: $lxc_vers", $logp);
+
+			my $exit = system("grep -q lxc.rootfs.path $rootfs/$lxc_config_file");
+			#print "res=$exit\n";
+			my $lxc_configfile_vers;
+			if ($exit) { $lxc_configfile_vers = 'old' } else { $lxc_configfile_vers = 'new' }
+
+			my $lxc_format;
+
+        	if ( $lxc_vers =~ /^2\.1/ or $lxc_vers =~ /^3\./) {
+        		$lxc_format = 'new';
+				if ( $lxc_configfile_vers eq 'old' ) {
+        			wlog (V, "LXC config file in old format. Converting to new format.", $logp);
+		        	my $res = $execution->execute( $logp, "vnx_convert_lxc_config -q -n $rootfs/$lxc_config_file" );
+				}
+        	} else {
+        		$lxc_format = 'old';
+				if ( $lxc_configfile_vers eq 'new' ) {
+        			wlog (V, "LXC config file in new format. Converting to old format.", $logp);
+		        	my $res = $execution->execute( $logp, "vnx_convert_lxc_config -q -o $rootfs/$lxc_config_file" );
+				}
+        	}
+        	wlog (V, "Config file LXC version: $lxc_vers ($lxc_format format)", $logp);
+            
+            if ($lxc_format eq 'new') {
+	            $execution->execute( $logp, "sed -i -e '/lxc\.rootfs\.path/d' $rootfs/$lxc_config_file" ); 
+	            $execution->execute( $logp, "sed -i -e '/lxc\.mount/d' $rootfs/$lxc_config_file" ); 
+	            $execution->execute( $logp, "echo 'lxc.rootfs.path = $abs_rootfs/rootfs' >> $rootfs/$lxc_config_file" ); 
+	            $execution->execute( $logp, "echo 'lxc.mount.fstab = $abs_rootfs/fstab' >> $rootfs/$lxc_config_file" ); 
+				# Check if aa_unconfined is set on /etc/vnx.conf to add the corresponding line in config file
+				my $aa_unconfined = get_conf_value ($vnxConfigFile, 'lxc', 'aa_unconfined', 'root');
+				if ( not empty($aa_unconfined) and ($aa_unconfined eq 'yes') ) {
+					$execution->execute( $logp, "echo 'lxc.apparmor.profile=unconfined' >> $rootfs/$lxc_config_file" ); 
+				}
+    		} else {
+	            $execution->execute( $logp, "sed -i -e '/lxc\.rootfs/d' $rootfs/$lxc_config_file" ); 
+	            $execution->execute( $logp, "sed -i -e '/lxc\.mount/d' $rootfs/$lxc_config_file" ); 
+	            $execution->execute( $logp, "echo 'lxc.rootfs = $abs_rootfs/rootfs' >> $rootfs/$lxc_config_file" ); 
+	            $execution->execute( $logp, "echo 'lxc.mount = $abs_rootfs/fstab' >> $rootfs/$lxc_config_file" );
+				# Check if aa_unconfined is set on /etc/vnx.conf to add the corresponding line in config file
+				my $aa_unconfined = get_conf_value ($vnxConfigFile, 'lxc', 'aa_unconfined', 'root');
+				if ( not empty($aa_unconfined) and ($aa_unconfined eq 'yes') ) {
+					$execution->execute( $logp, "echo 'lxc.aa_profile=unconfined' >> $rootfs/$lxc_config_file" ); 
+				}
+    		}
+            $execution->execute( $logp, "touch $abs_rootfs/fstab" ) unless (-f "$abs_rootfs/fstab"); 
     	} else {
 	        # Set it to default value
 	        $rootfs_type = 'libvirt-kvm';   
@@ -4137,6 +4199,9 @@ back_to_user();
         
         # Check if LXC config file exists
         vnx_die ("ERROR: cannot start LXC VM. Config file (" . $rootfs . "/$lxc_config_file) not found." ) unless (-f $rootfs . "/$lxc_config_file");
+
+		# Rename temporarily the config file to config.bak
+        my $res = $execution->execute( $logp, "mv $rootfs/config $rootfs/config.bak" );
         
         # Generate random id (http://answers.oreilly.com/topic/416-how-to-generate-random-numbers-in-perl/)
         my @chars = ( "A" .. "Z", "a" .. "z", 0 .. 9 );
@@ -4144,12 +4209,14 @@ back_to_user();
         my $container_id = basename $rootfs;
 
         pre_wlog ("...$container_id");
-
-        my $res = $execution->execute( $logp, "lxc-start -F -n $container_id -f $rootfs/$lxc_config_file -P " . abs_path("$rootfs/..") );
+                
+        $res = $execution->execute( $logp, "lxc-start -F -n $container_id -f $rootfs/$lxc_config_file -P " . abs_path("$rootfs/..") );
         #my $res = $execution->execute( $logp, "lxc-start -F -n vnx-$id -f $rootfs/$lxc_config_file");
         if ($res) { 
             wlog (N, "$res", $logp)
         }
+		# Rename bak the config file
+        $execution->execute( $logp, "mv $rootfs/config.bak $rootfs/config" );
             
     } elsif ( $rootfs_type eq 'libvirt-kvm' ) {
 
@@ -4749,6 +4816,7 @@ sub configure_switched_networks {
         my $sock     = $net->getAttribute("sock");
         unless (empty($sock)) { $sock = do_path_expansion($sock) };
         my $external_if = $net->getAttribute("external");
+        if ($opts{'ignore-ext'}) { $external_if=''}
         my $vlan     = $net->getAttribute("vlan");
         $command     = $net->getAttribute("uml_switch_binary");
 
@@ -4993,6 +5061,7 @@ sub create_bridges_for_virtual_bridged_networks  {
         my $net_name    = $net->getAttribute("name");
         my $mode        = $net->getAttribute("mode");
         my $external_if = $net->getAttribute("external");
+        if ($opts{'ignore-ext'}) { $external_if=''}        
         my $vlan        = $net->getAttribute("vlan");
         my $managed     = $net->getAttribute("managed");
 
@@ -5060,7 +5129,7 @@ sub create_bridges_for_virtual_bridged_networks  {
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $brtap_name up");
                 
                 # Disable IPv6 autoconfiguration in bridge
-                $execution->execute($logp, "sysctl -w net.ipv6.conf.${brtap_name}.autoconf=0" );
+                $execution->execute($logp, "sysctl -w net.ipv6.conf.${brtap_name}.autoconf=0" ) if ($ipv6_enabled);
                 
                 # Set MTU if specified in "mtu" attribute of <net> tag
                 if($net->getAttribute("mtu") ){
@@ -5134,7 +5203,7 @@ sub create_bridges_for_virtual_bridged_networks  {
 	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $net_name up");      
 	            
 	            # Disable IPv6 autoconfiguration in bridge
-	            $execution->execute($logp, "sysctl -w net.ipv6.conf.${net_name}.autoconf=0" );
+	            $execution->execute($logp, "sysctl -w net.ipv6.conf.${net_name}.autoconf=0" ) if ($ipv6_enabled);
             }       
         }
         
@@ -6246,6 +6315,7 @@ sub external_if_remove {
 
         # We check if there is an associated external interface
         my $external_if = $net->getAttribute("external");
+        if ($opts{'ignore-ext'}) { $external_if=''}        
         next if (empty($external_if));
 
         # To check if VLAN is being used
@@ -7948,6 +8018,8 @@ General options:
   --h2vm-timeout num -> maximum time VNX waits for an answer form a VM in 
                 h2vm socket channel 
   -o logfile -> save log traces to 'logfile'
+  --ignore-ext -> Ignore external attribute in <net> tags
+  
 
 User options:
   -u user -> Defines the user VNX is (mostly) run as. By now, VNX has to be
@@ -7976,7 +8048,7 @@ Options specific to create|modify-rootfs modes:
   --mem           -> memory to assign to the VM being created or modified (e.g. 512M or 1G)
   --arch          -> architecture (i686 or x86_64) of the VM being created or modified
   --vcpu          -> number of virtual cpus to assign to the VM being created or modified (>=1)
-
+  --skip-cloudinit-> skip cloudinit initialization during startup
 EOF
 
 print "$usage\n";   

@@ -116,8 +116,8 @@ foreach my $net ($dom->getElementsByTagName ("net")) {
     my $name = $net->getAttribute ("name");
     next if ($name eq "virbr0" || $name eq "lxcbr0");  # Ignore VM connections to external networks 
                                                        # through virbr0 or lxcbr0 to avoid distorting the map
-    my $name2 = $name;
-    $name2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
+    my $tr_name = $name;
+    $tr_name =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
     my $net_mode = $net->getAttribute ("mode");
     my $net_type = $net->getAttribute ("type");
     if ($net_mode eq 'virtual_bridge') {
@@ -136,20 +136,25 @@ foreach my $net ($dom->getElementsByTagName ("net")) {
         $net_mode = '??'
     }
     if ($net_type eq 'p2p') {
-        print "$name2 [label=\"$name\\n($net_mode)\", shape=\"point\", " . 
+        print "$tr_name [label=\"$name\\n($net_mode)\", shape=\"point\", " . 
               "fontsize=\"$net_fontsize\", fontstyle=\"bold\", colorscheme=\"$color_scheme\", color=\"$net_color\", style=\"$net_style\" ];\n" ;
     } else {
-        print "$name2 [label=\"$name\\n($net_mode)\", shape=\"$net_shape\", " . 
+        print "$tr_name [label=\"$name\\n($net_mode)\", shape=\"$net_shape\", " . 
               "fontsize=\"$net_fontsize\", fontstyle=\"bold\", colorscheme=\"$color_scheme\", color=\"$net_color\", style=\"$net_style\" ];\n" ;
     }
 }
 
+print "// Connections between switches\n" ;
 # Draw level 2 connections between switches
 foreach my $net ($dom->getElementsByTagName ("net")) {
     my $name = $net->getAttribute ("name");
+    my $tr_name = $name;
+    $tr_name =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
     
     foreach my $conn ($net->getElementsByTagName ("connection")) {
         my $net2 = $conn->getAttribute ("net");
+		my $tr_net2 = $net2;
+    	$tr_net2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
 
         if ($conn->getElementsByTagName("vlan")) {
             my @vlan=$conn->getElementsByTagName("vlan");
@@ -164,9 +169,9 @@ foreach my $net ($dom->getElementsByTagName ("net")) {
             if ( (str($vlan[0]->getAttribute("trunk")) eq 'yes') || ( $vlan_tag_list =~ m/,/ ) ) { 
                 $trunk = 'trunk:';   
             }
-            print "$name -- $net2 [ label = \"vlans=[$trunk$vlan_tag_list]\", fontsize=\"8\" ]; \n"; 
+            print "$name -- $tr_net2 [ label = \"vlans=[$trunk$vlan_tag_list]\", fontsize=\"8\" ]; \n"; 
         } else {
-            print "$name -- $net2 [ label = \"vlans=[*]\", fontsize=\"8\" ]; \n"; 
+            print "$name -- $tr_net2 [ label = \"vlans=[*]\", fontsize=\"8\" ]; \n"; 
         }        
     }
 }
@@ -178,8 +183,8 @@ print "\n\n// Virtual machines \n" ;
 
 foreach my $vm ($dom->getElementsByTagName ("vm")) {
     my $vmname = $vm->getAttribute ("name");
-    my $vmname2 = $vmname;
-    $vmname2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
+    my $tr_vmname = $vmname;
+    $tr_vmname =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
     my $type = $vm->getAttribute ("type");
     my $subtype = $vm->getAttribute ("subtype");
     my $os = $vm->getAttribute ("os");
@@ -227,16 +232,16 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
         $vm_legend{"nsrouter"} = "Name spaces based router"
     }       
     print "\n// Virtual machine $vmname\n" ;
-    print "$vmname2 [label=\"$vmname \\n($ctype)\", shape=\"$vm_shape\", " . 
+    print "$tr_vmname [label=\"$vmname \\n($ctype)\", shape=\"$vm_shape\", " . 
           "fontsize=\"$vm_fontsize\", colorscheme=\"$color_scheme\", color=\"$vm_color\", style=\"$vm_style\", margin=\"0\" ] ;\n" ;
-#    print "$vmname2 [label=\"$vmname\", shape=\"circle\", fontcolor=\"$font_color\", " . 
+#    print "$tr_vmname [label=\"$vmname\", shape=\"circle\", fontcolor=\"$font_color\", " . 
 #          "colorscheme=\"$color_scheme\", color=\"$vm_color\", style=\"filled\" ] ;\n" ;
 
     foreach my $if ($vm->getElementsByTagName ("if")) {
         my $id = $if->getAttribute ("id");
         my $net = $if->getAttribute ("net");
-	    my $net2 = $net;
-    	$net2 =~ tr/-/_/;        
+	    my $tr_net = $net;
+    	$tr_net =~ tr/-/_/;        
         #print "  if: $id $net \n";
 
         if ($id == 0) { next } # Skip management interfaces
@@ -247,9 +252,9 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
 
         if ($net eq 'virbr0' || $net eq 'lxcbr0') {
 #            print "${net}_${vmname} [shape=\"point\", width=0.15, label=\"$net\", tooltip=\"Connection to external bridge ($net)\"];";
-            my $vmname2 = $vmname;
-            $vmname2 =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
-            print "${net}_${vmname2} [shape=\"$net_shape\", width=0.15, label=\"$net\", tooltip=\"Connection to external bridge ($net)\", " .
+            my $tr_vmname = $vmname;
+            $tr_vmname =~ tr/-/_/;    # Graphviz id's do not admit "-"; we translate to "_"
+            print "${net}_${tr_vmname} [shape=\"$net_shape\", width=0.15, label=\"$net\", tooltip=\"Connection to external bridge ($net)\", " .
                    "fontsize=\"$net_fontsize_small\", fontstyle=\"bold\", colorscheme=\"$color_scheme\", color=\"$net_color2\", style=\"$net_style\" ];";
         };
 
@@ -281,17 +286,17 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
             }
             print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
             #print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"9\", style=\"bold\" ];\n" ;
-            print "$vmname2 -- $net2  [ label = \"$ipaddrs\\nvlans=[$trunk$vlan_tag_list]\", fontsize=\"$edge_fontsize\" ];\n" ;            
+            print "$tr_vmname -- $tr_net  [ label = \"$ipaddrs\\nvlans=[$trunk$vlan_tag_list]\", fontsize=\"$edge_fontsize\" ];\n" ;            
         } else {
             if ($net eq 'lo') {
 	            print "//   interface $id with IP addresses $ipaddrs connected to network $net\n" ;
-	            print "$vmname2 -- lo_$vmname [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\", len=\"0.8\" ];\n" ;                        
+	            print "$tr_vmname -- lo_$vmname [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\", len=\"0.8\" ];\n" ;                        
             } elsif ($net eq 'virbr0' || $net eq 'lxcbr0') {
                 print "//   interface $id with IP addresses $ipaddrs connected to network $net\n" ;
-                print "$vmname2 -- ${net}_${vmname2} [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\", len=\"0.8\" ];\n" ;                        
+                print "$tr_vmname -- ${net}_${tr_vmname} [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\", len=\"0.8\" ];\n" ;                        
             } else {
 	            print "//   interface $id with IP addresses $ipaddrs connected to network $net\n" ;
-	            print "$vmname2 -- $net2  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;                        
+	            print "$tr_vmname -- $tr_net  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;                        
             }            
         }        
         
@@ -318,8 +323,8 @@ foreach my $hostif (@hostifs) {
 
     my $id = $hostif->getAttribute ("id");
     my $net = $hostif->getAttribute ("net");
-    my $net2 = $net;
-   	$net2 =~ tr/-/_/;        
+    my $tr_net = $net;
+   	$tr_net =~ tr/-/_/;        
 
     my $ipaddrs;
     foreach my $ipv4s ($hostif->getElementsByTagName ("ipv4")) {    	
@@ -345,10 +350,10 @@ foreach my $hostif (@hostifs) {
             $trunk = 'trunk:';   
         }
         print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
-        print "host$i -- $net2  [ label = \"$ipaddrs\\nvlans=[$trunk$vlan_tag_list]\", fontsize=\"$edge_fontsize\" ];\n" ;
+        print "host$i -- $tr_net  [ label = \"$ipaddrs\\nvlans=[$trunk$vlan_tag_list]\", fontsize=\"$edge_fontsize\" ];\n" ;
     } else {
         print "//   if $id with IP addresses $ipaddrs connected to network $net\n" ;
-        print "host$i -- $net2  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;
+        print "host$i -- $tr_net  [ label = \"$ipaddrs\", fontsize=\"$edge_fontsize\" ];\n" ;
     }        
     
     $i++;

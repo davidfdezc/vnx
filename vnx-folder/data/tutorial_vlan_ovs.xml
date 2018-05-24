@@ -51,8 +51,8 @@ SPAIN
   <net name="Net2" mode="openvswitch" />
 
   <!-- NODES -->
-  <vm name="h1" type="lxc" subtype="" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+  <vm name="h1" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_ubuntu64</filesystem>
     <mem>512M</mem>
     <if id="1" net="Net0" >
 	   <vlan>
@@ -66,8 +66,8 @@ SPAIN
     
   </vm>
   
-  <vm name="h2" type="lxc" subtype="" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+  <vm name="h2" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_ubuntu64</filesystem>
     <mem>512M</mem>
     <if id="1" net="Net0" >
       <vlan>
@@ -81,8 +81,8 @@ SPAIN
     
   </vm>
   
-  <vm name="h3" type="lxc" subtype="" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+  <vm name="h3" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_ubuntu64</filesystem>
     <if id="1" net="Net1" >
       <vlan>
 	    <tag id='1'/>
@@ -95,8 +95,8 @@ SPAIN
     
   </vm>
   
-  <vm name="h4" type="lxc" subtype="" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+  <vm name="h4" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_ubuntu64</filesystem>
     <if id="1" net="Net1" >
       <vlan>
         <tag id='3'/>
@@ -109,8 +109,8 @@ SPAIN
     
   </vm>
   
-  <vm name="h5" type="lxc" subtype="" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+  <vm name="h5" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_ubuntu64</filesystem>
     <if id="1" net="Net2" >
       <vlan>
         <tag id='3'/>
@@ -123,8 +123,8 @@ SPAIN
     
   </vm>
   
-  <vm name="h6" type="lxc" subtype="" os="">
-    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
+  <vm name="h6" type="lxc" arch="x86_64">
+    <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc_ubuntu64</filesystem>
     <if id="1" net="Net2" >
       <vlan>
 		<tag id='1'/>

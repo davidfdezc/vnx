@@ -80,7 +80,8 @@ i=1          # counter of args processed
 #   9  -> Cannot connect $dev device to rootfs $rootfs
 #   10 -> Cannot mount $dev on $mountdir
 #   11 -> Cannot unmount $mountdir
-#   12 -> Cannot free nbd block device"
+#   12 -> Cannot free nbd block device
+#   13 -> Error executing 'part -a $dev'
 
 
 #
@@ -317,13 +318,23 @@ if [[ $umount == "no" ]]; then
             fi
         done
         write_msg "Using $dev" 
-        write_msg "qemu-nbd -n -c $dev $rootfs"
-        if ! qemu-nbd -n -c $dev "$rootfs"; then 
+        #write_msg "qemu-nbd -n -c $dev $rootfs"
+        write_msg "qemu-nbd -c $dev $rootfs"
+        #if ! qemu-nbd -n -c $dev "$rootfs"; then 
+        if ! qemu-nbd -c $dev "$rootfs"; then 
             write_msg ""
             write_msg "ERROR. Cannot connect $dev device to rootfs $rootfs."
             qemu-nbd -d $dev
             exit 9
         fi
+        # some time partition devices are not created, we use partx for that
+        if ! partx -a $dev; then 
+            write_msg ""
+            write_msg "ERROR executing 'part -a $dev'"
+            qemu-nbd -d $dev
+            exit 13
+		fi
+
         #read -p "Press any key..."
         sleep 1
 
