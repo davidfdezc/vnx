@@ -3,7 +3,7 @@
 # This file is a module part of VNX package.
 #
 # Author: David Fernández (david@dit.upm.es)
-# Copyright (C) 2015,   DIT-UPM
+# Copyright (C) 2018,   DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -188,6 +188,19 @@ sub autoconfigure_debian_ubuntu {
                     push (@ipv4_mask_list, $mask);
                 }
             }
+
+            # Include in the interface configuration the IPv4 routes that point to it
+            for (my $i = 0 ; $i < @ipv4_routes ; $i++){
+                my $route = $ipv4_routes[$i];
+                chomp($route); 
+                for (my $j = 0 ; $j < @ipv4_addr_list ; $j++) {
+                    my $ipv4_route_gw = new NetAddr::IP $ipv4_routes_gws[$i];
+                    if ($ipv4_route_gw->within(new NetAddr::IP $ipv4_addr_list[$j], $ipv4_mask_list[$j])) {
+                        print INTERFACES $route . "\n";
+                    }
+                }
+            }           
+
             # Config IPv6 addresses
             for ( my $j = 0 ; $j < @ipv6_tag_list ; $j++ ) {
 
@@ -212,21 +225,7 @@ sub autoconfigure_debian_ubuntu {
                 }
             }
 
-            #
-            # Include in the interface configuration the routes that point to it
-            #
-            # IPv4 routes
-            for (my $i = 0 ; $i < @ipv4_routes ; $i++){
-                my $route = $ipv4_routes[$i];
-                chomp($route); 
-                for (my $j = 0 ; $j < @ipv4_addr_list ; $j++) {
-                    my $ipv4_route_gw = new NetAddr::IP $ipv4_routes_gws[$i];
-                    if ($ipv4_route_gw->within(new NetAddr::IP $ipv4_addr_list[$j], $ipv4_mask_list[$j])) {
-                        print INTERFACES $route . "\n";
-                    }
-                }
-            }           
-            # IPv6 routes
+            # Include in the interface configuration the IPv6 routes that point to it
             for (my $i = 0 ; $i < @ipv6_routes ; $i++){
                 my $route = $ipv6_routes[$i];
                 chomp($route); 
@@ -430,6 +429,7 @@ sub autoconfigure_redhat {
         print IF_FILE "TYPE=Ethernet\n";
         #print IF_FILE "BOOTPROTO=none\n";
         print IF_FILE "ONBOOT=yes\n";
+        print IF_FILE "NOZEROCONF=yes\n";
         if ($os_type eq 'fedora') { 
             print IF_FILE "NAME=\"Auto $if_name\"\n";
         } elsif ($os_type eq 'centos') { 

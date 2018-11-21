@@ -1,3 +1,17 @@
+22/11/2018
+
+- vmAPI_lxc: included code to guess the name of overlay filesystem (overlayfs in old systems or overlay in new ones) 
+- <connection> tag: added support for connections between virtualbridges and openvswitches.
+- vmAPI_libvirt: added an offset to $VNX::Globals::H2VM_PORT calculated from the scenario name to reduce the 
+  probability of conflicts when choosing h2vm tcp ports
+- vmAPI_libvirt: shutdown support for extreme switches and cisco routers (just a destroy) 
+- vmAPI_libvirt: flash images are recreated each time the router starts to avoid the problem that the configuration is not loaded 
+  after the first startup.
+- vmAPI_lxc: symbolic links in /var/lib/lxc are deleted in define_vm if they do not point to an existing directory
+- vnx_autoconfiguration: change the order of IPv4 and IPv6 routes to avoid problems when IPv6 is disabled.
+- CheckSemantics: added detection of duplicate inter-switch connection names
+- vmAPI_libvirt: added "addr=0x1F" to management interface definition to move it to a higher pci slot and avoid conflicts with other devices 
+
 24/5/2018
 
 - vnx_create_lxc_rootfs.sh: to support new and old LXC config format versions. Now it is copied to /usr/share/vnx/bin directory when installing vnx.
@@ -21,6 +35,10 @@
   system may not support O_DIRECT. qemu-nbd: Failed to blk_new_open ...
 - Implemented the <shareddir> tag for libvirt-kvm
 - LXC: modified vnx.pl and vmAPI_lxc.pm to allow LXC containers with config filers in old and new format.
+- Added --pack-excl-files option to --pack mode
+- Added support for vxlan tunnel in OPen vSwitch bridges
+- vnx_convert_lxc: added translation of lxc.aa_profile into lxc.apparmor.profile 
+- vmAPI_lxc: added "-l 5" option to lxc-start to show debug messages
 
 19/11/2017
 

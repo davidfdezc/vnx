@@ -311,9 +311,12 @@ e-mail: vnx@dit.upm.es
        <xs:sequence>
           <xs:element minOccurs="0" ref="vlan"/>  
    </xs:sequence>
-      <xs:attribute name="net" type="xs:string" use="required"/>
+      <xs:attribute name="net" type="xs:string" use="optional"/>
       <xs:attribute name="name" type="xs:string" use="required"/>
       <xs:attribute name="type" type="bridge-conn-type" use="optional"/>
+      <xs:attribute name="host" type="xs:string" use="optional"/>
+      <xs:attribute name="dst_port" type="xs:string" use="optional"/>
+      <xs:attribute name="src_port" type="xs:string" use="optional"/>
     </xs:complexType>
   </xs:element>
 
@@ -321,6 +324,7 @@ e-mail: vnx@dit.upm.es
     <xs:restriction base="xs:string">
       <xs:enumeration value="ovs-patch"/>
       <xs:enumeration value="veth"/>
+      <xs:enumeration value="vxlan"/>
     </xs:restriction>
   </xs:simpleType>
 

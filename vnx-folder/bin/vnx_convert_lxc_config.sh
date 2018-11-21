@@ -63,6 +63,7 @@ while getopts ":hqn:o:" opt; do
              -e 's/lxc.network.type\s*=/lxc.net.0.type =/g' -e 's/lxc.network.link\s*=/lxc.net.0.link =/g' \
              -e 's/lxc.network.flags\s*=/lxc.net.0.flags =/g' -e 's/lxc.network.hwaddr\s*=/lxc.net.0.hwaddr =/g' \
              -e '/lxc.rootfs.backend\s*=.*/d' \
+             -e 's/lxc.aa_profile\s*=/lxc.apparmor.profile =/g' \
              $OPTARG
       ;;
     o)
@@ -76,6 +77,7 @@ while getopts ":hqn:o:" opt; do
              -e 's/lxc.mount\s*=/lxc.mount.fstab =/g ' -e 's/lxc.tty.max\s*=/lxc.tty =/g' \
              -e 's/lxc.net.0.type\s*=/lxc.network.type =/g' -e 's/lxc.net.0.link\s*=/lxc.network.link =/g' \
              -e 's/lxc.net.0.flags\s*=/lxc.network.flags =/g' -e 's/lxc.net.0.hwaddr\s*=/lxc.network.hwaddr =/g' \
+             -e 's/lxc.apparmor.profile\s*=/lxc.aa_profile =/g' \
              $OPTARG
       ;;
     h)

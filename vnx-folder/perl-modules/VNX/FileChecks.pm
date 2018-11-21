@@ -97,16 +97,21 @@ sub valid_absolute_filename {
 
 # do_path_expansion
 #
-# performs tilde (and wildcard) expansion and returns the expansion
+# performs tilde expansion
+# Comented: (and wildcard) expansion and returns the expansion
 # if there is more than one match, then it will return just the first
 #
 
 sub do_path_expansion {
     my $fname = shift;
+#print $fname . " -> ";    
     $fname =~ s#~/#~$uid_name/#;
+#    $fname = `readlink -f $fname`; 
+    #chomp($fname);
+#print $fname . "\n";    
     my @list = bsd_glob($fname, GLOB_TILDE | GLOB_NOCHECK | GLOB_ERR );	
-#	my @list = bsd_glob(shift, GLOB_TILDE | GLOB_NOCHECK | GLOB_ERR );
 	return $list[0];
+	#return $fname;
 }
 
 # get_conf_value 
@@ -245,7 +250,7 @@ if (defined($root)) {
 #   Converts a relative path to absolute following VNX rules:
 #     - if <basedir> tag is specified, then the path is relative to <basedir> value
 #     - if <basedir> tag is NOT specified, then the path is relative to the XML file location
-#   Besides, it performs tilde (and wildcard) expansion calling do_path_expansion 
+#   Besides, it performs tilde expansion calling do_path_expansion 
 #   If the path is already absolute, it does not modify it (only the mentioned expansion).
 # 
 # Arguments:

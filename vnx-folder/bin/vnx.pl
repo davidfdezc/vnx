@@ -162,8 +162,9 @@ my @opt_rootfstype_modes = ('create-rootfs', 'modify-rootfs');
 # To store command in "exe-cli" mode
 my @exe_cli;
 
-# To store files specified in pack-add-files option
+# To store files specified in pack-add-files and pack-excl-files option
 my @pack_add_files;
+my @pack_excl_files;
 
 # To save the original username and id who sudoed to be used later
 my $user_name;
@@ -193,7 +194,8 @@ sub main {
                 'show-map:s', 'show-status', 'console:s', 'console-info', 'exe-info', 'clean-host',
                 'create-rootfs=s', 'modify-rootfs=s', 'install-media=s', 'update-aced:s', 'mem=s', 'yes|y', 'skip-cloudinit',
                 'rootfs-type=s', 'help|h', 'v', 'vv', 'vvv', 'version|V', 'download-rootfs',
-                'pack=s', 'unpack=s', 'include-rootfs|r', 'pack-external-rootfs', 'pack-status', 'pack-version=s', 'pack-add-files=s{1,}' => \@pack_add_files,               
+                'pack=s', 'unpack=s', 'include-rootfs|r', 'pack-external-rootfs', 'pack-status', 'pack-version=s', 
+                'pack-add-files=s{1,}' => \@pack_add_files, 'pack-excl-files=s{1,}' => \@pack_excl_files,               
                 'f=s', 'c=s', 'T=s', 'config|C=s', 'M=s', 'i', 'g',
                 'user|u:s', '4', '6', 'D', 'no-console|n', 'intervm-delay=s', 'h2vm-timeout=s',
                 'e=s', 'w=s', 'F', 'B', 'o=s', 'Z', 'b', 'arch=s', 'vcpu=s', 'kill|k', 'video=s', 'ignore-ext'
@@ -1151,6 +1153,8 @@ sub build_topology{
     if (! -d $dh->get_sim_dir && $execution->get_exe_mode != $EXE_DEBUG) {
         mkdir $dh->get_sim_dir or $execution->smartdie ("error making directory " . $dh->get_sim_dir . ": $!");
     }
+
+    $execution->execute($logp, $bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_sim_dir . "/hostlines");
     # To copy the scenario file
     my $command = $bd->get_binaries_path_ref->{"date"};
     chomp (my $now = `LANG=es $command`);
@@ -1270,6 +1274,15 @@ sub define_vms {
         	wlog (N, "\nERROR: virtual machine '$vm_name' already defined (status=$vm_status)\n");
         	next
         }        
+        
+        # Do not start the VM if -M is not used and the VM has a tag <on_boot> with value 'no'
+        unless ($opts{M}) {
+	        my $on_boot; 
+	        eval {$on_boot = $vm->getElementsByTagName("on_boot")->item(0)->getFirstChild->getData};
+	        if ( (defined $on_boot) and ($on_boot eq 'no')) {
+	            next;
+	        }
+        }
 
         wlog (VVV, "Processing $vm_name", $logp);
       
@@ -2059,12 +2072,12 @@ sub mode_undefine{
         # Raise an error if the VM is not in defined state
         unless ($vm_status eq 'defined') {
             if ($vm_status eq 'undefined') {
-                wlog (N, "$hline\nWARNING: virtual machine '$vm_name' already in undefined state\n$hline")
+                wlog (V, "WARNING: virtual machine '$vm_name' already in undefined state.")
             } else {
-                wlog (N, "$hline\nERROR: virtual machine '$vm_name' running (status=$vm_status). Shutdown it before undefining.\n$hline");
+                wlog (N, "ERROR: virtual machine '$vm_name' running (status=$vm_status). Shutdown it before undefining.");
                 $undef_error = 'true';
-                next;
             }
+            next;
         }        
            
         # call the corresponding vmAPI
@@ -2076,6 +2089,7 @@ sub mode_undefine{
             if ($error eq "VM $vm_name does not exist" || 
                 $error =~ /207-unable to delete VM/ ) {
                 change_vm_status($vm_name,"undefined");
+		        wlog (N, "...OK");
             } else {
                 wlog (N, "Virtual machine $vm_name cannot be undefined.");
             }
@@ -2310,10 +2324,10 @@ sub mode_start {
     set_vlan_links(\@vm_ordered);
     set_link_mtu(\@vm_ordered);
     connect_ovs_to_controllers(\@vm_ordered);
-        
+            
     # Execute 'on_boot' commands
-    mode_execute ('on_boot', 'lxc,dynamips', \@vm_ordered);
-
+   	mode_execute ('on_boot', 'lxc,dynamips', \@vm_ordered);
+    
     if ( !defined($ref_vms) && $dh->get_doc->exists("/vnx/host/exec[\@seq='on_boot']") ) {
         wlog (N, "Calling execute_host_cmd with seq 'on_boot'"); 
         execute_host_command('on_boot');
@@ -2401,7 +2415,7 @@ sub start_vms {
     my $nmcli;
     if ( $nmcli = `which nmcli` ) {
         chomp ($nmcli);
-        my $cmd = "LANG=en " . $nmcli . " n 2>&1 >/dev/null"; 
+        my $cmd = "LANG=en " . $nmcli . " n >/dev/null 2>&1 "; 
         system($cmd);
         if ($? == 0) {
         	$nm_running = 1;
@@ -2860,9 +2874,14 @@ sub mode_shutdown {
         my $merged_type = $dh->get_vm_merged_type($vm);
         my $vm_status = get_vm_status($vm_name);
 
-        # Raise an error if the VM is not in 'running', 'suspended' or 'hibernated' state. 
-        unless ( defined($kill) || ($vm_status eq 'running' || $vm_status eq 'suspended' || $vm_status eq 'hibernated') ){
-            wlog (N, "\nERROR: cannot shutdown a virtual machine '$vm_name' not in 'running', 'suspended' or 'hibernated' state (status=$vm_status).\n");
+        # Raise an error if the VM is not in 'running', 'suspended' or 'hibernated' state.
+#        unless ( defined($kill) || ($vm_status eq 'running' || $vm_status eq 'suspended' || $vm_status eq 'hibernated') ){
+        unless ( ($vm_status eq 'running' || $vm_status eq 'suspended' || $vm_status eq 'hibernated') ){
+            if ($opts{M}) {
+            	wlog (N, "ERROR: cannot shutdown a virtual machine '$vm_name' not in 'running', 'suspended' or 'hibernated' state (status=$vm_status).");
+            } else {
+            	wlog (V, "WARNING: shutdown issued over vm '$vm_name' not in 'running', 'suspended' or 'hibernated' state (status=$vm_status).");
+            }
             next;
         }        
 
@@ -2874,7 +2893,7 @@ sub mode_shutdown {
         }
         my $error = "VNX::vmAPI_$vm_type"->shutdown_vm($vm_name, $merged_type, $kill);
         if ($error) {
-            wlog (N, "$hline\nERROR: VNX::vmAPI_${vm_type}->shutdown_vm returns '" . $error . "'\n$hline");
+            wlog (N, "ERROR: VNX::vmAPI_${vm_type}->shutdown_vm returns '" . $error );
             if ($error eq "VM $vm_name does not exist") {
             	change_vm_status($vm_name,"defined");
             } else {
@@ -2891,7 +2910,7 @@ sub mode_shutdown {
         change_vm_status($vm_name,"defined");
     }
     
-    if ( !defined($ref_vms) && $dh->get_doc->exists("/vnx/host/exec[\@seq='on_shutdown']") ) {
+    if ( !defined($ref_vms) && !$opts{M} && $dh->get_doc->exists("/vnx/host/exec[\@seq='on_shutdown']") ) {
         wlog (N, "Calling execute_host_cmd with seq 'on_shutdown'"); 
         execute_host_command('on_shutdown');
     }
@@ -3953,6 +3972,7 @@ EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <domain type="kvm" xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">
   <name>$rootfs_name</name>
+  <cpu mode="host-passthrough"/>  
   <memory>$mem</memory>
   <vcpu>$vcpu</vcpu>
   <os>
@@ -4441,6 +4461,7 @@ EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <domain type="kvm" xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">
   <name>$rootfs_name</name>
+  <cpu mode="host-passthrough"/>  
   <memory>$mem</memory>
   <vcpu>$vcpu</vcpu>
   <os>
@@ -4656,6 +4677,8 @@ sub mode_pack {
     chdir "${xml_dir}/..";
 
     wlog (N, "-- Packaging scenario $scen_bname", '');
+    wlog (N, "--   Excluding files: @pack_excl_files", '');
+    
     
     #my $content="$scen_bdir/*.xml $scen_bdir/*.cvnx $scen_bdir/conf $scen_bdir/filesystems/create* $scen_bdir/filesystems/rootfs*";
     my $cvnx_file = "$scen_bdir/$input_file";
@@ -4682,6 +4705,9 @@ sub mode_pack {
     	wlog (N, "--     $c", '')
     }
     
+	# file to save names of excluded files
+    $tmpfile=`mktemp`; chomp ($tmpfile);
+    
     if ( $inc_rootfs ) {
         my $rootfs_set=`readlink $scen_bdir/filesystems/rootfs*`; 
         #chomp ($rootfs);
@@ -4691,11 +4717,17 @@ sub mode_pack {
         my @rootfs_list = split /\n/, $rootfs_set;
         foreach my $rootfs (@rootfs_list) {
             wlog (N, "--     $rootfs", '');
-	        $content="$content $scen_bdir/filesystems/$rootfs";
+            print "$rootfs\n";
+            my $excluded ='no';
+            foreach my $excl_file (@pack_excl_files) {
+            	if ($excl_file eq $rootfs) { $excluded = 'yes' }
+            }
+     		if ($excluded eq 'no') {
+	        	$content="$content $scen_bdir/filesystems/$rootfs";
+     		}
         }
     
         # Exclude sockets to avoid errors when making tar file
-        $tmpfile=`mktemp`; chomp ($tmpfile);
         foreach my $rootfs (@rootfs_list) {
             system ( "find $scen_bdir/filesystems/$rootfs -type s >> $tmpfile" );
         }
@@ -4710,6 +4742,11 @@ sub mode_pack {
         wlog (N, "--   rootfs not packaged (use option -r if you want to include it).", '');
     }
     
+    # Exclude files in option --pack-excl-files
+    foreach my $excl_file (@pack_excl_files) {
+        #print "find $scen_bdir/ -name $excl_file >> $tmpfile" ;
+        system ( "find $scen_bdir/ -name $excl_file >> $tmpfile" );
+    }
     # Estimating tar file size for progress bar 
     #my $size=`du -sb --apparent-size $content | awk '{ total += \$1 - 512; }; END { print total }'`;
     #wlog (V, "size=$size", '');
@@ -5260,24 +5297,54 @@ sub create_bridges_for_virtual_bridged_networks  {
     # Wait until all the openvswitches are created, then establish all the declared links between those switches
     foreach my $net ($doc->getElementsByTagName("net")) {
         my $net_name    = $net->getAttribute("name");
+        my $net_mode    = $net->getAttribute("mode");
         foreach my $connection ($net->getElementsByTagName("connection")) {
-            my $net_to_connect=$connection->getAttribute("net");
             my $if_name=$connection->getAttribute("name");
             my $conn_type=$connection->getAttribute("type");
-            wlog (V, "conn_type=" . $conn_type, $logp);
             if ( $conn_type eq "veth" ) {
-            	wlog (V, "Switch connection: ${net_name}-${net_to_connect}, type=veth", $logp);
+	            my $net_to_connect=$connection->getAttribute("net");
+				my $net_to_connect_mode = $dh->get_net_mode ($net_to_connect);
+           		wlog (V, "Setting switch connection: ${net_name}($net_mode)-${net_to_connect}($net_to_connect_mode), type=$conn_type", $logp);
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link add ${if_name}-0 type veth peer name ${if_name}-1");
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set ${if_name}-0 up");
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set ${if_name}-1 up");
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name ${if_name}-0");
-                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_to_connect ${if_name}-1");
+                if ($net_mode eq 'openvswitch') {
+	                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name ${if_name}-0");
+                } elsif ($net_mode eq 'virtual_bridge') {
+	                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_name ${if_name}-0");
+                }
+                if ($net_to_connect_mode eq 'openvswitch') {
+                	$execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_to_connect ${if_name}-1");
+                } elsif ($net_to_connect_mode eq 'virtual_bridge') {
+                	$execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net_to_connect ${if_name}-1");
+                }                
             } elsif ( $conn_type eq "ovs-patch" ) {
-                wlog (V, "Switch connection: ${net_name}-${net_to_connect}, type=ovs-patch", $logp);
+	            my $net_to_connect=$connection->getAttribute("net");
+				my $net_to_connect_mode = $dh->get_net_mode ($net_to_connect);
+           		wlog (V, "Setting switch connection: ${net_name}($net_mode)-${net_to_connect}($net_to_connect_mode), type=$conn_type", $logp);
 	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port $net_name ${if_name}-0");
 	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set interface ${if_name}-0 type=patch options:peer=${if_name}-1");
 	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " add-port  $net_to_connect ${if_name}-1");
 	            $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " set interface ${if_name}-1 type=patch options:peer=${if_name}-0");
+            }  elsif ( $conn_type eq "vxlan" ) {
+            	# Ex: <connection name="swA-vxlanA" type="vxlan" host="138.4.7.228" dst_port="3001"/>
+            	my $host=$connection->getAttribute("host");
+            	my $dst_port=$connection->getAttribute("dst_port");
+            	my $src_port=$connection->getAttribute("src_port");
+				my $port_trace ='';
+            	my $options_src_port = '';
+           		if (defined($src_port)) { 
+	   				$options_src_port = "options:src_port=$src_port";
+	   				$port_trace = "src_port=$src_port";
+           		}
+            	my $options_dst_port = '';
+           		if (defined($dst_port)) { 
+	   				$options_dst_port = "options:dst_port=$dst_port";
+           		}
+           		wlog (V, "Setting switch connection: ${net_name}($net_mode) host=$host $port_trace, type=$conn_type", $logp);
+            	$execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . 
+            	  " add-port $net_name ${if_name} -- set interface ${if_name} type=vxlan options:remote_ip=${host} " .
+            	  "${options_src_port} ${options_dst_port}"); 
             }
         }
     }        
@@ -5696,6 +5763,17 @@ sub mode_execute {
 				next unless ($type =~ /(^${vm_type},)|(,${vm_type},)|(,${vm_type}$)/);
             }
 	
+	        my $vm_status = get_vm_status($vm_name);
+	        unless ($vm_status eq 'running') {
+	        	my $on_boot; 
+	        	eval {$on_boot = $vm->getElementsByTagName("on_boot")->item(0)->getFirstChild->getData};
+	        	if ( (defined $on_boot) and ($on_boot eq 'no')) {				
+    	        	wlog (VV, "\nWARNING: cannot execute command on virtual machine '$vm_name' (not running, status=$vm_status, on_boot=yes)\n");
+		        } else {
+	    	        wlog (N, "\nERROR: cannot execute command on virtual machine '$vm_name' (not running, status=$vm_status)\n");
+	        	}    	        
+        	    next
+        	}        
 	        my @plugin_ftree_list = ();
 	        my @plugin_exec_list = ();
 	        my @ftree_list = ();
@@ -5986,7 +6064,6 @@ sub get_vm_ftrees_and_execs {
     foreach my $filetree (@filetree_list) {
             
         my $filetree_seq_string = $filetree->getAttribute("seq");
-                
         # We accept several commands in the same seq tag, separated by commas
         my @filetree_seqs = split(',',$filetree_seq_string);
         foreach my $filetree_seq (@filetree_seqs) {
@@ -6007,6 +6084,8 @@ sub get_vm_ftrees_and_execs {
     
                 # Copy the files/dirs to "filetree/$dst_num" dir
                 my $src = get_abs_path ($value);
+#pak($value . " -- " . $src);                
+
                 #$src = chompslash($src);
                 if ( -d $src ) {   # If $src is a directory...
                 
@@ -6027,6 +6106,7 @@ sub get_vm_ftrees_and_execs {
                     
                 my $dst_dir = $dh->get_vm_tmp_dir($vm_name) . "/$seq/filetree/$dst_num";
                 $execution->execute($logp, "mkdir -p $dst_dir");
+#pak($src);                
 	            if ( -d "$src" ) { # It is a directory
                     $execution->execute($logp, $bd->get_binaries_path_ref->{"cp"} . " -a ${src}* $dst_dir");
 	            } else { # It is a file
@@ -6490,24 +6570,32 @@ sub bridges_destroy {
             foreach my $net2 ($doc->getElementsByTagName("net")) {
                 my $net_name2 = $net2->getAttribute("name");
                 foreach my $connection ($net2->getElementsByTagName("connection")) {
-                    my $net_to_connect=$connection->getAttribute("net");
-                    my $if_name=$connection->getAttribute("name");
                     my $conn_type=$connection->getAttribute("type");
-                    my $if_to_delete;
-                    if ( $net_name2 eq $net_name ) {
-                        $if_to_delete = "${if_name}-0";
-                    } elsif ( $net_to_connect eq $net_name ) {
-                        $if_to_delete = "${if_name}-1";
-                    }
-                    if (defined($if_to_delete)) {
-	                    wlog (V, "Deleting switch connection: ${net_name2}-${net_to_connect}, type=$conn_type", $logp);
-	                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " del-port $net_name $if_to_delete");
-	                    if ( $conn_type eq "veth" ) {
-	                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link del $if_to_delete");
-	                    } elsif ( $conn_type eq "ovs-patch" ) {
-	                       # Nothing to do
+                    my $if_name=$connection->getAttribute("name");
+					if ( $conn_type eq "veth" or $conn_type eq "ovs-patch" ) {
+					 
+	                    my $net_to_connect=$connection->getAttribute("net");
+	                    my $if_to_delete;
+	                    if ( $net_name2 eq $net_name ) {
+	                        $if_to_delete = "${if_name}-0";
+	                    } elsif ( $net_to_connect eq $net_name ) {
+	                        $if_to_delete = "${if_name}-1";
 	                    }
-                    }
+	                    if (defined($if_to_delete)) {
+		                    wlog (V, "Deleting switch connection: ${net_name2}-${net_to_connect}, type=$conn_type", $logp);
+		                    $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . " del-port $net_name $if_to_delete");
+		                    if ( $conn_type eq "veth" ) {
+		                        $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link del $if_to_delete");
+		                    } elsif ( $conn_type eq "ovs-patch" ) {
+		                       # Nothing to do
+		                    }
+	                    }
+					
+	           		}  elsif ( $conn_type eq "vxlan" ) {
+           				wlog (V, "Deleting switch connection: ${net_name}->$if_name, type=$conn_type", $logp);
+            			$execution->execute_root($logp, $bd->get_binaries_path_ref->{"ovs-vsctl"} . 
+            	  			" del-port $net_name ${if_name}"); 
+	           		}
 	            }
             }
             # Set bridge down and remove it only in the case there isn't any associated interface 

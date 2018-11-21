@@ -65,6 +65,7 @@ use VNX::vmAPICommon;
 use File::Basename;
 use XML::LibXML;
 use IO::Socket::UNIX qw( SOCK_STREAM );
+use Digest::MD5 qw(md5);
 
 use constant USE_UNIX_SOCKETS => 0;  # Use unix sockets (1) or TCP (0) to communicate with virtual machine 
 my $one_pass_autoconf;
@@ -86,6 +87,11 @@ sub init {
     my $error;
     
     return unless ( $dh->any_vmtouse_of_type('libvirt','kvm') );
+
+	# Add an offset to $VNX::Globals::H2VM_PORT calculated from the scenario name (see https://goo.gl/KajykZ)
+	# to reduce the probability of conflicts when choosing h2vm tcp ports
+	$VNX::Globals::H2VM_PORT = $VNX::Globals::H2VM_PORT + unpack('L', substr( md5($dh->get_scename), 0, 4 ) ) % 256 * 100;
+	wlog (V, "H2VM_PORT = $VNX::Globals::H2VM_PORT", $logp);
 
 	# get hypervisor from config file
 	$hypervisor = get_conf_value ($vnxConfigFile, 'libvirt', 'hypervisor', 'root');
@@ -167,7 +173,7 @@ root();
         }
     }
 user();
-
+	
 }
 
 # ---------------------------------------------------------------------------------------
@@ -862,6 +868,13 @@ user();
         } 
 
         # main <disk> tag --> main root filesystem
+		if ($merged_type eq 'libvirt-kvm-extreme') {
+	    	# Extreme does not support virtio drivers
+	    	$disk_prefix = 'hd';
+    	    $disk_a = 'hda';
+        	$disk_b = 'hdb';        
+        	$disk_c = 'hdc';        
+    	}
 		my $disk1_tag = $init_xml->createElement('disk');
 		$devices_tag->addChild($disk1_tag);
 		$disk1_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
@@ -997,7 +1010,7 @@ user();
                 Time::HiRes::sleep(0.2);
 			}
 
-	        if ( $merged_type ne 'cisco' && $os_subtype ne 'extreme') {
+	        if ( $merged_type ne 'libvirt-kvm-cisco' && $merged_type ne 'libvirt-kvm-extreme') {
 				# Create the shared <disk> definition in libvirt XML document
 	       		my $disk2_tag = $init_xml->createElement('disk');
 				$devices_tag->addChild($disk2_tag);
@@ -1062,9 +1075,67 @@ user();
 	        $disk3_tag->addChild($driver3_tag);
 	        $driver3_tag->addChild( $init_xml->createAttribute( name => 'qemu' ) );
 	        $driver3_tag->addChild( $init_xml->createAttribute( type => 'raw' ) );
-	        $i++
-		}		
+	        $i++;
+	        
+	        # Cisco configuration management
+	        if ($merged_type eq "libvirt-kvm-cisco") {
+	        	my $mount_dir = $dh->get_vm_dir($vm_name) . '/mnt';
+				#my $mount_params = '-o loop,offset=32256'; # Used for images directly formated by CISCO
+				my $mount_params = ''; # Used for vfat images 
+	        	$execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " $mount_params " . $storage_image . " " . $mount_dir );
+	        	# Behaviour:
+	        	# Does startup-config exist?
+	        	# - yes -> it is copied to iso_config.txt for the router to start with it
+	        	# - no -> does a non-empty iso-config.txt exist?
+	        	#         + yes -> let it as it is for the router to start with it
+	        	#         + no -> create a minimum iso_config.txt file with the hostname commadn for the router to start quickly 
+	        	if (-e "$mount_dir/startup-config") {
+	        		wlog (V, "cisco startup-config detected, creating ios_config.txt file", $logp);
+	        		$execution->execute( $logp, "cp  $mount_dir/startup-config $mount_dir/ios_config.txt");
+	        		$execution->execute( $logp, "md5sum $mount_dir/ios_config.txt | cut -d ' ' -f 1 > $mount_dir/ios_config_checksum");
+	        	} else	{
+	        		# Get info about ios_config.txt file with stat built-in function
+	        		my @stat_ios_config = stat "$mount_dir/ios_config.txt";
+	        		if ( @stat_ios_config == 0         # ios_config.txt does not exist  
+	        		     or $stat_ios_config[7] == 0)  # ios_config.txt exists but its size is zero
+	        		     {
+	        		     	# Create a minimum config file with hostname command
+	        		     	open(my $fh, '>', "$mount_dir/ios_config.txt");
+							print $fh "hostname $vm_name\n";
+							print $fh "!\n";
+							print $fh "end\n";
+							close $fh;
+			        		$execution->execute( $logp, "md5sum $mount_dir/ios_config.txt | cut -d ' ' -f 1 > $mount_dir/ios_config_checksum");
+	        		     }
+	        	}
 
+	        	my $content = `tree -asu $mount_dir`;
+	       		wlog (VVV, "cisco flash image content: $content", $logp);
+	        	
+	        	# Fix the cisco image before starting. For unkonwn reasons, after having started a virtual router 
+	        	# and loaded the configuration from an image, the router copies some data to the image that prevents 
+	        	# the configuration from being loaded during the next startup (the router starts to the config assintant
+	        	# menu even if the ios_config.txt file exists).
+				# To avoid that problem
+
+				# Create a new disk image starting from a fresh image (flash-cisco.img). A copy of that file must be localted in 
+				# the same directory than the current flash image  
+	        	my $new_mount_dir = $dh->get_vm_dir($vm_name) . '/tmp';
+	        	my $storage_image_dir = dirname($storage_image);
+	        	my $storage_image_name = basename($storage_image);
+	        	my $new_storage_image = "$storage_image_dir/new_image.img"; 
+	       		$execution->execute( $logp, "cp  $storage_image_dir/flash-cisco.img $new_storage_image");
+				# Mount the new image and copy the content of the old image to the new one
+	        	$execution->execute( $logp, $bd->get_binaries_path_ref->{"mount"} . " $mount_params " . $new_storage_image . " " . $new_mount_dir );
+        		$execution->execute( $logp, "cp -a $mount_dir/* $new_mount_dir/");
+
+	        	$execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $mount_dir );
+	        	$execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $new_mount_dir );
+        		$execution->execute( $logp, "cp $storage_image $storage_image_dir/$storage_image_name" . ".old");
+        		$execution->execute( $logp, "mv $new_storage_image $storage_image");
+	        	
+	        }
+		}		
         
 =BEGIN
         if ( $os_subtype eq 'cisco' || $os_subtype eq 'extreme') {
@@ -1493,7 +1564,7 @@ user();
 		
             # -device rtl8139,netdev=lan1 -netdev tap,id=lan1,ifname=ubuntu-e0,script=no,downscript=no
            	my $mgmt_eth_type;
-			if ( $os_subtype eq 'cumulus' ) {
+			if ( $os_subtype eq 'cumulus' || $merged_type eq 'libvirt-kvm-linux' ) {
             	$mgmt_eth_type = 'e1000'
 			} else {
             	$mgmt_eth_type = 'rtl8139'
@@ -1509,7 +1580,8 @@ user();
             $mng_if_mac =~ s/,//;
             my $qemuarg_tag2 = $init_xml->createElement('qemu:arg');
             $qemucommandline_tag->addChild($qemuarg_tag2);
-            $qemuarg_tag2->addChild( $init_xml->createAttribute( value => "$mgmt_eth_type,netdev=mgmtif0,mac=$mng_if_mac" ) );
+            #$qemuarg_tag2->addChild( $init_xml->createAttribute( value => "$mgmt_eth_type,netdev=mgmtif0,mac=$mng_if_mac," ) );
+            $qemuarg_tag2->addChild( $init_xml->createAttribute( value => "$mgmt_eth_type,netdev=mgmtif0,mac=$mng_if_mac,addr=0x1F" ) );
 				
             my $qemuarg_tag3 = $init_xml->createElement('qemu:arg');
             $qemucommandline_tag->addChild($qemuarg_tag3);
@@ -2127,7 +2199,10 @@ root();
                 my $dom_name = $listDom->get_name();
                 if ( $dom_name eq $vm_name ) {
 
-			        if (defined($kill)) {
+			        if ( defined($kill) or 
+			             $merged_type eq "libvirt-kvm-extreme" or 
+			             $merged_type eq "libvirt-kvm-cisco" 
+			           ) {
 			            # Kill the VM
                         $listDom->destroy();
 			        } else {

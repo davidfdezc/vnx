@@ -100,17 +100,32 @@ sub init {
 
     # check if the overlay type is supported by the system
     if ($union_type eq 'overlayfs') {
-        if ( ($os_id eq 'fedora' or $os_id eq 'centos') ||
-           ($os_id eq 'ubuntu' and $os_ver_id >= 16.10 ) ||
-           ($os_id eq 'kali' and $os_ver_id >= 2016.2 ) ) {
-            system( "modprobe overlay" );
-            $overlayfs_name = 'overlay';
-        } else  {
-            system( "modprobe overlayfs" );
-        }
-        if ( $? != 0 ) {
-            return "overlayfs filesystems not supported in this system."
-        }
+
+		system( "modprobe overlay > /dev/null 2>&1" );
+		if ( $? == 0 ) {
+		    $overlayfs_name = 'overlay';
+		} else {
+		    system( "modprobe overlayfs > /dev/null 2>&1" );
+		    if ( $? == 0 ) {
+		        $overlayfs_name = 'overlayfs';
+		    } else {
+            	return "overlayfs filesystems not supported in this system."
+		    }
+		}
+    	wlog (VVV, "[lxc] conf: overlayfs_name = $overlayfs_name");
+
+
+        #if ( ($os_id eq 'fedora' or $os_id eq 'centos') ||
+        #   ($os_id eq 'ubuntu' and $os_ver_id >= 16.10 ) ||
+        #   ($os_id eq 'kali' and $os_ver_id >= 2016.2 ) ) {
+        #    system( "modprobe overlay" );
+        #    $overlayfs_name = 'overlay';
+        #} else  {
+        #    system( "modprobe overlayfs" );
+        #}
+        #if ( $? != 0 ) {
+        #    return "overlayfs filesystems not supported in this system."
+        #}
     } elsif ($union_type eq 'aufs') {
         system( "modprobe aufs" );
         if ( $? != 0 ) {
@@ -204,15 +219,27 @@ sub define_vm {
     if  ($type eq "lxc") {
     	    	
         # Check if an LXC VM with the same name is already defined
+        if ( -l "$lxc_dir/$vm_name") {
+        	# Check if the link points to an existing directory. If not, just delete it and continue
+   			my $dir = `readlink -e $lxc_dir/$vm_name`;
+            if ( $? == 0 ) { 
+            	$error = "A LXC vm named $vm_name already exists. Check $lxc_dir/$vm_name->$dir directory content and delete it manually if not useful.";
+            	return $error;
+        	} else {
+        		# Does not point to an existing directory. Delete it
+change_to_root();
+                $execution->execute( $logp, "rm -v $lxc_dir/$vm_name" );
+back_to_user();     
+        	}
+        }
         if ( -d "$lxc_dir/$vm_name") {
-            $error = "A LXC vm named $vm_name already exists. Check $lxc_dir/$vm_name directory content.";
-            return $error;
+           	$error = "A LXC vm named $vm_name already exists. Check $lxc_dir/$vm_name directory content and delete it if not useful.";
+           	return $error;
         }
 
         my $filesystem_type   = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
         my $filesystem        = $vm->getElementsByTagName("filesystem")->item(0)->getFirstChild->getData;
 
-change_to_root();
 
         # Directory where vm files are going to be mounted
         my $vm_lxc_dir;
@@ -361,6 +388,9 @@ change_to_root();
 		        my $res = $execution->execute( $logp, "vnx_convert_lxc_config -q -o $vm_lxc_config" );
 			}
         }
+        if ( $lxc_vers =~ /^3\./) {
+			system ("sed -i -e 's/ubuntu.common.conf/common.conf/' $vm_lxc_config");        
+        }
         wlog (V, "LXC version: $lxc_vers ($lxc_format format)", $logp);
 
 		if ($lxc_format eq 'new') {
@@ -370,7 +400,9 @@ change_to_root();
 	        # Delete lines with "lxc.rootfs" 
 	        $execution->execute( $logp, "sed -i -e '/lxc\.rootfs\.path/d' $vm_lxc_config" ); 
 	        # Delete lines with "lxc.fstab" 
-	        $execution->execute( $logp, "sed -i -e '/lxc\.mount/d' $vm_lxc_config" ); 
+	        #$execution->execute( $logp, "sed -i -e '/lxc\.mount/d' $vm_lxc_config" ); 
+	        $execution->execute( $logp, "sed -i -e '/lxc\.mount\.fstab/d' $vm_lxc_config" ); 
+	        
 	        # Delete lines with "lxc.network" 
 	        $execution->execute( $logp, "sed -i -e '/lxc\.net\./d' $vm_lxc_config" ); 
 	
@@ -530,13 +562,13 @@ change_to_root();
 		} else {
 			
 	        # Delete lines with "lxc.utsname" 
-	        $execution->execute( $logp, "sed -i -e '/lxc.utsname/d' $vm_lxc_config" ); 
+	        $execution->execute( $logp, "sed -i -e '/lxc\.utsname/d' $vm_lxc_config" ); 
 	        # Delete lines with "lxc.rootfs" 
-	        $execution->execute( $logp, "sed -i -e '/lxc.rootfs/d' $vm_lxc_config" ); 
-	        # Delete lines with "lxc.fstab" 
-	        $execution->execute( $logp, "sed -i -e '/lxc.mount/d' $vm_lxc_config" ); 
+	        $execution->execute( $logp, "sed -i -e '/lxc\.rootfs/d' $vm_lxc_config" ); 
+	        # Delete lines with "lxc.mount...fstab" 
+	        $execution->execute( $logp, "sed -i -e '/lxc\.mount.*fstab/d' $vm_lxc_config" ); 
 	        # Delete lines with "lxc.network" 
-	        $execution->execute( $logp, "sed -i -e '/lxc.network/d' $vm_lxc_config" ); 
+	        $execution->execute( $logp, "sed -i -e '/lxc\.network/d' $vm_lxc_config" ); 
 	
 	        # Open LXC vm config file
 	        open CONFIG_FILE, ">> $vm_lxc_config" 
@@ -891,7 +923,8 @@ sub start_vm {
             }
         }        
 
-        my $res = $execution->execute( $logp, $bd->get_binaries_path_ref->{"lxc-start"} . " -d -n $vm_name -f $vm_lxc_dir/config");
+
+        my $res = $execution->execute( $logp, $bd->get_binaries_path_ref->{"lxc-start"} . " -d -l 5 -n $vm_name -f $vm_lxc_dir/config");
         if ($res) { 
             wlog (N, "$res", $logp)
         }

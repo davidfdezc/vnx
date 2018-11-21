@@ -372,9 +372,10 @@ user();
     my %net_names;
     # Hash for duplicated bridge MAC address detection
     my %mac_addrs;
-   
     # Hash for duplicated physical interface detection
     my %phyif_names;
+    # Hash for duplicated interswitch connection detection
+    my %conn_names;
 
     # Process <net> list
     foreach my $net ($doc->getElementsByTagName("net")) {
@@ -588,19 +589,33 @@ user();
         # 8m. Check <connection> tags
         foreach my $connection ($net->getElementsByTagName("connection")) {
             my $net_to_connect=$connection->getAttribute("net");
-            my $if_name=$connection->getAttribute("name");
+            my $conn_name=$connection->getAttribute("name");
             my $conn_type=$connection->getAttribute("type");
+
+            # Check connection name uniqueness 
+            if (exists $conn_names{$conn_name}) {
+                return "duplicated inter-switch connection name (net=$net_to_connect, coon_name=$conn_name)";
+            } else {
+                $conn_names{$conn_name} = 1;
+            }
+
             # Set default value
             unless ( defined($conn_type) ) {
                 $conn_type = 'veth'; 
                 $connection->setAttribute('type', $conn_type);
             }
-            unless ($conn_type eq 'veth' or $conn_type eq 'ovs-patch') {
+            unless ($conn_type eq 'veth' or $conn_type eq 'ovs-patch' or $conn_type eq 'vxlan') {
                 return "incorrect value ($conn_type) for 'type' attribute in <connection> tag of <net name='$name'>";
             }
-            if ( $name eq $net_to_connect ) {
-                return "incorrect <connection> tag in <net name='$name'>; switch loop detected";
+            if ( $conn_type ne 'vxlan' and $name eq $net_to_connect ) {
+                return "incorrect <connection> tag in <net name='$name'>: cannot connect to itself (switch loop detected)";
             }
+            if ($conn_type eq 'ovs-patch' and $mode ne 'openvswitch') {
+            	return "<net name='$name' mode='$mode'>: type of connection 'ovs-patch' is only avaliable for 'openvswitch' based networks";
+            } 
+            if ($conn_type eq 'vxlan' and $mode ne 'openvswitch') {
+            	return "<net name='$name' mode='$mode'>: type of connection 'vxlan' is only avaliable for 'openvswitch' based networks";
+            } 
         }
        
         # 8n. Check <net stp=...> attribute

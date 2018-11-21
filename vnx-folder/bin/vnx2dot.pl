@@ -169,9 +169,9 @@ foreach my $net ($dom->getElementsByTagName ("net")) {
             if ( (str($vlan[0]->getAttribute("trunk")) eq 'yes') || ( $vlan_tag_list =~ m/,/ ) ) { 
                 $trunk = 'trunk:';   
             }
-            print "$name -- $tr_net2 [ label = \"vlans=[$trunk$vlan_tag_list]\", fontsize=\"8\" ]; \n"; 
+            print "$tr_name -- $tr_net2 [ label = \"vlans=[$trunk$vlan_tag_list]\", fontsize=\"8\" ]; \n"; 
         } else {
-            print "$name -- $tr_net2 [ label = \"vlans=[*]\", fontsize=\"8\" ]; \n"; 
+            print "$tr_name -- $tr_net2 [ label = \"vlans=[*]\", fontsize=\"8\" ]; \n"; 
         }        
     }
 }
@@ -224,6 +224,12 @@ foreach my $vm ($dom->getElementsByTagName ("vm")) {
     } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "android")) { 
         $ctype="android";
         $vm_legend{"android"} = "libvirt KVM Android"       
+    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "cisco")) { 
+        $ctype="cisco";
+        $vm_legend{"cisco"} = "libvirt KVM Cisco"       
+    } elsif ( ($type eq "libvirt") && ($subtype eq "kvm") && ($os eq "extreme")) { 
+        $ctype="extreme";
+        $vm_legend{"extreme"} = "libvirt KVM Extreme"       
     } elsif ($type eq "lxc") { 
         $ctype=$type;
         $vm_legend{"lxc"} = "Linux Containers"
