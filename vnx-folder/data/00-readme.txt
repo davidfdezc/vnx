@@ -39,6 +39,10 @@ Address		System				MAC offset 		Mgmt if offset
 10.1.0.32   simple_openbsd64        32              124
 10.1.0.33   simple_fedora64         33              128
 10.1.0.34   simple_lxc_centos64     34              132
+10.1.0.35   simple_tinycore     	35              136
+
+
+10.1.0.64	multi_server			64				512			
 
 
 

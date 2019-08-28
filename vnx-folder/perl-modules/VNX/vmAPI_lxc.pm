@@ -221,20 +221,45 @@ sub define_vm {
         # Check if an LXC VM with the same name is already defined
         if ( -l "$lxc_dir/$vm_name") {
         	# Check if the link points to an existing directory. If not, just delete it and continue
-   			my $dir = `readlink -e $lxc_dir/$vm_name`;
+            my $dir = `readlink -e $lxc_dir/$vm_name`; chomp($dir);
+            #print "dir=$dir\n";
             if ( $? == 0 ) { 
-            	$error = "A LXC vm named $vm_name already exists. Check $lxc_dir/$vm_name->$dir directory content and delete it manually if not useful.";
-            	return $error;
+                # Link point to an existing directory. Check if it is a subdirectory of $vnx_dir
+                if (index($dir, $vnx_dir) != -1) {
+                    # Get the scenario name
+                    my $sname = $dir;
+                    $sname =~ s#^$vnx_dir/scenarios/##;
+                    $sname =~ s#/.*##; chomp($sname);
+                    print "sname=$sname\n";
+                    $error="A LXC vm named '$vm_name' already exists (vm names must be unique along the system).\n" .
+                           "That vm seems to belong to VNX scenario '$sname'.\n" .
+                           "If you are sure it is not used, you can destroy it with:\n" .
+                           "    sudo vnx -s $sname --destroy\n" .
+                           "Or, alternatively, delete that VNX scenario directory with:\n" .
+                           "    sudo rm -rf $vnx_dir/scenarios/$sname";
         	} else {
-        		# Does not point to an existing directory. Delete it
+                    $error="A LXC vm named '$vm_name' already exists (vm names must be unique along the system).\n" .
+                           "The link '$lxc_dir/$vm_name' points to '$dir'. Check the state of the vm with:\n" .
+                           "    sudo lxc-info -n $vm_name\n" .
+                           "If you are pretty sure that vm '$vm_name' is not being used, just delete the faulty link with:\n" .
+                           "    sudo rm $lxc_dir/$vm_name";
+                }
+                $execution->smartdie("$error\n")
+            } else {
+                # Does not point to an existing directory. Just delete the link:
 change_to_root();
                 $execution->execute( $logp, "rm -v $lxc_dir/$vm_name" );
 back_to_user();     
         	}
-        }
-        if ( -d "$lxc_dir/$vm_name") {
-           	$error = "A LXC vm named $vm_name already exists. Check $lxc_dir/$vm_name directory content and delete it if not useful.";
-           	return $error;
+        } elsif ( -d "$lxc_dir/$vm_name") {
+            # It is a directory
+            $error="A LXC vm named '$vm_name' already exists (vm names must be unique along the system).\n" .
+                   "Stop and delete that vm before starting this scenario. Check its state with:\n" .
+                   "    sudo lxc-info -n $vm_name\n" .
+                   "If you are pretty sure that the vm is not being used and it is not started, you can\n" .
+                   "just delete the directory with:\n" .
+                   "    sudo rm -rf $lxc_dir/$vm_name";
+            $execution->smartdie("$error\n")
         }
 
         my $filesystem_type   = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
@@ -555,6 +580,9 @@ back_to_user();
 		        $execution->execute( $logp, "lxc.apparmor.profile=lxc-container-default-with-netns", *CONFIG_FILE );        
 	        }
 	
+			# Allow access to /dev/net/tun
+            $execution->execute( $logp, "lxc.cgroup.devices.allow = c 10:200 rwm", *CONFIG_FILE );		
+	
 	        close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
 			# End of new format configuration
@@ -719,7 +747,10 @@ back_to_user();
 		        #$execution->execute( $logp, "lxc.aa_profile=lxc-container-default-with-nesting", *CONFIG_FILE );        
 		        $execution->execute( $logp, "lxc.aa_profile=lxc-container-default-with-netns", *CONFIG_FILE );        
 	        }
-	
+			
+			# Allow access to /dev/net/tun	
+            $execution->execute( $logp, "lxc.cgroup.devices.allow = c 10:200 rwm", *CONFIG_FILE );		
+
 	        close CONFIG_FILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
 
 			# End of old format configuration
@@ -1402,7 +1433,7 @@ sub execute_cmd {
             my @lines = split /\n/, $command;
             foreach my $line (@lines) { wlog (V, "    $line", $logp) if $line };  
             	       
-            $command =~ s/\n//;            	       
+            $command =~ s/\n//;           
         	my $cmd_output = $execution->execute_getting_output( $logp, $bd->get_binaries_path_ref->{"lxc-attach"} . " --clear-env -n $vm_name -- $shell -l -c '$command'");
             wlog (N, "---\n$cmd_output---", '') if ($cmd_output ne '');            
         }

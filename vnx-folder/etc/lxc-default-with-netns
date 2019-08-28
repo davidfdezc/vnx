@@ -16,7 +16,7 @@ profile lxc-container-default-with-netns flags=(attach_disconnected,mediate_dele
   deny mount options=(rw, make-rshared) /** -> /run/netns/,
   mount options=(rw, make-rshared) -> /run/netns/,
   #   strace: mount("/var/run/netns", "/var/run/netns", 0x43981d, MS_BIND, NULL) = 0
-  mount options=(rw, bind) /run/netns/ -> /run/netns/,
+  mount options=(rw, rshared,bind) /run/netns/ -> /run/netns/,
 
   # - one mount per each netns: ip netns add foo:
   #   strace: mount("/proc/self/ns/net", "/var/run/netns/foo", 0x43981d, MS_BIND, NULL) = 0

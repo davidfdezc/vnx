@@ -9,7 +9,7 @@
 #
 # Authors: David Fernández (david@dit.upm.es)
 #          Raúl Álvarez (raul.alvarez.pinilla@alumnos.upm.es)
-# Copyright (C) 2018 DIT-UPM
+# Copyright (C) 2019 DIT-UPM
 #           Departamento de Ingeniería de Sistemas Telemáticos
 #           Universidad Politécnica de Madrid
 #           SPAIN
@@ -47,10 +47,8 @@ PACKAGES="aptsh wget iperf traceroute telnet xterm curl ethtool chrony man bash_
 
 CUSTOMIZATIONSCRIPT=$(cat <<EOF
 
-export DEBIAN_FRONTEND=noninteractive
-
 # Remove startup scripts
-systemctl disable apache2.service
+#systemctl disable apache2.service
 #update-rc.d -f quagga disable
 
 # Modify failsafe script to avoid delays on startup
@@ -66,10 +64,47 @@ echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
 # Add quagga pager env variable if needed
 #sed -i -e '\$aexport VTYSH_PAGER=more' /etc/profile
 
+# Delete the "mesg n" command in root's .profile to avoid the nasty message
+# "mesg: ttyname failed: No such device" when executing commands with lxc-attach
+sed -i '/^mesg n/d' /root/.profile
 
+export DEBIAN_FRONTEND=noninteractive
+
+# Additional commands here...
+
+
+
+
+
+# Disable auto-upgrades if enabled
+sed -i -e 's/"1"/"0"/g' /etc/apt/apt.conf.d/20auto-upgrades
 
 EOF
 )
+
+function customize_config {
+
+  # Modifications to config and other files in the directory where the rootfs is located
+  # config file is located here: ${ROOTFSNAME}/config
+
+cat << EOF >> ${ROOTFSNAME}/config
+
+# Create /dev/net/tun
+lxc.cgroup.devices.allow = c 10:200 rwm
+lxc.hook.autodev = sh -c "modprobe tun; cd \${LXC_ROOTFS_MOUNT}/dev; mkdir net; mknod net/tun c 10 200; chmod 0666 net/tun"
+
+# Create /dev/kvm
+lxc.cgroup.devices.allow = c 10:232 rwm
+lxc.hook.autodev = sh -c "cd \${LXC_ROOTFS_MOUNT}/dev; mknod -m 660 kvm c 10 232; chown root:\$(grep kvm \${LXC_ROOTFS_MOUNT}/etc/group | awk -F ':' '{print \$3}') kvm"
+EOF
+ 
+
+}
+
+
+#
+# Do not modify under this line (or do it with care...)
+#
 
 function customize_rootfs {
 
@@ -77,14 +112,10 @@ function customize_rootfs {
   echo "Customizing rootfs..."
   echo "--"
   #echo "$CUSTOMIZATIONSCRIPT"
-  echo "lxc-attach -n $ROOTFSNAME -P $CDIR -- bash -c \"$CUSTOMIZATIONSCRIPT\" -P $CDIR"
+  #echo "lxc-attach -n $ROOTFSNAME -P $CDIR -- bash -c \"$CUSTOMIZATIONSCRIPT\" -P $CDIR"
   lxc-attach -n $ROOTFSNAME -P $CDIR -- bash -c "$CUSTOMIZATIONSCRIPT" -P $CDIR
 
 }
-
-#
-# Do not modify under this line (or do it with care...)
-#
 
 function create_new_rootfs {
 
@@ -180,6 +211,7 @@ function start_and_install_packages {
   echo lxc-attach -n $ROOTFSNAME -P $CDIR -- ping -c 3 www.dit.upm.es
   lxc-attach -n $ROOTFSNAME -P $CDIR -- ping -c 3 www.dit.upm.es
   lxc-attach -n $ROOTFSNAME -P $CDIR -- apt-get update
+  echo lxc-attach -n $ROOTFSNAME -P $CDIR -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get -y install $PACKAGES"
   lxc-attach -n $ROOTFSNAME -P $CDIR -- bash -c "DEBIAN_FRONTEND=noninteractive apt-get -y install $PACKAGES"
 
   # Create /dev/net/tun device
@@ -209,23 +241,33 @@ function create_rootfs_tgz {
 #
 # Main
 #
+
+# move to the directory where the script is located
+cd `dirname $0`
+CDIR=$(pwd)
+
+SCRIPTNAME=$( basename $0 )
+LOGFILE=${CDIR}/${SCRIPTNAME}.log
+
+# Trick to log script output to $LOGFILE using script command 
+# https://stackoverflow.com/questions/5985060/bash-script-using-script-command-from-a-bash-script-for-logging-a-session
+[ -z "$TYPESCRIPT" ] && TYPESCRIPT=1 exec /usr/bin/script ${LOGFILE} -c "TYPESCRIPT=1  ${CDIR}/$SCRIPTNAME $*"
+
 echo "-----------------------------------------------------------------------"
 echo "Creating VNX LXC rootfs:"
 echo "  Base rootfs:  $BASEROOTFSNAME"
 echo "  New rootfs:   $ROOTFSNAME"
 echo "  Rootfs link:  $ROOTFSLINKNAME"
 echo "  Packages to install: $PACKAGES"
+echo "  Logfile:      ${SCRIPTNAME}.log"
 echo "-----------------------------------------------------------------------"
-
-# move to the directory where the script is located
-cd `dirname $0`
-CDIR=$(pwd)
 
 create_new_rootfs
 start_and_install_packages
 customize_rootfs
 lxc-stop -n $ROOTFSNAME -P $CDIR # Stop the VM
-rm lxc-monitord.log # Delete log of the VM
+customize_config
+rm -f lxc-monitord.log # Delete log of the VM
 create_rootfs_tgz
 
 echo "...done"

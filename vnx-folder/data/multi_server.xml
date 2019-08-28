@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+~~~~~~~~~~~~~~~~~~~~
+VNX Sample scenarios
+~~~~~~~~~~~~~~~~~~~~
+
+Name:        multi_server
+Description: Simple scenario with a server container (mserver) conected to a virtual network 
+             mserver_net and a client (mclient).
+             The server has the following services available:
+             - DHCP server (isc-dhcp-server)
+             - HTTP server (apache2, files stored in /var/www/html/)
+             - NAT 
+             - TFTP SERVER (tftpd-hpa, files stored in /var/lib/tftpboot/)
+              
+             To start/stop a service:
+               vnx -f multi_server.xml -x start_{dhcp|http|nat|tftp}
+               vnx -f multi_server.xml -x sttop_{dhcp|http|nat|tftp}
+
+             To connect the scenario to an external interface, just change the line:
+               <net name="mserver_net" mode="virtual_bridge"/>
+             to:
+               <net name="mserver_net" mode="virtual_bridge" external="extifname"/>
+             being extifname the name of the host network interface.
+          
+             The root filesystems used should have the following packages installed: apache2, 
+             isc-dhcp-server, iptables tftp-hpa and tftpd-hpa
+
+
+This file is part of the Virtual Networks over LinuX (VNX) Project distribution. 
+(www: http://www.dit.upm.es/vnx - e-mail: vnx@dit.upm.es) 
+
+Departamento de Ingenieria de Sistemas Telematicos (DIT)
+Universidad Politecnica de Madrid
+SPAIN
+
+-->
+
+<vnx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="/usr/share/xml/vnx/vnx-2.00.xsd">
+  <global>
+    <version>2.0</version>
+    <scenario_name>multi_server</scenario_name>
+    <automac offset="64"/>
+    <!--vm_mgmt type="none" /!-->
+    <vm_mgmt type="private" network="10.250.0.0" mask="24" offset="192">
+       <host_mapping />
+    </vm_mgmt> 
+    <vm_defaults>
+        <console id="0" display="no"/>
+        <console id="1" display="yes"/>
+    </vm_defaults>
+  </global>
+    
+  <net name="mserver_net" mode="virtual_bridge"/>
+  <!--net name="mserver_net" mode="virtual_bridge" external="usbeth17"/-->
+  <net name="virbr0" mode="virtual_bridge" managed="no"/>
+  
+  <vm name="mserver" type="lxc" exec_mode="lxc-attach" arch="x86_64">
+    <filesystem type="cow">filesystems/rootfs_lxc_ubuntu64</filesystem>
+    <if id="1" net="mserver_net">
+      <ipv4>10.100.1.1/24</ipv4>
+    </if>
+    <if id="9" net="virbr0">
+      <ipv4>dhcp</ipv4>
+    </if>
+    <forwarding type="ip" />
+    <exec seq="start-dhcp" type="verbatim">
+        sed -i '/^subnet 10.100.1.0/d' /etc/dhcp/dhcpd.conf
+        echo "subnet 10.100.1.0 netmask 255.255.255.0 { range 10.100.1.50 10.100.1.250; option subnet-mask 255.255.255.0; option routers 10.100.1.1; option domain-name-servers 8.8.8.8;}" >> /etc/dhcp/dhcpd.conf
+        sed -i -e 's/INTERFACESv4=.*/INTERFACESv4="eth1"/' /etc/default/isc-dhcp-server
+        systemctl restart isc-dhcp-server
+    </exec>
+    <exec seq="start-nat" type="verbatim">
+        vnx_config_nat eth1 eth9
+    </exec>
+    <exec seq="stop-nat" type="verbatim">
+        vnx_config_nat -d eth1 eth9
+    </exec>
+    <exec seq="start-http" type="verbatim">
+        # Files located in /var/www/html/
+        systemctl start apache2
+    </exec>
+    <exec seq="stop-http" type="verbatim">
+        systemctl stop apache2
+    </exec>
+    <exec seq="start-tftp" type="verbatim">
+        # Files located in /var/lib/tftpboot/
+        echo "hello" | sudo tee /var/lib/tftpboot/hello.txt
+        systemctl start tftpd-hpa
+    </exec>
+    <exec seq="stop-tftp" type="verbatim">
+        systemctl stop tftpd-hpa
+    </exec>
+    <cmd-seq seq="start-all">start-dhcp,start-nat,start-http,start-tftp</cmd-seq>
+    <cmd-seq seq="stop-all">stop-dhcp,stop-nat,stop-http,stop-tftp</cmd-seq>
+  </vm>
+
+  <vm name="mclient" type="lxc" exec_mode="lxc-attach" arch="x86_64">
+    <filesystem type="cow">filesystems/rootfs_lxc_ubuntu64</filesystem>
+    <if id="1" net="mserver_net">
+      <ipv4>dhcp</ipv4>
+    </if>
+  </vm>
+
+</vnx>

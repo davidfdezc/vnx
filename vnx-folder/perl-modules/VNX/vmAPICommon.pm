@@ -56,6 +56,7 @@ use VNX::FileChecks;
 use VNX::Globals;
 use VNX::DocumentChecks;
 use VNX::TextManipulation;
+use VNX::DataHandler;
 
 my $PERLIB=`perl -e 'use Config; print \$Config{installvendorlib}'`;
 require "$PERLIB/VNX/vnx_autoconfigure.pl";

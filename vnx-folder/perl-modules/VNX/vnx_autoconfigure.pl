@@ -27,6 +27,418 @@
 # Autoconfigure contains the functions to configure network files used by vmAPI_* and vnxaced  
 
 
+# get_tc_cmds
+#
+# Returns an array with the tc commands needed to implement the QoS defined in the
+# parameters passed:
+#   - bw: rate,burst,latency
+#   - delay
+#   - loss
+#
+sub get_tc_cmds {
+    
+    my $bw = shift;
+    my $delay = shift;
+    my $loss = shift;
+    my $interface_id = shift;
+
+    my $logp = "get_tc_cmds> ";
+
+    wlog (V, "bw='$bw', delay=$delay, loss=$loss", $logp);
+
+    my @tc_cmds;
+    
+    my $bw_queue_discipline = '';
+    my $delay_queue_discipline = '';
+    my $loss_queue_discipline = '';
+
+    my $cont = 0;
+
+    my $enable_bw = 'false';
+    my $enable_delay = 'false';
+    my $enable_loss = 'false';
+
+    if ($bw ne ''){
+    	$cont++;
+    	$enable_bw='true';
+    }
+
+    if ($delay ne ''){
+    	$cont++;
+    	$enable_delay='true';
+    }
+
+    if ($loss ne ''){
+    	$cont++;
+    	$enable_loss='true';
+    }
+
+    my %rate_units = (
+        bit  => 1,
+        kbit => 1000,
+        mbit => 1000000,
+        gbit => 1000000000,
+		tbit => 1000000000000,
+		bps  => 8,
+		kbps => 8000,
+		mbps => 8000000,
+        gbps => 8000000000,
+        tbps => 8000000000000,
+    );
+    
+    my %time_units = (
+        s     => 1,
+        sec   => 1,
+        secs  => 1,
+        ms    => 0.001,
+        msec  => 0.001,
+        msecs => 0.001,
+        us    => 0.000001,
+        usec  => 0.000001,
+        usecs => 0.000001,
+    );
+    my %size_units = (
+        b    => 1,
+        kbit => 125,
+        mbit => 125000,
+        gbit => 125000000,
+        kb   => 1000,
+        k    => 1000,
+        mb   => 1000000,
+        m    => 1000000,
+        gb   => 1000000000,
+        g    => 1000000000 ,
+    );
+    
+    my %delay_distribution = (
+        uniform	=> 1,
+        normal => 2,
+        pareto => 3,
+        paretonormal => 4,
+    );
+
+	#
+    # parse bw parameter
+    #
+    if ($enable_bw eq 'true'){
+
+	    my @bw_fields = split(',', $bw);
+
+	    if (@bw_fields == '1'){
+	    	
+			if ($bw_fields[0] =~ m/^\d+(?:\.\d+)?[^\d]+$/){	
+				my ($rate_only) = $bw_fields[0] =~ m{(\d+(?:\.\d+)?)};
+				my ($rate_only_unit) = $bw_fields[0] =~ s/[0-9.]//gr;
+
+				if (exists($rate_units{$rate_only_unit})){
+				
+					my ($final_rate)=$rate_only*$rate_units{$rate_only_unit};
+				
+					if($final_rate>=1000000){
+						my ($burst)=($final_rate*1.54)/$rate_units{'mbit'};
+						my ($latency)=($final_rate*110)/$rate_units{'mbit'};
+						my $burst_tbf_cmd = "${burst}kb";
+						my $latency_tbf_cmd = "${latency}ms";
+						my $rate_tbf_cmd = $bw_fields[0];
+						$bw_queue_discipline = "tbf rate ${rate_tbf_cmd} latency ${latency_tbf_cmd} burst ${burst_tbf_cmd}";
+						wlog (VVV, "Estimated values of burst and latency for rate ${rate_tbf_cmd}\n", $logp);
+						wlog (VVV, "-- $burst_tbf_cmd\n", $logp);
+						wlog (VVV, "-- $latency_tbf_cmd\n", $logp);
+					}else{
+						my ($burst)=1.54;
+		                my ($latency)=110;
+						my $burst_tbf_cmd = "${burst}kb";
+		                my $latency_tbf_cmd = "${latency}ms";
+						my $rate_tbf_cmd = $bw_fields[0];
+						$bw_queue_discipline = "tbf rate ${rate_tbf_cmd} latency ${latency_tbf_cmd} burst ${burst_tbf_cmd}";
+						wlog (VVV, "Estimated values of burst and latency for rate ${rate_tbf_cmd}\n", $logp);
+						wlog (VVV, "-- $burst_tbf_cmd\n", $logp);
+						wlog (VVV, "-- $latency_tbf_cmd\n", $logp);
+					}
+				} else {
+					wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': rate unit not recognized. Ignoring it.", $logp);
+					wlog (N, "  Accepted units are: [" . join( ',', keys %{rate_units}) . "].\n$hline", $logp);
+				}
+			}else{
+				wlog (N, "$hline\nQoS spec syntax ERROR: incorrect bw qos specification ($bw). Ignoring it.\n$hline", $logp);
+			}
+		
+	    } elsif ( @bw_fields == 2 or @bw_fields > 3){
+			wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': three comma separated parameters expected. Ignoring it.\n$hline", $logp);
+
+	    } else {
+		
+			if (($bw_fields[0] =~ m/^\d+(?:\.\d+)?[^\d]+$/) && (($bw_fields[1] =~ m/^\d+(?:\.\d+)?[^\d]+$/) || ($bw_fields[1] =~ m/^\d+.?\d+$/)) && ($bw_fields[2] =~ m/^\d+(?:\.\d+)?[^\d]+$/)){
+				
+				my ($rate_only_unit) = $bw_fields[0] =~ s/[0-9.]//gr;
+				my ($burst_only_unit) = $bw_fields[1] =~ s/[0-9.]//gr;
+				my ($latency_or_limit_only_unit) = $bw_fields[2] =~ s/[0-9.]//gr;
+				
+				my $is_limit = '';
+				if (exists($size_units{$latency_or_limit_only_unit}) or $latency_or_limit_only_unit eq ''){
+					$is_limit = 'true';
+				}else{
+					$is_limit = 'false';
+				}	
+
+				if($is_limit eq 'false'){
+					if(exists($rate_units{$rate_only_unit}) && ( exists($size_units{$burst_only_unit}) || $burst_only_unit eq '') && exists($time_units{$latency_or_limit_only_unit})){
+						my $burst_tbf_cmd = $bw_fields[1];
+		                my $latency_tbf_cmd = $bw_fields[2];
+		                my $rate_tbf_cmd = $bw_fields[0];
+						$bw_queue_discipline = "tbf rate ${rate_tbf_cmd} latency ${latency_tbf_cmd} burst ${burst_tbf_cmd}";
+					}else{
+						if(!exists($rate_units{$rate_only_unit})){
+		                	wlog (N, "$hline\nQoS spec syntax ERROR: rate unit not recognized", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{rate_units}) . "].\n$hline", $logp);
+		                }
+		                if(!( exists($size_units{$burst_only_unit}) || $burst_only_unit eq '')){
+		                    wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': burst unit not recognized", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{size_units}) . "].\n$hline", $logp);
+		                }
+						if(! exists($time_units{$latency_or_limit_only_unit})){
+		                    wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': latency unit not recognized", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		                }
+					}
+				}elsif($is_limit eq 'true'){
+					if( exists($rate_units{$rate_only_unit}) && ( exists($size_units{$burst_only_unit}) || $burst_only_unit eq '')){
+		                my $burst_tbf_cmd = $bw_fields[1];
+		                my $limit_tbf_cmd = $bw_fields[2];
+		                my $rate_tbf_cmd = $bw_fields[0];
+						$bw_queue_discipline = "tbf rate ${rate_tbf_cmd} limit ${limit_tbf_cmd} burst ${burst_tbf_cmd}";
+		            }else{
+						if(!exists($rate_units{$rate_only_unit})){
+		                  	wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': rate unit not recognized", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{rate_units}) . "].\n$hline", $logp);
+						}
+						if(!( exists($size_units{$burst_only_unit}) || $burst_only_unit eq '')){
+		                    wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': burst unit not recognized", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{size_units}) . "].\n$hline", $logp);
+		                }
+		            }
+				
+				}else{
+					wlog (N, "$hline\nQoS spec syntax ERROR occurred ($bw).\n$hline", $logp);
+				}
+			}else{
+				wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': incorrect bw parameters.\n$hline", $logp);
+			}
+	    }
+    }
+
+
+	#
+    # parse delay parameter
+	#
+    if ($enable_delay eq 'true'){
+
+	    my @delay_fields = split(',', $delay);
+
+		if (@delay_fields == '1'){
+	    	
+			if ($delay_fields[0] =~ m/^\d+(?:\.\d+)?[^\d]+$/){	
+				
+				my ($delay_only_unit) = $delay_fields[0] =~ s/[0-9.]//gr;
+		    	
+				if (exists($time_units{$delay_only_unit})){
+				
+					my $delay_netem_cmd = $delay_fields[0];
+					$delay_queue_discipline = "netem delay ${delay_netem_cmd}";
+				
+				}else{
+					wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': delay unit not recognized.", $logp);
+					wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+				}
+			}else{
+				wlog (N, "$hline\nQoS spec syntax ERROR in delay parameters ($delay).\n$hline", $logp);
+			}
+		
+	    }elsif (@delay_fields == '2'){
+	    	
+		    if (($delay_fields[0] =~ m/^\d+(?:\.\d+)?[^\d]+$/) && ($delay_fields[1] =~ m/^\d+(?:\.\d+)?[^\d]+$/)){
+
+		    	my ($delay_only_unit) = $delay_fields[0] =~ s/[0-9.]//gr;
+		    	my ($jitter_only_unit) = $delay_fields[1] =~ s/[0-9.]//gr;
+		    	
+				if ( exists($time_units{$delay_only_unit}) && exists($time_units{$jitter_only_unit}) ){
+				
+					my $delay_netem_cmd = $delay_fields[0];
+					my $jitter_netem_cmd = $delay_fields[1];
+					$delay_queue_discipline = "netem delay ${delay_netem_cmd} ${jitter_netem_cmd}";
+				
+				}else{
+					
+					if(! exists($time_units{$delay_only_unit})){
+		                wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': delay unit not recognized.", $logp);
+						wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		            }
+		            if(! exists($time_units{$jitter_only_unit})){
+		                wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': jitter unit not recognized.", $logp);
+						wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		            }
+				}
+			}else{
+				wlog (N, "$hline\nQoS spec syntax ERROR  in '$delay': incorrect delay parameters\n", $logp);
+			}
+
+	    }else{
+		
+			if (($delay_fields[0] =~ m/^\d+(?:\.\d+)?[^\d]+$/) && ($delay_fields[1] =~ m/^\d+(?:\.\d+)?[^\d]+$/) && (($delay_fields[2] =~ m/^\d+(?:\.\d+)?[^\d]+$/) || ($delay_fields[2] =~ m/^[^\d]+$/))){
+
+				my ($delay_only_unit) = $delay_fields[0] =~ s/[0-9.]//gr;
+				my ($jitter_only_unit) = $delay_fields[1] =~ s/[0-9.]//gr;
+				my ($correlation_or_distribution_only_unit) = $delay_fields[2] =~ s/[0-9.]//gr;
+				
+				my $is_distribution = '';
+				if (exists($delay_distribution{$correlation_or_distribution_only_unit})){
+					$is_distribution = 'true';
+				}else{
+					$is_distribution = 'false';
+				}	
+
+				if($is_distribution eq 'false'){
+					if(exists($time_units{$delay_only_unit}) && exists($time_units{$jitter_only_unit}) && $correlation_or_distribution_only_unit eq '%'){
+						my $delay_netem_cmd = $delay_fields[0];
+						my $jitter_netem_cmd = $delay_fields[1];
+		                my $correlation_netem_cmd = $delay_fields[2];
+						$delay_queue_discipline = "netem delay ${delay_netem_cmd} ${jitter_netem_cmd} ${correlation_netem_cmd}";
+					}else{
+						if(!exists($time_units{$delay_only_unit})){
+		                	wlog (N, "$hline\nQoS spec syntax ERROR: delay unit not recognized.", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		                }
+		                if(!exists($time_units{$jitter_only_unit})){
+		                    wlog (N, "$hline\nQoS spec syntax ERROR: jitter unit not recognized.", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		                }
+						if($correlation_or_distribution_only_unit ne '%'){
+							wlog (N, "$hline\nQoS spec syntax ERROR: correlation unit not recognized.", $logp);
+							wlog (N, "The accepted units are: %\n$hline", $logp);
+		                }
+					}
+				}elsif($is_distribution eq 'true'){
+					if( exists($time_units{$delay_only_unit}) && exists($time_units{$jitter_only_unit}) && exists($delay_distribution{$correlation_or_distribution_only_unit})){
+						my $delay_netem_cmd = $delay_fields[0];
+		                my $jitter_netem_cmd = $delay_fields[1];
+		                my $distribution_netem_cmd = $delay_fields[2];
+						$delay_queue_discipline = "netem delay ${delay_netem_cmd} ${jitter_netem_cmd} distribution ${distribution_netem_cmd}";
+		            }else{
+						if(!exists($time_units{$delay_only_unit})){
+		                  	wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': delay unit not recognized.", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+						}
+						if(!exists($time_units{$jitter_only_unit})){
+		                    wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': jitter unit not recognized.", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		                }
+						if(!exists($delay_distribution{$delay_fields[2]})){
+		                    wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': distribution not recognized.", $logp);
+							wlog (N, "  Accepted values are: [" . join( ',', keys %{delay_distribution}) . "].\n$hline", $logp);
+		                }
+		            }
+				
+				}else{
+					wlog (N, "$hline\nQoS spec syntax ERROR occurred ($delay).\n$hline", $logp);
+				}
+			}else{
+				wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': incorrect delay parameters.\n$hline", $logp);
+			}
+	    }
+	}
+    
+    #
+    # parse loss parameter
+    #
+    if ($enable_loss eq 'true'){
+
+	    my @loss_fields = split(',', $loss);
+
+	    if (@loss_fields == '1'){
+	    	
+			if ($loss_fields[0] =~ m/^\d+(?:\.\d+)?[^\d]+$/){
+				my ($loss_only_unit) = $loss_fields[0] =~ s/[0-9.]//gr;
+	    	
+				if ($loss_only_unit eq '%'){
+				
+					my $loss_netem_cmd = $loss_fields[0];
+					$loss_queue_discipline = "netem loss ${loss_netem_cmd}";
+				
+				}else{
+					wlog (N, "$hline\nQoS spec syntax ERROR in '$loss': loss unit not recognized.", $logp);
+					wlog (N, "The accepted units are: %\n$hline", $logp);
+				}
+			}else{
+				wlog (N, "$hline\nQoS spec syntax ERROR in '$loss': incorrect loss parameters.\n$hline", $logp);
+			}
+		
+	    }elsif (@loss_fields == '2'){
+	    	
+	    	if (($loss_fields[0] =~ m/^\d+(?:\.\d+)?[^\d]+$/) && ($loss_fields[1] =~ m/^\d+(?:\.\d+)?[^\d]+$/)){
+		    	my ($loss_only_unit) = $loss_fields[0] =~ s/[0-9.]//gr;
+		    	my ($correlation_only_unit) = $loss_fields[1] =~ s/[0-9.]//gr;
+		    	
+				if ($loss_only_unit eq '%' && $correlation_only_unit eq '%'){
+				
+					my $loss_netem_cmd = $loss_fields[0];
+					my $correlation_loss_netem_cmd = $loss_fields[1];
+					$loss_queue_discipline = "netem loss ${loss_netem_cmd} ${correlation_loss_netem_cmd}";
+				
+				}else{
+					
+					if($loss_only_unit ne '%'){
+		                wlog (N, "$hline\nQoS spec syntax ERROR in '$loss': loss unit not recognized.", $logp);
+						wlog (N, "The accepted units are: %\n$hline", $logp);
+		            }
+		            if($correlation_only_unit ne '%'){
+		                wlog (N, "$hline\nQoS spec syntax ERROR in '$loss': loss correlation unit not recognized.", $logp);
+						wlog (N, "The accepted units are: %\n$hline", $logp);
+		            }
+				}
+			}else{
+				wlog (N, "$hline\nQoS spec syntax ERROR in '$loss': incorrect loss parameters.\n$hline", $logp);
+			}
+	    }else{
+			wlog (N, "$hline\nQoS spec syntax ERROR occurred ('$loss').\n$hline", $logp);
+			
+	    }
+	}
+
+	if ($cont == '1'){
+		if (!($bw_queue_discipline eq '')){
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} root ${bw_queue_discipline}\n");
+		}
+		if (!($delay_queue_discipline eq '')){
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} root ${delay_queue_discipline}\n");
+		}
+		if (!($loss_queue_discipline eq '')){
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} root ${loss_queue_discipline}\n");
+		}
+	}elsif($cont == '2'){
+		if(!($bw_queue_discipline eq '') && !($delay_queue_discipline eq '')){
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} root handle 1: ${bw_queue_discipline}\n");
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} parent 1:2 handle 20: ${delay_queue_discipline}\n");
+		}
+		if(!($bw_queue_discipline eq '') && !($loss_queue_discipline eq '')){
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} root handle 1: ${bw_queue_discipline}\n");
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} parent 1:2 handle 20: ${loss_queue_discipline}\n");
+		}
+		if(!($delay_queue_discipline eq '') && !($loss_queue_discipline eq '')){
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} root handle 1: ${delay_queue_discipline}\n");
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} parent 1:2 handle 20: ${loss_queue_discipline}\n");
+		}
+	}else{
+		if(!($bw_queue_discipline eq '') && !($delay_queue_discipline eq '') && !($loss_queue_discipline eq '')){
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} root handle 1: ${bw_queue_discipline}\n");
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} parent 1:2 handle 20: ${delay_queue_discipline}\n");
+			push (@tc_cmds, "   up tc qdisc add dev eth${interface_id} parent 20:1 handle 30: ${loss_queue_discipline}\n");
+		}
+	} 
+    
+    return @tc_cmds;
+}
+
+
 #
 # autoconfigure for Ubuntu/Debian
 #
@@ -193,18 +605,18 @@ sub autoconfigure_debian_ubuntu {
             for (my $i = 0 ; $i < @ipv4_routes ; $i++){
                 my $route = $ipv4_routes[$i];
                 chomp($route); 
-                for (my $j = 0 ; $j < @ipv4_addr_list ; $j++) {
+                for (my $k = 0 ; $k < @ipv4_addr_list ; $k++) {
                     my $ipv4_route_gw = new NetAddr::IP $ipv4_routes_gws[$i];
-                    if ($ipv4_route_gw->within(new NetAddr::IP $ipv4_addr_list[$j], $ipv4_mask_list[$j])) {
+                    if ($ipv4_route_gw->within(new NetAddr::IP $ipv4_addr_list[$k], $ipv4_mask_list[$k])) {
                         print INTERFACES $route . "\n";
                     }
                 }
             }           
 
             # Config IPv6 addresses
-            for ( my $j = 0 ; $j < @ipv6_tag_list ; $j++ ) {
+            for ( my $k = 0 ; $k < @ipv6_tag_list ; $k++ ) {
 
-                my $ipv6 = $ipv6_tag_list[$j];
+                my $ipv6 = $ipv6_tag_list[$k];
                 my $ip   = $ipv6->getFirstChild->getData;
                 my $mask = $ip;
                 $mask =~ s/.*\///;
@@ -213,7 +625,7 @@ sub autoconfigure_debian_ubuntu {
                 if ($ip eq 'dhcp') {
                         print INTERFACES "iface " . $if_name . " inet6 dhcp\n";                  
                 } else {
-                    if ($j == 0) {
+                    if ($k == 0) {
                         print INTERFACES "iface " . $if_name . " inet6 static\n";
                         print INTERFACES "   address " . $ip . "\n";
                         print INTERFACES "   netmask " . $mask . "\n";
@@ -229,14 +641,50 @@ sub autoconfigure_debian_ubuntu {
             for (my $i = 0 ; $i < @ipv6_routes ; $i++){
                 my $route = $ipv6_routes[$i];
                 chomp($route); 
-                for (my $j = 0 ; $j < @ipv6_addr_list ; $j++) {
+                for (my $k = 0 ; $k < @ipv6_addr_list ; $k++) {
                     my $ipv6_route_gw = new NetAddr::IP $ipv6_routes_gws[$i];
-                    if ($ipv6_route_gw->within(new NetAddr::IP $ipv6_addr_list[$j], $ipv6_mask_list[$j])) {
+                    if ($ipv6_route_gw->within(new NetAddr::IP $ipv6_addr_list[$k], $ipv6_mask_list[$k])) {
                         print INTERFACES $route . "\n";
                     }
                 }
             }           
         }
+        
+        # Config QoS 
+        unless ($id == 0) {
+	        my $qos = '';
+		    #my $if_id = $if->getAttribute("id");
+	        # Check if qos specified in the interface
+		    my $bw    = str($if->getAttribute("bw"));
+		    my $delay = str($if->getAttribute("delay"));
+		    my $loss  = str($if->getAttribute("loss"));
+	        if ($bw or $delay or $loss) {
+	        	# Apply interface specific values 
+	          	$qos = 'if';           	
+	        } else {
+	          	# Check if qos is specified in <net> tag
+	            my $net = $dh->get_net_byname($if->getAttribute("net"));
+		        $bw    = str($net->getAttribute("bw"));
+		        $delay = str($net->getAttribute("delay"));
+	    	    $loss  = str($net->getAttribute("loss"));
+	            if ($bw or $delay or $loss) {
+	            	# Apply interface specific values 
+	   	        	$qos = 'net';           	
+	            }
+	     	}
+	        if ($qos) {
+	           	wlog (V, "QoS parameters specified in <$qos> tag for interface $id of vm $vm_name: bw='$bw', delay='$delay', loss='$loss'");
+	           	print INTERFACES "   # QoS parameters specified in <$qos> tag for interface $id: \n";
+	           	print INTERFACES "   #   bw='$bw', delay='$delay', loss='$loss'\n";
+
+				my @tc_cmds = get_tc_cmds($bw, $delay, $loss, $id);
+
+				foreach my $cmd (@tc_cmds) {
+				  print INTERFACES "$cmd";
+				}	           	
+	        }
+        }
+	    
         
         # Process dns tags
         my $dns_addrs;

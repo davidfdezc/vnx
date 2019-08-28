@@ -58,13 +58,14 @@ while getopts ":hqn:o:" opt; do
           msg "ERROR: $OPTARG config file not found!"
           exit 1
       fi
-      sed -i -e 's/lxc.rootfs\s*=/lxc.rootfs.path =/g' -e 's/lxc.utsname\s*=/lxc.uts.name =/g' \
-             -e 's/lxc.mount\s*=/lxc.mount.fstab =/g' -e 's/lxc.tty\s*=/lxc.tty.max =/g' \
-             -e 's/lxc.network.type\s*=/lxc.net.0.type =/g' -e 's/lxc.network.link\s*=/lxc.net.0.link =/g' \
-             -e 's/lxc.network.flags\s*=/lxc.net.0.flags =/g' -e 's/lxc.network.hwaddr\s*=/lxc.net.0.hwaddr =/g' \
-             -e '/lxc.rootfs.backend\s*=.*/d' \
-             -e 's/lxc.aa_profile\s*=/lxc.apparmor.profile =/g' \
-             $OPTARG
+      lxc-update-config -c $OPTARG
+#      sed -i -e 's/lxc.rootfs\s*=/lxc.rootfs.path =/g' -e 's/lxc.utsname\s*=/lxc.uts.name =/g' \
+#             -e 's/lxc.mount\s*=/lxc.mount.fstab =/g' -e 's/lxc.tty\s*=/lxc.tty.max =/g' \
+#             -e 's/lxc.network.type\s*=/lxc.net.0.type =/g' -e 's/lxc.network.link\s*=/lxc.net.0.link =/g' \
+#             -e 's/lxc.network.flags\s*=/lxc.net.0.flags =/g' -e 's/lxc.network.hwaddr\s*=/lxc.net.0.hwaddr =/g' \
+#             -e '/lxc.rootfs.backend\s*=.*/d' \
+#             -e 's/lxc.aa_profile\s*=/lxc.apparmor.profile =/g' \
+#             $OPTARG
       ;;
     o)
       msg "Converting to OLD format" >&2
@@ -75,8 +76,7 @@ while getopts ":hqn:o:" opt; do
       sed -i -e 's/lxc.rootfs.path\s*=\s*dir:/lxc.rootfs =/g' \
       		 -e 's/lxc.rootfs.path\s*=/lxc.rootfs =/g' -e 's/lxc.uts.name\s*=/lxc.utsname =/g' \
              -e 's/lxc.mount\s*=/lxc.mount.fstab =/g ' -e 's/lxc.tty.max\s*=/lxc.tty =/g' \
-             -e 's/lxc.net.0.type\s*=/lxc.network.type =/g' -e 's/lxc.net.0.link\s*=/lxc.network.link =/g' \
-             -e 's/lxc.net.0.flags\s*=/lxc.network.flags =/g' -e 's/lxc.net.0.hwaddr\s*=/lxc.network.hwaddr =/g' \
+             -e 's/lxc.net.[0-9]\+./lxc.network./g' \
              -e 's/lxc.apparmor.profile\s*=/lxc.aa_profile =/g' \
              $OPTARG
       ;;

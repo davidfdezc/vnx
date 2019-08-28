@@ -542,7 +542,7 @@ sub smartdie {
       $self->execute("smartdie> ", "rm -f $vnx_dir/LOCK");
    }
    print "-------------------------------------------------------------------------------\n";
-   printf "%s (%s): %s \n", (caller(1))[3], (caller(0))[2], $mess;
+   printf "ERROR in %s (%s):\n%s \n", (caller(1))[3], (caller(0))[2], $mess;
    print "-------------------------------------------------------------------------------\n";
    exit 1; 
 }

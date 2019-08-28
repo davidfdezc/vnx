@@ -79,6 +79,10 @@ Repository:    $vnx_rootfs_repo"
 #
 function get_link_name {
 
+   if [[ $1 == *tinycore* ]] ; then
+      echo "rootfs_tinycore"; return
+   fi
+
    if [[ $1 == *honeydrive* ]] ; then
       echo "rootfs_honeydrive"; return
    fi

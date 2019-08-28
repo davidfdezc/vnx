@@ -50,6 +50,7 @@ our @EXPORT = qw(
 	$exemode
 	$hypervisor
 	$vnxConfigFile
+    $vnx_dir
     $uid
     $uid_name
     $uid_orig
@@ -175,6 +176,7 @@ our $exemode;       # Execution mode. It stores the value of $execution->get_exe
                     #    print "..." if ($exemode == $EXE_VERBOSE)
 our $hypervisor;    # Hypervisor used for libvirt 	
 our $vnxConfigFile; # VNX Configuration file 
+our $vnx_dir;       # VNX directory to store scenarios info
 our $uid;           # User id of the user VNX runs as 
 our $uid_name;      # User name associated to $uid 
 our $uid_orig;      # User id of the user that issue the "sudo vnx..." command 

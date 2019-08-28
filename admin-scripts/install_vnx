@@ -282,5 +282,11 @@ chmod g+w $VNX_TUN
 chown $VNX_USER:$VNX_GROUP $DATA
 chmod 755 $DATA
 
+# Restart apparmor if active
+if systemctl | grep apparmor.service | grep active > /dev/null 2>&1; then 
+  echo "restarting apparmor service..."
+  systemctl restart apparmor
+fi
+
 # Show VNX version
 vnx -V

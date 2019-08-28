@@ -34,6 +34,14 @@ e-mail: vnx@dit.upm.es
     <xs:complexType mixed="true"/>
   </xs:element>
 
+  <xs:element name="delay">
+    <xs:complexType mixed="true"/>
+  </xs:element>
+
+  <xs:element name="loss">
+    <xs:complexType mixed="true"/>
+  </xs:element>
+
   <xs:element name="cdrom">
     <xs:complexType mixed="true"/>
   </xs:element>
@@ -222,6 +230,9 @@ e-mail: vnx@dit.upm.es
       </xs:sequence>
       <xs:attribute name="net" type="xs:string" use="required"/>
       <xs:attribute name="id" type="xs:string" use="required"/>
+      <xs:attribute name="bw" type="xs:string" use="optional"/>
+      <xs:attribute name="delay" type="xs:string" use="optional"/>
+      <xs:attribute name="loss" type="xs:string" use="optional"/>
 
       <xs:attribute name="name" type="xs:string"/>
     </xs:complexType>
@@ -391,6 +402,10 @@ e-mail: vnx@dit.upm.es
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
+      <xs:attribute name="bw" type="xs:string" use="optional"/>
+      <xs:attribute name="delay" type="xs:string" use="optional"/>
+      <xs:attribute name="loss" type="xs:string" use="optional"/>
+
     </xs:complexType>
   </xs:element>
 

@@ -1,3 +1,16 @@
+28/8/2019
+
+- vmAPI_libvirt: added new type libvirt-qemu-linux to allow the execution of light virtual machines like tinycore without KVM 
+  support (for example, to run then inside VirtualBox virtual machines).
+- vmAPI_lxc: Added line in config files to allow access to /dev/net/tun
+- lxc-default-with-netns apparmor profile modified to allow nested name spaces in Ubuntu 18.04 LXC containers, avoiding
+  "mount --make-shared /var/run/netns failed: Operation not permitted" error when executing "ip netns add blue".
+- install_vnx: restart apparmor service if active
+- vnx_autoconfigure.pl: added support for tc-like QoS specification for <net> and <if> tags. 
+- Example multi_server.xml added (a server with DHCP, NAT, HTTP and TFTP).
+- vmAPI_lxc: revised the code of define_vm to manage the conflicts when creating a container and already having a
+  link/directory with the same name in /var/lib/lxc.  
+ 
 22/11/2018
 
 - vmAPI_lxc: included code to guess the name of overlay filesystem (overlayfs in old systems or overlay in new ones) 
@@ -36,7 +49,7 @@
 - Implemented the <shareddir> tag for libvirt-kvm
 - LXC: modified vnx.pl and vmAPI_lxc.pm to allow LXC containers with config filers in old and new format.
 - Added --pack-excl-files option to --pack mode
-- Added support for vxlan tunnel in OPen vSwitch bridges
+- Added support for vxlan tunnel in Open vSwitch bridges
 - vnx_convert_lxc: added translation of lxc.aa_profile into lxc.apparmor.profile 
 - vmAPI_lxc: added "-l 5" option to lxc-start to show debug messages
 

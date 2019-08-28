@@ -1846,6 +1846,28 @@ sub filetree_in_vm {
 sub numerically { $a <=> $b; }     # Helper for sorting
 
 #
+# get_net_byname
+#
+# Returns a net knowing its name 
+#
+sub get_net_byname {
+
+    my $self = shift;
+    my $net_name = shift;
+
+    #wlog (VVV, "---- looking for " . $vm_name);
+
+    my $global_doc = $dh->get_doc;
+
+    foreach my $net ($global_doc->getElementsByTagName("net")) {
+		if ($net->getAttribute("name") eq $net_name) {
+			return $net
+		};
+    }
+    return "";
+}
+
+#
 # get_net_type: returns the type of a <net> ('' if not found).
 #
 sub get_net_type {
@@ -1911,6 +1933,41 @@ sub get_net_vlan {
         }
     }
     return ''
+}
+
+# get_net_by_mode
+#
+# Returns a network whose name is the first argument and whose mode is second
+# argument (may be "*" if the type doesn't matter). If there is no net with
+# the given constrictions, 0 value is returned
+#
+# Note the default mode is "virtual_bridge"
+#
+sub get_net_by_mode {
+   
+    my $self = shift;
+    my $name_target = shift;
+    my $mode_target = shift;
+   
+    my $logp = "get_net_by_mode";
+    wlog (VVV, "name=$name_target, mode=$mode_target", $logp);
+    my $doc = $dh->get_doc;
+   
+    # To get list of defined <net>
+   	foreach my $net ($doc->getElementsByTagName("net")) {
+        my $name = $net->getAttribute("name");
+        my $mode = $net->getAttribute("mode");
+
+        if (($name_target eq $name) && (($mode_target eq "*") || ($mode_target eq $mode))) {
+            return $net;
+        }
+        # Special case (implicit virtual_bridge)
+        if (($name_target eq $name) && ($mode_target eq "virtual_bridge") && ($mode eq "")) {
+            return $net;
+        }
+    }
+   
+    return 0;	
 }
 
 #

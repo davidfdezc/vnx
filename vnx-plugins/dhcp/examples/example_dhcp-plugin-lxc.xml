@@ -48,7 +48,7 @@ SPAIN
   <net name="ptp12" mode="virtual_bridge" />
   
   <!-- NODES -->
-  <vm name="r1" type="lxc">
+  <vm name="r1" type="lxc" arch="x86_64">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="lan1">
       <ipv4>10.0.1.1/24</ipv4>
@@ -65,7 +65,7 @@ SPAIN
     <exec seq="stop-www" type="verbatim"  ostype="system">service apache2 stop</exec>    
   </vm>
 
-  <vm name="r2" type="lxc">
+  <vm name="r2" type="lxc" arch="x86_64">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="lan2" name="fxp0">
       <ipv4>10.0.2.1/24</ipv4>
@@ -79,7 +79,7 @@ SPAIN
     <forwarding type="ip" />
   </vm>
 
-  <vm name="h1" type="lxc">
+  <vm name="h1" type="lxc" arch="x86_64">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="lan1">
       <!--ipv4>10.0.1.2/24</ipv4>
@@ -89,7 +89,7 @@ SPAIN
     <route type="ipv6" gw="2001:db8:1::1">default</route-->       
   </vm>
 
-  <vm name="h2" type="lxc">
+  <vm name="h2" type="lxc" arch="x86_64">
     <filesystem type="cow">/usr/share/vnx/filesystems/rootfs_lxc</filesystem>
     <if id="1" net="lan2">
       <!--ipv4>10.0.2.2/24</ipv4>

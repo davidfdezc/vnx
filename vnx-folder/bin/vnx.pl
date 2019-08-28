@@ -326,7 +326,7 @@ $>=0;
    		$tmp_dir =~ s|/$||; # eliminate final '/' if it exists
    	}
    	pre_wlog ("  TMP dir=$tmp_dir") if (!$opts{b});
-   	my $vnx_dir=get_conf_value ($vnxConfigFile, 'general', 'vnx_dir');
+   	$vnx_dir=get_conf_value ($vnxConfigFile, 'general', 'vnx_dir');
    	if (defined $vnx_dir) {
    		$vnx_dir =~ s|/$||; # eliminate final '/' if it exists	
    	}
@@ -991,7 +991,7 @@ back_to_user();
     }
    	elsif ($mode eq 'console') {
      	if ($exemode != $EXE_DEBUG) {
-        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        	$execution->smartdie ("Scenario " . $dh->get_scename . " does not exist.")
         	unless scenario_exists($dh->get_scename);
      	}
 #print_current_user();
@@ -1000,7 +1000,7 @@ back_to_user();
    	}
    	elsif ($mode eq 'console-info') {
      	if ($exemode != $EXE_DEBUG) {
-        	$execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        	$execution->smartdie ("Scenario " . $dh->get_scename . " does not exist.")
         	unless scenario_exists($dh->get_scename);
      	}
    		mode_consoleinfo();
@@ -1016,7 +1016,7 @@ back_to_user();
     }
    
     else {
-        $execution->smartdie("if you are seeing this text something terribly horrible has happened...\n");
+        $execution->smartdie("If you are seeing this text something terribly horrible has happened...");
     }
 
     # Call the finalize subrutine in plugins
@@ -1114,12 +1114,13 @@ sub mode_define {
 
     # If not -M option or ref_vms specified, the scenario must not exist
     if ( scenario_exists($dh->get_scename) ) {
-        $execution->smartdie ("ERROR, scenario " . $dh->get_scename . " already created\n") if ( !$opts{M} && !defined($ref_vms) )
+        $execution->smartdie ("Scenario " . $dh->get_scename . 
+           " already created.\nRelease it with '--destroy' option before creating it again.") if ( !$opts{M} && !defined($ref_vms) )
     }
 
     # If -M option or ref_vms specified, the scenario must be already created
     unless ( scenario_exists($dh->get_scename) ) {
-        $execution->smartdie ("ERROR, scenario " . $dh->get_scename . " not created\n") if ( $opts{M} || defined($ref_vms) )
+        $execution->smartdie ("Scenario " . $dh->get_scename . " not created.") if ( $opts{M} || defined($ref_vms) )
     }
 
     # Build the whole bridge based network topology only if -M or ref_vms not specified
@@ -1145,13 +1146,13 @@ sub build_topology{
     # To load tun module if needed
     if (tundevice_needed($dh->get_vmmgmt_type,$dh->get_vm_ordered)) {
         if (! -e "/dev/net/tun") {
-            !$execution->execute_root( $logp, $bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!");
+            !$execution->execute_root( $logp, $bd->get_binaries_path_ref->{"modprobe"} . " tun") or $execution->smartdie ("module tun can not be initialized: $!.");
         }
     }
 
     # To make directory to store files related with the topology
     if (! -d $dh->get_sim_dir && $execution->get_exe_mode != $EXE_DEBUG) {
-        mkdir $dh->get_sim_dir or $execution->smartdie ("error making directory " . $dh->get_sim_dir . ": $!");
+        mkdir $dh->get_sim_dir or $execution->smartdie ("Error creating directory " . $dh->get_sim_dir . ": $!.");
     }
 
     $execution->execute($logp, $bd->get_binaries_path_ref->{"touch"} . " " . $dh->get_sim_dir . "/hostlines");
@@ -1182,8 +1183,8 @@ sub build_topology{
         # does not exist raise an error
         if ( str($managed) eq 'no' && $mgmt_net ne $mgmt_net . "-mgmt" && ! vnet_exists_br($mgmt_net, 'virtual_bridge') ) {
         	
-            $execution->smartdie ("\nERROR: Management bridge $mgmt_net does not exist and it's configured with attribute managed='no'.\n" . 
-                                  "       Non-managed bridges are not created/destroyed by VNX. They must exist in advance.")
+            $execution->smartdie ("Management bridge $mgmt_net does not exist and it's configured with attribute managed='no'.\n" . 
+                                  "Non-managed bridges are not created/destroyed by VNX. They must exist in advance.")
         }
 
         unless ( vnet_exists_br($mgmt_net, 'virtual_bridge') || str($managed) eq 'no' ) {
@@ -1249,7 +1250,7 @@ sub define_vms {
     # UML: If defined screen configuration file, open it
     if (($opts{e}) && ($execution->get_exe_mode() != $EXE_DEBUG)) {
         open SCREEN_CONF, ">". $opts{e}
-            or $execution->smartdie ("can not open " . $opts{e} . ": $!")
+            or $execution->smartdie ("Can not open " . $opts{e} . ": $!.")
     }
 
     # management ip counter
@@ -1331,7 +1332,7 @@ sub create_vm_dirs {
     # create fs, hostsfs and run directories, if they don't already exist
     if ($execution->get_exe_mode() != $EXE_DEBUG) {
         if (! -d $dh->get_vm_dir ) {
-            mkdir $dh->get_vm_dir or $execution->smartdie ("error making directory " . $dh->get_vm_dir . ": $!");
+            mkdir $dh->get_vm_dir or $execution->smartdie ("Error creating directory " . $dh->get_vm_dir . ": $!.");
         }
         mkdir $dh->get_vm_dir($vm_name);
         mkdir $dh->get_vm_fs_dir($vm_name);
@@ -1727,6 +1728,20 @@ sub make_vmAPI_doc {
             unless (empty($name)) { 
                 $if_tag->addChild( $dom->createAttribute( name => $name)) 
             }
+
+			# QoS attributes
+			my $bw = $if->getAttribute("bw");
+            unless (empty($bw)) { 
+                $if_tag->addChild( $dom->createAttribute( bw => $bw)) 
+            }
+			my $delay = $if->getAttribute("delay");
+            unless (empty($delay)) { 
+                $if_tag->addChild( $dom->createAttribute( delay => $delay)) 
+            }
+			my $loss = $if->getAttribute("loss");
+            unless (empty($loss)) { 
+                $if_tag->addChild( $dom->createAttribute( loss => $loss)) 
+            } 
              
             # To process interface IPv4 addresses
             # The first address has to be assigned without "add" to avoid creating subinterfaces
@@ -1949,7 +1964,7 @@ sub make_vmAPI_doc {
         my $ftree_num = $vm_plugin_ftrees+$vm_ftrees+1;
         wlog (VVV,"ssh ftree_num=$ftree_num");
         my $ssh_key_dir = $dh->get_vm_tmp_dir($vm_name) . "/on_boot/filetree/$ftree_num";
-        $execution->execute($logp,  "mkdir -p $ssh_key_dir"); # or $execution->smartdie ("cannot create directory $ssh_key_dir for storing ssh keys");
+        $execution->execute($logp,  "mkdir -p $ssh_key_dir"); # or $execution->smartdie ("Cannot create directory $ssh_key_dir for storing ssh keys.");
         # Copy ssh key files content to $ssh_key_dir/ssh_keys file
         foreach my $ssh_key (@ssh_key_list) {
             wlog (V, "<ssh_key> file: $ssh_key");
@@ -2017,7 +2032,7 @@ sub make_vmAPI_doc {
     my $vm_doc = $dom->toString(1);
     wlog (VVV, $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_conf.xmlfile\n' . $dom->toString(1), $logp);
     open XML_CCFILE, ">" . $dh->get_vm_dir($vm_name) . '/' . $vm_name . '_conf.xml'
-        or $execution->smartdie("can not open " . $dh->get_vm_dir . '/' . $vm_name . '_conf.xml' )
+        or $execution->smartdie("Can not open " . $dh->get_vm_dir . '/' . $vm_name . '_conf.xml.' )
         unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
     print XML_CCFILE "$vm_doc\n";
     close XML_CCFILE unless ( $execution->get_exe_mode() eq $EXE_DEBUG );
@@ -2058,7 +2073,7 @@ sub mode_undefine{
 
     # If scenario does not exist --> error
     #unless ( scenario_exists($dh->get_scename) ) {
-    #    $execution->smartdie ("ERROR, scenario " . $dh->get_scename . " not started\n");
+    #    $execution->smartdie ("Scenario " . $dh->get_scename . " not started.");
     #}
 
     my $undef_error; 	   
@@ -2304,7 +2319,7 @@ sub mode_start {
 
     # If scenario does not exist --> error
     unless ( scenario_exists($dh->get_scename) ) {
-        $execution->smartdie ("ERROR, scenario " . $dh->get_scename . " not started\n");
+        $execution->smartdie ("Scenario " . $dh->get_scename . " not started.");
     }
 
     # Check whether the virtual network topology (bridges and interfaces) is created
@@ -2323,6 +2338,7 @@ sub mode_start {
     tun_connect(\@vm_ordered);
     set_vlan_links(\@vm_ordered);
     set_link_mtu(\@vm_ordered);
+    #set_link_qos(\@vm_ordered);
     connect_ovs_to_controllers(\@vm_ordered);
             
     # Execute 'on_boot' commands
@@ -2666,10 +2682,10 @@ sub set_vlan_links {
 
         foreach my $if ($vm->getElementsByTagName("if")){
         	# Activate network links when openvswitch are used
-        	#if(get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0 && ($first_time eq 'yes')){
+        	#if($dh->get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0 && ($first_time eq 'yes')){
             #        $first_time='no';
             #}
-            if ( (get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0)&& $if->getElementsByTagName("vlan")) {
+            if ( ($dh->get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0)&& $if->getElementsByTagName("vlan")) {
                 my $if_id = $if->getAttribute("id");
                 my @vlan=$if->getElementsByTagName("vlan");
                 my $vlantag= $vlan[0];  
@@ -2729,7 +2745,7 @@ sub set_vlan_links {
 	
 	        # To get name and mode attribute
 	        my $net = $if->getAttribute("net");
-	        if ( (get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0)&& $if->getElementsByTagName("vlan")) {
+	        if ( ($dh->get_net_by_mode($if->getAttribute("net"),"openvswitch") != 0)&& $if->getElementsByTagName("vlan")) {
 	            my $if_id = $if->getAttribute("id");
 	            my @vlan=$if->getElementsByTagName("vlan");
 	            my $vlantag= $vlan[0];  
@@ -2778,7 +2794,7 @@ sub set_link_mtu {
             # Skip management interfaces
             next if ($if->getAttribute("net") eq "vm_mgmt");
             # Set MTU if specified in "mtu" attribute of <net> tag
-            my $net = get_net_by_mode($if->getAttribute("net"), "*");
+            my $net = $dh->get_net_by_mode($if->getAttribute("net"), "*");
             if( $net != 0 and $net->getAttribute("mtu") ){
                 my $mtu = $net->getAttribute("mtu");
                 my $if_id = $if->getAttribute("id");
@@ -2789,6 +2805,65 @@ sub set_link_mtu {
     }
     
 }
+
+#
+# set_link_qos
+#
+# Configure qos parameters using tc command if specified in <net> or <if> tag for the interfaces of the VMs specified 
+# in $ref_vm_ordered
+#
+sub set_link_qos {
+    
+    my $ref_vm_ordered = shift;
+    my @vm_ordered = @{$ref_vm_ordered};
+
+    my $logp = 'set_link_qos> ';
+
+    # For all VMs
+    for ( my $i = 0; $i < @vm_ordered; $i++) {
+        my $vm = $vm_ordered[$i];
+        my $vm_name = $vm->getAttribute("name");
+
+        foreach my $if ($vm->getElementsByTagName("if")){
+            # Skip management interfaces
+            next if ($if->getAttribute("net") eq "vm_mgmt");
+			my $qos = '';
+	        my $if_id = $if->getAttribute("id");
+            # Check if qos specified in the interface
+	        my $bw    = str($if->getAttribute("bw"));
+	        my $delay = str($if->getAttribute("delay"));
+	        my $loss  = str($if->getAttribute("loss"));
+            if ($bw or $delay or $loss) {
+            	# Apply interface specific values 
+            	$qos = 'if';           	
+            } else {
+            	# Check if qos is specified in <net> tag
+	            my $net = $dh->get_net_by_mode($if->getAttribute("net"), "*");
+		        $bw    = str($net->getAttribute("bw"));
+		        $delay = str($net->getAttribute("delay"));
+	    	    $loss  = str($net->getAttribute("loss"));
+	            if ($bw or $delay or $loss) {
+	            	# Apply interface specific values 
+    	        	$qos = 'net';           	
+	            }
+            }
+            if ($qos) {
+            	wlog (V, "qos parameters specified in <$qos> tag for interface $if_id of vm $vm_name: bw='$bw', delay='$delay', loss='$loss'")
+            }
+pak();            
+            
+            my $net = $dh->get_net_by_mode($if->getAttribute("net"), "*");
+            if( $net != 0 and $net->getAttribute("mtu") ){
+                my $mtu = $net->getAttribute("mtu");
+                my $if_id = $if->getAttribute("id");
+                my $port_name="$vm_name"."-e"."$if_id";
+                $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $port_name mtu $mtu");
+            }                               
+        }
+    }
+    
+}
+
 #
 # connect_ovs_to_controllers
 #
@@ -2855,7 +2930,7 @@ sub mode_shutdown {
 
     # If scenario does not exist --> error
     unless ( scenario_exists($dh->get_scename) ) {
-        $execution->smartdie ("ERROR, scenario " . $dh->get_scename . " not started\n");
+        $execution->smartdie ("Scenario " . $dh->get_scename . " not started.");
     }
 
 #    if ($opts{F}) { wlog (VV, "F flag set", $logp) } 
@@ -3216,7 +3291,7 @@ sub mode_suspend {
       my $merged_type = $dh->get_vm_merged_type($vm);
       
       if ($exemode != $EXE_DEBUG) {
-            $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+            $execution->smartdie ("Scenario " . $dh->get_scename . " does not exist.")
                 unless scenario_exists($dh->get_scename);
       }
 
@@ -3249,7 +3324,7 @@ sub mode_resume {
       my $merged_type = $dh->get_vm_merged_type($vm);
  
       if ($exemode != $EXE_DEBUG) {
-         $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+         $execution->smartdie ("Scenario " . $dh->get_scename . " does not exist.")
          unless scenario_exists($dh->get_scename);
       }
  
@@ -3285,7 +3360,7 @@ sub mode_save {
       $filename = $dh->get_vm_dir($vm_name) . "/" . $vm_name . "_savefile";
 
       if ($exemode != $EXE_DEBUG) {
-          $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+          $execution->smartdie ("Scenario " . $dh->get_scename . " does not exist.")
              unless scenario_exists($dh->get_scename);
       }
 
@@ -3313,7 +3388,7 @@ sub mode_restore {
     my $filename;
 
     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        $execution->smartdie ("Scenario " . $dh->get_scename . " does not exist\n")
             unless scenario_exists($dh->get_scename);
     }
    
@@ -3348,7 +3423,7 @@ sub mode_reset {
     my @vm_ordered = $dh->get_vm_to_use_ordered;  # List of vms to process having into account -M option   
    
     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("scenario " . $dh->get_scename . " does not exist\n")
+        $execution->smartdie ("Scenario " . $dh->get_scename . " does not exist.")
             unless scenario_exists($dh->get_scename);
     }
    
@@ -3386,7 +3461,7 @@ sub mode_showmap {
    	my $scedir  = $dh->get_sim_dir;
    	my $scename = $dh->get_scename;
    	if (! -d $dh->get_sim_dir ) {
-		mkdir $dh->get_sim_dir or $execution->smartdie ("error making directory " . $dh->get_sim_dir . ": $!");
+		mkdir $dh->get_sim_dir or $execution->smartdie ("Error making directory " . $dh->get_sim_dir . ": $!.");
    	}
    	
     my $map_format;
@@ -3397,7 +3472,7 @@ sub mode_showmap {
 	    $map_format = $opts{'show-map'};
 	    if ($map_format eq '') { $map_format = 'svg' };
 	    if ( ($map_format ne 'png') && ($map_format ne 'svg') ) {
-	        $execution->smartdie ("ERROR: format $map_format not supported in 'show-map' mode\n");          
+	        $execution->smartdie ("Format '$map_format' not supported in 'show-map' mode.");          
 	    } 
    	}
     wlog (V, "map_format=$map_format");
@@ -3796,7 +3871,7 @@ sub mode_console {
             my @con_names = split( /,/, $opts{'console'} );
             foreach my $cid (@con_names) {
                 if ($cid !~ /^con\d$/) {
-                    $execution->smartdie ("ERROR: console $cid unknown. Try \"vnx -f file.xml --console-info\" to see console names.\n");
+                    $execution->smartdie ("Console $cid unknown. Try \"vnx -f file.xml --console-info\" to see console names.");
                 }
                 VNX::vmAPICommon->start_console ($vm_name, $cid);
             }
@@ -3998,6 +4073,7 @@ EOF
       <source network='default'/>
     </interface>
     <graphics type='vnc'/>
+    <!--graphics type='spice'/-->
     <serial type="pty">
       <target port="0"/>
      </serial>
@@ -5058,7 +5134,7 @@ sub create_tun_devices_for_virtual_bridged_networks  {
 
             # Only TUN/TAP for interfaces attached to bridged networks
             # We do not create tap interfaces for libvirt or LXC VMs. It is done by libvirt/LXC
-            if ( ($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ($vm_type ne 'nsrouter') && ( get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
+            if ( ($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ($vm_type ne 'nsrouter') && ( $dh->get_net_by_mode($net,"virtual_bridge") != 0 ) ) {
 
                 # We build TUN device name
                 my $tun_if = $vm_name . "-e" . $id;
@@ -5109,16 +5185,16 @@ sub create_bridges_for_virtual_bridged_networks  {
         wlog (VVV, "vnet_exists_br($net_name, 'virtual_bridge') returns '" . $vb_exists, $logp);
 
         if ( $ovs_exists && $mode eq 'virtual_bridge' ) {
-            $execution->smartdie ("\nERROR: Cannot create virtual bridge $net_name. An Openvswitch with the same name already exists.")
+            $execution->smartdie ("Cannot create virtual bridge $net_name. An Openvswitch with the same name already exists.")
         } elsif ( $vb_exists && $mode eq 'openvswitch' ) {
-            $execution->smartdie ("\nERROR: Cannot create an Openvswitch with name $net_name. A virtual bridge with the same name already exists.")
+            $execution->smartdie ("Cannot create an Openvswitch with name $net_name. A virtual bridge with the same name already exists.")
         }
         
         # If the bridge is non-managed (i.e with attribute managed='no') and it 
         # does not exist raise an error
         if ( str($managed) eq 'no' && ! vnet_exists_br($net_name, $mode) ) {
-        	$execution->smartdie ("\nERROR: Bridge $net_name does not exist and it's configured with attribute managed='no'.\n" . 
-        	                      "       Non-managed bridges are not created/destroyed by VNX. They must exist in advance.")
+        	$execution->smartdie ("Bridge $net_name does not exist and it's configured with attribute managed='no'.\n" . 
+        	                      "Non-managed bridges are not created/destroyed by VNX. They must exist in advance.")
         }
         
         unless ( vnet_exists_br($net_name, $mode) || str($managed) eq 'no' ) {
@@ -5382,8 +5458,8 @@ sub tun_connect {
 	 
             # Only TUN/TAP for interfaces attached to bridged networks
             # We do not add tap interfaces for libvirt or lxc VMs. It is done by libvirt/lxc 
-            if ( ($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ( get_net_by_mode($net,"virtual_bridge") != 0)  || 
-                 ( ( ($vm_type eq 'lxc') || ($vm_type eq 'dynamips') ) && get_net_by_mode($net,"openvswitch") != 0) ) {
+            if ( ($vm_type ne 'libvirt') && ($vm_type ne 'lxc') && ( $dh->get_net_by_mode($net,"virtual_bridge") != 0)  || 
+                 ( ( ($vm_type eq 'lxc') || ($vm_type eq 'dynamips') ) && $dh->get_net_by_mode($net,"openvswitch") != 0) ) {
                 # If-condition explained for dummies like me: 
                 #     if    (vm is neither libvirt nor lxc and switch is virtual_bridge) 
                 #        or (vm is lxc or dynamips and switch is openvswitch) then
@@ -5391,9 +5467,9 @@ sub tun_connect {
                 my $net_if = $vm_name . "-e" . $id;
 
                 # We link TUN/TAP device 
-                if (get_net_by_mode($net,"virtual_bridge") != 0) {
+                if ($dh->get_net_by_mode($net,"virtual_bridge") != 0) {
                     $execution->execute_root($logp, $bd->get_binaries_path_ref->{"brctl"} . " addif $net $net_if");
-                } elsif (get_net_by_mode($net,"openvswitch") != 0) {
+                } elsif ($dh->get_net_by_mode($net,"openvswitch") != 0) {
                 	# Check if interface exists before linking it to the switch (when starting
                 	# VMs with <on_boot>no</on_boot>, the interface does not exists, but
                 	# openvswitch creates it; when the VM is started it failed linking the interface)
@@ -5696,7 +5772,7 @@ sub mode_execute {
     }
 
     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("cannot execute commands '$seq_str'; scenario " . $dh->get_scename . " is not started\n")
+        $execution->smartdie ("Cannot execute commands '$seq_str'; scenario " . $dh->get_scename . " is not started.")
             unless scenario_exists($dh->get_scename);
     }
 
@@ -5742,7 +5818,7 @@ sub mode_execute {
 	      	}
 	   	} else {
 	      	%vm_ips = get_UML_command_ip($seq);
-	    	$execution->smartdie ("some vm is not ready to exec sequence $seq through net. Wait a while and retry...\n") 
+	    	$execution->smartdie ("Some vm is not ready to exec sequence $seq through net. Wait a while and retry...") 
 	    		unless UMLs_cmd_ready(%vm_ips);
 	   	}
 
@@ -5940,7 +6016,7 @@ sub get_vm_ftrees_and_execs {
         %files = $plugin->getFiles($vm_name, $files_dir, $seq);
 
         if (defined($files{"ERROR"}) && $files{"ERROR"} ne "") {
-            $execution->smartdie("plugin $plugin getFiles($vm_name) in mode=$mode and sequence=$seq error: ".$files{"ERROR"});
+            $execution->smartdie("Plugin $plugin getFiles($vm_name) in mode=$mode and sequence=$seq error: ".$files{"ERROR"});
         }
 
         if (keys(%files) > 0 ) {
@@ -5967,10 +6043,10 @@ sub get_vm_ftrees_and_execs {
                                             # $files[3] -> perms
             wlog (VVV, "**** dst=$file[0], user=$file[1], group=$file[2], perms=$file[3], ", $logp);                                                           
             # Check whether file/dir uses a relative path
-            $execution->smartdie ("file/dir $files{$key} returned by $plugin->getFiles (vm=$vm_name, seq=$seq) uses an absolut path (should be relative to files_dir directory)")       
+            $execution->smartdie ("file/dir $files{$key} returned by $plugin->getFiles (vm=$vm_name, seq=$seq) uses an absolut path (should be relative to files_dir directory).")       
                 if ( $files{$key} =~ /^\// );
             # Check whether file/dir exists
-            $execution->smartdie ("file/dir $files_dir$files{$key} returned by plugin $plugin->getFiles does not exist")        
+            $execution->smartdie ("file/dir $files_dir$files{$key} returned by plugin $plugin->getFiles does not exist.")        
                 unless ( -e "$files_dir$files{$key}" );
             
             wlog (VVV, "Creating <filetree> tag for plugin file/dir $key", $logp);
@@ -6031,7 +6107,7 @@ sub get_vm_ftrees_and_execs {
         @commands = $plugin->getCommands($vm_name,$seq);
         my $error = shift(@commands);
         if ($error ne "") {
-            $execution->smartdie("plugin $plugin getCommands($vm_name,$seq) error: $error");
+            $execution->smartdie("Plugin $plugin getCommands($vm_name,$seq) error: $error.");
         }
 
         wlog (VVV, "getCommands returns '" . scalar(@commands) . " commands", $logp);
@@ -6240,7 +6316,7 @@ sub mode_execli {
     }
 
     if ($exemode != $EXE_DEBUG) {
-        $execution->smartdie ("cannot execute commands on scenario " . $dh->get_scename . " (not started)\n")
+        $execution->smartdie ("Cannot execute commands on scenario " . $dh->get_scename . " (not started).")
             unless scenario_exists($dh->get_scename);
     }
 
@@ -6519,7 +6595,7 @@ sub tun_destroy {
             my $net = $if->getAttribute("net");
 
             # Only exists TUN/TAP in a bridged network
-            if ( ( get_net_by_mode($net,"virtual_bridge") != 0) && ( $vm_type ne 'lxc') && ($vm_type ne 'nsrouter') ) {
+            if ( ( $dh->get_net_by_mode($net,"virtual_bridge") != 0) && ( $vm_type ne 'lxc') && ($vm_type ne 'nsrouter') ) {
 	            # TUN device name
 	            my $tun_if = $vm_name . "-e" . $id;
 	            # To throw away TUN device
@@ -6774,13 +6850,13 @@ sub host_mapping_patch {
 change_to_root();
    # Openning files
    open HOST_FILE, "$file_name"
-      or $execution->smartdie ("can not open $file_name: $!");
+      or $execution->smartdie ("Can not open $file_name: $!");
    open FIRST, ">" . $dh->get_tmp_dir . "/hostfile.1"
-      or $execution->smartdie ("can not open " . $dh->get_tmp_dir . "/hostfile.1 for writting: $!");
+      or $execution->smartdie ("Can not open " . $dh->get_tmp_dir . "/hostfile.1 for writting: $!.");
    open SECOND, ">" . $dh->get_tmp_dir . "/hostfile.2"
-      or $execution->smartdie ("can not open " . $dh->get_tmp_dir . "/hostfile.2 for writting: $!");
+      or $execution->smartdie ("Can not open " . $dh->get_tmp_dir . "/hostfile.2 for writting: $!.");
    open THIRD, ">" . $dh->get_tmp_dir . "/hostfile.3"
-      or $execution->smartdie ("can not open " . $dh->get_tmp_dir . "/hostfile.3 for writting: $!");
+      or $execution->smartdie ("Can not open " . $dh->get_tmp_dir . "/hostfile.3 for writting: $!.");
    # Status list:
    # 
    # 0 -> before VNX section
@@ -6894,13 +6970,13 @@ change_to_root();
 
    # Openning files
    open HOST_FILE, "$file_name"
-      or $execution->smartdie ("can not open $file_name: $!");
+      or $execution->smartdie ("Can not open $file_name: $!.");
    open FIRST, ">" . $dh->get_tmp_dir . "/hostfile.1"
-      or $execution->smartdie ("can not open " . $dh->get_vnx_dir . "/hostfile.1 for writting: $!");
+      or $execution->smartdie ("Can not open " . $dh->get_vnx_dir . "/hostfile.1 for writting: $!");
    open SECOND, ">" . $dh->get_tmp_dir . "/hostfile.2"
-      or $execution->smartdie ("can not open " . $dh->get_vnx_dir . "/hostfile.2 for writting: $!");
+      or $execution->smartdie ("Can not open " . $dh->get_vnx_dir . "/hostfile.2 for writting: $!");
    open THIRD, ">" . $dh->get_tmp_dir . "/hostfile.3"
-      or $execution->smartdie ("can not open " . $dh->get_vnx_dir . "/hostfile.3 for writting: $!");
+      or $execution->smartdie ("Can not open " . $dh->get_vnx_dir . "/hostfile.3 for writting: $!");
 
     # Status list:
     # 
@@ -7375,7 +7451,7 @@ sub scenario_exists {
 
 }
 
-
+=BEGIN
 # get_net_by_mode
 #
 # Returns a network whose name is the first argument and whose mode is second
@@ -7409,7 +7485,8 @@ sub get_net_by_mode {
    
     return 0;	
 }
-
+=END
+=cut
 
 # check_vlan
 #
@@ -7758,7 +7835,7 @@ sub handle_sig {
 		mode_shutdown('do_not_exe_cmds');  #
 	}
 	if (defined($execution)) {
-		$execution->smartdie("Signal received. Exiting");
+		$execution->smartdie("Signal received. Exiting.");
 	}
 	else {
 		vnx_die("Signal received. Exiting.");
@@ -7781,7 +7858,7 @@ sub create_dirs {
         # create fs, hostsfs and run directories, if they don't already exist
         if ($execution->get_exe_mode() != $EXE_DEBUG) {
             if (! -d $dh->get_vm_dir ) {
-                mkdir $dh->get_vm_dir or $execution->smartdie ("error making directory " . $dh->get_vm_dir . ": $!");
+                mkdir $dh->get_vm_dir or $execution->smartdie ("Error making directory " . $dh->get_vm_dir . ": $!.");
             }
             mkdir $dh->get_vm_dir($vm_name);
             mkdir $dh->get_vm_fs_dir($vm_name);
