@@ -1,0 +1,65 @@
+#
+#                   oooooo     oooo ooooo      ooo ooooooo  ooooo
+#                    `888.     .8'  `888b.     `8'  `8888    d8'
+#                     `888.   .8'    8 `88b.    8     Y888..8P
+#                      `888. .8'     8   `88b.  8      `8888'
+#                       `888.8'      8     `88b.8     .8PY888.
+#                        `888'       8       `888    d8'  `888b
+#                         `8'       o8o        `8  o888o  o88888o
+#
+#                             Virtual Networks over LinuX
+#                                 http://vnx.dit.upm.es
+#                                    vnx@dit.upm.es
+#
+# Copyright (C) 2005-2019 by DIT-UPM
+#             Departamento de Ingeniería de Sistemas Telemáticos (DIT)
+#             E.T.S.I. Telecomunicación
+#             Universidad Politécnica de Madrid (UPM)
+#             SPAIN
+#
+# Authors:    David Fernández (david.fernandez@upm.es)
+#             Fermin Galan Marquez (galan@dit.upm.es) 
+#             Jorge Somavilla (somavilla@dit.upm.es)
+#             Jorge Rodriguez (jrodriguez@dit.upm.es),
+#             Carlos González (carlosgonzalez@dit.upm.es)
+# Project coordinated by: 
+#              David Fernández (david.fernandez@upm.es)
+#
+# ----------------------------------------------------------------------------------
+#
+# VNX is a general purpose open-source virtualization tool designed to help building 
+# virtual network testbeds automatically. It allows the definition and automatic 
+# deployment of network scenarios made of virtual machines of different types (Linux, 
+# Windows, FreeBSD, Olive or Dynamips routers, etc) interconnected following a 
+# user-defined topology, possibly connected to external networks.
+#
+# VNX has been developed by the Telematics Engineering Department (DIT) of the Technical 
+# University of Madrid (UPM).
+#
+# VNX is a useful tool for testing network applications/services over complex testbeds 
+# made of virtual nodes and networks, as well as for creating complex network laboratories 
+# to allow students to interact with realistic network scenarios. As other similar tools 
+# aimed to create virtual network scenarios (like GNS3, NetKit, MLN or Marionnet), VNX 
+# provides a way to manage testbeds avoiding the investment and management complexity 
+# needed to create them using real equipment.
+#
+# ----------------------------------------------------------------------------------
+#
+# VNX License
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#
+# An online copy of the licence can be found at http://www.gnu.org/copyleft/gpl.html
+# -----------------------------------------------------------------------------------
