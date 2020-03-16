@@ -1742,7 +1742,7 @@ user();
 		if ($platform[0] eq 'Linux'){
 		    
             if    ($platform[1] eq 'Ubuntu') 
-                { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'ubuntu') }           
+                { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'ubuntu-' . $platform[2]) }           
             elsif ($platform[1] eq 'Debian' || $platform[1] eq 'Kali') 
                 { autoconfigure_debian_ubuntu ($vm_doc, $rootfs_mount_dir, 'debian') }           
 		    elsif ($platform[1] eq 'Fedora') 

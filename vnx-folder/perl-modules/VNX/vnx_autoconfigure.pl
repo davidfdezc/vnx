@@ -2,8 +2,9 @@
 #
 # This file is a module part of VNX package.
 #
-# Author: David Fernández (david@dit.upm.es)
-# Copyright (C) 2018,   DIT-UPM
+# Author: David Fernández (david.fernandez@upm.es)
+#         Paola Jordan Figueroa (get_tc_cmds function)
+# Copyright (C) 2019,   DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -156,15 +157,15 @@ sub get_tc_cmds {
 						wlog (VVV, "-- $latency_tbf_cmd\n", $logp);
 					}
 				} else {
-					wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': rate unit not recognized. Ignoring it.", $logp);
-					wlog (N, "  Accepted units are: [" . join( ',', keys %{rate_units}) . "].\n$hline", $logp);
+					wlog (N, "QoS spec syntax ERROR in '$bw': rate unit not recognized. Ignoring it.", $logp);
+					wlog (N, "  Accepted units are: [" . join( ',', keys %{rate_units}) . "].", $logp);
 				}
 			}else{
-				wlog (N, "$hline\nQoS spec syntax ERROR: incorrect bw qos specification ($bw). Ignoring it.\n$hline", $logp);
+				wlog (N, "QoS spec syntax ERROR: incorrect bw qos specification ($bw). Ignoring it.", $logp);
 			}
 		
 	    } elsif ( @bw_fields == 2 or @bw_fields > 3){
-			wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': three comma separated parameters expected. Ignoring it.\n$hline", $logp);
+			wlog (N, "QoS spec syntax ERROR in '$bw': three comma separated parameters expected. Ignoring it.", $logp);
 
 	    } else {
 		
@@ -189,16 +190,16 @@ sub get_tc_cmds {
 						$bw_queue_discipline = "tbf rate ${rate_tbf_cmd} latency ${latency_tbf_cmd} burst ${burst_tbf_cmd}";
 					}else{
 						if(!exists($rate_units{$rate_only_unit})){
-		                	wlog (N, "$hline\nQoS spec syntax ERROR: rate unit not recognized", $logp);
-							wlog (N, "  Accepted units are: [" . join( ',', keys %{rate_units}) . "].\n$hline", $logp);
+		                	wlog (N, "QoS spec syntax ERROR: rate unit not recognized", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{rate_units}) . "].", $logp);
 		                }
 		                if(!( exists($size_units{$burst_only_unit}) || $burst_only_unit eq '')){
-		                    wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': burst unit not recognized", $logp);
-							wlog (N, "  Accepted units are: [" . join( ',', keys %{size_units}) . "].\n$hline", $logp);
+		                    wlog (N, "QoS spec syntax ERROR in '$bw': burst unit not recognized", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{size_units}) . "].", $logp);
 		                }
 						if(! exists($time_units{$latency_or_limit_only_unit})){
-		                    wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': latency unit not recognized", $logp);
-							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		                    wlog (N, "QoS spec syntax ERROR in '$bw': latency unit not recognized", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].", $logp);
 		                }
 					}
 				}elsif($is_limit eq 'true'){
@@ -209,20 +210,20 @@ sub get_tc_cmds {
 						$bw_queue_discipline = "tbf rate ${rate_tbf_cmd} limit ${limit_tbf_cmd} burst ${burst_tbf_cmd}";
 		            }else{
 						if(!exists($rate_units{$rate_only_unit})){
-		                  	wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': rate unit not recognized", $logp);
-							wlog (N, "  Accepted units are: [" . join( ',', keys %{rate_units}) . "].\n$hline", $logp);
+		                  	wlog (N, "QoS spec syntax ERROR in '$bw': rate unit not recognized", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{rate_units}) . "].", $logp);
 						}
 						if(!( exists($size_units{$burst_only_unit}) || $burst_only_unit eq '')){
-		                    wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': burst unit not recognized", $logp);
-							wlog (N, "  Accepted units are: [" . join( ',', keys %{size_units}) . "].\n$hline", $logp);
+		                    wlog (N, "QoS spec syntax ERROR in '$bw': burst unit not recognized", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{size_units}) . "].", $logp);
 		                }
 		            }
 				
 				}else{
-					wlog (N, "$hline\nQoS spec syntax ERROR occurred ($bw).\n$hline", $logp);
+					wlog (N, "QoS spec syntax ERROR occurred ($bw).\n", $logp);
 				}
 			}else{
-				wlog (N, "$hline\nQoS spec syntax ERROR in '$bw': incorrect bw parameters.\n$hline", $logp);
+				wlog (N, "QoS spec syntax ERROR in '$bw': incorrect bw parameters.", $logp);
 			}
 	    }
     }
@@ -247,11 +248,11 @@ sub get_tc_cmds {
 					$delay_queue_discipline = "netem delay ${delay_netem_cmd}";
 				
 				}else{
-					wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': delay unit not recognized.", $logp);
-					wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+					wlog (N, "QoS spec syntax ERROR in '$delay': delay unit not recognized.", $logp);
+					wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].", $logp);
 				}
 			}else{
-				wlog (N, "$hline\nQoS spec syntax ERROR in delay parameters ($delay).\n$hline", $logp);
+				wlog (N, "QoS spec syntax ERROR in delay parameters ($delay).", $logp);
 			}
 		
 	    }elsif (@delay_fields == '2'){
@@ -270,16 +271,16 @@ sub get_tc_cmds {
 				}else{
 					
 					if(! exists($time_units{$delay_only_unit})){
-		                wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': delay unit not recognized.", $logp);
-						wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		                wlog (N, "QoS spec syntax ERROR in '$delay': delay unit not recognized.", $logp);
+						wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].", $logp);
 		            }
 		            if(! exists($time_units{$jitter_only_unit})){
-		                wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': jitter unit not recognized.", $logp);
-						wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		                wlog (N, "QoS spec syntax ERROR in '$delay': jitter unit not recognized.", $logp);
+						wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].", $logp);
 		            }
 				}
 			}else{
-				wlog (N, "$hline\nQoS spec syntax ERROR  in '$delay': incorrect delay parameters\n", $logp);
+				wlog (N, "QoS spec syntax ERROR  in '$delay': incorrect delay parameters\n", $logp);
 			}
 
 	    }else{
@@ -305,16 +306,16 @@ sub get_tc_cmds {
 						$delay_queue_discipline = "netem delay ${delay_netem_cmd} ${jitter_netem_cmd} ${correlation_netem_cmd}";
 					}else{
 						if(!exists($time_units{$delay_only_unit})){
-		                	wlog (N, "$hline\nQoS spec syntax ERROR: delay unit not recognized.", $logp);
-							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		                	wlog (N, "QoS spec syntax ERROR: delay unit not recognized.", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].", $logp);
 		                }
 		                if(!exists($time_units{$jitter_only_unit})){
-		                    wlog (N, "$hline\nQoS spec syntax ERROR: jitter unit not recognized.", $logp);
-							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		                    wlog (N, "QoS spec syntax ERROR: jitter unit not recognized.", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].", $logp);
 		                }
 						if($correlation_or_distribution_only_unit ne '%'){
-							wlog (N, "$hline\nQoS spec syntax ERROR: correlation unit not recognized.", $logp);
-							wlog (N, "The accepted units are: %\n$hline", $logp);
+							wlog (N, "QoS spec syntax ERROR: correlation unit not recognized.", $logp);
+							wlog (N, "The accepted units are: %", $logp);
 		                }
 					}
 				}elsif($is_distribution eq 'true'){
@@ -325,24 +326,24 @@ sub get_tc_cmds {
 						$delay_queue_discipline = "netem delay ${delay_netem_cmd} ${jitter_netem_cmd} distribution ${distribution_netem_cmd}";
 		            }else{
 						if(!exists($time_units{$delay_only_unit})){
-		                  	wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': delay unit not recognized.", $logp);
-							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		                  	wlog (N, "QoS spec syntax ERROR in '$delay': delay unit not recognized.", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].", $logp);
 						}
 						if(!exists($time_units{$jitter_only_unit})){
-		                    wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': jitter unit not recognized.", $logp);
-							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].\n$hline", $logp);
+		                    wlog (N, "QoS spec syntax ERROR in '$delay': jitter unit not recognized.", $logp);
+							wlog (N, "  Accepted units are: [" . join( ',', keys %{time_units}) . "].", $logp);
 		                }
 						if(!exists($delay_distribution{$delay_fields[2]})){
-		                    wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': distribution not recognized.", $logp);
-							wlog (N, "  Accepted values are: [" . join( ',', keys %{delay_distribution}) . "].\n$hline", $logp);
+		                    wlog (N, "QoS spec syntax ERROR in '$delay': distribution not recognized.", $logp);
+							wlog (N, "  Accepted values are: [" . join( ',', keys %{delay_distribution}) . "].", $logp);
 		                }
 		            }
 				
 				}else{
-					wlog (N, "$hline\nQoS spec syntax ERROR occurred ($delay).\n$hline", $logp);
+					wlog (N, "QoS spec syntax ERROR occurred ($delay).", $logp);
 				}
 			}else{
-				wlog (N, "$hline\nQoS spec syntax ERROR in '$delay': incorrect delay parameters.\n$hline", $logp);
+				wlog (N, "QoS spec syntax ERROR in '$delay': incorrect delay parameters.", $logp);
 			}
 	    }
 	}
@@ -365,11 +366,11 @@ sub get_tc_cmds {
 					$loss_queue_discipline = "netem loss ${loss_netem_cmd}";
 				
 				}else{
-					wlog (N, "$hline\nQoS spec syntax ERROR in '$loss': loss unit not recognized.", $logp);
-					wlog (N, "The accepted units are: %\n$hline", $logp);
+					wlog (N, "QoS spec syntax ERROR in '$loss': loss unit not recognized.", $logp);
+					wlog (N, "The accepted units are: %", $logp);
 				}
 			}else{
-				wlog (N, "$hline\nQoS spec syntax ERROR in '$loss': incorrect loss parameters.\n$hline", $logp);
+				wlog (N, "QoS spec syntax ERROR in '$loss': incorrect loss parameters.", $logp);
 			}
 		
 	    }elsif (@loss_fields == '2'){
@@ -387,19 +388,19 @@ sub get_tc_cmds {
 				}else{
 					
 					if($loss_only_unit ne '%'){
-		                wlog (N, "$hline\nQoS spec syntax ERROR in '$loss': loss unit not recognized.", $logp);
-						wlog (N, "The accepted units are: %\n$hline", $logp);
+		                wlog (N, "QoS spec syntax ERROR in '$loss': loss unit not recognized.", $logp);
+						wlog (N, "The accepted units are: %", $logp);
 		            }
 		            if($correlation_only_unit ne '%'){
-		                wlog (N, "$hline\nQoS spec syntax ERROR in '$loss': loss correlation unit not recognized.", $logp);
-						wlog (N, "The accepted units are: %\n$hline", $logp);
+		                wlog (N, "QoS spec syntax ERROR in '$loss': loss correlation unit not recognized.", $logp);
+						wlog (N, "The accepted units are: %", $logp);
 		            }
 				}
 			}else{
-				wlog (N, "$hline\nQoS spec syntax ERROR in '$loss': incorrect loss parameters.\n$hline", $logp);
+				wlog (N, "QoS spec syntax ERROR in '$loss': incorrect loss parameters.", $logp);
 			}
 	    }else{
-			wlog (N, "$hline\nQoS spec syntax ERROR occurred ('$loss').\n$hline", $logp);
+			wlog (N, "QoS spec syntax ERROR occurred ('$loss').", $logp);
 			
 	    }
 	}
@@ -500,6 +501,13 @@ sub autoconfigure_debian_ubuntu {
     print INTERFACES "auto lo\n";
     print INTERFACES "iface lo inet loopback\n";
 
+	# Use of auto vs. allow-hotplug: 
+	#   - we use allow-hotplug in newer versions of Ubuntu to avoid long delays at startup
+	my $if_tag = 'auto';
+	if ($os_type =~ /^ubuntu-(\d+)/) {
+    	if ( $1 >= 16 ) { $if_tag = 'allow-hotplug'}
+	}
+
     # Network routes configuration: we read all <route> tags
     # and store the ip route configuration commands in @ip_routes
     my @ipv4_routes;       # Stores the IPv4 route configuration lines
@@ -552,9 +560,16 @@ sub autoconfigure_debian_ubuntu {
             $if_name = "eth" . $id;
         }
 
-        print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac .  "\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $if_name . "\"\n\n";
-        #print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
-        print INTERFACES "\nauto " . $if_name . "\n";
+		if ( ($os_type =~ /^ubuntu-(\d+)/) && ( $1 >= 19 ) ) { 
+        	print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", ATTR{address}==\"" . $mac .  "\", NAME=\"" . $if_name . "\"\n\n";
+	    } else {
+	        print RULES "SUBSYSTEM==\"net\", ACTION==\"add\", DRIVERS==\"?*\", ATTR{address}==\"" . $mac .  "\", ATTR{type}==\"1\", KERNEL==\"eth*\", NAME=\"" . $if_name . "\"\n\n";
+	        #print RULES "KERNEL==\"eth*\", SYSFS{address}==\"" . $mac . "\", NAME=\"eth" . $id ."\"\n\n";
+	    }
+
+
+
+        print INTERFACES "\n$if_tag $if_name\n";
 
         my @ipv4_tag_list = $if->getElementsByTagName("ipv4");
         my @ipv6_tag_list = $if->getElementsByTagName("ipv6");
@@ -661,17 +676,19 @@ sub autoconfigure_debian_ubuntu {
 	        if ($bw or $delay or $loss) {
 	        	# Apply interface specific values 
 	          	$qos = 'if';           	
-	        } else {
-	          	# Check if qos is specified in <net> tag
-	            my $net = $dh->get_net_byname($if->getAttribute("net"));
-		        $bw    = str($net->getAttribute("bw"));
-		        $delay = str($net->getAttribute("delay"));
-	    	    $loss  = str($net->getAttribute("loss"));
-	            if ($bw or $delay or $loss) {
-	            	# Apply interface specific values 
-	   	        	$qos = 'net';           	
-	            }
-	     	}
+	        } 
+	        # moved to vnx.pl
+	        # else {
+	        #  	# Check if qos is specified in <net> tag
+	        #    my $net = $dh->get_net_byname($if->getAttribute("net"));
+		    #    $bw    = str($net->getAttribute("bw"));
+		    #    $delay = str($net->getAttribute("delay"));
+	    	#    $loss  = str($net->getAttribute("loss"));
+	        #    if ($bw or $delay or $loss) {
+	        #    	# Apply interface specific values 
+	   	    #    	$qos = 'net';           	
+	        #    }
+	     	#}
 	        if ($qos) {
 	           	wlog (V, "QoS parameters specified in <$qos> tag for interface $id of vm $vm_name: bw='$bw', delay='$delay', loss='$loss'");
 	           	print INTERFACES "   # QoS parameters specified in <$qos> tag for interface $id: \n";

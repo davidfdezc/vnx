@@ -1730,15 +1730,41 @@ sub make_vmAPI_doc {
             }
 
 			# QoS attributes
-			my $bw = $if->getAttribute("bw");
+			#
+			# Check if Qos parameters have been definet in the <net> tag
+            my $net_tag;
+	        my $bw;
+	        my $delay;
+    	    my $loss;
+			unless ( $net eq "unconnected") {
+	            my $net_tag = $dh->get_net_byname($net);
+			}
+
+			#print "**** 1 - net=" . $ net . ", bw=" . $bw .", delay=" . $delay . ", loss=" . $loss . "\n";
+
+			# Check if interface specific qos values have been definied 			
+			my $if_bw = $if->getAttribute("bw");
+            unless (empty($if_bw)) {
+            	 $bw = $if_bw;  # override <net> bw value if exists
+            }
+			my $if_delay = $if->getAttribute("delay");
+            unless (empty($if_delay)) {
+            	 $delay = $if_delay;  # override <net> delay value if exists
+            }
+			my $if_loss = $if->getAttribute("loss");
+            unless (empty($if_loss)) {
+            	 $loss = $if_loss;  # override <net> loss value if exists
+            }
+
+			#print "**** 2 - net=" . $ net . ", bw=" . $bw .", delay=" . $delay . ", loss=" . $loss . "\n";
+
+			# Add qos attributes if not empty            			
             unless (empty($bw)) { 
                 $if_tag->addChild( $dom->createAttribute( bw => $bw)) 
             }
-			my $delay = $if->getAttribute("delay");
             unless (empty($delay)) { 
                 $if_tag->addChild( $dom->createAttribute( delay => $delay)) 
             }
-			my $loss = $if->getAttribute("loss");
             unless (empty($loss)) { 
                 $if_tag->addChild( $dom->createAttribute( loss => $loss)) 
             } 
@@ -1968,7 +1994,7 @@ sub make_vmAPI_doc {
         # Copy ssh key files content to $ssh_key_dir/ssh_keys file
         foreach my $ssh_key (@ssh_key_list) {
             wlog (V, "<ssh_key> file: $ssh_key");
-            my $key_file = do_path_expansion( text_tag( $ssh_key ) );
+            my $key_file = abs_path(do_path_expansion( text_tag( $ssh_key ) ));
             wlog (V, "<ssh_key> file: $key_file");
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"cat"}
                                  . " $key_file >>" . $ssh_key_dir . "/ssh_keys" );
@@ -3903,11 +3929,11 @@ sub mode_createrootfs {
     my $default_video_mode = "cirrus";
     my @allowed_video_types = qw/vga cirrus vmvga xen vbox qxl virtio/;
     my $mem;          # Memory assigned to the virtual machine
-    my $default_mem   = "512M";
+    my $default_mem   = "1G";
     my $arch;         # Virtual machine architecture type (32 or 64 bits)
-    my $default_arch  = "i686";
+    my $default_arch  = "x86_64";
     my $vcpu;         # Number of virtual CPUs 
-    my $default_vcpu = "1";
+    my $default_vcpu = "2";
  
  
     my $rootfs = $opts{'create-rootfs'};
@@ -4072,8 +4098,8 @@ EOF
     <interface type='network'>
       <source network='default'/>
     </interface>
-    <graphics type='vnc'/>
-    <!--graphics type='spice'/-->
+    <!--graphics type='vnc'/-->
+    <graphics type='spice'/>
     <serial type="pty">
       <target port="0"/>
      </serial>
@@ -4102,7 +4128,7 @@ EOF
 change_to_root();
     wlog (N, "-- Starting a virtual machine with root filesystem $rootfs");
     system "virsh create $vm_xml_fname"; 
-    system "virt-viewer $rootfs_name &"; 
+    system "virt-viewer -a $rootfs_name &"; 
 back_to_user();
 
 }
@@ -4125,11 +4151,11 @@ sub mode_modifyrootfs {
     my $default_video_mode = "cirrus";
     my @allowed_video_types = qw/vga cirrus vmvga xen vbox qxl virtio/;
     my $mem;          # Memory assigned to the virtual machine
-    my $default_mem   = "512M";
+    my $default_mem   = "1G";
     my $arch;         # Virtual machine architecture type (32 or 64 bits)
-    my $default_arch  = "i686";
+    my $default_arch  = "x86_64";
     my $vcpu;        # Number of virtual CPUs 
-    my $default_vcpu = "1";
+    my $default_vcpu = "2";
     my $lxc_config_file='config';
  
     use constant USE_CDROM_FORMAT => 0;  # 
@@ -4563,7 +4589,8 @@ EOF
     <interface type='network'>
       <source network='default'/>
     </interface>
-    <graphics type='vnc'/>
+    <!--graphics type='vnc'/-->
+    <graphics type='spice'/>
     <serial type="pty">
       <target port="0"/>
      </serial>
@@ -4593,7 +4620,7 @@ EOF
 change_to_root();
 	    wlog (N, "-- Starting a virtual machine with root filesystem $rootfs");
 	    system "virsh create $vm_xml_fname"; 
-	    system "virt-viewer $rootfs_name &"; 
+	    system "virt-viewer -a $rootfs_name &"; 
 	    
 	    # Wait till the VM has started
 	    my $vmsocket = IO::Socket::INET->new(
@@ -7912,7 +7939,7 @@ sub print_console_table_entry {
 					#print "** conData=$conData\n";
 				    my @consField = split(/,/, $conData);
 				    if ($consField[1] eq "vnc_display") {
-		 				push (@consDesc, "$con,virt-viewer -c $hypervisor $vm_name");		    	
+		 				push (@consDesc, "$con,virt-viewer -a -c $hypervisor $vm_name");		    	
 				    } elsif ($consField[1] eq "telnet") {
 		 				push (@consDesc, "$con,telnet localhost $consField[2]");		    	   	
 				    } elsif ($consField[1] eq "libvirt_pts") {
@@ -7930,7 +7957,7 @@ sub print_console_table_entry {
 					#print "** conData=$conData\n";
 				    my @consField = split(/,/, $conData);
 				    if ($consField[1] eq "vnc_display") {
-		 				push (@consDesc, "$con:  'virt-viewer -c $hypervisor $vm_name' or 'vncviewer $consField[2]'");		    	
+		 				push (@consDesc, "$con:  'virt-viewer -a -c $hypervisor $vm_name' or 'vncviewer $consField[2]'");		    	
 				    } elsif ($consField[1] eq "telnet") {
 		 				push (@consDesc, "$con:  'telnet localhost $consField[2]'");		    	   	
 				    } elsif ($consField[1] eq "libvirt_pts") {

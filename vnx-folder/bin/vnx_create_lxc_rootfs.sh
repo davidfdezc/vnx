@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# Name: create-rootfs
+# Name: vnx_create_lxc_rootfs
 #
 # Description: creates a customized LXC VNX rootfs starting from a basic VNX LXC rootfs
 #
@@ -228,8 +228,7 @@ function create_rootfs_tgz {
   tmpfile=$(mktemp)
   find ${ROOTFSNAME} -type s > $tmpfile
   #cat $tmpfile
-  size=$(du -sb --apparent-size ${ROOTFSNAME} | awk '{ total += $1 - 512; }; END { print total }')
-  size=$(( $size * 1020 / 1000 ))
+  size=$(du -sb --apparent-size ${ROOTFSNAME} | awk '{ total += $1 - 512; }; END { printf "%.0f", total*1020/1000 }')
   LANG=C tar --numeric-owner -cpf - ${ROOTFSNAME} -X $tmpfile | pv -p -s $size | gzip > ${ROOTFSNAME}.tgz
   for LINK in $ROOTFSLINKNAME; do
     rm -f $LINK

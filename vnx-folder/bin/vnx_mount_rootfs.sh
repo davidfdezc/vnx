@@ -328,12 +328,12 @@ if [[ $umount == "no" ]]; then
             exit 9
         fi
         # some time partition devices are not created, we use partx for that
-        if ! partx -a $dev; then 
-            write_msg ""
-            write_msg "ERROR executing 'part -a $dev'"
-            qemu-nbd -d $dev
-            exit 13
-		fi
+        #if ! partx -a $dev; then 
+        #    write_msg ""
+        #    write_msg "ERROR executing 'part -a $dev'"
+        #    qemu-nbd -d $dev
+        #    exit 13
+		#fi
 
         #read -p "Press any key..."
         sleep 1

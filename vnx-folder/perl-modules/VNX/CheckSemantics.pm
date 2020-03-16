@@ -257,7 +257,7 @@ sub check_doc {
     # 3. To check <ssh_key>
     foreach my $ssh_key ($doc->getElementsByTagName("ssh_key")) {
 	   my $ssh_key = &do_path_expansion(text_tag($ssh_key));
-	   return "$ssh_key is not a valid absolute filename" unless &valid_absolute_filename($ssh_key);
+	   #return "$ssh_key is not a valid absolute filename" unless &valid_absolute_filename($ssh_key);
 	   unless (-r $ssh_key) {
 root();
 	       if (-r $ssh_key) {

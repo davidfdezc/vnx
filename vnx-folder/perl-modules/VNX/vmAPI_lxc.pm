@@ -230,7 +230,7 @@ sub define_vm {
                     my $sname = $dir;
                     $sname =~ s#^$vnx_dir/scenarios/##;
                     $sname =~ s#/.*##; chomp($sname);
-                    print "sname=$sname\n";
+                    #print "sname=$sname\n";
                     $error="A LXC vm named '$vm_name' already exists (vm names must be unique along the system).\n" .
                            "That vm seems to belong to VNX scenario '$sname'.\n" .
                            "If you are sure it is not used, you can destroy it with:\n" .
@@ -868,6 +868,13 @@ sub undefine_vm {
         my $vm_cow_dir = $dh->get_vm_dir($vm_name);
         $execution->execute( $logp, $bd->get_binaries_path_ref->{"rm"} . " -rf " . $vm_cow_dir . "/fs/*" );
 
+change_to_root();
+        # Delete a link in /var/run/netns if it exists
+        if ( -l "/var/run/netns/$vm_name" ) {      
+	        $execution->execute( $logp, "rm /var/run/netns/$vm_name" );
+        }  
+back_to_user(); 
+
         return $error;
     }
 
@@ -990,9 +997,19 @@ sub start_vm {
                 }               
             }
         }
+change_to_root();
+       # Create a link un /var/run/netns to make the network namespace of the container visible
+        $res = $execution->execute( $logp, "mkdir -p /var/run/netns/" );
+        if ( -l "/var/run/netns/$vm_name" ) {      
+	        $res = $execution->execute( $logp, "rm /var/run/netns/$vm_name" );
+        }  
+        $res = $execution->execute( $logp, "ln -s /proc/\$( lxc-info -n $vm_name -H --pid )/ns/net /var/run/netns/$vm_name" );
+        if ($res) { 
+            wlog (N, "$res", $logp)
+        }
+back_to_user(); 
         
         return $error;
-
     }
     else {
         $error = "Type is not yet supported\n";

@@ -1101,7 +1101,7 @@ EOF
         wlog (V, "-------------------------\r\n"); 
 
         if    ($platform[1] eq 'ubuntu')   
-            { autoconfigure_debian_ubuntu ($dom, '/', 'ubuntu', 'yes') }           
+            { autoconfigure_debian_ubuntu ($dom, '/', 'ubuntu-'. $platform[2], 'yes') }           
         elsif ($platform[1] eq 'debian' || $platform[1] eq 'kali')   
             { autoconfigure_debian_ubuntu ($dom, '/', 'debian', 'yes') }           
         elsif ($platform[1] eq 'fedora')   

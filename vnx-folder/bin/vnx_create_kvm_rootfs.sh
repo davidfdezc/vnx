@@ -7,8 +7,8 @@
 #
 # This file is a module part of VNX package.
 #
-# Authors: David Fernández (david@dit.upm.es)
-# Copyright (C) 2018 DIT-UPM
+# Author: David Fernández (david@dit.upm.es)
+# Copyright (C) 2019 DIT-UPM
 #           Departamento de Ingenieria de Sistemas Telematicos
 #           Universidad Politecnica de Madrid
 #           SPAIN
@@ -244,7 +244,7 @@ wget ${IMGSRVURL}${IMG}
 
 # Resize image 
 echo "--"
-echo "-- Resizing image to ${IMG2SIZE}..."
+echo "-- Resizing image ${IMG} to ${IMG2SIZE}..."
 qemu-img resize ${IMG} ${IMG2SIZE}
 
 # Convert img to qcow2 format and change name

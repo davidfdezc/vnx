@@ -1,3 +1,14 @@
+
+16/3/2020
+- Modified vnx_autoconfigure to avoid the access from vnxaced to the full XML (an access to $dh prevented it to work).
+- vmAPI_lxc: created a link in /var/run/netns to make the containers network namespaces visible to be used by "ip netns" command.
+- vnx.pl and CheckSemantics: modified to allow use of relative paths in ssh_key tags.
+
+3/12/2019
+
+- Changed --create-rootfs and --modify-rootfs defaults to 1G, x86_64 and 2 vcpus
+- Added LICENSE file
+
 28/8/2019
 
 - vmAPI_libvirt: added new type libvirt-qemu-linux to allow the execution of light virtual machines like tinycore without KVM 
