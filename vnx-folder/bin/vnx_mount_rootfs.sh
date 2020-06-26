@@ -232,7 +232,7 @@ if [[ "$umount" == "no" && $type == "" ]] ; then
     elif [[ $( echo $rootfs | egrep '\.vdi$' ) ]]; then
         type="vdi"
     else
-        if [[ "$( file -b "$rootfs" | egrep 'QEMU QCOW Image' )" ]]; then
+        if [[ "$( file -b "$rootfs" | egrep 'QEMU QCOW Image|QEMU QCOW2 Image' )" ]]; then
             type="qcow2"
         elif [[ "$( file -b "$rootfs" | egrep 'VMware4 disk image' )" ]]; then
             type="vmdk"

@@ -129,6 +129,22 @@ e-mail: vnx@dit.upm.es
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
+      <xs:attribute name="loader" use="optional">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="legacy"/>
+            <xs:enumeration value="uefi"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="bus" use="optional">
+        <xs:simpleType>
+          <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="ide"/>
+            <xs:enumeration value="sata"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
       <xs:attribute name="vm_type" type="xs:string" use="optional"/>
       <xs:attribute name="subtype" type="xs:string" use="optional"/>
       <xs:attribute name="os" type="xs:string" use="optional"/>
@@ -499,6 +515,7 @@ e-mail: vnx@dit.upm.es
           <xs:restriction base="xs:NMTOKEN">
             <xs:enumeration value="usb"/>
             <xs:enumeration value="ide"/>
+            <xs:enumeration value="sata"/>
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>

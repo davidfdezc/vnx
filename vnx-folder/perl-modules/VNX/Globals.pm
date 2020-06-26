@@ -189,8 +189,9 @@ our $ipv6_enabled;  # Tells if IPv6 is enabled on the system running VNX
                     
 our $hline10 = "----------"; # Just a horizontal line of 10 '-'
 our $hline50 = "--------------------------------------------------"; # Just a horizontal line of 50 '-'
+our $hline90 = "------------------------------------------------------------------------------------------"; # Just a horizontal line of 90 '-'
 our $hline100 = "----------------------------------------------------------------------------------------------------"; # Just a horizontal line of 100 '-'
-our $hline = $hline100;
+our $hline = $hline90;
 #our $hline = "----------------------------------------------------------------------------------"; # Just a horizontal line...
 
 # General constants

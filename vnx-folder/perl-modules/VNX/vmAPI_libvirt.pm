@@ -5,7 +5,7 @@
 # Authors: Jorge Somavilla, Jorge Rodriguez, Miguel Ferrer, Francisco José Martín, David Fernández
 # Coordinated by: David Fernández (david@dit.upm.es)
 #
-# Copyright (C) 2016 	DIT-UPM
+# Copyright (C) 2020 	DIT-UPM
 # 			Departamento de Ingenieria de Sistemas Telematicos
 #			Universidad Politecnica de Madrid
 #			SPAIN
@@ -308,6 +308,8 @@ sub define_vm {
 		my $filesystemTagList = $vm->getElementsByTagName("filesystem");
 		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
+		my $filesystem_loader = str($filesystemTag->getAttribute("loader"));
+		my $filesystem_bus    = str($filesystemTag->getAttribute("bus"));
 		$filesystem           = $filesystemTag->getFirstChild->getData;
 
 		if ( $filesystem_type eq "cow" ) {
@@ -315,7 +317,7 @@ sub define_vm {
 			# If cow file does not exist, we create it
 			if ( !-f $dh->get_vm_fs_dir($vm_name) . "/root_cow_fs" ) {
 				$execution->execute( $logp, "qemu-img"
-					  . " create -b $filesystem -f qcow2 "
+					  . " create -b $filesystem -f qcow2 -F qcow2"
 					  . $dh->get_vm_fs_dir($vm_name)
 					  . "/root_cow_fs" );
 			}
@@ -399,6 +401,16 @@ sub define_vm {
 		$os_tag->addChild($boot2_tag);
 		$boot2_tag->addChild( $init_xml->createAttribute( dev => 'cdrom' ) );
 
+		# loader attribute
+		#     <loader readonly='yes' type='rom'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+		if ($filesystem_loader eq 'uefi') {
+			my $loader_tag = $init_xml->createElement('loader');
+			$os_tag->addChild($loader_tag);
+	        $loader_tag->addChild( $init_xml->createAttribute( readonly => "yes" ) );	
+	        $loader_tag->addChild( $init_xml->createAttribute( type => "rom" ) );	
+			$loader_tag->addChild( $init_xml->createTextNode("/usr/share/OVMF/OVMF_CODE.fd") );
+		}
+
         # <features> tag
 		my $features_tag = $init_xml->createElement('features');
 		$domain_tag->addChild($features_tag);
@@ -442,6 +454,9 @@ sub define_vm {
 		my $target1_tag = $init_xml->createElement('target');
 		$disk1_tag->addChild($target1_tag);
         $target1_tag->addChild( $init_xml->createAttribute( dev => $disk_a ) );
+		if ($filesystem_bus ne '') {
+	        $target1_tag->addChild( $init_xml->createAttribute( bus => $filesystem_bus ) );
+		}
 		
 		# DFC: Added '<driver name='qemu' type='qcow2'/>' to work with libvirt 0.8.x 
         my $driver1_tag = $init_xml->createElement('driver');
@@ -708,7 +723,7 @@ user();
 	        ($merged_type eq "libvirt-kvm-android") || ($merged_type eq "libvirt-kvm-wanos")   ||
 	        ($merged_type eq "libvirt-kvm-netbsd")  || ($merged_type eq "libvirt-kvm-openbsd") ||
 	        ($merged_type eq "libvirt-kvm-cisco")   || ($merged_type eq "libvirt-kvm-extreme") || 
-	        ($merged_type eq "libvirt-qemu-linux")  ) {
+	        ($merged_type eq "libvirt-qemu-linux")  || ($merged_type eq "libvirt-kvm-cisco-nx") ) {
 
         # Create vnxboot.xml file under $sdisk_content directory
         unless ( $execution->get_exe_mode() eq $EXE_DEBUG || $merged_type eq "libvirt-kvm-android" || $merged_type eq "libvirt-kvm-wanos" ) {
@@ -725,6 +740,8 @@ user();
 		my $filesystemTagList = $vm->getElementsByTagName("filesystem");
 		my $filesystemTag     = $filesystemTagList->item(0);
 		my $filesystem_type   = $filesystemTag->getAttribute("type");
+		my $filesystem_loader = str($filesystemTag->getAttribute("loader"));
+		my $filesystem_bus    = str($filesystemTag->getAttribute("bus"));
 		$filesystem           = $filesystemTag->getFirstChild->getData;
         if ( $filesystem_type eq "cow" ) {
 			
@@ -737,7 +754,7 @@ user();
             wlog (V, "cow_fs=$cow_fs", $logp);
      		# Create the COW filesystem if it does not exist
 			if ( !-f $cow_fs ) {
-				$execution->execute( $logp, "qemu-img create -b $filesystem -f qcow2 $cow_fs");
+				$execution->execute( $logp, "qemu-img create -b $filesystem -f qcow2 -F qcow2 $cow_fs");
 			}
 			$filesystem = $cow_fs;
 
@@ -761,10 +778,10 @@ user();
 		$init_xml = XML::LibXML->createDocument( "1.0", "UTF-8" );
 		my $domain_tag = $init_xml->createElement('domain');
 		$init_xml->addChild($domain_tag);
-        if ( ($merged_type eq "libvirt-kvm-linux")   || ($merged_type eq "libvirt-kvm-freebsd") ||
-             ($merged_type eq "libvirt-kvm-olive")   || ($merged_type eq "libvirt-kvm-android") || 
-             ($merged_type eq "libvirt-kvm-wanos")   || ($merged_type eq "libvirt-kvm-netbsd")  ||
-             ($merged_type eq "libvirt-kvm-openbsd") || 
+        if ( ($merged_type eq "libvirt-kvm-linux")   || ($merged_type eq "libvirt-kvm-freebsd")     ||
+             ($merged_type eq "libvirt-kvm-olive")   || ($merged_type eq "libvirt-kvm-android")     || 
+             ($merged_type eq "libvirt-kvm-wanos")   || ($merged_type eq "libvirt-kvm-netbsd")      ||
+             ($merged_type eq "libvirt-kvm-openbsd") || ($merged_type eq "libvirt-kvm-cisco-nx") || 
 	         ($merged_type eq "libvirt-kvm-cisco")   || ($merged_type eq "libvirt-kvm-extreme") ) {
     		# Note: changed the first line to 
     		# <domain type='qemu' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
@@ -819,6 +836,16 @@ user();
 		}
 		$type_tag->addChild( $init_xml->createAttribute( machine => "$machine" ) );
 		$type_tag->addChild( $init_xml->createTextNode("hvm") );
+
+		# loader attribute
+		#     <loader readonly='yes' type='rom'>/usr/share/OVMF/OVMF_CODE.fd</loader>
+		if ($filesystem_loader eq 'uefi') {
+			my $loader_tag = $init_xml->createElement('loader');
+			$os_tag->addChild($loader_tag);
+	        $loader_tag->addChild( $init_xml->createAttribute( readonly => "yes" ) );	
+	        $loader_tag->addChild( $init_xml->createAttribute( type => "rom" ) );	
+			$loader_tag->addChild( $init_xml->createTextNode("/usr/share/OVMF/OVMF_CODE.fd") );
+		}
 
         # boot tag
         #print $vm->toString() . "\n";
@@ -888,6 +915,9 @@ user();
 		my $target1_tag = $init_xml->createElement('target');
 		$disk1_tag->addChild($target1_tag);
         $target1_tag->addChild( $init_xml->createAttribute( dev => $disk_a ) );
+		if ($filesystem_bus ne '') {
+	        $target1_tag->addChild( $init_xml->createAttribute( bus => $filesystem_bus ) );
+		}
 
 		# DFC: Added '<driver name='qemu' type='qcow2'/>' to work with libvirt 0.8.x 
         my $driver1_tag = $init_xml->createElement('driver');
@@ -1012,7 +1042,7 @@ user();
                 Time::HiRes::sleep(0.2);
 			}
 
-	        if ( $merged_type ne 'libvirt-kvm-cisco' && $merged_type ne 'libvirt-kvm-extreme') {
+	        if ( $merged_type ne 'libvirt-kvm-cisco' && $merged_type ne 'libvirt-kvm-extreme' && $merged_type ne "libvirt-kvm-cisco-nx" ) {
 				# Create the shared <disk> definition in libvirt XML document
 	       		my $disk2_tag = $init_xml->createElement('disk');
 				$devices_tag->addChild($disk2_tag);
@@ -1063,7 +1093,11 @@ user();
 			my $disk3_tag = $init_xml->createElement('disk');
 			$devices_tag->addChild($disk3_tag);
 			$disk3_tag->addChild( $init_xml->createAttribute( type   => 'file' ) );
-			$disk3_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
+	        if ($merged_type eq "libvirt-kvm-cisco-nx") {
+				$disk3_tag->addChild( $init_xml->createAttribute( device => 'cdrom' ) );
+	        } else {
+				$disk3_tag->addChild( $init_xml->createAttribute( device => 'disk' ) );
+	        }
 			my $source3_tag = $init_xml->createElement('source');
 			$disk3_tag->addChild($source3_tag);
 			$source3_tag->addChild(
@@ -1079,7 +1113,7 @@ user();
 	        $driver3_tag->addChild( $init_xml->createAttribute( type => 'raw' ) );
 	        $i++;
 	        
-	        # Cisco configuration management
+	        # Cisco configuration management (not for nexus)
 	        if ($merged_type eq "libvirt-kvm-cisco") {
 	        	my $mount_dir = $dh->get_vm_dir($vm_name) . '/mnt';
 				#my $mount_params = '-o loop,offset=32256'; # Used for images directly formated by CISCO
@@ -1135,7 +1169,6 @@ user();
 	        	$execution->execute( $logp, $bd->get_binaries_path_ref->{"umount"} . " " . $new_mount_dir );
         		$execution->execute( $logp, "cp $storage_image $storage_image_dir/$storage_image_name" . ".old");
         		$execution->execute( $logp, "mv $new_storage_image $storage_image");
-	        	
 	        }
 		}		
         
@@ -1192,7 +1225,7 @@ user();
 				$mac =~ s/,//;
 				$mng_if_mac = $mac;	
 			 	         
-			    if ( ( $merged_type eq 'libvirt-kvm-extreme' ) || ( $merged_type eq 'libvirt-kvm-cisco' ) ) {
+			    if ( ( $merged_type eq 'libvirt-kvm-extreme' ) || ( $merged_type eq 'libvirt-kvm-cisco' ) || ($merged_type eq "libvirt-kvm-cisco-nx") ) {
 
 					$interface_tag = $init_xml->createElement('interface');
 		            $devices_tag->addChild($interface_tag);
@@ -1559,10 +1592,11 @@ user();
         }
 		
 		
-        if ($mng_if_exists && 
-            $merged_type ne 'libvirt-kvm-android' && 
-            $merged_type ne 'libvirt-kvm-extreme' &&      
-            $merged_type ne 'libvirt-kvm-cisco'    ) {      
+        if ( $mng_if_exists && 
+             $merged_type ne 'libvirt-kvm-android' && 
+             $merged_type ne 'libvirt-kvm-extreme' &&      
+             $merged_type ne 'libvirt-kvm-cisco'   && 
+             $merged_type ne "libvirt-kvm-cisco-nx" ) {      
 		
             # -device rtl8139,netdev=lan1 -netdev tap,id=lan1,ifname=ubuntu-e0,script=no,downscript=no
            	my $mgmt_eth_type;
@@ -1924,7 +1958,7 @@ sub undefine_vm {
          ($merged_type eq "libvirt-kvm-android") || ($merged_type eq "libvirt-kvm-wanos")   || 
          ($merged_type eq "libvirt-kvm-netbsd")  || ($merged_type eq "libvirt-kvm-openbsd") ||
          ($merged_type eq "libvirt-kvm-cisco")   || ($merged_type eq "libvirt-kvm-extreme") ||
-         ($merged_type eq "libvirt-qemu-linux") ) {
+         ($merged_type eq "libvirt-qemu-linux")  || ($merged_type eq "libvirt-kvm-cisco-nx") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2007,7 +2041,7 @@ sub start_vm {
          ($merged_type eq "libvirt-kvm-android") || ($merged_type eq "libvirt-kvm-wanos")   ||
          ($merged_type eq "libvirt-kvm-netbsd")  || ($merged_type eq "libvirt-kvm-openbsd") ||
          ($merged_type eq "libvirt-kvm-cisco")   || ($merged_type eq "libvirt-kvm-extreme") ||
-         ($merged_type eq "libvirt-qemu-linux") ) {
+         ($merged_type eq "libvirt-qemu-linux")  || ($merged_type eq "libvirt-kvm-cisco-nx") ) {
          	
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
@@ -2188,7 +2222,7 @@ sub shutdown_vm {
          ($merged_type eq "libvirt-kvm-android") || ($merged_type eq "libvirt-kvm-wanos")   ||
          ($merged_type eq "libvirt-kvm-netbsd")  || ($merged_type eq "libvirt-kvm-openbsd") ||
          ($merged_type eq "libvirt-kvm-cisco")   || ($merged_type eq "libvirt-kvm-extreme") ||
-         ($merged_type eq "libvirt-qemu-linux") ) {
+         ($merged_type eq "libvirt-qemu-linux")  || ($merged_type eq "libvirt-kvm-cisco-nx") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2207,7 +2241,8 @@ root();
 
 			        if ( defined($kill) or 
 			             $merged_type eq "libvirt-kvm-extreme" or 
-			             $merged_type eq "libvirt-kvm-cisco" 
+			             $merged_type eq "libvirt-kvm-cisco" or
+			             $merged_type eq "libvirt-kvm-cisco-nx"
 			           ) {
 			            # Kill the VM
                         $listDom->destroy();
@@ -2280,7 +2315,7 @@ sub suspend_vm {
          ($merged_type eq "libvirt-kvm-android") || ($merged_type eq "libvirt-kvm-wanos")   ||
          ($merged_type eq "libvirt-kvm-netbsd")  || ($merged_type eq "libvirt-kvm-openbsd") ||
          ($merged_type eq "libvirt-kvm-cisco")   || ($merged_type eq "libvirt-kvm-extreme") ||
-         ($merged_type eq "libvirt-qemu-linux") ) {
+         ($merged_type eq "libvirt-qemu-linux")  || ($merged_type eq "libvirt-kvm-cisco-nx") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2352,7 +2387,7 @@ sub resume_vm {
          ($merged_type eq "libvirt-kvm-android") || ($merged_type eq "libvirt-kvm-wanos")   ||
          ($merged_type eq "libvirt-kvm-netbsd")  || ($merged_type eq "libvirt-kvm-openbsd") ||
          ($merged_type eq "libvirt-kvm-cisco")   || ($merged_type eq "libvirt-kvm-extreme") ||
-         ($merged_type eq "libvirt-qemu-linux") ) {
+         ($merged_type eq "libvirt-qemu-linux")  || ($merged_type eq "libvirt-kvm-cisco-nx") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2454,7 +2489,7 @@ user();
              ($merged_type eq "libvirt-kvm-freebsd") || ($merged_type eq "libvirt-kvm-olive")   ||
              ($merged_type eq "libvirt-kvm-netbsd")  || ($merged_type eq "libvirt-kvm-openbsd") ||
              ($merged_type eq "libvirt-kvm-cisco")   || ($merged_type eq "libvirt-kvm-extreme") ||
-             ($merged_type eq "libvirt-qemu-linux") ) {
+             ($merged_type eq "libvirt-qemu-linux")  || ($merged_type eq "libvirt-kvm-cisco-nx") ) {
 
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
         eval { 
@@ -2529,7 +2564,7 @@ sub restore_vm {
          ($merged_type eq "libvirt-kvm-android") || ($merged_type eq "libvirt-kvm-wanos")   ||
          ($merged_type eq "libvirt-kvm-netbsd")  || ($merged_type eq "libvirt-kvm-openbsd") ||
          ($merged_type eq "libvirt-kvm-cisco")   || ($merged_type eq "libvirt-kvm-extreme") ||
-         ($merged_type eq "libvirt-qemu-linux") ) {
+         ($merged_type eq "libvirt-qemu-linux")  || ($merged_type eq "libvirt-kvm-cisco-nx") ) {
        
 	    
         wlog (V, "Connecting to $hypervisor hypervisor...", $logp);
@@ -3196,7 +3231,8 @@ sub execute_cmd {
 	    }
 
 	} elsif ( ($merged_type eq "libvirt-kvm-android") || ($merged_type eq "libvirt-kvm-wanos")   ||
-	          ($merged_type eq "libvirt-kvm-cisco")   || ($merged_type eq "libvirt-kvm-extreme") ) {
+	          ($merged_type eq "libvirt-kvm-cisco")   || ($merged_type eq "libvirt-kvm-extreme") || 
+	          ($merged_type eq "libvirt-kvm-cisco-nx") ) {
 		$error = "Command execution not supported for $merged_type"
 	}
 	

@@ -1,4 +1,12 @@
 
+26/06/2020
+- Implemented the creation of SSH config files to facilitate connecting to VMs through management interfaces. That files are only
+  created when management interfaces are activated (net or private) and a <ssh_key> tag is included.  
+- Corrected a the behavior of <ssh_key> tag when a "~/" reference to home directory is used. Now "~/" points to the home directory
+  of the user that made sudo to execute VNX. 
+- Adapted to work in Ubuntu 20.04. Updated vmAPI_lxc to check LXC version 4.X; modified vnx_mount_rootfs due to small change in file 
+  command message; and modified vmAPI_libvirt to include -F option in "qemu-image create".   
+
 16/3/2020
 - Modified vnx_autoconfigure to avoid the access from vnxaced to the full XML (an access to $dh prevented it to work).
 - vmAPI_lxc: created a link in /var/run/netns to make the containers network namespaces visible to be used by "ip netns" command.

@@ -679,6 +679,8 @@ sub get_default_forwarding_ipv6 {
 # - the value of <filesystem> tag if present on <vm> definition, or 
 # - the default value for VMs of that type defined in the <vm_defaults> tag, or
 # - the default value for VMs of that type defined in Globals.pm 
+# - the value of loader attribute 
+# - the value of bus attribute 
 #
 sub get_vm_filesystem {
 
@@ -698,15 +700,22 @@ sub get_vm_filesystem {
     my @filesystem_list = $vm->getElementsByTagName("filesystem");
     my $filesystem;
     my $filesystem_type;
+    my $loader;
+    my $bus;
     
     if (@filesystem_list == 1) {
         $filesystem = get_abs_path(text_tag($vm->getElementsByTagName("filesystem")->item(0)));
         $filesystem =~ s/\R//g;  # Just in case it has a break line at the end
         $filesystem_type = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("type");
+	    $loader = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("loader");  $loader='' if (!defined($loader));
+	    $bus    = $vm->getElementsByTagName("filesystem")->item(0)->getAttribute("bus");     $bus='' if (!defined($bus));
     } else {
         ($filesystem, $filesystem_type) = $dh->get_vm_default_filesystem ($type, $subtype, $os);
+        $loader = '';        
+        $bus = '';        
     }
-    return ($filesystem, $filesystem_type);
+
+    return ($filesystem, $filesystem_type, $loader, $bus);
 
 }
 

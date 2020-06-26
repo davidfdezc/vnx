@@ -1126,6 +1126,10 @@ sub mode_define {
     # Build the whole bridge based network topology only if -M or ref_vms not specified
     unless ( defined($ref_vms) || $opts{M}) {
         build_topology();
+        
+        # Create SSH config file
+        create_ssh_config_file()    
+        
     } else {
     	# We are defining a set of VMs, we create their tun devices if needed
     	create_tun_devices_for_virtual_bridged_networks(\@vm_ordered);
@@ -1133,11 +1137,107 @@ sub mode_define {
 
     xauth_add(); # TODO: is this necessary now??
 
-    define_vms(\@vm_ordered);    
+    define_vms(\@vm_ordered);        
 
 }
 
-sub build_topology{
+#
+# create_ssh_config_file
+#
+# If the VM management interfaces are active (<vm_mgmt type=private or net>)> and an <ssh_key> tag is included in 
+# the scenario, an ssh config file is created under ~/.ssh/config.d/vnx directory including some configuration parameters
+# to facilitate the SSH connection from the host to the VMs.   
+#
+sub create_ssh_config_file {
+
+	my $logp = "create_ssh_config_file> ";
+	my $doc = $dh->get_doc;
+	
+	# Check if management interfaces are active
+    if ( $dh->get_vmmgmt_type eq 'private' || $dh->get_vmmgmt_type eq 'net' ) {
+
+    	wlog (VVV, "Mgmt interfaces of type " . $dh->get_vmmgmt_type . " activated.", $logp);
+
+		# Check if an <ssh_key> tag is included
+		if( $doc->exists("/vnx/global/ssh_key") ){
+    		wlog (VVV, "<ssh_key> included", $logp);
+	
+			# We always create configuration files in /root/.ssh
+			# If vnx is run with sudo (as recommended), we also modified the ssh config of sudoed user  
+			my $sudo_user = str($ENV{"SUDO_USER"});
+			if ( $sudo_user ne '' ) {
+				modify_ssh_config( $sudo_user );
+			}
+			modify_ssh_config( 'root' );			
+		}
+    }
+}
+
+sub modify_ssh_config {
+	
+	my $ssh_user = shift;
+		
+	my $logp = "modify_ssh_config> ";
+	my $doc = $dh->get_doc;
+	my $scen_name = $dh->get_scename;
+
+    wlog (VVV, "Creating VNX SSH config file for user $ssh_user", $logp);
+
+	my $ssh_dir;
+	if ( $ssh_user eq 'root') {
+		$ssh_dir = "/root/.ssh";
+	} else {
+		$ssh_dir = "/home/$ssh_user/.ssh";
+	}
+	
+	#my $ssh_dir = $ENV{"HOME"} . "/.ssh";
+	my $ssh_conf_file = "$ssh_dir/config";
+	my $ssh_vnx_conf_dir = "$ssh_dir/config.d/vnx";
+	my $ssh_vnx_conf_file = "$ssh_dir/config.d/vnx/$scen_name";
+			
+	if (! -e $ssh_conf_file) {
+    	wlog (VVV, "ssh config file ($ssh_conf_file) NOT found", $logp);
+	    $execution->execute($logp, "echo 'Include config.d/vnx/*' > ~/.ssh/config");       
+
+	} else {
+    	wlog (VVV, "ssh config file ($ssh_conf_file) found", $logp);
+		# Check if config file includes the "Include config.d/vnx/*" line
+		my $line=`cat $ssh_conf_file | egrep "Include\\s+config.d/vnx/*"`; 
+    	wlog (VVV, "line='$line'", $logp);
+		if ( $line eq '' ) {
+			# Add the line
+		    $execution->execute($logp, "echo 'Include config.d/vnx/*' >> $ssh_conf_file");       
+		} 
+	}
+	$execution->execute($logp, "mkdir -p $ssh_vnx_conf_dir");
+	$execution->execute($logp, "rm $ssh_vnx_conf_file");			
+
+	foreach my $vm ($doc->getElementsByTagName("vm")) {
+		my $vm_name = $vm->getAttribute('name');
+	    $execution->execute($logp, "echo 'Host $vm_name'         >> $ssh_vnx_conf_file");       
+	    $execution->execute($logp, "echo '    Hostname $vm_name' >> $ssh_vnx_conf_file");       
+	    $execution->execute($logp, "echo '    User root'         >> $ssh_vnx_conf_file");       
+		# Get <ssh_key> values
+		my @ssh_key_list = $doc->findnodes('/vnx/global/ssh_key');
+		foreach my $ssh_key (@ssh_key_list) {
+			my $ssh_key_file = text_tag( $ssh_key );
+			# Expand '~/' to home directory
+			if ( $ssh_user eq 'root') {
+				$ssh_key_file =~ s#~/#/root/#; 
+			} else {
+				$ssh_key_file =~ s#~/#/home/$ssh_user/#; 
+			}
+			$ssh_key_file =~ s#.pub$##;           # Delete .pub extension
+			$execution->execute($logp, "echo '    IdentityFile " . abs_path($ssh_key_file) . "' >> $ssh_vnx_conf_file");       
+		}
+		$execution->execute($logp, "echo '    StrictHostKeyChecking no'       >> $ssh_vnx_conf_file");       
+		$execution->execute($logp, "echo '    UserKnownHostsFile /dev/null'   >> $ssh_vnx_conf_file");       
+		$execution->execute($logp, "echo ''                                   >> $ssh_vnx_conf_file");       
+	}
+}
+
+
+sub build_topology {
 
     my $basename = basename $0;
    
@@ -1446,7 +1546,7 @@ sub make_vmAPI_doc {
     
     
     # To get filesystem and type
-    my ($filesystem, $filesystem_type) = $dh->get_vm_filesystem($vm);
+    my ($filesystem, $filesystem_type, $loader, $bus) = $dh->get_vm_filesystem($vm);
     wlog (VVV, "filesystem ($filesystem, $filesystem_type) defined for VM $vm_name", $logp);
     # filesystem tag in dom tree        
     my $fs_tag = $dom->createElement('filesystem');
@@ -1454,6 +1554,14 @@ sub make_vmAPI_doc {
     # to dom tree
     $fs_tag->addChild($dom->createAttribute( type => $filesystem_type));
     $fs_tag->addChild($dom->createTextNode($filesystem));
+    # loader attribute
+	if ($loader ne '') { 
+	    $fs_tag->addChild($dom->createAttribute( loader => $loader));
+	}
+    # bus attribute
+	if ($bus ne '') { 
+	    $fs_tag->addChild($dom->createAttribute( bus => $bus));
+	}
 
     # <storage> tags
     foreach my $storage ($vm->getElementsByTagName("storage")) {
@@ -1994,7 +2102,16 @@ sub make_vmAPI_doc {
         # Copy ssh key files content to $ssh_key_dir/ssh_keys file
         foreach my $ssh_key (@ssh_key_list) {
             wlog (V, "<ssh_key> file: $ssh_key");
-            my $key_file = abs_path(do_path_expansion( text_tag( $ssh_key ) ));
+        	my $key_file = text_tag( $ssh_key );
+			# We interpret the '~/' as the home directory as the sudoed user
+			my $sudo_user = str($ENV{"SUDO_USER"});
+			if ( $sudo_user ne '') {
+			    $key_file =~ s#~/#/home/$sudo_user/#;
+			} else {
+			    $key_file =~ s#~/#/root/#;
+			}
+            $key_file = abs_path($key_file);
+            #my $key_file = abs_path(do_path_expansion( text_tag( $ssh_key ) ));
             wlog (V, "<ssh_key> file: $key_file");
             $execution->execute( $logp, $bd->get_binaries_path_ref->{"cat"}
                                  . " $key_file >>" . $ssh_key_dir . "/ssh_keys" );
@@ -2175,8 +2292,45 @@ sub mode_undefine{
         }     
 
         destroy_topology();
+        
+        # Delete SSH config file if <ssh_key> tag is used
+        delete_ssh_config_file();
+        
     }
     
+}
+
+#
+# delete_ssh_config_file
+#
+# Deletes the ssh config file is created under ~/.ssh/config.d/vnx if created (when VM management interfaces are 
+# active and <ssh_key> tag is included.   
+#
+sub delete_ssh_config_file {
+
+	my $logp = "delete_ssh_config_file> ";
+	my $doc = $dh->get_doc;
+	my $scen_name = $dh->get_scename;
+	
+	# Check if management interfaces are active
+    if ( $dh->get_vmmgmt_type eq 'private' || $dh->get_vmmgmt_type eq 'net' ) {
+
+    	wlog (VVV, "Mgmt interfaces of type " . $dh->get_vmmgmt_type . " activated.", $logp);
+
+		# Check if an <ssh_key> tag is included
+		if( $doc->exists("/vnx/global/ssh_key") ){
+    		wlog (VVV, "<ssh_key> included", $logp);
+
+			# We always create configuration files in /root/.ssh
+			# If vnx is run with sudo (as recommended), we also modified the ssh config of sudoed user  
+			my $sudo_user = str($ENV{"SUDO_USER"});
+			if ( $sudo_user ne '' ) {
+				my $ssh_vnx_conf_file = "/home/$sudo_user/.ssh/config.d/vnx/$scen_name";
+				$execution->execute($logp, "rm -f $ssh_vnx_conf_file");
+			}
+			$execution->execute($logp, "rm -f /root/.ssh/config.d/vnx/$scen_name");
+		}						
+   }
 }
 
 #
@@ -2876,7 +3030,6 @@ sub set_link_qos {
             if ($qos) {
             	wlog (V, "qos parameters specified in <$qos> tag for interface $if_id of vm $vm_name: bw='$bw', delay='$delay', loss='$loss'")
             }
-pak();            
             
             my $net = $dh->get_net_by_mode($if->getAttribute("net"), "*");
             if( $net != 0 and $net->getAttribute("mtu") ){
@@ -5352,7 +5505,7 @@ sub create_bridges_for_virtual_bridged_networks  {
             # Enable the interface if not active
             my $base_if_name = $external_if;
             $base_if_name =~ s{\.[^.]+$}{}; # Delete VLAN part (e.g. '.1000') if any
-            print "base_if_name=$base_if_name\n";
+            #print "base_if_name=$base_if_name\n";
             unless (`ip link show $base_if_name | grep UP`) {
                 $execution->execute_root($logp, $bd->get_binaries_path_ref->{"ip"} . " link set $base_if_name up");
             }

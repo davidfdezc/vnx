@@ -400,7 +400,7 @@ back_to_user();
 
 		my $lxc_format;
 
-        if ( $lxc_vers =~ /^2\.1/ or $lxc_vers =~ /^3\./) {
+        if ( $lxc_vers =~ /^2\.1/ or $lxc_vers =~ /^3\./ or $lxc_vers =~ /^4\./ ) {
         	$lxc_format = 'new';
 			if ( $lxc_configfile_vers eq 'old' ) {
         		wlog (V, "LXC config file in old format. Converting to new format.", $logp);
@@ -413,7 +413,7 @@ back_to_user();
 		        my $res = $execution->execute( $logp, "vnx_convert_lxc_config -q -o $vm_lxc_config" );
 			}
         }
-        if ( $lxc_vers =~ /^3\./) {
+        if ( $lxc_vers =~ /^3\./ or $lxc_vers =~ /^4\./ ) {
 			system ("sed -i -e 's/ubuntu.common.conf/common.conf/' $vm_lxc_config");        
         }
         wlog (V, "LXC version: $lxc_vers ($lxc_format format)", $logp);
